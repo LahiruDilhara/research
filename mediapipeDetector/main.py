@@ -173,7 +173,22 @@ def run(video_path=None, camera_index=0):
     if not cap.isOpened():
         raise RuntimeError(f"Could not open {'camera ' + str(camera_index) if is_live else video_path}")
 
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    if fps <= 0:
+        fps = 30.0  # Default fallback if camera spec isn't explicitly reported
+
+    print(f"Camera FPS: {fps:.2f}")
+
+    if fps < 30.0:
+        print(f"Error: Camera FPS ({fps:.2f}) is less than 30 FPS.")
+        cap.release()
+        landmarker.close()
+        return
+
+    if fps > 30.0:
+        cap.set(cv2.CAP_PROP_FPS, 30.0)
+        fps = 30.0
+
     ms_per_frame = 1000.0 / fps
 
     paused = not is_live  # start paused on a video file so you can step through it deliberately
@@ -196,6 +211,8 @@ def run(video_path=None, camera_index=0):
     frame = read_and_process(frame_index)
 
     while frame is not None:
+        loop_start = time.time()
+
         cv2.imshow(window_name, frame)
         key = cv2.waitKey(1 if not paused else 30) & 0xFF
 
@@ -205,12 +222,6 @@ def run(video_path=None, camera_index=0):
         elif key == ord(' '):
             paused = not paused
 
-        elif key in (ord('d'), 83):  # 'd' or right-arrow
-            frame_index += 1
-            frame = read_and_process(frame_index)
-            paused = True
-            continue
-
         elif key in (ord('a'), 81) and not is_live:  # 'a' or left-arrow, video only
             frame_index = max(0, frame_index - 1)
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
@@ -218,7 +229,19 @@ def run(video_path=None, camera_index=0):
             paused = True
             continue
 
+        elif key in (ord('d'), 83):  # 'd' or right-arrow
+            frame_index += 1
+            frame = read_and_process(frame_index)
+            paused = True
+            continue
+
         if not paused:
+            # Enforce 30 FPS timing
+            elapsed = time.time() - loop_start
+            wait_time = (1.0 / 30.0) - elapsed
+            if wait_time > 0:
+                time.sleep(wait_time)
+
             frame_index += 1
             frame = read_and_process(frame_index)
 
