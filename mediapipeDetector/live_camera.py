@@ -11,6 +11,7 @@ Functions breakdown:
 """
 
 import argparse
+import math
 import os
 import sys
 import time
@@ -49,11 +50,13 @@ FINGER_THREE_LANDMARKS = {
 }
 WRIST_INDEX = 0
 
-# 1€ Filter Smoothing Constants (adjust to tune smoothing intensity)
-# - FILTER_MIN_CUTOFF: Lower value = MORE smoothing / less jitter when still (e.g. 0.05 - 1.0)
-# - FILTER_BETA: Lower value = MORE overall smoothing during motion (e.g. 0.0 - 2.0)
-FILTER_MIN_CUTOFF = 0.01
+# 1€ Filter & Deadband Hysteresis Constants
+# - FILTER_MIN_CUTOFF: Lower value = MORE smoothing when still (e.g. 0.001 - 0.5)
+# - FILTER_BETA: Speed coefficient (e.g. 0.001 - 0.05)
+# - DEADBAND_THRESHOLD_PIXELS: Movements smaller than this (in pixels) are zeroed out to eliminate 100% of stationary flickering
+FILTER_MIN_CUTOFF = 0.001
 FILTER_BETA = 0.04
+DEADBAND_THRESHOLD_PIXELS = 5
 
 FINGER_COLORS = {
     "Thumb":  (255, 140, 0),
@@ -249,13 +252,19 @@ def filter_landmarks(hands_data, hand_filters_tracker, t_seconds):
 
 
 # =============================================================
-# STEP 2.5: CALCULATE VELOCITIES
+# STEP 2.5: CALCULATE VELOCITIES (HAND-SCALE NORMALIZED)
 # =============================================================
 
-def calculate_velocities(hands_data, prev_hands_tracker):
+def calculate_velocities(hands_data, prev_hands_tracker, t_seconds):
     """
-    Calculates velocity (dx, dy) for wrist and 3 joint coordinates per finger using ONLY filtered data.
-    Tracks previous frame state in prev_hands_tracker.
+    Calculates hand-scale normalized velocity (vx, vy in hand_lengths / sec) for wrist and 3 joint
+    coordinates per finger using ONLY 1€-filtered data.
+    
+    Hand scale (L_hand) is computed by combining:
+      - Palm length: distance between Wrist (0) and Middle MCP (9)
+      - Palm width: distance between Index MCP (5) and Pinky MCP (17)
+      L_hand = sqrt(palm_length^2 + palm_width^2)
+
     Returns list of velocity dictionaries:
     [
         {
@@ -278,6 +287,21 @@ def calculate_velocities(hands_data, prev_hands_tracker):
 
         curr_wrist = hand_info["wrist"]
         curr_fingers = hand_info["fingers"]
+        all_pts = hand_info["all_pts"]
+
+        # Calculate combined hand scale L_hand = sqrt(palm_length^2 + palm_width^2)
+        # Landmark 0: Wrist, 9: Middle MCP, 5: Index MCP, 17: Pinky MCP
+        w_x, w_y = all_pts[WRIST_INDEX]
+        m_x, m_y = all_pts[9]
+        i_x, i_y = all_pts[5]
+        p_x, p_y = all_pts[17]
+
+        palm_length = math.hypot(m_x - w_x, m_y - w_y)
+        palm_width = math.hypot(p_x - i_x, p_y - i_y)
+        l_hand = math.hypot(palm_length, palm_width)
+
+        if l_hand <= 0:
+            l_hand = 1.0  # Fallback guard against division by zero
 
         wrist_vel = None
         finger_vels = {}
@@ -286,28 +310,61 @@ def calculate_velocities(hands_data, prev_hands_tracker):
             prev_hand = prev_hands_tracker[hand_label]
             prev_wrist = prev_hand.get("wrist")
             prev_fingers = prev_hand.get("fingers", {})
+            prev_t = prev_hand.get("timestamp", t_seconds)
 
-            # Wrist velocity from filtered coordinates
+            dt = t_seconds - prev_t
+            if dt <= 0:
+                dt = 1.0 / 30.0
+
+            scale_dt = l_hand * dt
+
+            # Wrist normalized velocity (hand_lengths / sec) with deadband gate
             if prev_wrist is not None:
-                wrist_vel = (round(curr_wrist[0] - prev_wrist[0], 2), round(curr_wrist[1] - prev_wrist[1], 2))
+                dx = curr_wrist[0] - prev_wrist[0]
+                dy = curr_wrist[1] - prev_wrist[1]
+                if math.hypot(dx, dy) < DEADBAND_THRESHOLD_PIXELS:
+                    wrist_vel = (0.0, 0.0)
+                    curr_wrist = prev_wrist
+                else:
+                    vx = round(dx / scale_dt, 4)
+                    vy = round(dy / scale_dt, 4)
+                    wrist_vel = (vx, vy)
 
-            # Finger velocities (3 coordinates per finger) from filtered coordinates
+            # Finger normalized velocities (3 coordinates per finger) with deadband gate
+            updated_curr_fingers = {}
             for finger_name, curr_coords in curr_fingers.items():
                 if finger_name in prev_fingers and prev_fingers[finger_name] is not None:
                     prev_coords = prev_fingers[finger_name]
-                    f_vels = [(round(c[0] - p[0], 2), round(c[1] - p[1], 2)) for c, p in zip(curr_coords, prev_coords)]
+                    f_vels = []
+                    f_coords_gated = []
+                    for c, p in zip(curr_coords, prev_coords):
+                        fdx = c[0] - p[0]
+                        fdy = c[1] - p[1]
+                        if math.hypot(fdx, fdy) < DEADBAND_THRESHOLD_PIXELS:
+                            f_vels.append((0.0, 0.0))
+                            f_coords_gated.append(p)
+                        else:
+                            f_vx = round(fdx / scale_dt, 4)
+                            f_vy = round(fdy / scale_dt, 4)
+                            f_vels.append((f_vx, f_vy))
+                            f_coords_gated.append(c)
                     finger_vels[finger_name] = f_vels
+                    updated_curr_fingers[finger_name] = f_coords_gated
                 else:
                     finger_vels[finger_name] = [None, None, None]
+                    updated_curr_fingers[finger_name] = curr_coords
+
+            curr_fingers = updated_curr_fingers
         else:
             # First frame for this hand: velocities are None
             wrist_vel = None
             finger_vels = {f: [None, None, None] for f in curr_fingers.keys()}
 
-        # Update previous tracker state with filtered coordinates
+        # Update previous tracker state with filtered/gated coordinates and timestamp
         prev_hands_tracker[hand_label] = {
             "wrist": curr_wrist,
-            "fingers": curr_fingers
+            "fingers": curr_fingers,
+            "timestamp": t_seconds
         }
 
         hand_vel_info = {
@@ -329,15 +386,18 @@ def calculate_velocities(hands_data, prev_hands_tracker):
 # STEP 3: RENDER FRAME & REPORT
 # =============================================================
 
-def render_frame(frame, hands_data, frame_index):
+def render_frame(frame, hands_data, hands_velocity_data, frame_index):
     """
-    Renders hand skeletons, wrist, and finger landmarks onto the frame, prints details to console,
-    and returns the annotated frame.
+    Renders hand skeletons and displays velocities for the 16 tracked locations
+    (1 Wrist + 15 Finger Joints [3 per finger]) onto the frame.
     """
     if not hands_data:
         cv2.putText(frame, "No hand detected", (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
         return frame
+
+    # Map velocities by hand label
+    vel_map = {v["hand"]: v for v in hands_velocity_data}
 
     for hand_idx, hand_info in enumerate(hands_data):
         handedness = hand_info["hand"]
@@ -345,42 +405,46 @@ def render_frame(frame, hands_data, frame_index):
         pts = hand_info["all_pts"]
         fingers = hand_info["fingers"]
 
+        hand_vels = vel_map.get(handedness, {})
+        wrist_vel = hand_vels.get("wrist_velocity")
+        finger_vels = hand_vels.get("finger_velocities", {})
+
         # Draw skeleton
         for a, b in HAND_CONNECTIONS:
             pt_a = (int(round(pts[a][0])), int(round(pts[a][1])))
             pt_b = (int(round(pts[b][0])), int(round(pts[b][1])))
             cv2.line(frame, pt_a, pt_b, (200, 200, 200), 1)
 
-        # Draw all landmark points
-        for p in pts:
-            pt_int = (int(round(p[0])), int(round(p[1])))
-            cv2.circle(frame, pt_int, 2, (150, 150, 150), -1)
-
-        # Highlight Wrist
+        # Highlight Wrist (Location 1)
         wx, wy = int(round(wrist_coord[0])), int(round(wrist_coord[1]))
         cv2.circle(frame, (wx, wy), 6, (0, 255, 255), -1)
-        cv2.putText(frame, "Wrist", (wx + 8, wy - 8),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1)
 
-        report_line = f"[frame {frame_index}] hand {hand_idx} ({handedness}): Wrist=({wx},{wy})"
+        wrist_str = f"Wrist v=({wrist_vel[0]:.2f},{wrist_vel[1]:.2f})" if wrist_vel else "Wrist v=N/A"
+        cv2.putText(frame, wrist_str, (wx + 8, wy - 8),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 255), 1)
 
-        # Draw finger points & labels (fingertip is last coordinate in finger list)
+        # Highlight 3 Joint Locations per Finger (Locations 2 - 16)
         for finger_name, coords in fingers.items():
             color = FINGER_COLORS[finger_name]
-            
-            # Highlight all 3 finger joints
+            f_v_list = finger_vels.get(finger_name, [None, None, None])
+
             for idx, pt in enumerate(coords):
-                radius = 7 if idx == 2 else 4  # Larger circle for fingertip
+                radius = 6 if idx == 2 else 4  # Fingertip slightly larger
                 pt_int = (int(round(pt[0])), int(round(pt[1])))
                 cv2.circle(frame, pt_int, radius, color, -1)
 
-            # Fingertip (last coordinate)
-            tip_x, tip_y = int(round(coords[-1][0])), int(round(coords[-1][1]))
-            cv2.putText(frame, finger_name, (tip_x + 8, tip_y - 8),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1)
-            report_line += f"  {finger_name}_tip=({tip_x},{tip_y})"
+                # Show normalized velocity text for each joint location
+                joint_vel = f_v_list[idx] if idx < len(f_v_list) else None
+                if joint_vel:
+                    v_txt = f"({joint_vel[0]:.2f},{joint_vel[1]:.2f})"
+                else:
+                    v_txt = "N/A"
 
-        # print(report_line)
+                if idx == 2:
+                    v_txt = f"{finger_name} v={v_txt}"
+
+                cv2.putText(frame, v_txt, (pt_int[0] + 6, pt_int[1] - 6),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.35, color, 1)
 
     return frame
 
@@ -431,15 +495,14 @@ def run_live_camera(camera_index=0):
         # 2.3 Filter Landmarks with 1€ Filter (reduces noise)
         hands_data = filter_landmarks(raw_hands_data, hand_filters_tracker, t_seconds)
 
-        # 2.5 Calculate Velocities from Filtered Coordinates
-        hands_velocity_data = calculate_velocities(hands_data, prev_hands_tracker)
+        # 2.5 Calculate Velocities from Filtered Coordinates (Hand-Scale Normalized)
+        hands_velocity_data = calculate_velocities(hands_data, prev_hands_tracker, t_seconds)
 
-        # Print coordinates then velocities on a new line
-        print(hands_data)
+        # Print only the 16-location velocity data per frame to terminal
         print(hands_velocity_data)
 
-        # 3. Render Frame & Report
-        annotated_frame = render_frame(frame, hands_data, frame_index)
+        # 3. Render Frame & Report Velocities on Screen
+        annotated_frame = render_frame(frame, hands_data, hands_velocity_data, frame_index)
 
         cv2.imshow(window_name, annotated_frame)
         frame_index += 1
