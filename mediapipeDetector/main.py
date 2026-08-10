@@ -196,12 +196,21 @@ def run(video_path=None, camera_index=0):
     window_name = "MediaPipe Finger Viewer  (SPACE=play/pause, d/→=step, a/←=back, q=quit)"
 
     start_time = time.time()
+    last_timestamp_ms = -1
 
     def read_and_process(idx):
+        nonlocal landmarker, last_timestamp_ms
         ret, frame = cap.read()
         if not ret:
             return None
         timestamp_ms = int(idx * ms_per_frame) if not is_live else int((time.time() - start_time) * 1000)
+
+        if timestamp_ms <= last_timestamp_ms:
+            landmarker.close()
+            landmarker = create_landmarker(model_path)
+
+        last_timestamp_ms = timestamp_ms
+
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB,
                              data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         result = landmarker.detect_for_video(mp_image, timestamp_ms)
