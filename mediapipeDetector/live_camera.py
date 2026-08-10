@@ -1,8 +1,13 @@
 """
 live_camera.py
 
-MediaPipe hand-landmark detection script running solely on live camera feed.
-Includes camera FPS validation (requires >= 30 FPS, caps to 30 FPS if > 30 FPS).
+MediaPipe hand-landmark detection modularized pipeline running solely on live camera feed.
+Includes FPS validation (>= 30 FPS, capped/paced at 30 FPS).
+
+Functions breakdown:
+1. capture_frame(cap): Captures a frame from VideoCapture.
+2. analyze_landmarks(frame, landmarker, timestamp_ms): Analyzes hand landmarks and extracts hands + 3 joint coordinates per finger (with fingertip last).
+3. render_frame(frame, hands_data): Renders hand skeletons, joint dots, and labels.
 """
 
 import argparse
@@ -20,22 +25,26 @@ from mediapipe.tasks.python.vision import (
 )
 
 # =============================================================
-# CONSTANTS
+# CONSTANTS & LANDMARK MAPS
 # =============================================================
 
 MODEL_PATH = "hand_landmarker.task"
 MODEL_URL = ("https://storage.googleapis.com/mediapipe-models/"
              "hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task")
 
-FINGER_LANDMARK_GROUPS = {
-    "Thumb":  [1, 2, 3, 4],
-    "Index":  [5, 6, 7, 8],
-    "Middle": [9, 10, 11, 12],
-    "Ring":   [13, 14, 15, 16],
-    "Pinky":  [17, 18, 19, 20],
+# Each finger mapped to 3 landmark indices leading to the fingertip (fingertip is last index)
+# Thumb: [2 (MCP), 3 (IP), 4 (TIP)]
+# Index: [6 (PIP), 7 (DIP), 8 (TIP)]
+# Middle: [10 (PIP), 11 (DIP), 12 (TIP)]
+# Ring: [14 (PIP), 15 (DIP), 16 (TIP)]
+# Pinky: [18 (PIP), 19 (DIP), 20 (TIP)]
+FINGER_THREE_LANDMARKS = {
+    "Thumb":  [2, 3, 4],
+    "Index":  [6, 7, 8],
+    "Middle": [10, 11, 12],
+    "Ring":   [14, 15, 16],
+    "Pinky":  [18, 19, 20],
 }
-FINGERTIP_INDEX = {"Thumb": 4, "Index": 8, "Middle": 12, "Ring": 16, "Pinky": 20}
-WRIST_INDEX = 0
 
 FINGER_COLORS = {
     "Thumb":  (255, 140, 0),
@@ -56,7 +65,7 @@ HAND_CONNECTIONS = [
 
 
 # =============================================================
-# MODEL SETUP
+# MODEL SETUP & FPS VALIDATION
 # =============================================================
 
 def ensure_model_downloaded(path=MODEL_PATH, url=MODEL_URL):
@@ -90,18 +99,65 @@ def create_landmarker(model_path, num_hands=2):
     return HandLandmarker.create_from_options(options)
 
 
+def validate_camera_fps(cap):
+    """Check camera FPS specification. Must be >= 30, capped at 30 if > 30."""
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    if fps <= 0:
+        fps = 30.0  # Fallback if spec isn't reported directly
+
+    print(f"Camera FPS: {fps:.2f}")
+
+    if fps < 30.0:
+        print(f"Error: Camera FPS ({fps:.2f}) is less than 30 FPS.")
+        return False
+
+    if fps > 30.0:
+        cap.set(cv2.CAP_PROP_FPS, 30.0)
+
+    return True
+
+
 # =============================================================
-# DRAWING & REPORTING
+# STEP 1: CAPTURE FRAME
 # =============================================================
 
-def draw_and_report(frame, result, frame_index):
-    """Draw skeleton + labeled fingertips onto the frame and print coordinates."""
+def capture_frame(cap):
+    """Captures and returns a single frame from the camera."""
+    ret, frame = cap.read()
+    if not ret:
+        return None
+    return frame
+
+
+# =============================================================
+# STEP 2: ANALYZE LANDMARKS
+# =============================================================
+
+def analyze_landmarks(frame, landmarker, timestamp_ms):
+    """
+    Analyzes the frame and returns a list of hand dictionary objects:
+    [
+        {
+            "hand": "Left" or "Right",
+            "all_pts": [(x0, y0), (x1, y1), ...],
+            "fingers": {
+                "Thumb": [(x_mcp, y_mcp), (x_ip, y_ip), (x_tip, y_tip)],
+                "Index": [(x_pip, y_pip), (x_dip, y_dip), (x_tip, y_tip)],
+                ...
+            }
+        },
+        ...
+    ]
+    """
     h, w = frame.shape[:2]
+    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB,
+                         data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    result = landmarker.detect_for_video(mp_image, timestamp_ms)
+
+    hands_data = []
 
     if not result.hand_landmarks:
-        cv2.putText(frame, "No hand detected", (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-        return frame
+        return hands_data
 
     for hand_idx, landmarks in enumerate(result.hand_landmarks):
         handedness = "Unknown"
@@ -110,31 +166,73 @@ def draw_and_report(frame, result, frame_index):
 
         pts = [(int(lm.x * w), int(lm.y * h)) for lm in landmarks]
 
-        # Skeleton
+        fingers_dict = {}
+        for finger_name, indices in FINGER_THREE_LANDMARKS.items():
+            # List of exact 3 (x, y) coordinates with fingertip last
+            finger_coords = [pts[idx] for idx in indices]
+            fingers_dict[finger_name] = finger_coords
+
+        hand_info = {
+            "hand": handedness,
+            "all_pts": pts,
+            "fingers": fingers_dict
+        }
+        hands_data.append(hand_info)
+
+    return hands_data
+
+
+# =============================================================
+# STEP 3: RENDER FRAME & REPORT
+# =============================================================
+
+def render_frame(frame, hands_data, frame_index):
+    """
+    Renders hand skeletons and finger landmarks onto the frame, prints details to console,
+    and returns the annotated frame.
+    """
+    if not hands_data:
+        cv2.putText(frame, "No hand detected", (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        return frame
+
+    for hand_idx, hand_info in enumerate(hands_data):
+        handedness = hand_info["hand"]
+        pts = hand_info["all_pts"]
+        fingers = hand_info["fingers"]
+
+        # Draw skeleton
         for a, b in HAND_CONNECTIONS:
             cv2.line(frame, pts[a], pts[b], (200, 200, 200), 1)
 
-        # All landmarks
+        # Draw all landmark points
         for p in pts:
             cv2.circle(frame, p, 2, (150, 150, 150), -1)
 
-        # Fingertips
         report_line = f"[frame {frame_index}] hand {hand_idx} ({handedness}):"
-        for finger_name, tip_idx in FINGERTIP_INDEX.items():
-            x, y = pts[tip_idx]
-            color = FINGER_COLORS[finger_name]
-            cv2.circle(frame, (x, y), 7, color, -1)
-            cv2.putText(frame, finger_name, (x + 8, y - 8),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1)
-            report_line += f"  {finger_name}=({x},{y})"
 
-        print(report_line)
+        # Draw finger points & labels (fingertip is last coordinate in finger list)
+        for finger_name, coords in fingers.items():
+            color = FINGER_COLORS[finger_name]
+            
+            # Highlight all 3 finger joints
+            for idx, pt in enumerate(coords):
+                radius = 7 if idx == 2 else 4  # Larger circle for fingertip
+                cv2.circle(frame, pt, radius, color, -1)
+
+            # Fingertip (last coordinate)
+            tip_x, tip_y = coords[-1]
+            cv2.putText(frame, finger_name, (tip_x + 8, tip_y - 8),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1)
+            report_line += f"  {finger_name}_tip=({tip_x},{tip_y})"
+
+        # print(report_line)
 
     return frame
 
 
 # =============================================================
-# MAIN LIVE CAMERA LOOP
+# MAIN LIVE PIPELINE
 # =============================================================
 
 def run_live_camera(camera_index=0):
@@ -147,22 +245,10 @@ def run_live_camera(camera_index=0):
         print(f"Error: Could not open camera {camera_index}.")
         sys.exit(1)
 
-    # Read and validate FPS spec
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    if fps <= 0:
-        fps = 30.0  # Fallback if camera spec isn't reported directly
-
-    print(f"Camera FPS: {fps:.2f}")
-
-    if fps < 30.0:
-        print(f"Error: Camera FPS ({fps:.2f}) is less than 30 FPS.")
+    if not validate_camera_fps(cap):
         cap.release()
         landmarker.close()
         sys.exit(1)
-
-    if fps > 30.0:
-        cap.set(cv2.CAP_PROP_FPS, 30.0)
-        fps = 30.0
 
     target_frame_duration = 1.0 / 30.0
     frame_index = 0
@@ -173,19 +259,23 @@ def run_live_camera(camera_index=0):
 
     while True:
         loop_start = time.time()
-        ret, frame = cap.read()
-        if not ret:
+
+        # 1. Capture Frame
+        frame = capture_frame(cap)
+        if frame is None:
             print("Failed to grab frame from camera.")
             break
 
         timestamp_ms = int((time.time() - start_time) * 1000)
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB,
-                             data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-        result = landmarker.detect_for_video(mp_image, timestamp_ms)
 
-        annotated_frame = draw_and_report(frame, result, frame_index)
+        # 2. Analyze Landmarks
+        hands_data = analyze_landmarks(frame, landmarker, timestamp_ms)
+        print(hands_data)
+
+        # 3. Render Frame & Report
+        annotated_frame = render_frame(frame, hands_data, frame_index)
+
         cv2.imshow(window_name, annotated_frame)
-
         frame_index += 1
 
         # Enforce 30 FPS timing pacing
