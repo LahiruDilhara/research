@@ -24,6 +24,8 @@ from mediapipe.tasks.python.vision import (
     HandLandmarker, HandLandmarkerOptions, RunningMode,
 )
 
+from one_euro_filter import FingertipFilter
+
 # =============================================================
 # CONSTANTS & LANDMARK MAPS
 # =============================================================
@@ -45,6 +47,13 @@ FINGER_THREE_LANDMARKS = {
     "Ring":   [14, 15, 16],
     "Pinky":  [18, 19, 20],
 }
+WRIST_INDEX = 0
+
+# 1€ Filter Smoothing Constants (adjust to tune smoothing intensity)
+# - FILTER_MIN_CUTOFF: Lower value = MORE smoothing / less jitter when still (e.g. 0.05 - 1.0)
+# - FILTER_BETA: Lower value = MORE overall smoothing during motion (e.g. 0.0 - 2.0)
+FILTER_MIN_CUTOFF = 0.01
+FILTER_BETA = 0.04
 
 FINGER_COLORS = {
     "Thumb":  (255, 140, 0),
@@ -139,6 +148,7 @@ def analyze_landmarks(frame, landmarker, timestamp_ms):
     [
         {
             "hand": "Left" or "Right",
+            "wrist": (x_wrist, y_wrist),
             "all_pts": [(x0, y0), (x1, y1), ...],
             "fingers": {
                 "Thumb": [(x_mcp, y_mcp), (x_ip, y_ip), (x_tip, y_tip)],
@@ -166,6 +176,8 @@ def analyze_landmarks(frame, landmarker, timestamp_ms):
 
         pts = [(int(lm.x * w), int(lm.y * h)) for lm in landmarks]
 
+        wrist_coord = pts[WRIST_INDEX]
+
         fingers_dict = {}
         for finger_name, indices in FINGER_THREE_LANDMARKS.items():
             # List of exact 3 (x, y) coordinates with fingertip last
@@ -174,6 +186,7 @@ def analyze_landmarks(frame, landmarker, timestamp_ms):
 
         hand_info = {
             "hand": handedness,
+            "wrist": wrist_coord,
             "all_pts": pts,
             "fingers": fingers_dict
         }
@@ -183,12 +196,142 @@ def analyze_landmarks(frame, landmarker, timestamp_ms):
 
 
 # =============================================================
+# STEP 2.3: FILTER LANDMARKS (1€ FILTER)
+# =============================================================
+
+def filter_landmarks(hands_data, hand_filters_tracker, t_seconds):
+    """
+    Applies the 1€ Filter (FingertipFilter) to smooth ALL 21 MediaPipe hand landmarks
+    so that skeleton drawing, wrist, and finger joint tracking use denoised coordinates.
+    """
+    filtered_hands_data = []
+    current_hand_labels = set()
+
+    for hand_info in hands_data:
+        hand_label = hand_info["hand"]
+        current_hand_labels.add(hand_label)
+
+        if hand_label not in hand_filters_tracker:
+            hand_filters_tracker[hand_label] = [
+                FingertipFilter(min_cutoff=FILTER_MIN_CUTOFF, beta=FILTER_BETA) for _ in range(21)
+            ]
+
+        filters = hand_filters_tracker[hand_label]
+
+        # Filter all 21 raw landmarks
+        filtered_all_pts = []
+        for idx, (rx, ry) in enumerate(hand_info["all_pts"]):
+            fx, fy = filters[idx].update(t_seconds, rx, ry)
+            filtered_all_pts.append((round(fx, 2), round(fy, 2)))
+
+        # Wrist: index 0
+        filtered_wrist = filtered_all_pts[WRIST_INDEX]
+
+        # Fingers: 3 coordinates per finger leading to tip
+        filtered_fingers = {}
+        for finger_name, indices in FINGER_THREE_LANDMARKS.items():
+            filtered_fingers[finger_name] = [filtered_all_pts[i] for i in indices]
+
+        filtered_hand_info = {
+            "hand": hand_label,
+            "wrist": filtered_wrist,
+            "all_pts": filtered_all_pts,
+            "fingers": filtered_fingers
+        }
+        filtered_hands_data.append(filtered_hand_info)
+
+    # Clean up filters for lost hands
+    stale_labels = set(hand_filters_tracker.keys()) - current_hand_labels
+    for label in stale_labels:
+        del hand_filters_tracker[label]
+
+    return filtered_hands_data
+
+
+# =============================================================
+# STEP 2.5: CALCULATE VELOCITIES
+# =============================================================
+
+def calculate_velocities(hands_data, prev_hands_tracker):
+    """
+    Calculates velocity (dx, dy) for wrist and 3 joint coordinates per finger using ONLY filtered data.
+    Tracks previous frame state in prev_hands_tracker.
+    Returns list of velocity dictionaries:
+    [
+        {
+            "hand": "Left" or "Right",
+            "wrist_velocity": (vx, vy) or None,
+            "finger_velocities": {
+                "Thumb": [(vx0, vy0), (vx1, vy1), (vx2, vy2)],
+                ...
+            }
+        },
+        ...
+    ]
+    """
+    hands_velocity_data = []
+    current_hand_labels = set()
+
+    for hand_info in hands_data:
+        hand_label = hand_info["hand"]
+        current_hand_labels.add(hand_label)
+
+        curr_wrist = hand_info["wrist"]
+        curr_fingers = hand_info["fingers"]
+
+        wrist_vel = None
+        finger_vels = {}
+
+        if hand_label in prev_hands_tracker:
+            prev_hand = prev_hands_tracker[hand_label]
+            prev_wrist = prev_hand.get("wrist")
+            prev_fingers = prev_hand.get("fingers", {})
+
+            # Wrist velocity from filtered coordinates
+            if prev_wrist is not None:
+                wrist_vel = (round(curr_wrist[0] - prev_wrist[0], 2), round(curr_wrist[1] - prev_wrist[1], 2))
+
+            # Finger velocities (3 coordinates per finger) from filtered coordinates
+            for finger_name, curr_coords in curr_fingers.items():
+                if finger_name in prev_fingers and prev_fingers[finger_name] is not None:
+                    prev_coords = prev_fingers[finger_name]
+                    f_vels = [(round(c[0] - p[0], 2), round(c[1] - p[1], 2)) for c, p in zip(curr_coords, prev_coords)]
+                    finger_vels[finger_name] = f_vels
+                else:
+                    finger_vels[finger_name] = [None, None, None]
+        else:
+            # First frame for this hand: velocities are None
+            wrist_vel = None
+            finger_vels = {f: [None, None, None] for f in curr_fingers.keys()}
+
+        # Update previous tracker state with filtered coordinates
+        prev_hands_tracker[hand_label] = {
+            "wrist": curr_wrist,
+            "fingers": curr_fingers
+        }
+
+        hand_vel_info = {
+            "hand": hand_label,
+            "wrist_velocity": wrist_vel,
+            "finger_velocities": finger_vels
+        }
+        hands_velocity_data.append(hand_vel_info)
+
+    # Clean up stale hands from tracker if lost
+    stale_labels = set(prev_hands_tracker.keys()) - current_hand_labels
+    for label in stale_labels:
+        del prev_hands_tracker[label]
+
+    return hands_velocity_data
+
+
+# =============================================================
 # STEP 3: RENDER FRAME & REPORT
 # =============================================================
 
 def render_frame(frame, hands_data, frame_index):
     """
-    Renders hand skeletons and finger landmarks onto the frame, prints details to console,
+    Renders hand skeletons, wrist, and finger landmarks onto the frame, prints details to console,
     and returns the annotated frame.
     """
     if not hands_data:
@@ -198,18 +341,28 @@ def render_frame(frame, hands_data, frame_index):
 
     for hand_idx, hand_info in enumerate(hands_data):
         handedness = hand_info["hand"]
+        wrist_coord = hand_info["wrist"]
         pts = hand_info["all_pts"]
         fingers = hand_info["fingers"]
 
         # Draw skeleton
         for a, b in HAND_CONNECTIONS:
-            cv2.line(frame, pts[a], pts[b], (200, 200, 200), 1)
+            pt_a = (int(round(pts[a][0])), int(round(pts[a][1])))
+            pt_b = (int(round(pts[b][0])), int(round(pts[b][1])))
+            cv2.line(frame, pt_a, pt_b, (200, 200, 200), 1)
 
         # Draw all landmark points
         for p in pts:
-            cv2.circle(frame, p, 2, (150, 150, 150), -1)
+            pt_int = (int(round(p[0])), int(round(p[1])))
+            cv2.circle(frame, pt_int, 2, (150, 150, 150), -1)
 
-        report_line = f"[frame {frame_index}] hand {hand_idx} ({handedness}):"
+        # Highlight Wrist
+        wx, wy = int(round(wrist_coord[0])), int(round(wrist_coord[1]))
+        cv2.circle(frame, (wx, wy), 6, (0, 255, 255), -1)
+        cv2.putText(frame, "Wrist", (wx + 8, wy - 8),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1)
+
+        report_line = f"[frame {frame_index}] hand {hand_idx} ({handedness}): Wrist=({wx},{wy})"
 
         # Draw finger points & labels (fingertip is last coordinate in finger list)
         for finger_name, coords in fingers.items():
@@ -218,10 +371,11 @@ def render_frame(frame, hands_data, frame_index):
             # Highlight all 3 finger joints
             for idx, pt in enumerate(coords):
                 radius = 7 if idx == 2 else 4  # Larger circle for fingertip
-                cv2.circle(frame, pt, radius, color, -1)
+                pt_int = (int(round(pt[0])), int(round(pt[1])))
+                cv2.circle(frame, pt_int, radius, color, -1)
 
             # Fingertip (last coordinate)
-            tip_x, tip_y = coords[-1]
+            tip_x, tip_y = int(round(coords[-1][0])), int(round(coords[-1][1]))
             cv2.putText(frame, finger_name, (tip_x + 8, tip_y - 8),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1)
             report_line += f"  {finger_name}_tip=({tip_x},{tip_y})"
@@ -253,6 +407,8 @@ def run_live_camera(camera_index=0):
     target_frame_duration = 1.0 / 30.0
     frame_index = 0
     start_time = time.time()
+    hand_filters_tracker = {}
+    prev_hands_tracker = {}
     window_name = "Live Camera MediaPipe Finger Detector (q/ESC to quit)"
 
     print("Starting live camera feed. Press 'q' or 'ESC' to quit.")
@@ -267,10 +423,20 @@ def run_live_camera(camera_index=0):
             break
 
         timestamp_ms = int((time.time() - start_time) * 1000)
+        t_seconds = timestamp_ms / 1000.0
 
-        # 2. Analyze Landmarks
-        hands_data = analyze_landmarks(frame, landmarker, timestamp_ms)
+        # 2. Analyze Raw Landmarks
+        raw_hands_data = analyze_landmarks(frame, landmarker, timestamp_ms)
+
+        # 2.3 Filter Landmarks with 1€ Filter (reduces noise)
+        hands_data = filter_landmarks(raw_hands_data, hand_filters_tracker, t_seconds)
+
+        # 2.5 Calculate Velocities from Filtered Coordinates
+        hands_velocity_data = calculate_velocities(hands_data, prev_hands_tracker)
+
+        # Print coordinates then velocities on a new line
         print(hands_data)
+        print(hands_velocity_data)
 
         # 3. Render Frame & Report
         annotated_frame = render_frame(frame, hands_data, frame_index)
