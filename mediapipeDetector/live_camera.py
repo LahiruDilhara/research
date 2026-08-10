@@ -17,6 +17,7 @@ import collections
 import math
 import os
 import sys
+import threading
 import time
 import urllib.request
 
@@ -78,7 +79,7 @@ HAND_CONNECTIONS = [
     (0, 17),                                  # palm base
 ]
 
-# Global 5-Frame Velocity Queue (holds 30-element flat vectors)
+# Global 5-Frame Velocity Queue (holds 32-element flat vectors)
 VELOCITY_QUEUE = collections.deque(maxlen=5)
 ACTIVE_HAND_LABEL = None
 
@@ -128,15 +129,65 @@ def create_landmarker(model_path):
 
 
 # =============================================================
+# THREADED WEBCAM STREAM (PRODUCER-CONSUMER)
+# =============================================================
+
+class WebcamStreamThread:
+    """
+    Thread-safe background camera reader that continuously fetches camera frames.
+    Eliminates camera I/O wait latency without thread race conditions.
+    """
+    def __init__(self, camera_index=0):
+        self.cap = cv2.VideoCapture(camera_index)
+        self.lock = threading.Lock()
+        self.stopped = False
+        self.frame = None
+
+        if not self.cap.isOpened():
+            print(f"Error: Could not open camera {camera_index}.")
+            sys.exit(1)
+
+        ret, frame = self.cap.read()
+        if ret:
+            self.frame = frame
+
+        self.thread = threading.Thread(target=self._update, args=(), daemon=True)
+
+    def start(self):
+        self.stopped = False
+        self.thread.start()
+        return self
+
+    def _update(self):
+        while not self.stopped:
+            ret, frame = self.cap.read()
+            if not ret:
+                self.stopped = True
+                break
+            with self.lock:
+                self.frame = frame
+            time.sleep(0.005)
+
+    def read(self):
+        with self.lock:
+            if self.frame is not None:
+                return self.frame.copy()
+            return None
+
+    def stop(self):
+        self.stopped = True
+        if self.thread.is_alive():
+            self.thread.join(timeout=1.0)
+        self.cap.release()
+
+
+# =============================================================
 # STEP 1: CAPTURE FRAME
 # =============================================================
 
-def capture_frame(cap):
-    """Captures a single BGR frame from the video capture device."""
-    ret, frame = cap.read()
-    if not ret:
-        return None
-    return frame
+def capture_frame(camera_stream):
+    """Retrieves the most recent BGR frame from the background camera thread."""
+    return camera_stream.read()
 
 
 # =============================================================
@@ -375,12 +426,16 @@ def calculate_velocities(hands_data, prev_hands_tracker, t_seconds):
 # STEP 5: RENDER FRAME & VELOCITIES ON IMAGE
 # =============================================================
 
-def render_frame(frame, hands_data, hands_velocity_data, frame_index):
+def render_frame(frame, hands_data, hands_velocity_data, frame_index, fps=0.0):
     """
-    Draws hand skeletons and overlays velocity labels (vx, vy) onto the frame.
+    Draws real-time FPS overlay, hand skeletons, and velocity labels (vx, vy) onto the frame.
     """
+    # Draw FPS overlay in top-left corner
+    cv2.putText(frame, f"FPS: {fps:.1f}", (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
     if not hands_data:
-        cv2.putText(frame, "No hand detected", (10, 30),
+        cv2.putText(frame, "No hand detected", (10, 65),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
         return frame
 
@@ -512,20 +567,19 @@ def run_live_camera(camera_index=0):
     model_path = ensure_model_downloaded()
     landmarker = create_landmarker(model_path)
 
-    cap = cv2.VideoCapture(camera_index)
-    if not cap.isOpened():
+    # Initialize threaded camera stream (Producer-Consumer architecture)
+    camera_stream = WebcamStreamThread(camera_index=camera_index)
+    if not validate_camera_fps(camera_stream.cap):
+        camera_stream.stop()
         landmarker.close()
-        print(f"Error: Could not open camera {camera_index}.")
         sys.exit(1)
 
-    if not validate_camera_fps(cap):
-        cap.release()
-        landmarker.close()
-        sys.exit(1)
+    camera_stream.start()
 
     target_frame_duration = 1.0 / 30.0
     frame_index = 0
     start_time = time.time()
+    prev_frame_time = time.time()
     hand_filters_tracker = {}
     prev_hands_tracker = {}
 
@@ -536,14 +590,20 @@ def run_live_camera(camera_index=0):
     while True:
         loop_start = time.time()
 
-        # Step 1: Capture Frame
-        frame = capture_frame(cap)
+        # Step 1: Capture Frame from Background Thread
+        frame = capture_frame(camera_stream)
         if frame is None:
-            print("Failed to grab frame from camera.")
+            print("Failed to grab frame from camera thread.")
             break
 
         timestamp_ms = int((time.time() - start_time) * 1000)
         t_seconds = timestamp_ms / 1000.0
+
+        # Calculate real-time FPS
+        curr_time = time.time()
+        fps_dt = curr_time - prev_frame_time
+        fps = (1.0 / fps_dt) if fps_dt > 0 else 30.0
+        prev_frame_time = curr_time
 
         # Step 2: MediaPipe Landmark Detection
         raw_hands_data = analyze_landmarks(frame, landmarker, timestamp_ms)
@@ -557,8 +617,8 @@ def run_live_camera(camera_index=0):
         # Step 4: Calculate Normalized Velocities
         hands_velocity_data = calculate_velocities(hands_data, prev_hands_tracker, t_seconds)
 
-        # Step 5: Render Frame & Velocities on Image
-        annotated_frame = render_frame(frame, hands_data, hands_velocity_data, frame_index)
+        # Step 5: Render Frame, Velocities, and FPS on Image
+        annotated_frame = render_frame(frame, hands_data, hands_velocity_data, frame_index, fps)
 
         # Step 6: Update Global 5-Element Velocity Queue
         update_velocity_queue(hands_velocity_data)
@@ -577,7 +637,7 @@ def run_live_camera(camera_index=0):
         if key in (ord('q'), 27):
             break
 
-    cap.release()
+    camera_stream.stop()
     cv2.destroyAllWindows()
     landmarker.close()
 
