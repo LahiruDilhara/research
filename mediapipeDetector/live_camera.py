@@ -59,7 +59,7 @@ WRIST_INDEX = 0
 # 1€ Filter & Deadband Threshold Constants
 FILTER_MIN_CUTOFF = 0.001
 FILTER_BETA = 0.04
-DEADBAND_THRESHOLD_PIXELS = 5
+DEADBAND_THRESHOLD_PIXELS = 10
 
 FINGER_COLORS = {
     "Thumb":  (255, 140, 0),
@@ -77,6 +77,10 @@ HAND_CONNECTIONS = [
     (13, 17), (17, 18), (18, 19), (19, 20),  # pinky
     (0, 17),                                  # palm base
 ]
+
+# Global 5-Frame Velocity Queue (holds 30-element flat vectors)
+VELOCITY_QUEUE = collections.deque(maxlen=5)
+ACTIVE_HAND_LABEL = None
 
 
 # =============================================================
@@ -432,19 +436,19 @@ def render_frame(frame, hands_data, hands_velocity_data, frame_index):
 
 
 # =============================================================
-# STEP 6: UPDATE VELOCITY QUEUE (30-ELEMENT FLAT ARRAY)
+# STEP 6: UPDATE GLOBAL VELOCITY QUEUE (32-ELEMENT FLAT LISTS)
 # =============================================================
 
 def pack_flat_velocity_vector(hand_vel_info):
     """
-    Packs 15 location velocity pairs (vx, vy) into a flat 1D Python list of 30 float elements:
+    Packs 16 location velocity pairs (vx, vy) into a flat 1D Python list of 32 float elements:
       - Elements 0..1: Wrist (vx, vy)
       - Elements 2..7: Thumb 3 joints (vx, vy)
       - Elements 8..13: Index 3 joints (vx, vy)
       - Elements 14..19: Middle 3 joints (vx, vy)
       - Elements 20..25: Ring 3 joints (vx, vy)
-      - Elements 26..29: Pinky 2 joints (vx, vy)
-    Total = 30 float elements.
+      - Elements 26..31: Pinky 3 joints (vx, vy)
+    Total = 32 float elements.
     """
     flat = []
     wrist_vel = hand_vel_info.get("wrist_velocity")
@@ -454,56 +458,50 @@ def pack_flat_velocity_vector(hand_vel_info):
         flat.extend([0.0, 0.0])
 
     finger_vels = hand_vel_info.get("finger_velocities", {})
-    finger_layout = [
-        ("Thumb", 3),
-        ("Index", 3),
-        ("Middle", 3),
-        ("Ring", 3),
-        ("Pinky", 2)
-    ]
+    finger_layout = ["Thumb", "Index", "Middle", "Ring", "Pinky"]
 
-    for finger_name, count in finger_layout:
+    for finger_name in finger_layout:
         j_vels = finger_vels.get(finger_name, [])
-        for idx in range(count):
+        for idx in range(3):
             joint_vel = j_vels[idx] if idx < len(j_vels) else None
             if joint_vel:
                 flat.extend([float(joint_vel[0]), float(joint_vel[1])])
             else:
                 flat.extend([0.0, 0.0])
 
-    return flat
+    return flat  # Exactly 32 float items
 
 
-def update_velocity_queue(hands_velocity_data, velocity_queue, queue_state):
+def update_velocity_queue(hands_velocity_data):
     """
-    Pushes 30-element flat velocity vectors into a 5-element sliding window queue.
-    Clears queue immediately if hand is not visible or if active hand changes.
+    Updates the global 5-element velocity queue (VELOCITY_QUEUE).
+    Enqueues flat 32-element velocity lists. When 6th item is pushed, 1st item is dropped.
+    Clears global queue if hand is not visible or if active hand changes.
     """
+    global VELOCITY_QUEUE, ACTIVE_HAND_LABEL
+
     if not hands_velocity_data:
-        # Hand not visible -> clear queue immediately
-        if velocity_queue or queue_state["active_hand"] is not None:
-            velocity_queue.clear()
-            queue_state["active_hand"] = None
-            print("No hand visible — Velocity Queue cleared.")
-        return velocity_queue
+        if VELOCITY_QUEUE or ACTIVE_HAND_LABEL is not None:
+            VELOCITY_QUEUE.clear()
+            ACTIVE_HAND_LABEL = None
+            print("No hand visible — Global Velocity Queue cleared.")
+        return
 
     primary_hand = hands_velocity_data[0]
     current_hand = primary_hand["hand"]
 
     # Hand changed (e.g. Left -> Right or vice-versa) -> clear queue immediately
-    if queue_state["active_hand"] != current_hand:
-        velocity_queue.clear()
-        queue_state["active_hand"] = current_hand
-        print(f"Hand changed to {current_hand} — Velocity Queue cleared.")
+    if ACTIVE_HAND_LABEL != current_hand:
+        VELOCITY_QUEUE.clear()
+        ACTIVE_HAND_LABEL = current_hand
+        print(f"Hand changed to {current_hand} — Global Velocity Queue cleared.")
 
-    # Pack 30-element flat list and append to queue
+    # Pack 32-element flat list and enqueue
     flat_vector = pack_flat_velocity_vector(primary_hand)
-    velocity_queue.append(flat_vector)
+    VELOCITY_QUEUE.append(flat_vector)
 
-    # Print current 5-element queue state
-    print(f"[{current_hand} Hand] Queue len={len(velocity_queue)}: {list(velocity_queue)}")
-
-    return velocity_queue
+    # Print current 5-element global queue state
+    print(f"Queue len={len(VELOCITY_QUEUE)} (item len={len(VELOCITY_QUEUE[-1])}): {list(VELOCITY_QUEUE)}")
 
 
 # =============================================================
@@ -530,10 +528,6 @@ def run_live_camera(camera_index=0):
     start_time = time.time()
     hand_filters_tracker = {}
     prev_hands_tracker = {}
-
-    # Queue of max size 5 holding 30-element flat velocity lists
-    velocity_queue = collections.deque(maxlen=5)
-    queue_state = {"active_hand": None}
 
     window_name = "Live Camera MediaPipe Finger Detector (q/ESC to quit)"
 
@@ -566,8 +560,8 @@ def run_live_camera(camera_index=0):
         # Step 5: Render Frame & Velocities on Image
         annotated_frame = render_frame(frame, hands_data, hands_velocity_data, frame_index)
 
-        # Step 6: Update 5-Element Velocity Queue
-        velocity_queue = update_velocity_queue(hands_velocity_data, velocity_queue, queue_state)
+        # Step 6: Update Global 5-Element Velocity Queue
+        update_velocity_queue(hands_velocity_data)
 
         # Display window
         cv2.imshow(window_name, annotated_frame)
