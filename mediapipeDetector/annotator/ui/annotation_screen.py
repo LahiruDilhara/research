@@ -2,7 +2,8 @@
 annotator/ui/annotation_screen.py
 
 Main annotation interface styled with modern professional desktop HIG.
-Includes 'Select Window...' picker button in top status bar, color-coded
+Includes 'Select Window...' picker button in top status bar, visual HUD overlay toggle
+for inspecting per-frame joint (x,y) coordinates and (vx,vy) velocities, color-coded
 finger touch toggles matching landmark colors, 'Reset Window Changes' button,
 Yes/No/Cancel save modal on navigation, automatic carry-forward of
 environmental/motion settings for new unannotated windows, non-blocking
@@ -13,7 +14,7 @@ import os
 from tkinter import messagebox
 
 import customtkinter as ctk
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 from annotator.constants import (
     ANY_DIFF_PRESETS, CSV_HEADERS, FINGERS, FINGER_COLORS_HEX, JOINT_LABELS, POV_OPTIONS,
@@ -59,7 +60,10 @@ class AnnotationScreen(ctk.CTkFrame):
         self._current_wf: list = []
         self._display_image_ref = None
 
-        # Annotation variables
+        # Visual debug overlay toggle (NOT saved to CSV)
+        self._show_coords_vel = ctk.BooleanVar(value=False)
+
+        # Annotation variables (saved to CSV)
         self._touch = {f: ctk.BooleanVar(value=False) for f in FINGERS}
         self._hand_move = ctk.BooleanVar(value=False)
         self._hand_closer = ctk.BooleanVar(value=False)
@@ -77,7 +81,7 @@ class AnnotationScreen(ctk.CTkFrame):
     # ── UI construction ───────────────────────────────────────────────────────
 
     def _build(self) -> None:
-        # Top Stats & Window Picker Bar
+        # Top Stats, Visual Debug Toggle & Window Picker Bar
         top = ctk.CTkFrame(self, height=48, corner_radius=0,
                            fg_color=("gray90", "gray14"))
         top.pack(fill="x")
@@ -97,6 +101,15 @@ class AnnotationScreen(ctk.CTkFrame):
             command=self._pick_window,
         )
         self._btn_jump.pack(side="right", padx=16)
+
+        # Top Visual Debug Toggle Switch (NOT saved to CSV)
+        self._sw_debug = ctk.CTkSwitch(
+            top, text="Show (x,y) & (vx,vy)", variable=self._show_coords_vel,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=("#2563eb", "#60a5fa"),
+            command=self._on_toggle_debug_overlay,
+        )
+        self._sw_debug.pack(side="right", padx=16)
 
         self._lbl_recorded = ctk.CTkLabel(
             top, text="",
@@ -454,6 +467,78 @@ class AnnotationScreen(ctk.CTkFrame):
                 return False
         return True
 
+    # ── Visual Debug Overlay (NOT saved to CSV) ───────────────────────────────
+
+    def _on_toggle_debug_overlay(self) -> None:
+        """Callback when user toggles 'Show (x,y) & (vx,vy)' top switch."""
+        curr_idx = self._individual_idx if self._individual_mode else (self._loop_idx - 1) % max(1, len(self._cached_pil))
+        self._show(max(0, curr_idx))
+
+    def _draw_debug_overlay(self, pil: Image.Image, fd: dict) -> Image.Image:
+        """
+        Draw a visual HUD overlay onto the frame displaying normalized joint coordinates (x,y)
+        and velocity vectors (vx,vy) for Wrist and all 5 Finger joints.
+        """
+        img = pil.copy().convert("RGBA")
+        hd = fd.get("hand_data")
+        vd = fd.get("velocity_data")
+
+        # Create semi-transparent overlay canvas
+        overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay)
+
+        if not hd:
+            draw.rectangle([10, 10, 280, 42], fill=(0, 0, 0, 180), outline=(255, 60, 60, 255))
+            draw.text((16, 16), "No Hand Landmark Data in Frame", fill=(255, 120, 120))
+            return Image.alpha_composite(img, overlay).convert("RGB")
+
+        # ── Construct HUD summary text lines ─────────────────────────────────
+        lines = ["=== Joint Landmarks & Velocity HUD ==="]
+
+        # Wrist
+        wx, wy = hd["wrist"]
+        wv = (vd.get("wrist_velocity") or (0.0, 0.0)) if vd else (0.0, 0.0)
+        lines.append(f"Wrist   : Pos({wx:.2f}, {wy:.2f}) | Vel({wv[0]:.2f}, {wv[1]:.2f})")
+
+        # All 5 Fingers x 3 Joints (MCP, PIP, DIP)
+        for fn in FINGERS:
+            pts = hd["fingers"].get(fn, [])
+            fvels = (vd.get("finger_velocities", {}).get(fn, []) if vd else []) or []
+            for j, jlabel in enumerate(JOINT_LABELS):
+                pt = pts[j] if j < len(pts) else (0.0, 0.0)
+                jv = fvels[j] if (j < len(fvels) and fvels[j] is not None) else (0.0, 0.0)
+                lines.append(f"{fn:<5} {jlabel}: Pos({pt[0]:.2f}, {pt[1]:.2f}) | Vel({jv[0]:.2f}, {jv[1]:.2f})")
+
+        # Draw HUD Box at top-left
+        box_w = 340
+        box_h = 16 + len(lines) * 15
+        draw.rectangle([8, 8, 8 + box_w, 8 + box_h], fill=(15, 23, 42, 225), outline=(59, 130, 246, 255), width=2)
+
+        y_off = 12
+        for i, line in enumerate(lines):
+            col = (96, 165, 250) if i == 0 else (241, 245, 249)
+            draw.text((16, y_off), line, fill=col)
+            y_off += 15
+
+        # ── Draw coordinate & velocity text labels near every joint landmark ──
+        wp = hd.get("wrist_pixel")
+        if wp:
+            px, py = int(wp[0]), int(wp[1])
+            draw.text((px + 6, py + 4), f"W:({wx:.2f},{wy:.2f})\nv:({wv[0]:.2f},{wv[1]:.2f})", fill=(255, 255, 0, 240))
+
+        for fn, coords in hd.get("fingers_pixel", {}).items():
+            pts_norm = hd["fingers"].get(fn, [])
+            fvels = (vd.get("finger_velocities", {}).get(fn, []) if vd else []) or []
+            for j, pt in enumerate(coords):
+                px, py = int(pt[0]), int(pt[1])
+                nx, ny = pts_norm[j] if j < len(pts_norm) else (0.0, 0.0)
+                jv = fvels[j] if (j < len(fvels) and fvels[j] is not None) else (0.0, 0.0)
+                jlabel = JOINT_LABELS[j] if j < len(JOINT_LABELS) else f"J{j}"
+                lbl = f"{fn[:1]}{jlabel[:1]}:({nx:.2f},{ny:.2f})\nv:({jv[0]:.2f},{jv[1]:.2f})"
+                draw.text((px + 5, py - 6), lbl, fill=(0, 230, 255, 240))
+
+        return Image.alpha_composite(img, overlay).convert("RGB")
+
     # ── Loop animation ────────────────────────────────────────────────────────
 
     def _start_loop(self) -> None:
@@ -485,6 +570,10 @@ class AnnotationScreen(ctk.CTkFrame):
             return
         pil = self._cached_pil[local_idx]
         fd = self._current_wf[local_idx]
+
+        # Apply visual debug HUD overlay if toggle is ON
+        if self._show_coords_vel.get():
+            pil = self._draw_debug_overlay(pil, fd)
 
         try:
             avail_w = max(300, self.winfo_width() * 60 // 100 - 30)
