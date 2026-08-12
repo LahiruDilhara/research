@@ -58,9 +58,13 @@ FINGER_THREE_LANDMARKS = {
 WRIST_INDEX = 0
 
 # 1€ Filter & Deadband Threshold Constants
-FILTER_MIN_CUTOFF = 0.001
-FILTER_BETA = 0.04
-DEADBAND_THRESHOLD_PIXELS = 10
+# FILTER_MIN_CUTOFF and FILTER_BETA operate in scale-invariant hand-relative units (hand_lengths / sec).
+# min_cutoff controls responsiveness when moving slowly (e.g., 0.5 - 1.0)
+# beta controls responsiveness during fast motion (e.g., 0.5 - 2.0)
+FILTER_MIN_CUTOFF = 1.5
+FILTER_BETA = 5.0
+DEADBAND_VELOCITY_THRESHOLD = 0.4  # Velocity deadband threshold in hand_lengths / sec
+MISSING_FRAMES_TOLERANCE = 2  # Require 2 consecutive missing frames before wiping tracker states
 
 FINGER_COLORS = {
     "Thumb":  (255, 140, 0),
@@ -194,40 +198,103 @@ def capture_frame(camera_stream):
 # STEP 2: ANALYZE LANDMARKS
 # =============================================================
 
+def calculate_hand_scale(pts, prev_l_hand=None, alpha=0.2):
+    """
+    Calculates combined hand scale L_hand = sqrt(palm_length^2 + palm_width^2) from landmark pixel coordinates.
+    Applies exponential smoothing across frames to eliminate scale noise and skeleton flickering.
+    """
+    w_x, w_y = pts[WRIST_INDEX]
+    m_x, m_y = pts[9]
+    i_x, i_y = pts[5]
+    p_x, p_y = pts[17]
+
+    palm_length = math.hypot(m_x - w_x, m_y - w_y)
+    palm_width = math.hypot(p_x - i_x, p_y - i_y)
+    l_hand_raw = math.hypot(palm_length, palm_width)
+
+    if l_hand_raw <= 0:
+        l_hand_raw = 1.0
+
+    if prev_l_hand is not None:
+        l_hand = alpha * l_hand_raw + (1.0 - alpha) * prev_l_hand
+    else:
+        l_hand = l_hand_raw
+
+    return l_hand
+
+# Global scale memory & missing frame trackers per hand label to ensure smooth scale transitions & drop tolerance
+PREV_HAND_SCALES = {}
+STALE_FRAME_COUNTERS = {}
+
+
 def analyze_landmarks(frame, landmarker, timestamp_ms):
     """
-    Passes frame to MediaPipe HandLandmarker and extracts raw landmark coordinates.
-    Returns list of raw hand data dictionaries.
+    Passes frame to MediaPipe HandLandmarker, computes smoothly-filtered hand scale (l_hand),
+    and normalizes raw landmark coordinates immediately (divide x, y by l_hand).
+    Returns list of scale-normalized raw hand data dictionaries.
     """
+    global PREV_HAND_SCALES, STALE_FRAME_COUNTERS
+
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
     result = landmarker.detect_for_video(mp_image, timestamp_ms)
 
     if not result.hand_landmarks or not result.handedness:
+        # Increment missing frame count for all tracked hands
+        for label in list(PREV_HAND_SCALES.keys()):
+            STALE_FRAME_COUNTERS[label] = STALE_FRAME_COUNTERS.get(label, 0) + 1
+            if STALE_FRAME_COUNTERS[label] >= MISSING_FRAMES_TOLERANCE:
+                del PREV_HAND_SCALES[label]
+                del STALE_FRAME_COUNTERS[label]
         return []
 
     h, w, _ = frame.shape
     raw_hands_data = []
+    current_hand_labels = set()
 
     for idx, raw_landmarks in enumerate(result.hand_landmarks):
         hand_label = result.handedness[idx][0].category_name  # "Left" or "Right"
+        current_hand_labels.add(hand_label)
+        STALE_FRAME_COUNTERS[hand_label] = 0  # Reset missing frame count on active detection
 
         # 21 landmarks converted to pixel floats
-        pts = [(lm.x * w, lm.y * h) for lm in raw_landmarks]
+        pts_pixel = [(lm.x * w, lm.y * h) for lm in raw_landmarks]
+        
+        prev_scale = PREV_HAND_SCALES.get(hand_label)
+        l_hand = calculate_hand_scale(pts_pixel, prev_l_hand=prev_scale, alpha=0.2)
+        PREV_HAND_SCALES[hand_label] = l_hand
 
-        wrist_coord = pts[WRIST_INDEX]
+        # Scale-normalized landmarks (hand_lengths unit)
+        pts_norm = [(px / l_hand, py / l_hand) for px, py in pts_pixel]
 
-        fingers_dict = {}
+        wrist_coord_pixel = pts_pixel[WRIST_INDEX]
+        wrist_coord_norm = pts_norm[WRIST_INDEX]
+
+        fingers_dict_pixel = {}
+        fingers_dict_norm = {}
         for finger_name, indices in FINGER_THREE_LANDMARKS.items():
-            fingers_dict[finger_name] = [pts[i] for i in indices]
+            fingers_dict_pixel[finger_name] = [pts_pixel[i] for i in indices]
+            fingers_dict_norm[finger_name] = [pts_norm[i] for i in indices]
 
         hand_info = {
             "hand": hand_label,
-            "wrist": wrist_coord,
-            "all_pts": pts,
-            "fingers": fingers_dict
+            "wrist": wrist_coord_norm,
+            "wrist_pixel": wrist_coord_pixel,
+            "all_pts": pts_norm,
+            "all_pts_pixel": pts_pixel,
+            "fingers": fingers_dict_norm,
+            "fingers_pixel": fingers_dict_pixel,
+            "l_hand": l_hand
         }
         raw_hands_data.append(hand_info)
+
+    # Increment missing frame count for hands not detected in current frame
+    stale_labels = set(PREV_HAND_SCALES.keys()) - current_hand_labels
+    for label in stale_labels:
+        STALE_FRAME_COUNTERS[label] = STALE_FRAME_COUNTERS.get(label, 0) + 1
+        if STALE_FRAME_COUNTERS[label] >= MISSING_FRAMES_TOLERANCE:
+            del PREV_HAND_SCALES[label]
+            del STALE_FRAME_COUNTERS[label]
 
     return raw_hands_data
 
@@ -254,16 +321,29 @@ def select_single_hand(raw_hands_data):
     return [raw_hands_data[0]]
 
 
+# Global missing frame trackers for filters and velocity calculation
+FILTER_STALE_COUNTERS = {}
+PREV_HANDS_STALE_COUNTERS = {}
+
+
 # =============================================================
-# STEP 3: FILTER LANDMARKS (1€ FILTER)
+# STEP 3: FILTER LANDMARKS (1€ FILTER IN NORMALIZED UNITS)
 # =============================================================
 
 def filter_landmarks(raw_hands_data, hand_filters_tracker, t_seconds):
     """
-    Filters raw MediaPipe landmarks using the 1€ Filter.
-    Returns filtered hand landmark dictionaries.
+    Filters normalized landmark coordinates (in hand_lengths) using the 1€ Filter.
+    Returns filtered scale-normalized hand landmark dictionaries.
+    Tolerates transient detection drops (< 2 consecutive missing frames).
     """
+    global FILTER_STALE_COUNTERS
+
     if not raw_hands_data:
+        for label in list(hand_filters_tracker.keys()):
+            FILTER_STALE_COUNTERS[label] = FILTER_STALE_COUNTERS.get(label, 0) + 1
+            if FILTER_STALE_COUNTERS[label] >= MISSING_FRAMES_TOLERANCE:
+                del hand_filters_tracker[label]
+                del FILTER_STALE_COUNTERS[label]
         return []
 
     filtered_hands_data = []
@@ -271,7 +351,9 @@ def filter_landmarks(raw_hands_data, hand_filters_tracker, t_seconds):
 
     for hand_info in raw_hands_data:
         hand_label = hand_info["hand"]
+        l_hand = hand_info["l_hand"]
         current_hand_labels.add(hand_label)
+        FILTER_STALE_COUNTERS[hand_label] = 0  # Reset missing frame counter
 
         if hand_label not in hand_filters_tracker:
             hand_filters_tracker[hand_label] = [
@@ -280,11 +362,11 @@ def filter_landmarks(raw_hands_data, hand_filters_tracker, t_seconds):
 
         filters = hand_filters_tracker[hand_label]
 
-        # Filter all 21 raw landmarks
+        # Filter all 21 scale-normalized raw landmarks
         filtered_all_pts = []
-        for idx, (rx, ry) in enumerate(hand_info["all_pts"]):
-            fx, fy = filters[idx].update(t_seconds, rx, ry)
-            filtered_all_pts.append((round(fx, 2), round(fy, 2)))
+        for idx, (nx, ny) in enumerate(hand_info["all_pts"]):
+            fx, fy = filters[idx].update(t_seconds, nx, ny)
+            filtered_all_pts.append((fx, fy))
 
         filtered_wrist = filtered_all_pts[WRIST_INDEX]
 
@@ -292,18 +374,32 @@ def filter_landmarks(raw_hands_data, hand_filters_tracker, t_seconds):
         for finger_name, indices in FINGER_THREE_LANDMARKS.items():
             filtered_fingers[finger_name] = [filtered_all_pts[i] for i in indices]
 
+        # Re-derive pixel coordinates for rendering visualization
+        filtered_all_pts_pixel = [(round(fx * l_hand, 2), round(fy * l_hand, 2)) for fx, fy in filtered_all_pts]
+        filtered_wrist_pixel = filtered_all_pts_pixel[WRIST_INDEX]
+        filtered_fingers_pixel = {}
+        for finger_name, indices in FINGER_THREE_LANDMARKS.items():
+            filtered_fingers_pixel[finger_name] = [filtered_all_pts_pixel[i] for i in indices]
+
         filtered_hand_info = {
             "hand": hand_label,
             "wrist": filtered_wrist,
+            "wrist_pixel": filtered_wrist_pixel,
             "all_pts": filtered_all_pts,
-            "fingers": filtered_fingers
+            "all_pts_pixel": filtered_all_pts_pixel,
+            "fingers": filtered_fingers,
+            "fingers_pixel": filtered_fingers_pixel,
+            "l_hand": l_hand
         }
         filtered_hands_data.append(filtered_hand_info)
 
-    # Clean up stale filters
+    # Increment missing frame count for stale filters
     stale_labels = set(hand_filters_tracker.keys()) - current_hand_labels
     for label in stale_labels:
-        del hand_filters_tracker[label]
+        FILTER_STALE_COUNTERS[label] = FILTER_STALE_COUNTERS.get(label, 0) + 1
+        if FILTER_STALE_COUNTERS[label] >= MISSING_FRAMES_TOLERANCE:
+            del hand_filters_tracker[label]
+            del FILTER_STALE_COUNTERS[label]
 
     return filtered_hands_data
 
@@ -314,10 +410,18 @@ def filter_landmarks(raw_hands_data, hand_filters_tracker, t_seconds):
 
 def calculate_velocities(hands_data, prev_hands_tracker, t_seconds):
     """
-    Calculates hand-scale normalized velocity (vx, vy in hand_lengths / sec) for wrist and finger joints
-    using ONLY 1€-filtered coordinates. Applies deadband hysteresis gating to zero out jitter.
+    Calculates resolution-invariant normalized velocity (vx, vy in hand_lengths / sec)
+    from 1€-filtered scale-normalized landmarks. Applies scale-invariant deadband gating.
+    Tolerates transient detection drops (< 2 consecutive missing frames).
     """
+    global PREV_HANDS_STALE_COUNTERS
+
     if not hands_data:
+        for label in list(prev_hands_tracker.keys()):
+            PREV_HANDS_STALE_COUNTERS[label] = PREV_HANDS_STALE_COUNTERS.get(label, 0) + 1
+            if PREV_HANDS_STALE_COUNTERS[label] >= MISSING_FRAMES_TOLERANCE:
+                del prev_hands_tracker[label]
+                del PREV_HANDS_STALE_COUNTERS[label]
         return []
 
     hands_velocity_data = []
@@ -326,23 +430,10 @@ def calculate_velocities(hands_data, prev_hands_tracker, t_seconds):
     for hand_info in hands_data:
         hand_label = hand_info["hand"]
         current_hand_labels.add(hand_label)
+        PREV_HANDS_STALE_COUNTERS[hand_label] = 0  # Reset missing frame counter
 
         curr_wrist = hand_info["wrist"]
         curr_fingers = hand_info["fingers"]
-        all_pts = hand_info["all_pts"]
-
-        # Combined hand scale L_hand = sqrt(palm_length^2 + palm_width^2)
-        w_x, w_y = all_pts[WRIST_INDEX]
-        m_x, m_y = all_pts[9]
-        i_x, i_y = all_pts[5]
-        p_x, p_y = all_pts[17]
-
-        palm_length = math.hypot(m_x - w_x, m_y - w_y)
-        palm_width = math.hypot(p_x - i_x, p_y - i_y)
-        l_hand = math.hypot(palm_length, palm_width)
-
-        if l_hand <= 0:
-            l_hand = 1.0
 
         wrist_vel = None
         finger_vels = {}
@@ -357,50 +448,39 @@ def calculate_velocities(hands_data, prev_hands_tracker, t_seconds):
             if dt <= 0:
                 dt = 1.0 / 30.0
 
-            scale_dt = l_hand * dt
-
-            # Wrist velocity with deadband hysteresis
+            # Wrist velocity with hand-length scale velocity deadband hysteresis
             if prev_wrist is not None:
-                dx = curr_wrist[0] - prev_wrist[0]
-                dy = curr_wrist[1] - prev_wrist[1]
-                if math.hypot(dx, dy) < DEADBAND_THRESHOLD_PIXELS:
+                dnx = curr_wrist[0] - prev_wrist[0]
+                dny = curr_wrist[1] - prev_wrist[1]
+                vx = round(dnx / dt, 4)
+                vy = round(dny / dt, 4)
+                if math.hypot(vx, vy) < DEADBAND_VELOCITY_THRESHOLD:
                     wrist_vel = (0.0, 0.0)
-                    curr_wrist = prev_wrist
                 else:
-                    vx = round(dx / scale_dt, 4)
-                    vy = round(dy / scale_dt, 4)
                     wrist_vel = (vx, vy)
 
-            # Finger velocities with deadband hysteresis
-            updated_curr_fingers = {}
+            # Finger velocities with hand-length scale velocity deadband hysteresis
             for finger_name, curr_coords in curr_fingers.items():
                 if finger_name in prev_fingers and prev_fingers[finger_name] is not None:
                     prev_coords = prev_fingers[finger_name]
                     f_vels = []
-                    f_coords_gated = []
                     for c, p in zip(curr_coords, prev_coords):
-                        fdx = c[0] - p[0]
-                        fdy = c[1] - p[1]
-                        if math.hypot(fdx, fdy) < DEADBAND_THRESHOLD_PIXELS:
+                        fdnx = c[0] - p[0]
+                        fdny = c[1] - p[1]
+                        f_vx = round(fdnx / dt, 4)
+                        f_vy = round(fdny / dt, 4)
+                        if math.hypot(f_vx, f_vy) < DEADBAND_VELOCITY_THRESHOLD:
                             f_vels.append((0.0, 0.0))
-                            f_coords_gated.append(p)
                         else:
-                            f_vx = round(fdx / scale_dt, 4)
-                            f_vy = round(fdy / scale_dt, 4)
                             f_vels.append((f_vx, f_vy))
-                            f_coords_gated.append(c)
                     finger_vels[finger_name] = f_vels
-                    updated_curr_fingers[finger_name] = f_coords_gated
                 else:
                     finger_vels[finger_name] = [None, None, None]
-                    updated_curr_fingers[finger_name] = curr_coords
-
-            curr_fingers = updated_curr_fingers
         else:
             wrist_vel = None
             finger_vels = {f: [None, None, None] for f in curr_fingers.keys()}
 
-        # Update previous tracker state
+        # Update previous tracker state with real current filtered landmarks
         prev_hands_tracker[hand_label] = {
             "wrist": curr_wrist,
             "fingers": curr_fingers,
@@ -414,12 +494,16 @@ def calculate_velocities(hands_data, prev_hands_tracker, t_seconds):
         }
         hands_velocity_data.append(hand_vel_info)
 
-    # Clean up lost hands
+    # Increment missing frame count for stale tracker labels
     stale_labels = set(prev_hands_tracker.keys()) - current_hand_labels
     for label in stale_labels:
-        del prev_hands_tracker[label]
+        PREV_HANDS_STALE_COUNTERS[label] = PREV_HANDS_STALE_COUNTERS.get(label, 0) + 1
+        if PREV_HANDS_STALE_COUNTERS[label] >= MISSING_FRAMES_TOLERANCE:
+            del prev_hands_tracker[label]
+            del PREV_HANDS_STALE_COUNTERS[label]
 
     return hands_velocity_data
+
 
 
 # =============================================================
@@ -443,9 +527,9 @@ def render_frame(frame, hands_data, hands_velocity_data, frame_index, fps=0.0):
 
     for hand_idx, hand_info in enumerate(hands_data):
         handedness = hand_info["hand"]
-        wrist_coord = hand_info["wrist"]
-        pts = hand_info["all_pts"]
-        fingers = hand_info["fingers"]
+        wrist_coord_px = hand_info.get("wrist_pixel", hand_info["wrist"])
+        pts_px = hand_info.get("all_pts_pixel", hand_info["all_pts"])
+        fingers_px = hand_info.get("fingers_pixel", hand_info["fingers"])
 
         hand_vels = vel_map.get(handedness, {})
         wrist_vel = hand_vels.get("wrist_velocity")
@@ -453,12 +537,12 @@ def render_frame(frame, hands_data, hands_velocity_data, frame_index, fps=0.0):
 
         # Draw skeleton connections
         for a, b in HAND_CONNECTIONS:
-            pt_a = (int(round(pts[a][0])), int(round(pts[a][1])))
-            pt_b = (int(round(pts[b][0])), int(round(pts[b][1])))
+            pt_a = (int(round(pts_px[a][0])), int(round(pts_px[a][1])))
+            pt_b = (int(round(pts_px[b][0])), int(round(pts_px[b][1])))
             cv2.line(frame, pt_a, pt_b, (200, 200, 200), 1)
 
         # Draw Wrist
-        wx, wy = int(round(wrist_coord[0])), int(round(wrist_coord[1]))
+        wx, wy = int(round(wrist_coord_px[0])), int(round(wrist_coord_px[1]))
         cv2.circle(frame, (wx, wy), 6, (0, 255, 255), -1)
 
         wrist_str = f"Wrist v=({wrist_vel[0]:.2f},{wrist_vel[1]:.2f})" if wrist_vel else "Wrist v=(0.00,0.00)"
@@ -466,7 +550,7 @@ def render_frame(frame, hands_data, hands_velocity_data, frame_index, fps=0.0):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 255), 1)
 
         # Draw Finger joints & velocity labels
-        for finger_name, coords in fingers.items():
+        for finger_name, coords in fingers_px.items():
             color = FINGER_COLORS[finger_name]
             f_v_list = finger_vels.get(finger_name, [None, None, None])
 
@@ -527,20 +611,28 @@ def pack_flat_velocity_vector(hand_vel_info):
     return flat  # Exactly 32 float items
 
 
+# Global missing frame counter for velocity queue
+QUEUE_STALE_COUNTER = 0
+
+
 def update_velocity_queue(hands_velocity_data):
     """
     Updates the global 5-element velocity queue (VELOCITY_QUEUE).
     Enqueues flat 32-element velocity lists. When 6th item is pushed, 1st item is dropped.
-    Clears global queue if hand is not visible or if active hand changes.
+    Clears global queue only after 2 consecutive missing-detection frames or if active hand changes.
     """
-    global VELOCITY_QUEUE, ACTIVE_HAND_LABEL
+    global VELOCITY_QUEUE, ACTIVE_HAND_LABEL, QUEUE_STALE_COUNTER
 
     if not hands_velocity_data:
-        if VELOCITY_QUEUE or ACTIVE_HAND_LABEL is not None:
-            VELOCITY_QUEUE.clear()
-            ACTIVE_HAND_LABEL = None
-            print("No hand visible — Global Velocity Queue cleared.")
+        QUEUE_STALE_COUNTER += 1
+        if QUEUE_STALE_COUNTER >= MISSING_FRAMES_TOLERANCE:
+            if VELOCITY_QUEUE or ACTIVE_HAND_LABEL is not None:
+                VELOCITY_QUEUE.clear()
+                ACTIVE_HAND_LABEL = None
+                print("No hand visible for 2 consecutive frames — Global Velocity Queue cleared.")
         return
+
+    QUEUE_STALE_COUNTER = 0  # Reset missing frame counter on active detection
 
     primary_hand = hands_velocity_data[0]
     current_hand = primary_hand["hand"]
