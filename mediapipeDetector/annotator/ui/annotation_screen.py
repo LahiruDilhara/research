@@ -5,9 +5,9 @@ Main annotation interface styled with modern professional desktop HIG.
 Includes 'Select Window...' picker button in top status bar, visual HUD overlay toggle
 for inspecting per-frame joint (x,y) coordinates and (vx,vy) velocities, color-coded
 finger touch toggles matching landmark colors, 'Reset Window Changes' button,
-Yes/No/Cancel save modal on navigation, automatic carry-forward of
-environmental/motion settings for new unannotated windows, non-blocking
-completion notification, and 'Out of Sync' status toggle.
+Yes/No/Cancel save modal on navigation when Auto-Save is OFF and edits exist,
+automatic carry-forward of environmental/motion settings for new unannotated windows,
+non-blocking completion notification, 'Out of Sync' status toggle, and 'Auto-Save on Navigation' toggle.
 """
 import logging
 import os
@@ -63,6 +63,9 @@ class AnnotationScreen(ctk.CTkFrame):
         # Visual debug overlay toggle (NOT saved to CSV)
         self._show_coords_vel = ctk.BooleanVar(value=False)
 
+        # Auto-Save on Navigation toggle (Default: OFF -> prompt Yes/No/Cancel when edits exist)
+        self._auto_save = ctk.BooleanVar(value=False)
+
         # Annotation variables (saved to CSV)
         self._touch = {f: ctk.BooleanVar(value=False) for f in FINGERS}
         self._hand_move = ctk.BooleanVar(value=False)
@@ -93,6 +96,15 @@ class AnnotationScreen(ctk.CTkFrame):
         )
         self._lbl_stats.pack(side="left", padx=20)
 
+        # Window Analyzer Button right on the top bar
+        self._btn_analyze = ctk.CTkButton(
+            top, text="Analyze Window", width=140, height=30,
+            corner_radius=6, font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color="#8b5cf6", hover_color="#7c3aed",
+            command=self._open_analyzer,
+        )
+        self._btn_analyze.pack(side="right", padx=(8, 16))
+
         # Window Selection Button right on the top bar
         self._btn_jump = ctk.CTkButton(
             top, text="Select Window...", width=140, height=30,
@@ -100,7 +112,7 @@ class AnnotationScreen(ctk.CTkFrame):
             fg_color="#2563eb", hover_color="#1d4ed8",
             command=self._pick_window,
         )
-        self._btn_jump.pack(side="right", padx=16)
+        self._btn_jump.pack(side="right", padx=8)
 
         # Top Visual Debug Toggle Switch (NOT saved to CSV)
         self._sw_debug = ctk.CTkSwitch(
@@ -283,6 +295,12 @@ class AnnotationScreen(ctk.CTkFrame):
             fill="x", padx=16, pady=8
         )
 
+        # Navigation Auto-Save Toggle Switch (default: OFF -> prompt Yes/No/Cancel on changes)
+        ctk.CTkSwitch(
+            right, text="Auto-Save on Navigation", variable=self._auto_save,
+            font=ctk.CTkFont(size=12), text_color=("#d97706", "#f59e0b"),
+        ).pack(anchor="w", **pad)
+
         # Action Buttons Navigation
         nav_row = ctk.CTkFrame(right, fg_color="transparent")
         nav_row.pack(fill="x", **pad)
@@ -405,6 +423,19 @@ class AnnotationScreen(ctk.CTkFrame):
                 return
             self._stop_loop()
             self._load_window(dialog.selected_window_idx)
+
+    def _open_analyzer(self) -> None:
+        logger.info(f"User opened Window Analyzer for window index #{self._window_idx + 1}")
+        if not self._current_wf:
+            return
+        from annotator.ui.window_analyzer import WindowAnalyzerDialog
+
+        dialog = WindowAnalyzerDialog(
+            self,
+            window_idx=self._window_idx,
+            window_frames=self._current_wf,
+            duration_ms=self.duration_ms,
+        )
 
     # ── Annotation helpers ────────────────────────────────────────────────────
 
@@ -644,16 +675,49 @@ class AnnotationScreen(ctk.CTkFrame):
         new_rec = self._build_record()
         rec_idx, existing = self.csv.find(sf, ef, sms, ems)
 
+        # ── Mode A: Auto-Save is TOGGLED ON ──────────────────────────────────
+        if self._auto_save.get():
+            if existing is None:
+                logger.info(f"Auto-Save ON: Appending new record for frames {sf}–{ef}")
+                self.csv.append(new_rec)
+            else:
+                if not self._records_same(existing, new_rec):
+                    logger.info(f"Auto-Save ON: Overriding existing record for frames {sf}–{ef}")
+                    self.csv.override(sf, ef, sms, ems, new_rec)
+                else:
+                    logger.info(f"Auto-Save ON: Record for frames {sf}–{ef} is identical. Skipping rewrite.")
+            return True
+
+        # ── Mode B: Auto-Save is TOGGLED OFF (Default) ───────────────────────
         if existing is None:
-            logger.info(f"Saving new record for frames {sf}–{ef}")
-            self.csv.append(new_rec)
-            return True
+            # New unrecorded window: prompt Yes/No/Cancel to confirm saving
+            logger.info(f"Auto-Save OFF: New window frames {sf}–{ef}. Prompting Yes/No/Cancel...")
+            choice = messagebox.askyesnocancel(
+                "Save Window Annotation?",
+                f"Save annotation for frames {sf}–{ef} to CSV?\n\n"
+                "• Select [Yes] to SAVE record & navigate\n"
+                "• Select [No] to DISCARD & navigate without saving\n"
+                "• Select [Cancel] to STAY on this window",
+                parent=self,
+            )
+            if choice is True:
+                logger.info(f"User selected YES: Saving record for frames {sf}–{ef}")
+                self.csv.append(new_rec)
+                return True
+            elif choice is False:
+                logger.info(f"User selected NO: Discarding record for frames {sf}–{ef}")
+                return True
+            else:
+                logger.info("User selected CANCEL: Remaining on current window.")
+                return False
 
+        # Existing record: check if user made any changes
         if self._records_same(existing, new_rec):
-            logger.info(f"Record for frames {sf}–{ef} exists and is identical. Skipping rewrite.")
+            logger.info(f"Auto-Save OFF: Existing record for frames {sf}–{ef} has NO changes. Navigating silently.")
             return True
 
-        logger.info(f"Record for frames {sf}–{ef} has modifications. Prompting user with Yes/No/Cancel...")
+        # Existing record WITH changes: prompt Yes/No/Cancel
+        logger.info(f"Auto-Save OFF: Record for frames {sf}–{ef} has modifications. Prompting Yes/No/Cancel...")
         choice = messagebox.askyesnocancel(
             "Unsaved Window Modifications",
             f"You modified the annotation for frames {sf}–{ef}.\n\n"
