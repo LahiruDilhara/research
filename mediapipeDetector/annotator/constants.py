@@ -81,19 +81,28 @@ def _build_csv_headers() -> list[str]:
         "video_file", "video_hash", "duration_ms",
         "start_ms", "end_ms", "start_frame", "end_frame",
     ]
-    # Landmark coordinates (from middle frame of window)
-    h += ["wrist_x", "wrist_y"]
-    for finger in FINGERS:
-        for joint in JOINT_LABELS:
-            h += [f"{finger.lower()}_{joint.lower()}_x",
-                  f"{finger.lower()}_{joint.lower()}_y"]
-    # Velocities (max magnitude across window)
-    h += ["wrist_vx", "wrist_vy"]
-    for finger in FINGERS:
-        for joint in JOINT_LABELS:
-            h += [f"{finger.lower()}_{joint.lower()}_vx",
-                  f"{finger.lower()}_{joint.lower()}_vy"]
-    # Annotation columns
+
+    # ── 160 Landmark coordinates (5 frames per window: f_step 1..5) ─────────
+    for f_step in range(1, 6):
+        h += [f"wrist{f_step}_x", f"wrist{f_step}_y"]
+        for finger in FINGERS:
+            for joint in JOINT_LABELS:
+                h += [
+                    f"{finger.lower()}{f_step}_{joint.lower()}_x",
+                    f"{finger.lower()}{f_step}_{joint.lower()}_y",
+                ]
+
+    # ── 128 Joint velocities (4 transitions per 5-frame window: v_step 1..4) ──
+    for v_step in range(1, 5):
+        h += [f"wrist{v_step}_vx", f"wrist{v_step}_vy"]
+        for finger in FINGERS:
+            for joint in JOINT_LABELS:
+                h += [
+                    f"{finger.lower()}{v_step}_{joint.lower()}_vx",
+                    f"{finger.lower()}{v_step}_{joint.lower()}_vy",
+                ]
+
+    # ── Annotation columns ───────────────────────────────────────────────────
     for finger in ["thumb", "index", "middle", "ring", "pinky"]:
         h.append(f"{finger}_touch")
     h += [
