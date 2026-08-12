@@ -4,6 +4,7 @@
 *.xml
 *.png
 *.webm
+*.csv
 
 # Python bytecode & cache
 __pycache__/
