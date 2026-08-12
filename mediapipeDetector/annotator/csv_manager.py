@@ -40,6 +40,15 @@ class CSVManager:
             logger.debug(f"Read {len(records)} records from {self.path}")
             return records
 
+    def get_video_hash(self) -> str | None:
+        """Extract the SHA-256 video_hash column from the first record in the CSV."""
+        recs = self.read_all()
+        if recs and recs[0].get("video_hash"):
+            h = recs[0]["video_hash"].strip()
+            logger.info(f"Retrieved video_hash '{h}' from CSV records: {self.path}")
+            return h
+        return None
+
     def last_record(self) -> dict | None:
         recs = self.read_all()
         return recs[-1] if recs else None

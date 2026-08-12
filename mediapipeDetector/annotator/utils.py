@@ -30,7 +30,7 @@ def compute_file_hash(filepath: str, chunk_size: int = 65536) -> str:
             sha.update(chunk)
             bytes_processed += len(chunk)
     digest = sha.hexdigest()[:16]
-    logger.info(f"Completed hash for {filepath} ({bytes_processed} bytes): {digest}")
+    logger.info(f"Completed SHA-256 hash for {filepath} ({bytes_processed} bytes): {digest}")
     return digest
 
 
@@ -42,10 +42,24 @@ def build_csv_path(directory: str, base_name: str, video_hash: str) -> str:
 
 
 def extract_hash_from_csv_filename(csv_path: str) -> str | None:
+    """
+    Extract expected SHA-256 video_hash.
+    First checks the CSV content's 'video_hash' column, then falls back to the filename stem.
+    """
+    if os.path.isfile(csv_path):
+        try:
+            from annotator.csv_manager import CSVManager
+            h = CSVManager(csv_path).get_video_hash()
+            if h:
+                logger.info(f"Extracted expected video_hash '{h}' from CSV content: {csv_path}")
+                return h
+        except Exception as e:
+            logger.debug(f"Could not read hash from CSV records: {e}")
+
     stem = os.path.splitext(os.path.basename(csv_path))[0]
     parts = stem.rsplit(".", 1)
-    extracted = parts[1] if len(parts) == 2 else None
-    logger.info(f"Extracted hash '{extracted}' from CSV filename: {csv_path}")
+    extracted = parts[1] if len(parts) == 2 and len(parts[1]) >= 8 else None
+    logger.info(f"Extracted expected hash '{extracted}' from CSV filename stem: {csv_path}")
     return extracted
 
 
@@ -73,7 +87,6 @@ def _run_native_cli_dialog(args: list[str]) -> str | None:
     thread = threading.Thread(target=_worker, daemon=True)
     thread.start()
 
-    # Pump Tkinter GUI event loop while waiting for native dialog
     while thread.is_alive():
         try:
             if tkinter._default_root and tkinter._default_root.winfo_exists():
@@ -109,7 +122,6 @@ def open_video_dialog() -> str | None:
             logger.info(f"User selected video file via kdialog: {path}")
             return path
 
-    # Tkinter fallback
     path = filedialog.askopenfilename(
         title="Select Video File",
         filetypes=[

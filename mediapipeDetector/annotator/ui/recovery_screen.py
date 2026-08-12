@@ -201,10 +201,14 @@ class RecoveryScreen(ctk.CTkFrame):
 
     def _pick(self) -> None:
         from annotator.ui.record_picker import RecordPickerDialog
-        dialog = RecordPickerDialog(self, self.csv.read_all())
+        total_wins = window_count(self.total_frames)
+        dialog = RecordPickerDialog(
+            self,
+            records=self.csv.read_all(),
+            total_windows=total_wins,
+            frame_data=self.frame_data,
+            csv_manager=self.csv,
+        )
         self.wait_window(dialog)
-        if dialog.selected_record:
-            widx = window_idx_from_start_frame(
-                int(dialog.selected_record.get("start_frame", 0))
-            )
-            self._go(widx, allow_override=False)
+        if dialog.selected_window_idx is not None:
+            self._go(dialog.selected_window_idx, allow_override=False)

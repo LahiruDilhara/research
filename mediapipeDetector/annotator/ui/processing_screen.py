@@ -3,7 +3,7 @@ annotator/ui/processing_screen.py
 
 Clean, modern video processing progress screen.
 Uses a thread-safe Queue polling architecture on the main GUI thread
-to guarantee real-time progress bar updates and reliable screen transitions.
+with SHA-256 fingerprint verification and modal prompt support.
 """
 import logging
 import os
@@ -16,7 +16,7 @@ import customtkinter as ctk
 from annotator.constants import MODEL_PATH
 from annotator.csv_manager import CSVManager
 from annotator.pipeline import process_video
-from annotator.utils import build_csv_path, compute_file_hash
+from annotator.utils import build_csv_path, compute_file_hash, extract_hash_from_csv_filename
 
 logger = logging.getLogger("Annotator.ProcessingScreen")
 
@@ -42,6 +42,8 @@ class ProcessingScreen(ctk.CTkFrame):
         self.video_hash: str = ""
         self._alive = True
         self._queue = queue.Queue()
+        self._mismatch_event = None
+        self._mismatch_proceed = False
         self._build()
         logger.info(f"Initialized ProcessingScreen for video: {video_path} (mode={mode})")
         self._start()
@@ -104,8 +106,8 @@ class ProcessingScreen(ctk.CTkFrame):
 
     def _poll_queue(self) -> None:
         """
-        Main-thread loop that reads status, progress, and completion messages
-        from the worker queue and updates the GUI widgets cleanly.
+        Main-thread loop that reads status, progress, hash verification, and completion messages
+        from the worker queue and updates the GUI widgets safely on the main thread.
         """
         if not self._alive:
             return
@@ -126,6 +128,26 @@ class ProcessingScreen(ctk.CTkFrame):
                         text=f"Extracting features ({int(pct * 100)}%)"
                     )
 
+                elif msg_type == "hash_mismatch":
+                    _, expected, actual = msg
+                    logger.warning(f"Displaying SHA-256 Hash Mismatch warning dialog: expected '{expected}', actual '{actual}'")
+                    proceed = messagebox.askyesno(
+                        "⚠ Video Fingerprint Mismatch",
+                        f"The selected video SHA-256 hash does NOT match this CSV dataset!\n\n"
+                        f"  CSV Expected Hash :  {expected}\n"
+                        f"  Selected Video Hash: {actual}\n\n"
+                        "Calculated velocities and landmarks will not correspond to recorded annotations.\n\n"
+                        "Do you want to proceed anyway?",
+                        parent=self,
+                    )
+                    self._mismatch_proceed = proceed
+                    if self._mismatch_event:
+                        self._mismatch_event.set()
+                    if not proceed:
+                        logger.info("User chose NOT to proceed after hash mismatch. Returning to SetupScreen.")
+                        self.app.show_setup()
+                        return
+
                 elif msg_type == "done":
                     _, frame_data, fps, total_frames, duration_ms = msg
                     self._bar.set(1.0)
@@ -143,16 +165,15 @@ class ProcessingScreen(ctk.CTkFrame):
         except queue.Empty:
             pass
 
-        # Reschedule polling loop on the main GUI thread
         self.after(30, self._poll_queue)
 
     def _run_worker(self) -> None:
         """Background worker thread function."""
         try:
             logger.info("Background thread started. Computing file hash...")
-            self._queue.put(("status", "Computing video fingerprint..."))
+            self._queue.put(("status", "Computing SHA-256 video fingerprint..."))
             self.video_hash = compute_file_hash(self.video_path)
-            logger.info(f"Video hash: {self.video_hash}")
+            logger.info(f"Computed SHA-256 video hash: {self.video_hash}")
 
             if self.mode == "new":
                 self.csv_path = build_csv_path(
@@ -160,21 +181,24 @@ class ProcessingScreen(ctk.CTkFrame):
                 )
                 logger.info(f"Target CSV path determined: {self.csv_path}")
             else:
-                if (
-                    self.csv_hash_expected
-                    and self.csv_hash_expected != self.video_hash
-                ):
+                # Resume mode: verify expected SHA-256 hash against actual video_hash
+                expected_hash = self.csv_hash_expected
+                if not expected_hash and self.csv_path:
+                    expected_hash = extract_hash_from_csv_filename(self.csv_path)
+
+                if expected_hash and expected_hash != self.video_hash:
                     logger.warning(
-                        f"Hash mismatch! CSV expects '{self.csv_hash_expected}', video is '{self.video_hash}'"
+                        f"SHA-256 Hash Mismatch detected! CSV expected: '{expected_hash}', Video actual: '{self.video_hash}'"
                     )
-                    msg = (
-                        f"Hash mismatch!\n\n"
-                        f"  CSV expects : {self.csv_hash_expected}\n"
-                        f"  Video hash  : {self.video_hash}\n\n"
-                        "The video may not match this CSV.\n"
-                        "Processing will continue anyway."
-                    )
-                    self.after(0, lambda: messagebox.showwarning("Hash Mismatch", msg))
+                    self._mismatch_event = threading.Event()
+                    self._mismatch_proceed = False
+                    self._queue.put(("hash_mismatch", expected_hash, self.video_hash))
+                    
+                    # Wait for main thread modal dialog response
+                    self._mismatch_event.wait()
+                    if not self._mismatch_proceed:
+                        logger.info("Worker thread aborting due to user rejection of hash mismatch.")
+                        return
 
             if self.mode == "new":
                 logger.info(f"Creating new CSV file headers at: {self.csv_path}")

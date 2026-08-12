@@ -33,6 +33,15 @@ FINGER_COLORS_BGR = {
     "Pinky":  (255, 0, 0),
 }
 
+# Hex color mapping matching OpenCV BGR colors for UI controls
+FINGER_COLORS_HEX = {
+    "Thumb":  "#ff8c00",   # Vibrant Orange
+    "Index":  "#00c8ff",   # Electric Cyan
+    "Middle": "#00e676",   # Bright Emerald Green
+    "Ring":   "#ff00ff",   # Magenta / Pink
+    "Pinky":  "#3d7eff",   # Bright Blue
+}
+
 # ── 1€ Filter & Deadband (must match live_camera.py exactly) ─────────────────
 FILTER_MIN_CUTOFF = 1.5
 FILTER_BETA = 5.0

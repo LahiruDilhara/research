@@ -2,6 +2,8 @@
 annotator/ui/annotation_screen.py
 
 Main annotation interface styled with modern professional desktop HIG.
+Includes 'Select Window...' picker button in top status bar and color-coded
+finger touch toggles matching landmark colors.
 """
 import logging
 import os
@@ -11,7 +13,7 @@ import customtkinter as ctk
 from PIL import Image
 
 from annotator.constants import (
-    ANY_DIFF_PRESETS, CSV_HEADERS, FINGERS, JOINT_LABELS, POV_OPTIONS,
+    ANY_DIFF_PRESETS, CSV_HEADERS, FINGERS, FINGER_COLORS_HEX, JOINT_LABELS, POV_OPTIONS,
 )
 from annotator.csv_manager import CSVManager
 from annotator.video_processor import (
@@ -74,7 +76,7 @@ class AnnotationScreen(ctk.CTkFrame):
     # ── UI construction ───────────────────────────────────────────────────────
 
     def _build(self) -> None:
-        # Top Stats Bar
+        # Top Stats & Window Picker Bar
         top = ctk.CTkFrame(self, height=48, corner_radius=0,
                            fg_color=("gray90", "gray14"))
         top.pack(fill="x")
@@ -86,12 +88,21 @@ class AnnotationScreen(ctk.CTkFrame):
         )
         self._lbl_stats.pack(side="left", padx=20)
 
+        # Window Selection Button right on the top bar
+        self._btn_jump = ctk.CTkButton(
+            top, text="Select Window...", width=140, height=30,
+            corner_radius=6, font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color="#2563eb", hover_color="#1d4ed8",
+            command=self._pick_window,
+        )
+        self._btn_jump.pack(side="right", padx=16)
+
         self._lbl_recorded = ctk.CTkLabel(
             top, text="",
             font=ctk.CTkFont(size=12),
             text_color=("#d97706", "#f59e0b"),
         )
-        self._lbl_recorded.pack(side="right", padx=20)
+        self._lbl_recorded.pack(side="right", padx=12)
 
         # Main Split Frame
         main = ctk.CTkFrame(self, fg_color="transparent")
@@ -194,9 +205,12 @@ class AnnotationScreen(ctk.CTkFrame):
         tg = ctk.CTkFrame(right, fg_color="transparent")
         tg.pack(fill="x", **pad)
         for col, finger in enumerate(FINGERS):
+            hex_col = FINGER_COLORS_HEX.get(finger, "gray95")
             ctk.CTkCheckBox(
                 tg, text=finger, variable=self._touch[finger],
-                font=ctk.CTkFont(size=13),
+                font=ctk.CTkFont(size=13, weight="bold"),
+                text_color=hex_col,
+                checkmark_color=hex_col,
             ).grid(
                 row=col // 3, column=col % 3, padx=6, pady=4, sticky="w"
             )
@@ -291,7 +305,7 @@ class AnnotationScreen(ctk.CTkFrame):
             text_color=("gray20", "gray80"),
         ).pack(anchor="w", padx=16, pady=(12, 2))
 
-    # ── Window loading ────────────────────────────────────────────────────────
+    # ── Window loading & Navigation ───────────────────────────────────────────
 
     def _load_window(self, widx: int) -> None:
         logger.info(f"Loading window index {widx}/{self.total_windows}")
@@ -339,6 +353,28 @@ class AnnotationScreen(ctk.CTkFrame):
 
         self._btn_prev.configure(state="normal" if widx > 0 else "disabled")
         self._start_loop()
+
+    def _pick_window(self) -> None:
+        logger.info(f"User clicked 'Select Window...' (current window index = {self._window_idx})")
+        from annotator.ui.record_picker import RecordPickerDialog
+
+        dialog = RecordPickerDialog(
+            self,
+            total_windows=self.total_windows,
+            current_window_idx=self._window_idx,
+            frame_data=self.frame_data,
+            csv_manager=self.csv,
+        )
+        self.wait_window(dialog)
+
+        if dialog.selected_window_idx is not None and dialog.selected_window_idx != self._window_idx:
+            logger.info(f"User selected window index {dialog.selected_window_idx}. Jumping to window...")
+            if not self._save_current():
+                return
+            self._stop_loop()
+            self._is_at_recovery_start = False
+            self._allow_override_last = False
+            self._load_window(dialog.selected_window_idx)
 
     # ── Annotation helpers ────────────────────────────────────────────────────
 

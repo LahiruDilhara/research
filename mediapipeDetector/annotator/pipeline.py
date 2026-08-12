@@ -4,7 +4,8 @@ annotator/pipeline.py
 Full MediaPipe hand-landmark pipeline — mirrors live_camera.py exactly:
   scale normalisation → 1€ filter → velocity with deadband.
 
-Yields thread time (GIL) to enable smooth UI progress bar updates.
+Includes regular flat fingertip text annotations (Thumb, Index, Middle, Ring, Pinky)
+overlayed on the frame image for clear visual identification.
 """
 import logging
 import math
@@ -220,21 +221,39 @@ def _velocities(hands: list, state: _PipelineState, t: float) -> list:
 # ── Skeleton drawing helper ──────────────────────────────────────────────────
 
 def draw_skeleton(frame_bgr: any, hand_data: dict) -> any:
-    """Overlay MediaPipe skeleton on a BGR frame. Returns a new frame."""
+    """
+    Overlay MediaPipe skeleton and regular flat fingertip text labels on a BGR frame.
+    Returns a new annotated frame.
+    """
     frame = frame_bgr.copy()
     pts = hand_data.get("all_pts_pixel", [])
+    
+    # Draw connections
     for a, b in HAND_CONNECTIONS:
         if a < len(pts) and b < len(pts):
             cv2.line(frame,
                      (int(pts[a][0]), int(pts[a][1])),
                      (int(pts[b][0]), int(pts[b][1])),
                      (180, 180, 180), 1)
+
+    # Draw wrist
     wp = hand_data.get("wrist_pixel", (0, 0))
     cv2.circle(frame, (int(wp[0]), int(wp[1])), 6, (0, 255, 255), -1)
+
+    # Draw finger joint circles and regular fingertip labels
     for fn, coords in hand_data.get("fingers_pixel", {}).items():
         color = FINGER_COLORS_BGR.get(fn, (255, 255, 255))
         for j, pt in enumerate(coords):
-            cv2.circle(frame, (int(pt[0]), int(pt[1])), 7 if j == 2 else 4, color, -1)
+            is_tip = (j == 2)
+            px, py = int(pt[0]), int(pt[1])
+            cv2.circle(frame, (px, py), 6 if is_tip else 4, color, -1)
+
+            # Annotate finger name on the fingertip as a regular flat word
+            if is_tip:
+                text_pos = (px + 8, py - 4)
+                cv2.putText(frame, fn, text_pos, cv2.FONT_HERSHEY_SIMPLEX,
+                            0.45, color, 1, cv2.LINE_AA)
+
     return frame
 
 
