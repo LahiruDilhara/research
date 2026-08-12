@@ -83,8 +83,16 @@ HAND_CONNECTIONS = [
     (0, 17),                                  # palm base
 ]
 
-# Global 5-Frame Velocity Queue (holds 32-element flat vectors)
-VELOCITY_QUEUE = collections.deque(maxlen=5)
+# Global Per-Finger 5-Frame Velocity Queues
+# Each queue holds up to 5 frames of 8-element vectors:
+#   [wrist_vx, wrist_vy, joint0_vx, joint0_vy, joint1_vx, joint1_vy, joint2_vx, joint2_vy]
+FINGER_VELOCITY_QUEUES = {
+    "Thumb":  collections.deque(maxlen=5),
+    "Index":  collections.deque(maxlen=5),
+    "Middle": collections.deque(maxlen=5),
+    "Ring":   collections.deque(maxlen=5),
+    "Pinky":  collections.deque(maxlen=5),
+}
 ACTIVE_HAND_LABEL = None
 
 
@@ -575,61 +583,62 @@ def render_frame(frame, hands_data, hands_velocity_data, frame_index, fps=0.0):
 
 
 # =============================================================
-# STEP 6: UPDATE GLOBAL VELOCITY QUEUE (32-ELEMENT FLAT LISTS)
+# STEP 6: UPDATE PER-FINGER VELOCITY QUEUES (5 QUEUES × 8-ELEMENT VECTORS)
 # =============================================================
 
-def pack_flat_velocity_vector(hand_vel_info):
+def pack_per_finger_vectors(hand_vel_info):
     """
-    Packs 16 location velocity pairs (vx, vy) into a flat 1D Python list of 32 float elements:
-      - Elements 0..1: Wrist (vx, vy)
-      - Elements 2..7: Thumb 3 joints (vx, vy)
-      - Elements 8..13: Index 3 joints (vx, vy)
-      - Elements 14..19: Middle 3 joints (vx, vy)
-      - Elements 20..25: Ring 3 joints (vx, vy)
-      - Elements 26..31: Pinky 3 joints (vx, vy)
-    Total = 32 float elements.
+    Packs velocity data into 5 per-finger 8-element vectors.
+    Each vector layout:
+      [wrist_vx, wrist_vy, joint0_vx, joint0_vy, joint1_vx, joint1_vy, joint2_vx, joint2_vy]
+    Wrist velocity is included in every finger vector so each finger stream is self-contained.
+    Returns dict: {"Thumb": [...8 floats], "Index": [...8 floats], ...}
     """
-    flat = []
     wrist_vel = hand_vel_info.get("wrist_velocity")
-    if wrist_vel:
-        flat.extend([float(wrist_vel[0]), float(wrist_vel[1])])
-    else:
-        flat.extend([0.0, 0.0])
+    wvx = float(wrist_vel[0]) if wrist_vel is not None else 0.0
+    wvy = float(wrist_vel[1]) if wrist_vel is not None else 0.0
 
     finger_vels = hand_vel_info.get("finger_velocities", {})
     finger_layout = ["Thumb", "Index", "Middle", "Ring", "Pinky"]
 
+    result = {}
     for finger_name in finger_layout:
         j_vels = finger_vels.get(finger_name, [])
-        for idx in range(3):
+        vec = [wvx, wvy]  # Elements 0-1: wrist velocity shared across all fingers
+        for idx in range(3):  # Elements 2-7: 3 finger joints × (vx, vy)
             joint_vel = j_vels[idx] if idx < len(j_vels) else None
-            if joint_vel:
-                flat.extend([float(joint_vel[0]), float(joint_vel[1])])
+            if joint_vel is not None:
+                vec.extend([float(joint_vel[0]), float(joint_vel[1])])
             else:
-                flat.extend([0.0, 0.0])
+                vec.extend([0.0, 0.0])
+        result[finger_name] = vec  # Exactly 8 float elements
 
-    return flat  # Exactly 32 float items
+    return result
 
 
-# Global missing frame counter for velocity queue
+# Global missing frame counter for velocity queues
 QUEUE_STALE_COUNTER = 0
 
 
 def update_velocity_queue(hands_velocity_data):
     """
-    Updates the global 5-element velocity queue (VELOCITY_QUEUE).
-    Enqueues flat 32-element velocity lists. When 6th item is pushed, 1st item is dropped.
-    Clears global queue only after 2 consecutive missing-detection frames or if active hand changes.
+    Updates 5 global per-finger velocity queues (FINGER_VELOCITY_QUEUES).
+    Each queue holds up to 5 frames of 8-element vectors:
+      [wrist_vx, wrist_vy, j0_vx, j0_vy, j1_vx, j1_vy, j2_vx, j2_vy]
+    When the 6th item is pushed, the oldest is automatically dropped (deque maxlen=5).
+    All queues are cleared together after 2 consecutive missing-detection frames
+    or immediately if the active hand label changes.
     """
-    global VELOCITY_QUEUE, ACTIVE_HAND_LABEL, QUEUE_STALE_COUNTER
+    global FINGER_VELOCITY_QUEUES, ACTIVE_HAND_LABEL, QUEUE_STALE_COUNTER
 
     if not hands_velocity_data:
         QUEUE_STALE_COUNTER += 1
         if QUEUE_STALE_COUNTER >= MISSING_FRAMES_TOLERANCE:
-            if VELOCITY_QUEUE or ACTIVE_HAND_LABEL is not None:
-                VELOCITY_QUEUE.clear()
+            if any(len(q) > 0 for q in FINGER_VELOCITY_QUEUES.values()) or ACTIVE_HAND_LABEL is not None:
+                for q in FINGER_VELOCITY_QUEUES.values():
+                    q.clear()
                 ACTIVE_HAND_LABEL = None
-                print("No hand visible for 2 consecutive frames — Global Velocity Queue cleared.")
+                print("No hand visible for 2 consecutive frames — All Finger Velocity Queues cleared.")
         return
 
     QUEUE_STALE_COUNTER = 0  # Reset missing frame counter on active detection
@@ -637,18 +646,21 @@ def update_velocity_queue(hands_velocity_data):
     primary_hand = hands_velocity_data[0]
     current_hand = primary_hand["hand"]
 
-    # Hand changed (e.g. Left -> Right or vice-versa) -> clear queue immediately
+    # Hand changed (e.g. Left -> Right or vice-versa) -> clear all queues immediately
     if ACTIVE_HAND_LABEL != current_hand:
-        VELOCITY_QUEUE.clear()
+        for q in FINGER_VELOCITY_QUEUES.values():
+            q.clear()
         ACTIVE_HAND_LABEL = current_hand
-        print(f"Hand changed to {current_hand} — Global Velocity Queue cleared.")
+        print(f"Hand changed to {current_hand} — All Finger Velocity Queues cleared.")
 
-    # Pack 32-element flat list and enqueue
-    flat_vector = pack_flat_velocity_vector(primary_hand)
-    VELOCITY_QUEUE.append(flat_vector)
+    # Pack 5 × 8-element vectors and enqueue into each per-finger queue
+    per_finger_vecs = pack_per_finger_vectors(primary_hand)
+    for finger_name, vec in per_finger_vecs.items():
+        FINGER_VELOCITY_QUEUES[finger_name].append(vec)
 
-    # Print current 5-element global queue state
-    print(f"Queue len={len(VELOCITY_QUEUE)} (item len={len(VELOCITY_QUEUE[-1])}): {list(VELOCITY_QUEUE)}")
+    # Print current state of all 5 per-finger queues
+    for finger_name, q in FINGER_VELOCITY_QUEUES.items():
+        print(f"{finger_name} Queue len={len(q)} (vec len={len(q[-1]) if q else 0}): {list(q)}")
 
 
 # =============================================================
