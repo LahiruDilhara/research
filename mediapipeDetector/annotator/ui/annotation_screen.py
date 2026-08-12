@@ -1,20 +1,20 @@
 """
 annotator/ui/annotation_screen.py
 
-Main annotation interface styled with modern professional desktop HIG.
-Includes 'Select Window...' picker button in top status bar, visual HUD overlay toggle
-for inspecting per-frame joint (x,y) coordinates and (vx,vy) velocities, color-coded
-finger touch toggles matching landmark colors, 'Reset Window Changes' button,
-Yes/No/Cancel save modal on navigation when Auto-Save is OFF and edits exist,
-automatic carry-forward of environmental/motion settings for new unannotated windows,
-non-blocking completion notification, 'Out of Sync' status toggle, and 'Auto-Save on Navigation' toggle.
+Main annotation interface — VS Code Dark+ theme, Helvetica fonts.
+Includes: 'Select Window...' picker, visual HUD overlay toggle for per-frame joint
+(x,y) coordinates and (vx,vy) velocities, color-coded finger touch toggles,
+'Reset Window Changes', Yes/No/Cancel save modal when Auto-Save is OFF and edits
+exist, automatic carry-forward of environmental/motion settings, 'Out of Sync'
+toggle, and 'Auto-Save on Navigation' toggle.
+Global scroll routing is handled by app.py — no per-frame binding needed.
 """
 import logging
 import os
 from tkinter import messagebox
 
 import customtkinter as ctk
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
 from annotator.constants import (
     ANY_DIFF_PRESETS, CSV_HEADERS, FINGERS, FINGER_COLORS_HEX, JOINT_LABELS, POV_OPTIONS,
@@ -24,9 +24,14 @@ from annotator.video_processor import (
     extract_window_record_data, frames_to_pil, get_window_frames,
     window_count, window_idx_from_start_frame,
 )
+from annotator.ui.theme import (
+    FF, BG, PANEL, BORDER, HDR_BG, TXT_PRI, TXT_SEC, TXT_MUT,
+    BTN_PRI, BTN_HVP, BTN_SEC, BTN_HVS, BTN_GHO, BTN_GHH,
+    BTN_PUR, BTN_PUR_H, AMBER, SW_TRACK, SECTION_C, make_switch, section_label,
+)
 
 logger = logging.getLogger("Annotator.AnnotationScreen")
-_DISPLAY_W = 640   # target width for frame viewer
+_DISPLAY_W = 640
 
 
 class AnnotationScreen(ctk.CTkFrame):
@@ -36,7 +41,7 @@ class AnnotationScreen(ctk.CTkFrame):
         csv_path, video_path, video_hash,
         start_window_idx: int = 0,
     ) -> None:
-        super().__init__(parent, fg_color="transparent")
+        super().__init__(parent, fg_color=BG)
         self.app = app
         self.frame_data = frame_data
         self.fps = fps
@@ -49,8 +54,6 @@ class AnnotationScreen(ctk.CTkFrame):
         self.total_windows = window_count(total_frames)
 
         self._window_idx = start_window_idx
-
-        # Loop animation state
         self._loop_idx = 0
         self._loop_job = None
         self._loop_running = False
@@ -60,13 +63,9 @@ class AnnotationScreen(ctk.CTkFrame):
         self._current_wf: list = []
         self._display_image_ref = None
 
-        # Visual debug overlay toggle (NOT saved to CSV)
         self._show_coords_vel = ctk.BooleanVar(value=False)
-
-        # Auto-Save on Navigation toggle (Default: OFF -> prompt Yes/No/Cancel when edits exist)
         self._auto_save = ctk.BooleanVar(value=False)
 
-        # Annotation variables (saved to CSV)
         self._touch = {f: ctk.BooleanVar(value=False) for f in FINGERS}
         self._hand_move = ctk.BooleanVar(value=False)
         self._hand_closer = ctk.BooleanVar(value=False)
@@ -84,53 +83,60 @@ class AnnotationScreen(ctk.CTkFrame):
     # ── UI construction ───────────────────────────────────────────────────────
 
     def _build(self) -> None:
-        # Top Stats, Visual Debug Toggle & Window Picker Bar
-        top = ctk.CTkFrame(self, height=48, corner_radius=0,
-                           fg_color=("gray90", "gray14"))
+        # ── Top status bar ────────────────────────────────────────────────────
+        top = ctk.CTkFrame(self, height=48, corner_radius=0, fg_color=HDR_BG)
         top.pack(fill="x")
         top.pack_propagate(False)
 
         self._lbl_stats = ctk.CTkLabel(
             top, text="",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=ctk.CTkFont(family=FF, size=12, weight="bold"),
+            text_color=TXT_SEC,
         )
         self._lbl_stats.pack(side="left", padx=20)
 
-        # Window Analyzer Button right on the top bar
         self._btn_analyze = ctk.CTkButton(
             top, text="Analyze Window", width=140, height=30,
-            corner_radius=6, font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color="#8b5cf6", hover_color="#7c3aed",
+            corner_radius=4, border_width=0,
+            font=ctk.CTkFont(family=FF, size=12, weight="bold"),
+            fg_color=BTN_PUR, hover_color=BTN_PUR_H,
             command=self._open_analyzer,
         )
         self._btn_analyze.pack(side="right", padx=(8, 16))
 
-        # Window Selection Button right on the top bar
         self._btn_jump = ctk.CTkButton(
             top, text="Select Window...", width=140, height=30,
-            corner_radius=6, font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color="#2563eb", hover_color="#1d4ed8",
+            corner_radius=4, border_width=0,
+            font=ctk.CTkFont(family=FF, size=12, weight="bold"),
+            fg_color=BTN_PRI, hover_color=BTN_HVP,
             command=self._pick_window,
         )
         self._btn_jump.pack(side="right", padx=8)
 
-        # Top Visual Debug Toggle Switch (NOT saved to CSV)
+        # HUD debug toggle — use make_switch with a specific amber/blue color
         self._sw_debug = ctk.CTkSwitch(
-            top, text="Show (x,y) & (vx,vy)", variable=self._show_coords_vel,
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("#2563eb", "#60a5fa"),
+            top,
+            text="Show (x,y) & (vx,vy)",
+            variable=self._show_coords_vel,
+            font=ctk.CTkFont(family=FF, size=12),
+            text_color="#4ec9f0",
+            fg_color=SW_TRACK,
+            progress_color=BTN_PRI,
+            button_color="#e0e0e0",
+            button_hover_color="#ffffff",
+            bg_color=HDR_BG,
             command=self._on_toggle_debug_overlay,
         )
         self._sw_debug.pack(side="right", padx=16)
 
         self._lbl_recorded = ctk.CTkLabel(
             top, text="",
-            font=ctk.CTkFont(size=12),
-            text_color=("#d97706", "#f59e0b"),
+            font=ctk.CTkFont(family=FF, size=12),
+            text_color=AMBER,
         )
         self._lbl_recorded.pack(side="right", padx=12)
 
-        # Main Split Frame
+        # ── Main split layout ──────────────────────────────────────────────────
         main = ctk.CTkFrame(self, fg_color="transparent")
         main.pack(fill="both", expand=True, padx=12, pady=10)
         main.columnconfigure(0, weight=6)
@@ -142,107 +148,96 @@ class AnnotationScreen(ctk.CTkFrame):
 
     def _build_viewer(self, parent) -> None:
         left = ctk.CTkFrame(
-            parent, corner_radius=8,
-            border_width=1, border_color=("gray80", "gray25"),
-            fg_color=("gray95", "gray14"),
+            parent, corner_radius=4,
+            border_width=1, border_color=BORDER,
+            fg_color=PANEL,
         )
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
         left.rowconfigure(0, weight=1)
         left.columnconfigure(0, weight=1)
 
-        # Video Frame Display Area
-        self._frame_lbl = ctk.CTkLabel(
-            left, text="", fg_color="black", corner_radius=6,
-        )
+        self._frame_lbl = ctk.CTkLabel(left, text="", fg_color="black", corner_radius=4)
         self._frame_lbl.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
 
-        # Frame Info Bar
         info = ctk.CTkFrame(left, fg_color="transparent")
         info.grid(row=1, column=0, sticky="ew", padx=12, pady=(0, 4))
         self._lbl_fnum = ctk.CTkLabel(
             info, text="",
-            font=ctk.CTkFont(size=12),
-            text_color=("gray30", "gray70"),
+            font=ctk.CTkFont(family=FF, size=12), text_color=TXT_MUT,
         )
         self._lbl_fnum.pack(side="left")
 
-        # Playback Controls Bar
         speed_row = ctk.CTkFrame(left, fg_color="transparent")
         speed_row.grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 6))
-
         ctk.CTkLabel(
             speed_row, text="Loop Speed:",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(family=FF, size=12), text_color=TXT_SEC,
         ).pack(side="left", padx=(0, 8))
-
         self._speed_slider = ctk.CTkSlider(
-            speed_row, from_=1, to=10,
-            number_of_steps=9, width=140,
+            speed_row, from_=1, to=10, number_of_steps=9, width=140,
+            button_color=BTN_PRI, button_hover_color=BTN_HVP,
+            progress_color=BTN_PRI, fg_color=BTN_SEC,
             command=self._speed_changed,
         )
         self._speed_slider.set(3)
         self._speed_slider.pack(side="left")
-
         self._speed_lbl = ctk.CTkLabel(
             speed_row, text="3 FPS",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(family=FF, size=12), text_color=TXT_SEC,
         )
         self._speed_lbl.pack(side="left", padx=8)
 
-        # Step Buttons
         nav = ctk.CTkFrame(left, fg_color="transparent")
         nav.grid(row=3, column=0, pady=(0, 12))
-
         ctk.CTkButton(
-            nav, text="Play Loop", width=95, height=30, corner_radius=6,
-            font=ctk.CTkFont(size=12),
-            fg_color="#2563eb", hover_color="#1d4ed8",
+            nav, text="Play Loop", width=95, height=30, corner_radius=4, border_width=0,
+            font=ctk.CTkFont(family=FF, size=12),
+            fg_color=BTN_PRI, hover_color=BTN_HVP,
             command=self._start_loop,
         ).pack(side="left", padx=4)
-
         ctk.CTkButton(
-            nav, text="Step Back", width=85, height=30, corner_radius=6,
-            font=ctk.CTkFont(size=12),
-            fg_color=("gray80", "gray28"), hover_color=("gray70", "gray36"),
-            text_color=("gray10", "gray95"),
+            nav, text="Step Back", width=85, height=30, corner_radius=4, border_width=0,
+            font=ctk.CTkFont(family=FF, size=12),
+            fg_color=BTN_SEC, hover_color=BTN_HVS, text_color=TXT_PRI,
             command=self._prev_frame,
         ).pack(side="left", padx=4)
-
         ctk.CTkButton(
-            nav, text="Step Forward", width=95, height=30, corner_radius=6,
-            font=ctk.CTkFont(size=12),
-            fg_color=("gray80", "gray28"), hover_color=("gray70", "gray36"),
-            text_color=("gray10", "gray95"),
+            nav, text="Step Forward", width=95, height=30, corner_radius=4, border_width=0,
+            font=ctk.CTkFont(family=FF, size=12),
+            fg_color=BTN_SEC, hover_color=BTN_HVS, text_color=TXT_PRI,
             command=self._next_frame,
         ).pack(side="left", padx=4)
 
     def _build_controls(self, parent) -> None:
         right = ctk.CTkScrollableFrame(
-            parent, corner_radius=8, width=340,
-            border_width=1, border_color=("gray80", "gray25"),
-            fg_color=("gray95", "gray14"),
+            parent, corner_radius=4, width=340,
+            border_width=1, border_color=BORDER,
+            fg_color=PANEL,
+            scrollbar_button_color=BTN_SEC,
+            scrollbar_button_hover_color=BTN_HVS,
         )
         right.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
 
         pad = {"padx": 16, "pady": 4}
 
-        # ── Finger Touch Flags ───────────────────────────────────────────────
-        self._section(right, "Finger Touch Flags")
+        # ── Finger Touch Flags ──────────────────────────────────────────────
+        section_label(right, "Finger Touch Flags").pack(anchor="w", padx=16, pady=(12, 2))
         tg = ctk.CTkFrame(right, fg_color="transparent")
         tg.pack(fill="x", **pad)
         for col, finger in enumerate(FINGERS):
-            hex_col = FINGER_COLORS_HEX.get(finger, "gray95")
+            hex_col = FINGER_COLORS_HEX.get(finger, "#cccccc")
             ctk.CTkCheckBox(
                 tg, text=finger, variable=self._touch[finger],
-                font=ctk.CTkFont(size=13, weight="bold"),
+                font=ctk.CTkFont(family=FF, size=13, weight="bold"),
                 text_color=hex_col,
                 checkmark_color=hex_col,
-            ).grid(
-                row=col // 3, column=col % 3, padx=6, pady=4, sticky="w"
-            )
+                fg_color=BTN_PRI, hover_color=BTN_HVP,
+                border_color=BORDER,
+                bg_color=PANEL,
+            ).grid(row=col // 3, column=col % 3, padx=6, pady=4, sticky="w")
 
-        # ── Hand Motion & Environment ────────────────────────────────────────
-        self._section(right, "Hand Motion & Environment")
+        # ── Hand Motion & Environment ───────────────────────────────────────
+        section_label(right, "Hand Motion & Environment").pack(anchor="w", padx=16, pady=(12, 2))
         for text, var in [
             ("Hand Moving", self._hand_move),
             ("Hand Moving Closer", self._hand_closer),
@@ -251,95 +246,91 @@ class AnnotationScreen(ctk.CTkFrame):
             ("Hand Visible", self._hand_visible),
             ("Out of Sync", self._out_of_sync),
         ]:
-            ctk.CTkSwitch(
-                right, text=text, variable=var,
-                font=ctk.CTkFont(size=13),
-            ).pack(anchor="w", **pad)
+            make_switch(right, text, var, bg=PANEL).pack(anchor="w", **pad)
 
-        # ── Point of View ────────────────────────────────────────────────────
-        self._section(right, "Point of View (POV)")
+        # ── Point of View ───────────────────────────────────────────────────
+        section_label(right, "Point of View (POV)").pack(anchor="w", padx=16, pady=(12, 2))
         pov_row = ctk.CTkFrame(right, fg_color="transparent")
         pov_row.pack(fill="x", **pad)
         for opt in POV_OPTIONS:
             ctk.CTkRadioButton(
                 pov_row, text=opt.capitalize(),
                 variable=self._pov, value=opt,
-                font=ctk.CTkFont(size=13),
+                font=ctk.CTkFont(family=FF, size=13),
+                text_color=TXT_SEC,
+                fg_color=BTN_PRI, hover_color=BTN_HVP,
+                border_color=BORDER,
+                bg_color=PANEL,
             ).pack(side="left", padx=10)
 
-        # ── Observation Notes ────────────────────────────────────────────────
-        self._section(right, "Observation Notes (anyDifference)")
+        # ── Observation Notes ───────────────────────────────────────────────
+        section_label(right, "Observation Notes (anyDifference)").pack(anchor="w", padx=16, pady=(12, 2))
         self._diff_combo = ctk.CTkComboBox(
             right, variable=self._any_diff,
             values=ANY_DIFF_PRESETS, width=290,
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(family=FF, size=12),
+            fg_color=BTN_SEC, border_color=BORDER, text_color=TXT_SEC,
+            button_color=BTN_SEC, button_hover_color=BTN_HVS,
+            dropdown_fg_color=PANEL, dropdown_text_color=TXT_SEC,
+            dropdown_hover_color=BTN_GHH,
         )
         self._diff_combo.pack(anchor="w", **pad)
 
-        ctk.CTkFrame(right, height=1, fg_color=("gray80", "gray25")).pack(
-            fill="x", padx=16, pady=10
-        )
+        ctk.CTkFrame(right, height=1, fg_color=BORDER).pack(fill="x", padx=16, pady=10)
 
-        # Revert / Reset Current Window Edits Button
         ctk.CTkButton(
             right, text="Reset Window Changes", height=30,
-            corner_radius=6,
-            fg_color="transparent", hover_color=("gray85", "gray22"),
-            border_width=1, border_color=("gray70", "gray35"),
-            text_color=("gray30", "gray70"),
-            font=ctk.CTkFont(size=12),
+            corner_radius=4, border_width=1, border_color=BORDER,
+            fg_color=BTN_GHO, hover_color=BTN_GHH, text_color=TXT_MUT,
+            font=ctk.CTkFont(family=FF, size=12),
             command=self._reset_current_window_edits,
         ).pack(fill="x", **pad)
 
-        ctk.CTkFrame(right, height=1, fg_color=("gray80", "gray25")).pack(
-            fill="x", padx=16, pady=8
-        )
+        ctk.CTkFrame(right, height=1, fg_color=BORDER).pack(fill="x", padx=16, pady=8)
 
-        # Navigation Auto-Save Toggle Switch (default: OFF -> prompt Yes/No/Cancel on changes)
+        # Auto-Save toggle — amber coloured track when ON
         ctk.CTkSwitch(
-            right, text="Auto-Save on Navigation", variable=self._auto_save,
-            font=ctk.CTkFont(size=12), text_color=("#d97706", "#f59e0b"),
+            right,
+            text="Auto-Save on Navigation",
+            variable=self._auto_save,
+            font=ctk.CTkFont(family=FF, size=12),
+            text_color=AMBER,
+            fg_color=SW_TRACK,
+            progress_color=AMBER,
+            button_color="#e0e0e0",
+            button_hover_color="#ffffff",
+            bg_color=PANEL,
         ).pack(anchor="w", **pad)
 
-        # Action Buttons Navigation
         nav_row = ctk.CTkFrame(right, fg_color="transparent")
         nav_row.pack(fill="x", **pad)
-
         self._btn_prev = ctk.CTkButton(
-            nav_row, text="Previous Window", width=130, height=36,
-            corner_radius=6, font=ctk.CTkFont(size=12),
-            fg_color=("gray80", "gray28"), hover_color=("gray70", "gray36"),
-            text_color=("gray10", "gray95"),
+            nav_row, text="← Previous", width=130, height=36,
+            corner_radius=4, border_width=0,
+            font=ctk.CTkFont(family=FF, size=12),
+            fg_color=BTN_SEC, hover_color=BTN_HVS, text_color=TXT_PRI,
             command=self._go_prev,
         )
         self._btn_prev.pack(side="left", padx=4)
-
         self._btn_next = ctk.CTkButton(
-            nav_row, text="Next Window", width=130, height=36,
-            corner_radius=6, font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color="#2563eb", hover_color="#1d4ed8",
+            nav_row, text="Next →", width=130, height=36,
+            corner_radius=4, border_width=0,
+            font=ctk.CTkFont(family=FF, size=12, weight="bold"),
+            fg_color=BTN_PRI, hover_color=BTN_HVP,
             command=self._go_next,
         )
         self._btn_next.pack(side="left", padx=4)
 
         ctk.CTkButton(
             right, text="Return to Setup",
-            width=160, height=28, corner_radius=6,
-            fg_color="transparent", hover_color=("gray85", "gray22"),
-            border_width=1, border_color=("gray70", "gray35"),
-            text_color=("gray40", "gray60"),
-            font=ctk.CTkFont(size=11),
+            width=160, height=28, corner_radius=4,
+            border_width=1, border_color=BORDER,
+            fg_color=BTN_GHO, hover_color=BTN_GHH, text_color=TXT_MUT,
+            font=ctk.CTkFont(family=FF, size=11),
             command=self._exit,
         ).pack(pady=(12, 8))
 
-    def _section(self, parent, title: str) -> None:
-        ctk.CTkLabel(
-            parent, text=title,
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color=("gray20", "gray80"),
-        ).pack(anchor="w", padx=16, pady=(12, 2))
-
-    # ── Window loading & Navigation ───────────────────────────────────────────
+    # ── Window loading & navigation ───────────────────────────────────────────
 
     def _load_window(self, widx: int) -> None:
         logger.info(f"Loading window index {widx}/{self.total_windows}")
@@ -354,10 +345,8 @@ class AnnotationScreen(ctk.CTkFrame):
         self._cached_pil = frames_to_pil(wf)
         self._individual_idx = 0
 
-        sf = wf[0]["frame_idx"]
-        ef = wf[-1]["frame_idx"]
-        sms = wf[0]["timestamp_ms"]
-        ems = wf[-1]["timestamp_ms"]
+        sf  = wf[0]["frame_idx"];  ef  = wf[-1]["frame_idx"]
+        sms = wf[0]["timestamp_ms"]; ems = wf[-1]["timestamp_ms"]
         remaining = max(0, self.duration_ms - ems)
 
         self._lbl_stats.configure(
@@ -370,9 +359,7 @@ class AnnotationScreen(ctk.CTkFrame):
         rec_idx, existing = self.csv.find(sf, ef, sms, ems)
         if existing:
             logger.info(f"Found existing record in CSV at index #{rec_idx + 1} for frames {sf}–{ef}")
-            self._lbl_recorded.configure(
-                text=f"Already Recorded (Record #{rec_idx + 1})"
-            )
+            self._lbl_recorded.configure(text=f"Already Recorded (Record #{rec_idx + 1})")
             self._populate(existing)
         else:
             logger.info(
@@ -386,16 +373,11 @@ class AnnotationScreen(ctk.CTkFrame):
         self._start_loop()
 
     def _reset_current_window_edits(self) -> None:
-        """Reset current window input controls back to CSV saved record state (or defaults if unrecorded)."""
         logger.info(f"User clicked 'Reset Window Changes' for window index {self._window_idx}")
         if not self._current_wf:
             return
-
-        sf = self._current_wf[0]["frame_idx"]
-        ef = self._current_wf[-1]["frame_idx"]
-        sms = self._current_wf[0]["timestamp_ms"]
-        ems = self._current_wf[-1]["timestamp_ms"]
-
+        sf  = self._current_wf[0]["frame_idx"]; ef  = self._current_wf[-1]["frame_idx"]
+        sms = self._current_wf[0]["timestamp_ms"]; ems = self._current_wf[-1]["timestamp_ms"]
         rec_idx, existing = self.csv.find(sf, ef, sms, ems)
         if existing:
             logger.info(f"Reverting controls for frames {sf}–{ef} to CSV record index #{rec_idx + 1}")
@@ -407,7 +389,6 @@ class AnnotationScreen(ctk.CTkFrame):
     def _pick_window(self) -> None:
         logger.info(f"User clicked 'Select Window...' (current window index = {self._window_idx})")
         from annotator.ui.record_picker import RecordPickerDialog
-
         dialog = RecordPickerDialog(
             self,
             total_windows=self.total_windows,
@@ -416,7 +397,6 @@ class AnnotationScreen(ctk.CTkFrame):
             csv_manager=self.csv,
         )
         self.wait_window(dialog)
-
         if dialog.selected_window_idx is not None and dialog.selected_window_idx != self._window_idx:
             logger.info(f"User selected window index {dialog.selected_window_idx}. Jumping to window...")
             if not self._save_current():
@@ -429,18 +409,12 @@ class AnnotationScreen(ctk.CTkFrame):
         if not self._current_wf:
             return
         from annotator.ui.window_analyzer import WindowAnalyzerDialog
-
-        dialog = WindowAnalyzerDialog(
-            self,
-            window_idx=self._window_idx,
-            window_frames=self._current_wf,
-            duration_ms=self.duration_ms,
-        )
+        WindowAnalyzerDialog(self, window_idx=self._window_idx,
+                             window_frames=self._current_wf, duration_ms=self.duration_ms)
 
     # ── Annotation helpers ────────────────────────────────────────────────────
 
     def _populate(self, r: dict) -> None:
-        """Load exact saved record fields from CSV."""
         for fn in FINGERS:
             self._touch[fn].set(str(r.get(f"{fn.lower()}_touch", "False")).lower() == "true")
         self._hand_move.set(str(r.get("hand_move", "False")).lower() == "true")
@@ -453,24 +427,13 @@ class AnnotationScreen(ctk.CTkFrame):
         self._any_diff.set(r.get("any_difference", ""))
 
     def _prepare_new_annotation(self, carry_context: bool = True) -> None:
-        """
-        Prepare controls for a new unannotated window.
-        Finger touches are ALWAYS reset to False for explicit annotation.
-        Observation notes (any_difference) are reset to empty string.
-        If carry_context is True, environmental & motion settings (hand_move, hand_closer,
-        hovering, daylight, hand_visible, out_of_sync, POV) carry forward from the previous window.
-        """
         for fn in FINGERS:
             self._touch[fn].set(False)
         self._any_diff.set("")
-
         if not carry_context:
-            self._hand_move.set(False)
-            self._hand_closer.set(False)
-            self._hovering.set(False)
-            self._daylight.set(True)
-            self._hand_visible.set(True)
-            self._out_of_sync.set(False)
+            self._hand_move.set(False); self._hand_closer.set(False)
+            self._hovering.set(False); self._daylight.set(True)
+            self._hand_visible.set(True); self._out_of_sync.set(False)
             self._pov.set("front")
 
     def _annotation_dict(self) -> dict:
@@ -498,23 +461,16 @@ class AnnotationScreen(ctk.CTkFrame):
                 return False
         return True
 
-    # ── Visual Debug Overlay (NOT saved to CSV) ───────────────────────────────
+    # ── Visual Debug Overlay ──────────────────────────────────────────────────
 
     def _on_toggle_debug_overlay(self) -> None:
-        """Callback when user toggles 'Show (x,y) & (vx,vy)' top switch."""
         curr_idx = self._individual_idx if self._individual_mode else (self._loop_idx - 1) % max(1, len(self._cached_pil))
         self._show(max(0, curr_idx))
 
     def _draw_debug_overlay(self, pil: Image.Image, fd: dict) -> Image.Image:
-        """
-        Draw a visual HUD overlay onto the frame displaying normalized joint coordinates (x,y)
-        and velocity vectors (vx,vy) for Wrist and all 5 Finger joints.
-        """
         img = pil.copy().convert("RGBA")
         hd = fd.get("hand_data")
         vd = fd.get("velocity_data")
-
-        # Create semi-transparent overlay canvas
         overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(overlay)
 
@@ -523,15 +479,10 @@ class AnnotationScreen(ctk.CTkFrame):
             draw.text((16, 16), "No Hand Landmark Data in Frame", fill=(255, 120, 120))
             return Image.alpha_composite(img, overlay).convert("RGB")
 
-        # ── Construct HUD summary text lines ─────────────────────────────────
         lines = ["=== Joint Landmarks & Velocity HUD ==="]
-
-        # Wrist
         wx, wy = hd["wrist"]
         wv = (vd.get("wrist_velocity") or (0.0, 0.0)) if vd else (0.0, 0.0)
         lines.append(f"Wrist   : Pos({wx:.2f}, {wy:.2f}) | Vel({wv[0]:.2f}, {wv[1]:.2f})")
-
-        # All 5 Fingers x 3 Joints (MCP, PIP, DIP)
         for fn in FINGERS:
             pts = hd["fingers"].get(fn, [])
             fvels = (vd.get("finger_velocities", {}).get(fn, []) if vd else []) or []
@@ -540,23 +491,19 @@ class AnnotationScreen(ctk.CTkFrame):
                 jv = fvels[j] if (j < len(fvels) and fvels[j] is not None) else (0.0, 0.0)
                 lines.append(f"{fn:<5} {jlabel}: Pos({pt[0]:.2f}, {pt[1]:.2f}) | Vel({jv[0]:.2f}, {jv[1]:.2f})")
 
-        # Draw HUD Box at top-left
         box_w = 340
         box_h = 16 + len(lines) * 15
-        draw.rectangle([8, 8, 8 + box_w, 8 + box_h], fill=(15, 23, 42, 225), outline=(59, 130, 246, 255), width=2)
-
+        draw.rectangle([8, 8, 8 + box_w, 8 + box_h], fill=(30, 30, 30, 220), outline=(0, 122, 204, 255), width=2)
         y_off = 12
         for i, line in enumerate(lines):
-            col = (96, 165, 250) if i == 0 else (241, 245, 249)
+            col = (78, 201, 240) if i == 0 else (204, 204, 204)
             draw.text((16, y_off), line, fill=col)
             y_off += 15
 
-        # ── Draw coordinate & velocity text labels near every joint landmark ──
         wp = hd.get("wrist_pixel")
         if wp:
             px, py = int(wp[0]), int(wp[1])
             draw.text((px + 6, py + 4), f"W:({wx:.2f},{wy:.2f})\nv:({wv[0]:.2f},{wv[1]:.2f})", fill=(255, 255, 0, 240))
-
         for fn, coords in hd.get("fingers_pixel", {}).items():
             pts_norm = hd["fingers"].get(fn, [])
             fvels = (vd.get("finger_velocities", {}).get(fn, []) if vd else []) or []
@@ -565,9 +512,9 @@ class AnnotationScreen(ctk.CTkFrame):
                 nx, ny = pts_norm[j] if j < len(pts_norm) else (0.0, 0.0)
                 jv = fvels[j] if (j < len(fvels) and fvels[j] is not None) else (0.0, 0.0)
                 jlabel = JOINT_LABELS[j] if j < len(JOINT_LABELS) else f"J{j}"
-                lbl = f"{fn[:1]}{jlabel[:1]}:({nx:.2f},{ny:.2f})\nv:({jv[0]:.2f},{jv[1]:.2f})"
-                draw.text((px + 5, py - 6), lbl, fill=(0, 230, 255, 240))
-
+                draw.text((px + 5, py - 6),
+                          f"{fn[:1]}{jlabel[:1]}:({nx:.2f},{ny:.2f})\nv:({jv[0]:.2f},{jv[1]:.2f})",
+                          fill=(0, 230, 255, 240))
         return Image.alpha_composite(img, overlay).convert("RGB")
 
     # ── Loop animation ────────────────────────────────────────────────────────
@@ -600,9 +547,8 @@ class AnnotationScreen(ctk.CTkFrame):
         if not self._cached_pil or local_idx >= len(self._cached_pil):
             return
         pil = self._cached_pil[local_idx]
-        fd = self._current_wf[local_idx]
+        fd  = self._current_wf[local_idx]
 
-        # Apply visual debug HUD overlay if toggle is ON
         if self._show_coords_vel.get():
             pil = self._draw_debug_overlay(pil, fd)
 
@@ -614,10 +560,7 @@ class AnnotationScreen(ctk.CTkFrame):
 
         scaled = pil.copy()
         scaled.thumbnail((avail_w, avail_h), Image.LANCZOS)
-        ctk_img = ctk.CTkImage(
-            light_image=scaled, dark_image=scaled,
-            size=(scaled.width, scaled.height),
-        )
+        ctk_img = ctk.CTkImage(light_image=scaled, dark_image=scaled, size=(scaled.width, scaled.height))
         self._display_image_ref = ctk_img
         self._frame_lbl.configure(image=ctk_img, text="")
 
@@ -630,18 +573,15 @@ class AnnotationScreen(ctk.CTkFrame):
         )
 
     def _speed_changed(self, val) -> None:
-        fps = int(float(val))
-        self._speed_lbl.configure(text=f"{fps} FPS")
+        self._speed_lbl.configure(text=f"{int(float(val))} FPS")
 
     def _prev_frame(self) -> None:
-        self._stop_loop()
-        self._individual_mode = True
+        self._stop_loop(); self._individual_mode = True
         self._individual_idx = max(0, self._individual_idx - 1)
         self._show(self._individual_idx)
 
     def _next_frame(self) -> None:
-        self._stop_loop()
-        self._individual_mode = True
+        self._stop_loop(); self._individual_mode = True
         n = len(self._cached_pil) - 1
         self._individual_idx = min(n, self._individual_idx + 1)
         self._show(self._individual_idx)
@@ -650,12 +590,8 @@ class AnnotationScreen(ctk.CTkFrame):
 
     def _build_record(self) -> dict:
         wf = self._current_wf
-        base = extract_window_record_data(
-            wf,
-            os.path.basename(self.video_path),
-            self.video_hash,
-            self.duration_ms,
-        )
+        base = extract_window_record_data(wf, os.path.basename(self.video_path),
+                                          self.video_hash, self.duration_ms)
         ann = self._annotation_dict()
         rec = {**base, **ann}
         for h in CSV_HEADERS:
@@ -666,16 +602,11 @@ class AnnotationScreen(ctk.CTkFrame):
         wf = self._current_wf
         if not wf:
             return True
-
-        sf = wf[0]["frame_idx"]
-        ef = wf[-1]["frame_idx"]
-        sms = wf[0]["timestamp_ms"]
-        ems = wf[-1]["timestamp_ms"]
-
+        sf  = wf[0]["frame_idx"]; ef  = wf[-1]["frame_idx"]
+        sms = wf[0]["timestamp_ms"]; ems = wf[-1]["timestamp_ms"]
         new_rec = self._build_record()
         rec_idx, existing = self.csv.find(sf, ef, sms, ems)
 
-        # ── Mode A: Auto-Save is TOGGLED ON ──────────────────────────────────
         if self._auto_save.get():
             if existing is None:
                 logger.info(f"Auto-Save ON: Appending new record for frames {sf}–{ef}")
@@ -688,54 +619,38 @@ class AnnotationScreen(ctk.CTkFrame):
                     logger.info(f"Auto-Save ON: Record for frames {sf}–{ef} is identical. Skipping rewrite.")
             return True
 
-        # ── Mode B: Auto-Save is TOGGLED OFF (Default) ───────────────────────
         if existing is None:
-            # New unrecorded window: prompt Yes/No/Cancel to confirm saving
-            logger.info(f"Auto-Save OFF: New window frames {sf}–{ef}. Prompting Yes/No/Cancel...")
             choice = messagebox.askyesnocancel(
                 "Save Window Annotation?",
                 f"Save annotation for frames {sf}–{ef} to CSV?\n\n"
-                "• Select [Yes] to SAVE record & navigate\n"
-                "• Select [No] to DISCARD & navigate without saving\n"
-                "• Select [Cancel] to STAY on this window",
+                "• [Yes]  — SAVE record & navigate\n"
+                "• [No]   — DISCARD & navigate without saving\n"
+                "• [Cancel] — STAY on this window",
                 parent=self,
             )
             if choice is True:
-                logger.info(f"User selected YES: Saving record for frames {sf}–{ef}")
-                self.csv.append(new_rec)
-                return True
+                self.csv.append(new_rec); return True
             elif choice is False:
-                logger.info(f"User selected NO: Discarding record for frames {sf}–{ef}")
                 return True
             else:
-                logger.info("User selected CANCEL: Remaining on current window.")
                 return False
 
-        # Existing record: check if user made any changes
         if self._records_same(existing, new_rec):
-            logger.info(f"Auto-Save OFF: Existing record for frames {sf}–{ef} has NO changes. Navigating silently.")
             return True
 
-        # Existing record WITH changes: prompt Yes/No/Cancel
-        logger.info(f"Auto-Save OFF: Record for frames {sf}–{ef} has modifications. Prompting Yes/No/Cancel...")
         choice = messagebox.askyesnocancel(
             "Unsaved Window Modifications",
             f"You modified the annotation for frames {sf}–{ef}.\n\n"
-            "• Select [Yes] to SAVE / OVERRIDE changes & navigate\n"
-            "• Select [No] to DISCARD changes & navigate\n"
-            "• Select [Cancel] to STAY on this window",
+            "• [Yes]  — SAVE / OVERRIDE changes & navigate\n"
+            "• [No]   — DISCARD changes & navigate\n"
+            "• [Cancel] — STAY on this window",
             parent=self,
         )
-
         if choice is True:
-            logger.info(f"User selected YES: Overriding record for frames {sf}–{ef} and proceeding.")
-            self.csv.override(sf, ef, sms, ems, new_rec)
-            return True
+            self.csv.override(sf, ef, sms, ems, new_rec); return True
         elif choice is False:
-            logger.info(f"User selected NO: Discarding changes for frames {sf}–{ef} and proceeding without saving.")
             return True
         else:
-            logger.info(f"User selected CANCEL: Remaining on current window for frames {sf}–{ef}.")
             return False
 
     def _go_next(self) -> None:
@@ -758,7 +673,6 @@ class AnnotationScreen(ctk.CTkFrame):
             self._load_window(self._window_idx - 1)
 
     def _video_end(self) -> None:
-        logger.info(f"All video windows processed and annotated! Remaining on final window ({self.total_windows}/{self.total_windows}).")
         messagebox.showinfo(
             "🎉 Annotation Complete",
             f"All {self.total_windows} video windows have been annotated successfully!\n\n"
@@ -772,8 +686,7 @@ class AnnotationScreen(ctk.CTkFrame):
     def _exit(self) -> None:
         if messagebox.askyesno(
             "Exit Annotator",
-            "Return to the setup screen?\n"
-            "Unsaved changes on the current window will be lost.",
+            "Return to the setup screen?\nUnsaved changes on the current window will be lost.",
             parent=self,
         ):
             self._stop_loop()

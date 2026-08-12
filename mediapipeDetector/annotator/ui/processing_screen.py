@@ -1,9 +1,8 @@
 """
 annotator/ui/processing_screen.py
 
-Clean, modern video processing progress screen.
-Uses a thread-safe Queue polling architecture on the main GUI thread
-with SHA-256 fingerprint verification and modal prompt support.
+Video processing progress screen — VS Code Dark+ theme.
+Thread-safe Queue polling architecture with SHA-256 fingerprint verification.
 """
 import logging
 import os
@@ -19,6 +18,7 @@ from annotator.pipeline import process_video
 from annotator.utils import build_csv_path, compute_file_hash, extract_hash_from_csv_filename
 
 logger = logging.getLogger("Annotator.ProcessingScreen")
+FF = "Helvetica"   # font family
 
 
 class ProcessingScreen(ctk.CTkFrame):
@@ -31,7 +31,7 @@ class ProcessingScreen(ctk.CTkFrame):
         csv_path: str = None,          # resume mode (pre-known path)
         csv_hash_expected: str = None,  # resume mode (hash from filename)
     ) -> None:
-        super().__init__(parent, fg_color="transparent")
+        super().__init__(parent, fg_color="#1e1e1e")
         self.app = app
         self.video_path = video_path
         self.mode = mode
@@ -52,27 +52,28 @@ class ProcessingScreen(ctk.CTkFrame):
         outer = ctk.CTkFrame(
             self,
             width=540,
-            corner_radius=12,
+            corner_radius=4,
             border_width=1,
-            border_color=("gray80", "gray25"),
-            fg_color=("gray95", "gray14"),
+            border_color="#3c3c3c",
+            fg_color="#252526",
         )
         outer.place(relx=0.5, rely=0.5, anchor="center")
 
         inner = ctk.CTkFrame(outer, fg_color="transparent")
-        inner.pack(padx=32, pady=32, fill="both", expand=True)
+        inner.pack(padx=36, pady=36, fill="both", expand=True)
 
         ctk.CTkLabel(
             inner,
             text="Processing Video Pipeline",
-            font=ctk.CTkFont(size=20, weight="bold"),
-        ).pack(anchor="w", pady=(0, 4))
+            font=ctk.CTkFont(family=FF, size=20, weight="bold"),
+            text_color="#ffffff",
+        ).pack(anchor="w", pady=(0, 6))
 
         ctk.CTkLabel(
             inner,
             text="Running MediaPipe hand landmark detection, scale normalisation, 1€ filter, and velocity calculation.",
-            font=ctk.CTkFont(size=12),
-            text_color=("gray40", "gray60"),
+            font=ctk.CTkFont(family=FF, size=12),
+            text_color="#cccccc",
             justify="left",
             wraplength=460,
         ).pack(anchor="w", pady=(0, 24))
@@ -80,20 +81,24 @@ class ProcessingScreen(ctk.CTkFrame):
         self._status = ctk.CTkLabel(
             inner,
             text="Initializing pipeline...",
-            font=ctk.CTkFont(size=13),
+            font=ctk.CTkFont(family=FF, size=13),
+            text_color="#cccccc",
             anchor="w",
         )
         self._status.pack(anchor="w", pady=(0, 8))
 
-        self._bar = ctk.CTkProgressBar(inner, width=460, height=10, corner_radius=5)
+        self._bar = ctk.CTkProgressBar(
+            inner, width=460, height=8, corner_radius=2,
+            fg_color="#3c3c3c", progress_color="#007acc",
+        )
         self._bar.set(0)
         self._bar.pack(anchor="w", pady=(0, 8))
 
         self._frame_lbl = ctk.CTkLabel(
             inner,
             text="Frame 0 / 0",
-            font=ctk.CTkFont(size=11),
-            text_color=("gray50", "gray55"),
+            font=ctk.CTkFont(family=FF, size=11),
+            text_color="#858585",
             anchor="w",
         )
         self._frame_lbl.pack(anchor="w")
@@ -101,17 +106,11 @@ class ProcessingScreen(ctk.CTkFrame):
     def _start(self) -> None:
         logger.info("Spawning background thread for video processing...")
         threading.Thread(target=self._run_worker, daemon=True).start()
-        # Start main-thread queue polling loop
         self.after(30, self._poll_queue)
 
     def _poll_queue(self) -> None:
-        """
-        Main-thread loop that reads status, progress, hash verification, and completion messages
-        from the worker queue and updates the GUI widgets safely on the main thread.
-        """
         if not self._alive:
             return
-
         try:
             while True:
                 msg = self._queue.get_nowait()
@@ -124,9 +123,7 @@ class ProcessingScreen(ctk.CTkFrame):
                     _, pct, done, total = msg
                     self._bar.set(pct)
                     self._frame_lbl.configure(text=f"Frame {done} / {total}")
-                    self._status.configure(
-                        text=f"Extracting features ({int(pct * 100)}%)"
-                    )
+                    self._status.configure(text=f"Extracting features ({int(pct * 100)}%)")
 
                 elif msg_type == "hash_mismatch":
                     _, expected, actual = msg
@@ -176,25 +173,18 @@ class ProcessingScreen(ctk.CTkFrame):
             logger.info(f"Computed SHA-256 video hash: {self.video_hash}")
 
             if self.mode == "new":
-                self.csv_path = build_csv_path(
-                    self.csv_dir, self.csv_base, self.video_hash
-                )
+                self.csv_path = build_csv_path(self.csv_dir, self.csv_base, self.video_hash)
                 logger.info(f"Target CSV path determined: {self.csv_path}")
             else:
-                # Resume mode: verify expected SHA-256 hash against actual video_hash
                 expected_hash = self.csv_hash_expected
                 if not expected_hash and self.csv_path:
                     expected_hash = extract_hash_from_csv_filename(self.csv_path)
 
                 if expected_hash and expected_hash != self.video_hash:
-                    logger.warning(
-                        f"SHA-256 Hash Mismatch detected! CSV expected: '{expected_hash}', Video actual: '{self.video_hash}'"
-                    )
+                    logger.warning(f"SHA-256 Hash Mismatch detected! CSV expected: '{expected_hash}', Video actual: '{self.video_hash}'")
                     self._mismatch_event = threading.Event()
                     self._mismatch_proceed = False
                     self._queue.put(("hash_mismatch", expected_hash, self.video_hash))
-                    
-                    # Wait for main thread modal dialog response
                     self._mismatch_event.wait()
                     if not self._mismatch_proceed:
                         logger.info("Worker thread aborting due to user rejection of hash mismatch.")
@@ -214,9 +204,7 @@ class ProcessingScreen(ctk.CTkFrame):
             frame_data, fps, total_frames, duration_ms = process_video(
                 self.video_path, MODEL_PATH, progress
             )
-            logger.info(
-                f"process_video completed: {total_frames} frames, {fps:.2f} FPS, {duration_ms} ms"
-            )
+            logger.info(f"process_video completed: {total_frames} frames, {fps:.2f} FPS, {duration_ms} ms")
 
             self._queue.put(("done", frame_data, fps, total_frames, duration_ms))
 

@@ -2,9 +2,11 @@
 annotator/ui/app.py
 
 Main CustomTkinter application window with screen switching and logging.
+Configures global smooth anti-aliased vector font defaults.
 """
 import logging
 import customtkinter as ctk
+from annotator.ui.theme import setup_scroll_routing
 
 logger = logging.getLogger("Annotator.App")
 
@@ -16,10 +18,22 @@ class AnnotatorApp(ctk.CTk):
     def __init__(self) -> None:
         super().__init__()
         logger.info("Setting up main CTk window properties...")
+
+        # Configure global anti-aliased smooth vector font defaults
+        try:
+            import tkinter.font as tkfont
+            for fname in ("TkDefaultFont", "TkTextFont", "TkMenuFont"):
+                tkfont.nametofont(fname).configure(family="Helvetica", size=10)
+            tkfont.nametofont("TkHeadingFont").configure(family="Helvetica", size=14, weight="bold")
+        except Exception as e:
+            logger.debug(f"Font configuration notice: {e}")
+
         self.title("Touch Detection Data Annotator")
         self.geometry("1200x800")
         self.minsize(960, 680)
         self._screen: ctk.CTkFrame | None = None
+        # Install single global mousewheel scroll router (no per-frame enter/leave needed)
+        setup_scroll_routing(self)
         self._show_setup()
 
     def _switch(self, frame: ctk.CTkFrame) -> None:

@@ -1,19 +1,22 @@
 """
 annotator/ui/record_picker.py
 
-Modal Toplevel dialog that lets the user view all video windows / records,
-highlights the currently active window, shows recorded vs unrecorded status,
+Modal Toplevel dialog for picking any video window / record — VS Code Dark+ theme.
+Highlights currently active window, shows recorded vs unrecorded status,
 and allows jumping to any specific window.
+Mousewheel scroll bound so cursor hovering scrolls the list.
 """
 import customtkinter as ctk
 from annotator.video_processor import get_window_frames
+from annotator.ui.theme import (
+    FF, BG, PANEL, BORDER, TXT_PRI, TXT_SEC, TXT_MUT,
+    ROW_BG, ROW_REC, ROW_CUR, ROW_CUR_T,
+    BTN_PRI, BTN_HVP, BTN_SEC, BTN_HVS, BTN_GHO, BTN_GHH, SEL_BG,
+)
 
 
 class RecordPickerDialog(ctk.CTkToplevel):
-    """
-    Grab-set modal window picker dialog.
-    Returns selected_window_idx (int | None) and selected_record (dict | None).
-    """
+    """Grab-set modal window picker dialog — VS Code Dark+ styled."""
 
     def __init__(
         self,
@@ -26,8 +29,9 @@ class RecordPickerDialog(ctk.CTkToplevel):
     ) -> None:
         super().__init__(parent)
         self.title("Select Target Window / Record")
-        self.geometry("840x580")
+        self.geometry("860x600")
         self.resizable(True, True)
+        self.configure(fg_color=BG)
         self.grab_set()
 
         self.selected_window_idx: int | None = None
@@ -50,34 +54,37 @@ class RecordPickerDialog(ctk.CTkToplevel):
         ctk.CTkLabel(
             self,
             text="Jump to Specific Video Window",
-            font=ctk.CTkFont(size=18, weight="bold"),
+            font=ctk.CTkFont(family=FF, size=18, weight="bold"),
+            text_color=TXT_PRI,
         ).pack(anchor="w", padx=20, pady=(16, 2))
 
         ctk.CTkLabel(
             self,
-            text="Select any frame window to view or annotate. Currently active window is highlighted below.",
-            font=ctk.CTkFont(size=12),
-            text_color=("gray40", "gray60"),
+            text="Select any frame window to view or annotate. The currently active window is highlighted.",
+            font=ctk.CTkFont(family=FF, size=12),
+            text_color=TXT_MUT,
         ).pack(anchor="w", padx=20, pady=(0, 12))
 
         scroll = ctk.CTkScrollableFrame(
             self,
-            corner_radius=8,
+            corner_radius=4,
             border_width=1,
-            border_color=("gray80", "gray25"),
-            fg_color=("gray95", "gray14"),
+            border_color=BORDER,
+            fg_color=PANEL,
+            scrollbar_button_color=BTN_SEC,
+            scrollbar_button_hover_color=BTN_HVS,
         )
         scroll.pack(fill="both", expand=True, padx=16, pady=(0, 12))
 
-        # Footer Actions (instantiated BEFORE items so _select_row can update _ok_btn)
+        # Footer actions (built before items so _select_row can update _ok_btn)
         footer = ctk.CTkFrame(self, fg_color="transparent")
         footer.pack(pady=(0, 16))
 
         self._ok_btn = ctk.CTkButton(
             footer, text="Jump to Selected Window",
-            width=190, height=36, corner_radius=6,
-            font=ctk.CTkFont(size=13, weight="bold"),
-            fg_color="#2563eb", hover_color="#1d4ed8",
+            width=200, height=36, corner_radius=4, border_width=0,
+            font=ctk.CTkFont(family=FF, size=13, weight="bold"),
+            fg_color=BTN_PRI, hover_color=BTN_HVP, text_color="#ffffff",
             state="disabled",
             command=self._ok,
         )
@@ -85,15 +92,13 @@ class RecordPickerDialog(ctk.CTkToplevel):
 
         ctk.CTkButton(
             footer, text="Cancel",
-            width=100, height=36, corner_radius=6,
-            font=ctk.CTkFont(size=13),
-            fg_color="transparent", hover_color=("gray85", "gray22"),
-            border_width=1, border_color=("gray70", "gray35"),
-            text_color=("gray20", "gray80"),
+            width=100, height=36, corner_radius=4, border_width=1, border_color=BORDER,
+            font=ctk.CTkFont(family=FF, size=13),
+            fg_color=BTN_GHO, hover_color=BTN_GHH, text_color=TXT_SEC,
             command=self.destroy,
         ).pack(side="left", padx=6)
 
-        # Build list items (now safe to call _select_row)
+        # Build list items
         if self._total_windows is not None and self._frame_data is not None:
             self._build_from_windows(scroll)
         elif self._records is not None:
@@ -116,7 +121,7 @@ class RecordPickerDialog(ctk.CTkToplevel):
 
             tag = ""
             if is_current:
-                tag += "[CURRENT ACTIVE] "
+                tag += "[CURRENT]  "
             if existing:
                 touches = [
                     f.capitalize()
@@ -124,26 +129,29 @@ class RecordPickerDialog(ctk.CTkToplevel):
                     if str(existing.get(f"{f}_touch", "False")).lower() == "true"
                 ]
                 t_str = " + ".join(touches) or "None"
-                tag += f"Saved #{rec_idx+1}  │  Touch: {t_str}  │  POV: {existing.get('hand_point_of_view','front')}"
+                tag += f"Saved #{rec_idx+1}  ·  Touch: {t_str}  ·  POV: {existing.get('hand_point_of_view','front')}"
             else:
-                tag += "Unrecorded Window"
+                tag += "Unrecorded"
 
             label_text = (
-                f"Window #{widx+1:>3}   "
+                f"  Window #{widx+1:>3}   "
                 f"Frames {sf}–{ef}   "
                 f"({sms}–{ems} ms)   "
                 f"{tag}"
             )
 
             if is_current:
-                bg_col = ("#dbeafe", "#1e3a8a")
-                text_col = ("#1e40af", "#93c5fd")
+                bg_col  = ROW_CUR
+                txt_col = ROW_CUR_T
+                hov_col = "#1a4d72"
             elif existing:
-                bg_col = ("gray90", "gray22")
-                text_col = ("gray10", "gray95")
+                bg_col  = ROW_REC
+                txt_col = TXT_SEC
+                hov_col = "#37373d"
             else:
-                bg_col = ("gray94", "gray18")
-                text_col = ("gray40", "gray60")
+                bg_col  = ROW_BG
+                txt_col = TXT_MUT
+                hov_col = "#37373d"
 
             item_idx = len(self._row_items)
             btn = ctk.CTkButton(
@@ -152,24 +160,26 @@ class RecordPickerDialog(ctk.CTkToplevel):
                 anchor="w",
                 height=34,
                 corner_radius=4,
-                font=ctk.CTkFont(size=12, weight="bold" if is_current else "normal"),
+                border_width=0,
+                font=ctk.CTkFont(family=FF, size=12, weight="bold" if is_current else "normal"),
                 fg_color=bg_col,
-                hover_color=("#bfdbfe", "#1e40af") if is_current else ("gray82", "gray30"),
-                text_color=text_col,
+                hover_color=hov_col,
+                text_color=txt_col,
                 command=lambda row_i=item_idx: self._select_row(row_i),
             )
-            btn.pack(fill="x", pady=2, padx=4)
+            btn.pack(fill="x", pady=1, padx=4)
 
             self._row_items.append({
                 "widx": widx,
                 "record": existing,
                 "is_current": is_current,
                 "default_bg": bg_col,
-                "default_text": text_col,
+                "default_text": txt_col,
+                "default_hover": hov_col,
             })
             self._row_btns.append(btn)
 
-        # Pre-select current active window row by default
+        # Pre-select current active window row
         if self._current_window_idx is not None and 0 <= self._current_window_idx < len(self._row_items):
             self._select_row(self._current_window_idx)
 
@@ -186,7 +196,7 @@ class RecordPickerDialog(ctk.CTkToplevel):
             ]
             t_str = " + ".join(touches) or "None"
             label_text = (
-                f"Record #{i+1:>3}   "
+                f"  Record #{i+1:>3}   "
                 f"Frames {r.get('start_frame')}–{r.get('end_frame')}   "
                 f"({r.get('start_ms')}–{r.get('end_ms')} ms)   "
                 f"Touch: {t_str}   "
@@ -199,20 +209,22 @@ class RecordPickerDialog(ctk.CTkToplevel):
                 anchor="w",
                 height=34,
                 corner_radius=4,
-                font=ctk.CTkFont(size=12),
-                fg_color=("gray90", "gray20"),
-                hover_color=("gray82", "gray28"),
-                text_color=("gray10", "gray95"),
+                border_width=0,
+                font=ctk.CTkFont(family=FF, size=12),
+                fg_color=ROW_REC,
+                hover_color="#37373d",
+                text_color=TXT_SEC,
                 command=lambda row_i=item_idx: self._select_row(row_i),
             )
-            btn.pack(fill="x", pady=2, padx=4)
+            btn.pack(fill="x", pady=1, padx=4)
 
             self._row_items.append({
                 "widx": widx,
                 "record": r,
                 "is_current": False,
-                "default_bg": ("gray90", "gray20"),
-                "default_text": ("gray10", "gray95"),
+                "default_bg": ROW_REC,
+                "default_text": TXT_SEC,
+                "default_hover": "#37373d",
             })
             self._row_btns.append(btn)
 
@@ -225,15 +237,9 @@ class RecordPickerDialog(ctk.CTkToplevel):
 
         for i, (item, b) in enumerate(zip(self._row_items, self._row_btns)):
             if i == idx:
-                b.configure(
-                    fg_color=("#2563eb", "#1d4ed8"),
-                    text_color=("white", "white"),
-                )
+                b.configure(fg_color=SEL_BG, text_color="#ffffff")
             else:
-                b.configure(
-                    fg_color=item["default_bg"],
-                    text_color=item["default_text"],
-                )
+                b.configure(fg_color=item["default_bg"], text_color=item["default_text"])
 
         item = self._row_items[idx]
         self.selected_window_idx = item["widx"]
