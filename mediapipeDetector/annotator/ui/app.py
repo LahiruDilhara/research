@@ -87,7 +87,6 @@ class AnnotatorApp(ctk.CTk):
         video_path: str,
         video_hash: str,
         start_window_idx: int = 0,
-        allow_override_last: bool = False,
     ) -> None:
         logger.info(f"Transitioning to AnnotationScreen (start_window_idx={start_window_idx})...")
         from annotator.ui.annotation_screen import AnnotationScreen
@@ -97,5 +96,4 @@ class AnnotatorApp(ctk.CTk):
             total_frames=total_frames, duration_ms=duration_ms,
             csv_path=csv_path, video_path=video_path, video_hash=video_hash,
             start_window_idx=start_window_idx,
-            allow_override_last=allow_override_last,
         ))

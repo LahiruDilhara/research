@@ -2,8 +2,11 @@
 annotator/ui/annotation_screen.py
 
 Main annotation interface styled with modern professional desktop HIG.
-Includes 'Select Window...' picker button in top status bar and color-coded
-finger touch toggles matching landmark colors.
+Includes 'Select Window...' picker button in top status bar, color-coded
+finger touch toggles matching landmark colors, 'Reset Window Changes' button,
+Yes/No/Cancel save modal on navigation, automatic carry-forward of
+environmental/motion settings for new unannotated windows, non-blocking
+completion notification, and 'Out of Sync' status toggle.
 """
 import logging
 import os
@@ -31,7 +34,6 @@ class AnnotationScreen(ctk.CTkFrame):
         frame_data, fps, total_frames, duration_ms,
         csv_path, video_path, video_hash,
         start_window_idx: int = 0,
-        allow_override_last: bool = False,
     ) -> None:
         super().__init__(parent, fg_color="transparent")
         self.app = app
@@ -46,8 +48,6 @@ class AnnotationScreen(ctk.CTkFrame):
         self.total_windows = window_count(total_frames)
 
         self._window_idx = start_window_idx
-        self._allow_override_last = allow_override_last
-        self._is_at_recovery_start = allow_override_last
 
         # Loop animation state
         self._loop_idx = 0
@@ -66,6 +66,7 @@ class AnnotationScreen(ctk.CTkFrame):
         self._hovering = ctk.BooleanVar(value=False)
         self._daylight = ctk.BooleanVar(value=True)
         self._hand_visible = ctk.BooleanVar(value=True)
+        self._out_of_sync = ctk.BooleanVar(value=False)
         self._pov = ctk.StringVar(value="front")
         self._any_diff = ctk.StringVar(value="")
 
@@ -223,6 +224,7 @@ class AnnotationScreen(ctk.CTkFrame):
             ("Hovering (Not Touching)", self._hovering),
             ("Daylight Lighting", self._daylight),
             ("Hand Visible", self._hand_visible),
+            ("Out of Sync", self._out_of_sync),
         ]:
             ctk.CTkSwitch(
                 right, text=text, variable=var,
@@ -250,18 +252,19 @@ class AnnotationScreen(ctk.CTkFrame):
         self._diff_combo.pack(anchor="w", **pad)
 
         ctk.CTkFrame(right, height=1, fg_color=("gray80", "gray25")).pack(
-            fill="x", padx=16, pady=12
+            fill="x", padx=16, pady=10
         )
 
-        # Override toggle switch (if resuming last record)
-        self._override_frame = ctk.CTkFrame(right, fg_color="transparent")
-        self._override_frame.pack(fill="x", **pad)
-        self._override_var = ctk.BooleanVar(value=False)
-        self._override_sw = ctk.CTkSwitch(
-            self._override_frame, text="Override Record on Next",
-            variable=self._override_var,
-            font=ctk.CTkFont(size=12), text_color=("#d97706", "#f59e0b"),
-        )
+        # Revert / Reset Current Window Edits Button
+        ctk.CTkButton(
+            right, text="Reset Window Changes", height=30,
+            corner_radius=6,
+            fg_color="transparent", hover_color=("gray85", "gray22"),
+            border_width=1, border_color=("gray70", "gray35"),
+            text_color=("gray30", "gray70"),
+            font=ctk.CTkFont(size=12),
+            command=self._reset_current_window_edits,
+        ).pack(fill="x", **pad)
 
         ctk.CTkFrame(right, height=1, fg_color=("gray80", "gray25")).pack(
             fill="x", padx=16, pady=8
@@ -341,18 +344,34 @@ class AnnotationScreen(ctk.CTkFrame):
             )
             self._populate(existing)
         else:
-            logger.info(f"No existing record found for frames {sf}–{ef}. Resetting controls to default.")
+            logger.info(
+                f"No existing record found for frames {sf}–{ef}. "
+                "Carrying forward motion/env parameters from previous window, clearing finger touches."
+            )
             self._lbl_recorded.configure(text="")
-            self._reset_annotation()
-
-        at_recovery_entry = self._is_at_recovery_start and widx == self._window_idx
-        if self._allow_override_last and at_recovery_entry:
-            self._override_sw.pack(anchor="w")
-        else:
-            self._override_sw.pack_forget()
+            self._prepare_new_annotation(carry_context=True)
 
         self._btn_prev.configure(state="normal" if widx > 0 else "disabled")
         self._start_loop()
+
+    def _reset_current_window_edits(self) -> None:
+        """Reset current window input controls back to CSV saved record state (or defaults if unrecorded)."""
+        logger.info(f"User clicked 'Reset Window Changes' for window index {self._window_idx}")
+        if not self._current_wf:
+            return
+
+        sf = self._current_wf[0]["frame_idx"]
+        ef = self._current_wf[-1]["frame_idx"]
+        sms = self._current_wf[0]["timestamp_ms"]
+        ems = self._current_wf[-1]["timestamp_ms"]
+
+        rec_idx, existing = self.csv.find(sf, ef, sms, ems)
+        if existing:
+            logger.info(f"Reverting controls for frames {sf}–{ef} to CSV record index #{rec_idx + 1}")
+            self._populate(existing)
+        else:
+            logger.info(f"No CSV record for frames {sf}–{ef}. Resetting controls to defaults.")
+            self._prepare_new_annotation(carry_context=False)
 
     def _pick_window(self) -> None:
         logger.info(f"User clicked 'Select Window...' (current window index = {self._window_idx})")
@@ -372,13 +391,12 @@ class AnnotationScreen(ctk.CTkFrame):
             if not self._save_current():
                 return
             self._stop_loop()
-            self._is_at_recovery_start = False
-            self._allow_override_last = False
             self._load_window(dialog.selected_window_idx)
 
     # ── Annotation helpers ────────────────────────────────────────────────────
 
     def _populate(self, r: dict) -> None:
+        """Load exact saved record fields from CSV."""
         for fn in FINGERS:
             self._touch[fn].set(str(r.get(f"{fn.lower()}_touch", "False")).lower() == "true")
         self._hand_move.set(str(r.get("hand_move", "False")).lower() == "true")
@@ -386,19 +404,30 @@ class AnnotationScreen(ctk.CTkFrame):
         self._hovering.set(str(r.get("hovering", "False")).lower() == "true")
         self._daylight.set(str(r.get("daylight", "True")).lower() == "true")
         self._hand_visible.set(str(r.get("hand_visible", "True")).lower() == "true")
+        self._out_of_sync.set(str(r.get("out_of_sync", "False")).lower() == "true")
         self._pov.set(r.get("hand_point_of_view", "front"))
         self._any_diff.set(r.get("any_difference", ""))
 
-    def _reset_annotation(self) -> None:
+    def _prepare_new_annotation(self, carry_context: bool = True) -> None:
+        """
+        Prepare controls for a new unannotated window.
+        Finger touches are ALWAYS reset to False for explicit annotation.
+        Observation notes (any_difference) are reset to empty string.
+        If carry_context is True, environmental & motion settings (hand_move, hand_closer,
+        hovering, daylight, hand_visible, out_of_sync, POV) carry forward from the previous window.
+        """
         for fn in FINGERS:
             self._touch[fn].set(False)
-        self._hand_move.set(False)
-        self._hand_closer.set(False)
-        self._hovering.set(False)
-        self._daylight.set(True)
-        self._hand_visible.set(True)
-        self._pov.set("front")
         self._any_diff.set("")
+
+        if not carry_context:
+            self._hand_move.set(False)
+            self._hand_closer.set(False)
+            self._hovering.set(False)
+            self._daylight.set(True)
+            self._hand_visible.set(True)
+            self._out_of_sync.set(False)
+            self._pov.set("front")
 
     def _annotation_dict(self) -> dict:
         ann: dict = {f"{fn.lower()}_touch": self._touch[fn].get() for fn in FINGERS}
@@ -409,6 +438,7 @@ class AnnotationScreen(ctk.CTkFrame):
             "hovering": self._hovering.get(),
             "daylight": self._daylight.get(),
             "hand_visible": self._hand_visible.get(),
+            "out_of_sync": self._out_of_sync.get(),
             "any_difference": self._any_diff.get().strip(),
         })
         return ann
@@ -417,7 +447,7 @@ class AnnotationScreen(ctk.CTkFrame):
         ann_fields = (
             [f"{fn.lower()}_touch" for fn in FINGERS]
             + ["hand_move", "hand_point_of_view", "hand_closer",
-               "hovering", "daylight", "hand_visible", "any_difference"]
+               "hovering", "daylight", "hand_visible", "out_of_sync", "any_difference"]
         )
         for f in ann_fields:
             if str(existing.get(f, "")).strip().lower() != str(new_rec.get(f, "")).strip().lower():
@@ -514,6 +544,9 @@ class AnnotationScreen(ctk.CTkFrame):
 
     def _save_current(self) -> bool:
         wf = self._current_wf
+        if not wf:
+            return True
+
         sf = wf[0]["frame_idx"]
         ef = wf[-1]["frame_idx"]
         sms = wf[0]["timestamp_ms"]
@@ -531,26 +564,32 @@ class AnnotationScreen(ctk.CTkFrame):
             logger.info(f"Record for frames {sf}–{ef} exists and is identical. Skipping rewrite.")
             return True
 
-        logger.info(f"Record for frames {sf}–{ef} has modifications. Prompting user to override...")
-        do_override = messagebox.askyesno(
-            "Override Record?",
-            f"A record for frames {sf}–{ef} already exists.\n\n"
-            "Your annotation has changed. Override it?",
+        logger.info(f"Record for frames {sf}–{ef} has modifications. Prompting user with Yes/No/Cancel...")
+        choice = messagebox.askyesnocancel(
+            "Unsaved Window Modifications",
+            f"You modified the annotation for frames {sf}–{ef}.\n\n"
+            "• Select [Yes] to SAVE / OVERRIDE changes & navigate\n"
+            "• Select [No] to DISCARD changes & navigate\n"
+            "• Select [Cancel] to STAY on this window",
             parent=self,
         )
-        if do_override:
-            logger.info(f"User accepted override for frames {sf}–{ef}")
+
+        if choice is True:
+            logger.info(f"User selected YES: Overriding record for frames {sf}–{ef} and proceeding.")
             self.csv.override(sf, ef, sms, ems, new_rec)
             return True
-        logger.info(f"User rejected override for frames {sf}–{ef}")
-        return False
+        elif choice is False:
+            logger.info(f"User selected NO: Discarding changes for frames {sf}–{ef} and proceeding without saving.")
+            return True
+        else:
+            logger.info(f"User selected CANCEL: Remaining on current window for frames {sf}–{ef}.")
+            return False
 
     def _go_next(self) -> None:
         logger.info("User clicked 'Next Window'")
         if not self._save_current():
             return
-        self._is_at_recovery_start = False
-        self._allow_override_last = False
+        self._stop_loop()
         next_widx = self._window_idx + 1
         if get_window_frames(self.frame_data, next_widx) is None:
             self._video_end()
@@ -560,20 +599,22 @@ class AnnotationScreen(ctk.CTkFrame):
     def _go_prev(self) -> None:
         logger.info("User clicked 'Previous Window'")
         if self._window_idx > 0:
+            if not self._save_current():
+                return
             self._stop_loop()
             self._load_window(self._window_idx - 1)
 
     def _video_end(self) -> None:
-        self._stop_loop()
-        logger.info("All video windows processed and annotated!")
+        logger.info(f"All video windows processed and annotated! Remaining on final window ({self.total_windows}/{self.total_windows}).")
         messagebox.showinfo(
-            "Annotation Complete",
-            f"All video windows annotated successfully.\n\n"
-            f"Total records saved: {self.csv.total_records()}\n"
-            f"CSV file path: {self.csv_path}",
+            "🎉 Annotation Complete",
+            f"All {self.total_windows} video windows have been annotated successfully!\n\n"
+            f"Total records saved in CSV: {self.csv.total_records()}\n"
+            f"CSV file path: {self.csv_path}\n\n"
+            "You can review or edit any window using 'Select Window...' or 'Previous Window'.\n"
+            "Click 'Return to Setup' when you are ready to exit.",
             parent=self,
         )
-        self.app.show_setup()
 
     def _exit(self) -> None:
         if messagebox.askyesno(

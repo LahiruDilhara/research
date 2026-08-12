@@ -84,6 +84,7 @@ class RecoveryScreen(ctk.CTkFrame):
                 f.capitalize() for f in ["thumb", "index", "middle", "ring", "pinky"]
                 if str(last.get(f"{f}_touch", "False")).lower() == "true"
             ]
+            oos_str = "  ·  Out of Sync" if str(last.get("out_of_sync", "False")).lower() == "true" else ""
             ctk.CTkLabel(
                 card,
                 text=(
@@ -91,6 +92,7 @@ class RecoveryScreen(ctk.CTkFrame):
                     f"  ·  POV: {last.get('hand_point_of_view', '?')}"
                     f"  ·  Motion: {last.get('hand_move', '?')}"
                     f"  ·  Visible: {last.get('hand_visible', '?')}"
+                    f"{oos_str}"
                 ),
                 font=ctk.CTkFont(size=12), text_color=("gray40", "gray60"),
             ).pack(anchor="w", padx=20, pady=(0, 16))
@@ -114,6 +116,7 @@ class RecoveryScreen(ctk.CTkFrame):
                 if str(r.get(f"{f}_touch", "False")).lower() == "true"
             ]
             touch_str = "+".join(touches) or "None"
+            oos_flag = "  Out of Sync" if str(r.get("out_of_sync", "False")).lower() == "true" else ""
             row = ctk.CTkFrame(scroll_outer, fg_color=("gray90", "gray20"), corner_radius=4)
             row.pack(fill="x", pady=2)
             ctk.CTkLabel(
@@ -125,6 +128,7 @@ class RecoveryScreen(ctk.CTkFrame):
                     f"Touch: {touch_str}   "
                     f"POV: {r.get('hand_point_of_view','?')}   "
                     f"Motion: {r.get('hand_move','?')}"
+                    f"{oos_flag}"
                 ),
                 font=ctk.CTkFont(size=11),
             ).pack(anchor="w", padx=12, pady=6)
@@ -144,7 +148,7 @@ class RecoveryScreen(ctk.CTkFrame):
                 corner_radius=6,
                 font=ctk.CTkFont(size=13, weight="bold"),
                 fg_color="#2563eb", hover_color="#1d4ed8",
-                command=lambda: self._go(next_widx, allow_override=False),
+                command=lambda: self._go(next_widx),
             ).pack(side="left", padx=6)
 
             ctk.CTkButton(
@@ -155,7 +159,7 @@ class RecoveryScreen(ctk.CTkFrame):
                 font=ctk.CTkFont(size=13),
                 fg_color=("gray80", "gray28"), hover_color=("gray70", "gray36"),
                 text_color=("gray10", "gray95"),
-                command=lambda: self._go(last_widx, allow_override=True),
+                command=lambda: self._go(last_widx),
             ).pack(side="left", padx=6)
         else:
             ctk.CTkButton(
@@ -165,7 +169,7 @@ class RecoveryScreen(ctk.CTkFrame):
                 corner_radius=6,
                 font=ctk.CTkFont(size=13, weight="bold"),
                 fg_color="#2563eb", hover_color="#1d4ed8",
-                command=lambda: self._go(0, allow_override=False),
+                command=lambda: self._go(0),
             ).pack(side="left", padx=6)
 
         ctk.CTkButton(
@@ -191,12 +195,11 @@ class RecoveryScreen(ctk.CTkFrame):
             command=self.app.show_setup,
         ).pack(side="left", padx=6)
 
-    def _go(self, window_idx: int, allow_override: bool) -> None:
+    def _go(self, window_idx: int) -> None:
         self.app.show_annotation(
             self.frame_data, self.fps, self.total_frames, self.duration_ms,
             self.csv_path, self.video_path, self.video_hash,
             start_window_idx=window_idx,
-            allow_override_last=allow_override,
         )
 
     def _pick(self) -> None:
@@ -211,4 +214,4 @@ class RecoveryScreen(ctk.CTkFrame):
         )
         self.wait_window(dialog)
         if dialog.selected_window_idx is not None:
-            self._go(dialog.selected_window_idx, allow_override=False)
+            self._go(dialog.selected_window_idx)

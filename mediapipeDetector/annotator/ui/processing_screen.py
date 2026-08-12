@@ -232,7 +232,7 @@ class ProcessingScreen(ctk.CTkFrame):
             self.app.show_annotation(
                 frame_data, fps, total_frames, duration_ms,
                 self.csv_path, self.video_path, self.video_hash,
-                start_window_idx=0, allow_override_last=False,
+                start_window_idx=0,
             )
         else:
             self.app.show_recovery(

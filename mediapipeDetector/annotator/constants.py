@@ -98,7 +98,7 @@ def _build_csv_headers() -> list[str]:
         h.append(f"{finger}_touch")
     h += [
         "hand_move", "hand_point_of_view", "hand_closer",
-        "hovering", "daylight", "hand_visible", "any_difference",
+        "hovering", "daylight", "hand_visible", "out_of_sync", "any_difference",
     ]
     return h
 
