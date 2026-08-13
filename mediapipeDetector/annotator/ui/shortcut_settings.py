@@ -77,9 +77,14 @@ class ShortcutSettingsDialog(ctk.CTkToplevel):
         self.lift()
         self.focus_force()
 
+        self._save_btn: ctk.CTkButton | None = None  # assigned in _build
+        self._saved_lbl: ctk.CTkLabel | None = None  # "✓ Saved" indicator
+
         self._build()
         # Capture key events at the Toplevel level
         self.bind("<KeyPress>", self._on_key_press)
+        # Closing the window with X also saves (same as clicking Save)
+        self.protocol("WM_DELETE_WINDOW", self._save)
         logger.info("ShortcutSettingsDialog opened.")
 
     # ── UI construction ───────────────────────────────────────────────────────
@@ -145,14 +150,22 @@ class ShortcutSettingsDialog(ctk.CTkToplevel):
             command=self.destroy,
         ).pack(side="right", padx=(0, 8), pady=11)
 
-        ctk.CTkButton(
+        self._saved_lbl = ctk.CTkLabel(
+            btn_row, text="",
+            font=ctk.CTkFont(family=FF, size=12, weight="bold"),
+            text_color="#4ade80",
+        )
+        self._saved_lbl.pack(side="right", padx=(0, 10))
+
+        self._save_btn = ctk.CTkButton(
             btn_row, text="Save", width=100, height=32,
             corner_radius=4,
             fg_color=BTN_PRI, hover_color=BTN_HVP,
             text_color="white",
             font=ctk.CTkFont(family=FF, size=13, weight="bold"),
             command=self._save,
-        ).pack(side="right", padx=(0, 12), pady=11)
+        )
+        self._save_btn.pack(side="right", padx=(0, 12), pady=11)
 
     def _add_section(self, parent, title: str, actions: list[str]) -> None:
         ctk.CTkLabel(
@@ -278,7 +291,9 @@ class ShortcutSettingsDialog(ctk.CTkToplevel):
         for action, keysym in self._working.items():
             self._mgr.set(action, keysym)
         self._mgr.save()
+        if self._saved_lbl:
+            self._saved_lbl.configure(text="✓ Saved")
         if self._on_updated:
             self._on_updated()
-        logger.info("Shortcuts saved and dialog closed.")
+        logger.info("Shortcuts saved to JSON file and dialog closed.")
         self.destroy()

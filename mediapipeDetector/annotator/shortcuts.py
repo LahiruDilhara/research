@@ -73,13 +73,25 @@ class ShortcutManager:
             return
         try:
             with open(SHORTCUT_FILE, "r", encoding="utf-8") as f:
-                saved: dict = json.load(f)
+                saved = json.load(f)
+            if not isinstance(saved, dict):
+                raise ValueError(f"Expected dict root in JSON, got {type(saved).__name__}")
             for key in DEFAULT_SHORTCUTS:
                 if key in saved and isinstance(saved[key], str):
                     self._shortcuts[key] = saved[key]
             logger.info(f"Loaded keyboard shortcuts from {SHORTCUT_FILE}")
         except Exception as exc:
-            logger.warning(f"Could not load shortcuts file: {exc}")
+            logger.warning(
+                f"Corrupted or invalid shortcut file '{SHORTCUT_FILE}' ({exc}). "
+                f"Deleting and recreating with defaults."
+            )
+            try:
+                if os.path.exists(SHORTCUT_FILE):
+                    os.remove(SHORTCUT_FILE)
+            except Exception as del_exc:
+                logger.error(f"Failed to remove corrupted shortcut file: {del_exc}")
+            self.reset_defaults()
+            self.save()
 
     def save(self) -> None:
         """Write current bindings to the JSON file."""
