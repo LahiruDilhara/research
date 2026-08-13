@@ -20,6 +20,7 @@ from annotator.constants import (
     ANY_DIFF_PRESETS, CSV_HEADERS, FINGERS, FINGER_COLORS_HEX, JOINT_LABELS, POV_OPTIONS,
 )
 from annotator.csv_manager import CSVManager
+from annotator.shortcuts import ShortcutManager
 from annotator.video_processor import (
     extract_window_record_data, frames_to_pil, get_window_frames,
     window_count, window_idx_from_start_frame,
@@ -32,6 +33,9 @@ from annotator.ui.theme import (
 
 logger = logging.getLogger("Annotator.AnnotationScreen")
 _DISPLAY_W = 640
+
+# Widget classes that are text inputs — shortcuts are suppressed when these are focused
+_TEXT_INPUT_CLASSES = {"Entry", "TCombobox", "Text"}
 
 
 class AnnotationScreen(ctk.CTkFrame):
@@ -77,6 +81,11 @@ class AnnotationScreen(ctk.CTkFrame):
         self._pov = ctk.StringVar(value="front")
         self._any_diff = ctk.StringVar(value="")
 
+        # Keyboard shortcut manager (loads from shortcuts.json)
+        self._shortcut_mgr = ShortcutManager()
+        # Bind global key handler on the root window; store ID so we can unbind cleanly
+        self._key_bind_id = self.app.bind("<KeyPress>", self._on_key_press, add="+")
+
         self._build()
         logger.info(f"AnnotationScreen initialized. Total windows={self.total_windows}, starting at index={start_window_idx}")
         self._load_window(self._window_idx)
@@ -104,6 +113,16 @@ class AnnotationScreen(ctk.CTkFrame):
             command=self._open_analyzer,
         )
         self._btn_analyze.pack(side="right", padx=(8, 16))
+
+        self._btn_shortcuts = ctk.CTkButton(
+            top, text="⌨  Shortcuts", width=110, height=30,
+            corner_radius=4, border_width=1, border_color=BORDER,
+            fg_color=BTN_GHO, hover_color=BTN_GHH,
+            text_color=TXT_SEC,
+            font=ctk.CTkFont(family=FF, size=12),
+            command=self._open_shortcuts,
+        )
+        self._btn_shortcuts.pack(side="right", padx=4)
 
         self._btn_jump = ctk.CTkButton(
             top, text="Select Window...", width=140, height=30,
@@ -732,6 +751,57 @@ class AnnotationScreen(ctk.CTkFrame):
             self._stop_loop()
             self.app.show_setup()
 
+    # ── Keyboard shortcuts ────────────────────────────────────────────────────
+
+    def _open_shortcuts(self) -> None:
+        logger.info("User opened Keyboard Shortcuts settings dialog.")
+        from annotator.ui.shortcut_settings import ShortcutSettingsDialog
+        ShortcutSettingsDialog(
+            self,
+            shortcut_mgr=self._shortcut_mgr,
+            on_updated=lambda: logger.info("Shortcut bindings updated."),
+        )
+
+    def _on_key_press(self, event) -> None:
+        """Global key handler — dispatches shortcuts when no text input is focused."""
+        # Never steal keys from text entry / combobox widgets
+        try:
+            focused_class = event.widget.winfo_class()
+        except Exception:
+            return
+        if focused_class in _TEXT_INPUT_CLASSES:
+            return
+
+        key = event.keysym
+        sc = self._shortcut_mgr
+
+        # Finger touch toggles
+        finger_map = {
+            sc.get("thumb"):  "Thumb",
+            sc.get("index"):  "Index",
+            sc.get("middle"): "Middle",
+            sc.get("ring"):   "Ring",
+            sc.get("pinky"):  "Pinky",
+        }
+        if key in finger_map:
+            fn = finger_map[key]
+            if fn and fn in self._touch:
+                new_val = not self._touch[fn].get()
+                self._touch[fn].set(new_val)
+                logger.debug(f"Shortcut toggled {fn} touch → {new_val}")
+            return
+
+        # Navigation
+        if key == sc.get("next_window") and sc.get("next_window"):
+            self._go_next()
+        elif key == sc.get("prev_window") and sc.get("prev_window"):
+            self._go_prev()
+
     def destroy(self) -> None:
         self._stop_loop()
+        # Remove the global key binding to avoid stale callbacks
+        try:
+            self.app.unbind("<KeyPress>", self._key_bind_id)
+        except Exception:
+            pass
         super().destroy()
