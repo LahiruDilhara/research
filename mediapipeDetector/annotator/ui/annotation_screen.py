@@ -494,10 +494,14 @@ class AnnotationScreen(ctk.CTkFrame):
         curr_idx = self._individual_idx if self._individual_mode else (self._loop_idx - 1) % max(1, len(self._cached_pil))
         self._show(max(0, curr_idx))
 
-    def _draw_debug_overlay(self, pil: Image.Image, fd: dict) -> Image.Image:
+    def _draw_debug_overlay(self, pil: Image.Image, fd: dict, local_idx: int) -> Image.Image:
         img = pil.copy().convert("RGBA")
         hd = fd.get("hand_data")
-        vd = fd.get("velocity_data")
+        # Frame 0 of ANY window: its velocity_data was computed from the frame BEFORE this window
+        # (cross-window boundary transition) and is intentionally excluded from the CSV.
+        # Suppress it here so HUD always matches exactly what gets saved.
+        vd = None if local_idx == 0 else fd.get("velocity_data")
+        is_first_frame = (local_idx == 0)
         overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(overlay)
 
@@ -506,42 +510,53 @@ class AnnotationScreen(ctk.CTkFrame):
             draw.text((16, 16), "No Hand Landmark Data in Frame", fill=(255, 120, 120))
             return Image.alpha_composite(img, overlay).convert("RGB")
 
-        lines = ["=== Joint Landmarks & Velocity HUD ==="]
+        vel_label = "N/A (frame 1 – no intra-window velocity)" if is_first_frame else ""
+        lines = [f"=== Joint Landmarks & Velocity HUD === {vel_label}"]
         wx, wy = hd["wrist"]
         wv = (vd.get("wrist_velocity") or (0.0, 0.0)) if vd else (0.0, 0.0)
-        lines.append(f"Wrist   : Pos({wx:.2f}, {wy:.2f}) | Vel({wv[0]:.2f}, {wv[1]:.2f})")
+        vel_str = "N/A" if is_first_frame else f"({wv[0]:.2f}, {wv[1]:.2f})"
+        lines.append(f"Wrist   : Pos({wx:.2f}, {wy:.2f}) | Vel {vel_str}")
         for fn in FINGERS:
             pts = hd["fingers"].get(fn, [])
             fvels = (vd.get("finger_velocities", {}).get(fn, []) if vd else []) or []
             for j, jlabel in enumerate(JOINT_LABELS):
                 pt = pts[j] if j < len(pts) else (0.0, 0.0)
-                jv = fvels[j] if (j < len(fvels) and fvels[j] is not None) else (0.0, 0.0)
-                lines.append(f"{fn:<5} {jlabel}: Pos({pt[0]:.2f}, {pt[1]:.2f}) | Vel({jv[0]:.2f}, {jv[1]:.2f})")
+                if is_first_frame:
+                    jv_str = "N/A"
+                else:
+                    jv = fvels[j] if (j < len(fvels) and fvels[j] is not None) else (0.0, 0.0)
+                    jv_str = f"({jv[0]:.2f}, {jv[1]:.2f})"
+                lines.append(f"{fn:<5} {jlabel}: Pos({pt[0]:.2f}, {pt[1]:.2f}) | Vel {jv_str}")
 
-        box_w = 340
+        box_w = 390
         box_h = 16 + len(lines) * 15
-        draw.rectangle([8, 8, 8 + box_w, 8 + box_h], fill=(30, 30, 30, 220), outline=(0, 122, 204, 255), width=2)
+        # Highlight frame-0 warning with orange border
+        border_col = (255, 165, 0, 255) if is_first_frame else (0, 122, 204, 255)
+        draw.rectangle([8, 8, 8 + box_w, 8 + box_h], fill=(30, 30, 30, 220), outline=border_col, width=2)
         y_off = 12
         for i, line in enumerate(lines):
-            col = (78, 201, 240) if i == 0 else (204, 204, 204)
+            col = (255, 165, 0) if (i == 0 and is_first_frame) else ((78, 201, 240) if i == 0 else (204, 204, 204))
             draw.text((16, y_off), line, fill=col)
             y_off += 15
 
         wp = hd.get("wrist_pixel")
         if wp:
             px, py = int(wp[0]), int(wp[1])
-            draw.text((px + 6, py + 4), f"W:({wx:.2f},{wy:.2f})\nv:({wv[0]:.2f},{wv[1]:.2f})", fill=(255, 255, 0, 240))
+            v_inline = "v:N/A" if is_first_frame else f"v:({wv[0]:.2f},{wv[1]:.2f})"
+            draw.text((px + 6, py + 4), f"W:({wx:.2f},{wy:.2f})\n{v_inline}", fill=(255, 255, 0, 240))
         for fn, coords in hd.get("fingers_pixel", {}).items():
             pts_norm = hd["fingers"].get(fn, [])
             fvels = (vd.get("finger_velocities", {}).get(fn, []) if vd else []) or []
             for j, pt in enumerate(coords):
                 px, py = int(pt[0]), int(pt[1])
                 nx, ny = pts_norm[j] if j < len(pts_norm) else (0.0, 0.0)
-                jv = fvels[j] if (j < len(fvels) and fvels[j] is not None) else (0.0, 0.0)
                 jlabel = JOINT_LABELS[j] if j < len(JOINT_LABELS) else f"J{j}"
-                draw.text((px + 5, py - 6),
-                          f"{fn[:1]}{jlabel[:1]}:({nx:.2f},{ny:.2f})\nv:({jv[0]:.2f},{jv[1]:.2f})",
-                          fill=(0, 230, 255, 240))
+                if is_first_frame:
+                    joint_str = f"{fn[:1]}{jlabel[:1]}:({nx:.2f},{ny:.2f})\nv:N/A"
+                else:
+                    jv = fvels[j] if (j < len(fvels) and fvels[j] is not None) else (0.0, 0.0)
+                    joint_str = f"{fn[:1]}{jlabel[:1]}:({nx:.2f},{ny:.2f})\nv:({jv[0]:.2f},{jv[1]:.2f})"
+                draw.text((px + 5, py - 6), joint_str, fill=(0, 230, 255, 240))
         return Image.alpha_composite(img, overlay).convert("RGB")
 
     # ── Loop animation ────────────────────────────────────────────────────────
@@ -577,7 +592,7 @@ class AnnotationScreen(ctk.CTkFrame):
         fd  = self._current_wf[local_idx]
 
         if self._show_coords_vel.get():
-            pil = self._draw_debug_overlay(pil, fd)
+            pil = self._draw_debug_overlay(pil, fd, local_idx)
 
         try:
             avail_w = max(300, self.winfo_width() * 60 // 100 - 30)
