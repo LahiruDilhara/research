@@ -234,7 +234,7 @@ def draw_skeleton(frame_bgr: any, hand_data: dict) -> any:
             cv2.line(frame,
                      (int(pts[a][0]), int(pts[a][1])),
                      (int(pts[b][0]), int(pts[b][1])),
-                     (180, 180, 180), 1)
+                     (200, 200, 200), 1)
 
     # Draw wrist
     wp = hand_data.get("wrist_pixel", (0, 0))

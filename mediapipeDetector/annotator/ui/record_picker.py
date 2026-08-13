@@ -128,8 +128,8 @@ class RecordPickerDialog(ctk.CTkToplevel):
                     for f in ["thumb", "index", "middle", "ring", "pinky"]
                     if str(existing.get(f"{f}_touch", "False")).lower() == "true"
                 ]
-                t_str = " + ".join(touches) or "None"
-                tag += f"Saved #{rec_idx+1}  ·  Touch: {t_str}  ·  POV: {existing.get('hand_point_of_view','front')}"
+                hand_str = "R-Hand" if str(existing.get("rightHand", "False")).lower() == "true" else "L-Hand"
+                tag += f"Saved #{rec_idx+1}  ·  Hand: {hand_str}  ·  Touch: {t_str}  ·  POV: {existing.get('hand_point_of_view','front')}"
             else:
                 tag += "Unrecorded"
 

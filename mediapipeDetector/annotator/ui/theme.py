@@ -112,6 +112,8 @@ def make_switch(parent, text: str, variable, text_color=TXT_SEC,
         parent,
         text=text,
         variable=variable,
+        onvalue=True,
+        offvalue=False,
         font=ctk.CTkFont(family=FF, size=13),
         text_color=text_color,
         # Off-state track colour

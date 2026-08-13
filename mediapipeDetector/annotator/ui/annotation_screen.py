@@ -67,6 +67,7 @@ class AnnotationScreen(ctk.CTkFrame):
         self._auto_save = ctk.BooleanVar(value=False)
 
         self._touch = {f: ctk.BooleanVar(value=False) for f in FINGERS}
+        self._right_hand = ctk.BooleanVar(value=False)
         self._hand_move = ctk.BooleanVar(value=False)
         self._hand_closer = ctk.BooleanVar(value=False)
         self._hovering = ctk.BooleanVar(value=False)
@@ -239,6 +240,7 @@ class AnnotationScreen(ctk.CTkFrame):
         # ── Hand Motion & Environment ───────────────────────────────────────
         section_label(right, "Hand Motion & Environment").pack(anchor="w", padx=16, pady=(12, 2))
         for text, var in [
+            ("Right Hand", self._right_hand),
             ("Hand Moving", self._hand_move),
             ("Hand Moving Closer", self._hand_closer),
             ("Hovering (Not Touching)", self._hovering),
@@ -267,7 +269,7 @@ class AnnotationScreen(ctk.CTkFrame):
         section_label(right, "Observation Notes (anyDifference)").pack(anchor="w", padx=16, pady=(12, 2))
         self._diff_combo = ctk.CTkComboBox(
             right, variable=self._any_diff,
-            values=ANY_DIFF_PRESETS, width=290,
+            values=self._get_diff_presets(), width=290,
             font=ctk.CTkFont(family=FF, size=12),
             fg_color=BTN_SEC, border_color=BORDER, text_color=TXT_SEC,
             button_color=BTN_SEC, button_hover_color=BTN_HVS,
@@ -293,6 +295,8 @@ class AnnotationScreen(ctk.CTkFrame):
             right,
             text="Auto-Save on Navigation",
             variable=self._auto_save,
+            onvalue=True,
+            offvalue=False,
             font=ctk.CTkFont(family=FF, size=12),
             text_color=AMBER,
             fg_color=SW_TRACK,
@@ -370,6 +374,8 @@ class AnnotationScreen(ctk.CTkFrame):
             self._prepare_new_annotation(carry_context=True)
 
         self._btn_prev.configure(state="normal" if widx > 0 else "disabled")
+        self._update_diff_combo()
+        self._initial_rec = self._annotation_dict()
         self._start_loop()
 
     def _reset_current_window_edits(self) -> None:
@@ -414,9 +420,28 @@ class AnnotationScreen(ctk.CTkFrame):
 
     # ── Annotation helpers ────────────────────────────────────────────────────
 
+    def _get_diff_presets(self) -> list[str]:
+        """Combine default ANY_DIFF_PRESETS with all unique any_difference notes from CSV."""
+        presets = list(ANY_DIFF_PRESETS)
+        try:
+            records = self.csv.read_all()
+            for r in records:
+                val = str(r.get("any_difference", "")).strip()
+                if val and val not in presets:
+                    presets.append(val)
+        except Exception as exc:
+            logger.warning(f"Could not load custom any_difference entries from CSV: {exc}")
+        return presets
+
+    def _update_diff_combo(self) -> None:
+        """Update dropdown values of _diff_combo from CSV + default presets."""
+        if hasattr(self, "_diff_combo"):
+            self._diff_combo.configure(values=self._get_diff_presets())
+
     def _populate(self, r: dict) -> None:
         for fn in FINGERS:
             self._touch[fn].set(str(r.get(f"{fn.lower()}_touch", "False")).lower() == "true")
+        self._right_hand.set(str(r.get("rightHand", "False")).lower() == "true")
         self._hand_move.set(str(r.get("hand_move", "False")).lower() == "true")
         self._hand_closer.set(str(r.get("hand_closer", "False")).lower() == "true")
         self._hovering.set(str(r.get("hovering", "False")).lower() == "true")
@@ -431,6 +456,7 @@ class AnnotationScreen(ctk.CTkFrame):
             self._touch[fn].set(False)
         self._any_diff.set("")
         if not carry_context:
+            self._right_hand.set(False)
             self._hand_move.set(False); self._hand_closer.set(False)
             self._hovering.set(False); self._daylight.set(True)
             self._hand_visible.set(True); self._out_of_sync.set(False)
@@ -439,6 +465,7 @@ class AnnotationScreen(ctk.CTkFrame):
     def _annotation_dict(self) -> dict:
         ann: dict = {f"{fn.lower()}_touch": self._touch[fn].get() for fn in FINGERS}
         ann.update({
+            "rightHand": self._right_hand.get(),
             "hand_move": self._hand_move.get(),
             "hand_point_of_view": self._pov.get(),
             "hand_closer": self._hand_closer.get(),
@@ -453,7 +480,7 @@ class AnnotationScreen(ctk.CTkFrame):
     def _records_same(self, existing: dict, new_rec: dict) -> bool:
         ann_fields = (
             [f"{fn.lower()}_touch" for fn in FINGERS]
-            + ["hand_move", "hand_point_of_view", "hand_closer",
+            + ["rightHand", "hand_move", "hand_point_of_view", "hand_closer",
                "hovering", "daylight", "hand_visible", "out_of_sync", "any_difference"]
         )
         for f in ann_fields:
@@ -617,37 +644,35 @@ class AnnotationScreen(ctk.CTkFrame):
                     self.csv.override(sf, ef, sms, ems, new_rec)
                 else:
                     logger.info(f"Auto-Save ON: Record for frames {sf}–{ef} is identical. Skipping rewrite.")
+            self._update_diff_combo()
             return True
 
         if existing is None:
-            choice = messagebox.askyesnocancel(
-                "Save Window Annotation?",
-                f"Save annotation for frames {sf}–{ef} to CSV?\n\n"
-                "• [Yes]  — SAVE record & navigate\n"
-                "• [No]   — DISCARD & navigate without saving\n"
-                "• [Cancel] — STAY on this window",
-                parent=self,
-            )
-            if choice is True:
-                self.csv.append(new_rec); return True
-            elif choice is False:
-                return True
-            else:
-                return False
-
-        if self._records_same(existing, new_rec):
+            # NEW WINDOW (unrecorded in CSV): Save record to CSV silently on navigation (no popup)
+            logger.info(f"Auto-Save OFF: New window frames {sf}–{ef}. Appending record to CSV silently.")
+            self.csv.append(new_rec)
+            self._update_diff_combo()
             return True
 
+        # PREVIOUSLY ANNOTATED WINDOW (already exists in CSV):
+        if self._records_same(existing, new_rec):
+            logger.info(f"Auto-Save OFF: Previously annotated record for frames {sf}–{ef} is unchanged. Navigating silently.")
+            return True
+
+        # Prompt Yes/No/Cancel ONLY when user modifies a previously annotated window
+        logger.info(f"Auto-Save OFF: Previously annotated record for frames {sf}–{ef} was modified. Prompting Yes/No/Cancel...")
         choice = messagebox.askyesnocancel(
-            "Unsaved Window Modifications",
-            f"You modified the annotation for frames {sf}–{ef}.\n\n"
+            "Unsaved Modifications on Recorded Window",
+            f"You modified previously annotated window (frames {sf}–{ef}).\n\n"
             "• [Yes]  — SAVE / OVERRIDE changes & navigate\n"
             "• [No]   — DISCARD changes & navigate\n"
             "• [Cancel] — STAY on this window",
             parent=self,
         )
         if choice is True:
-            self.csv.override(sf, ef, sms, ems, new_rec); return True
+            self.csv.override(sf, ef, sms, ems, new_rec)
+            self._update_diff_combo()
+            return True
         elif choice is False:
             return True
         else:
