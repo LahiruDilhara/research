@@ -13,7 +13,7 @@ logger = logging.getLogger("Annotator.Shortcuts")
 # Stored next to this file so it travels with the project
 SHORTCUT_FILE = os.path.join(os.path.dirname(__file__), "shortcuts.json")
 
-# Sensible defaults: fingers on Q W E R T, navigation on arrow keys
+# Sensible defaults: fingers on Q W E R T, navigation on arrow keys, space for play
 DEFAULT_SHORTCUTS: dict[str, str] = {
     "thumb":       "q",
     "index":       "w",
@@ -22,6 +22,7 @@ DEFAULT_SHORTCUTS: dict[str, str] = {
     "pinky":       "t",
     "next_window": "Right",
     "prev_window": "Left",
+    "play_window": "space",
 }
 
 # Human-readable labels shown in the settings dialog
@@ -33,6 +34,7 @@ ACTION_LABELS: dict[str, str] = {
     "pinky":       "Toggle Pinky Touch",
     "next_window": "Next Window",
     "prev_window": "Previous Window",
+    "play_window": "Play Window (Replay 1-5)",
 }
 
 # Pretty-print map for special tkinter keysym names

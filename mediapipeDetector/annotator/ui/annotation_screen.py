@@ -210,8 +210,8 @@ class AnnotationScreen(ctk.CTkFrame):
         nav = ctk.CTkFrame(left, fg_color="transparent")
         nav.grid(row=3, column=0, pady=(0, 12))
         ctk.CTkButton(
-            nav, text="Play Loop", width=95, height=30, corner_radius=4, border_width=0,
-            font=ctk.CTkFont(family=FF, size=12),
+            nav, text="Play Window ▶", width=110, height=30, corner_radius=4, border_width=0,
+            font=ctk.CTkFont(family=FF, size=12, weight="bold"),
             fg_color=BTN_PRI, hover_color=BTN_HVP,
             command=self._start_loop,
         ).pack(side="left", padx=4)
@@ -600,9 +600,13 @@ class AnnotationScreen(ctk.CTkFrame):
         if not self._loop_running or self._individual_mode or not self._cached_pil:
             return
         self._show(self._loop_idx)
-        self._loop_idx = (self._loop_idx + 1) % len(self._cached_pil)
-        delay = max(80, int(1000 / self._speed_slider.get()))
-        self._loop_job = self.after(delay, self._tick)
+        if self._loop_idx < len(self._cached_pil) - 1:
+            self._loop_idx += 1
+            delay = max(80, int(1000 / self._speed_slider.get()))
+            self._loop_job = self.after(delay, self._tick)
+        else:
+            # Reached last frame of the 5-frame window -> stop playback
+            self._loop_running = False
 
     def _show(self, local_idx: int) -> None:
         if not self._cached_pil or local_idx >= len(self._cached_pil):
@@ -791,8 +795,10 @@ class AnnotationScreen(ctk.CTkFrame):
                 logger.debug(f"Shortcut toggled {fn} touch → {new_val}")
             return
 
-        # Navigation
-        if key == sc.get("next_window") and sc.get("next_window"):
+        # Playback & Navigation
+        if key == sc.get("play_window") and sc.get("play_window"):
+            self._start_loop()
+        elif key == sc.get("next_window") and sc.get("next_window"):
             self._go_next()
         elif key == sc.get("prev_window") and sc.get("prev_window"):
             self._go_prev()
