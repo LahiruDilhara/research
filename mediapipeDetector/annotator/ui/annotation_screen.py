@@ -325,6 +325,8 @@ class AnnotationScreen(ctk.CTkFrame):
             bg_color=PANEL,
         ).pack(anchor="w", **pad)
 
+
+
         nav_row = ctk.CTkFrame(right, fg_color="transparent")
         nav_row.pack(fill="x", **pad)
         self._btn_prev = ctk.CTkButton(
@@ -735,6 +737,16 @@ class AnnotationScreen(ctk.CTkFrame):
             self._stop_loop()
             self._load_window(self._window_idx - 1)
 
+    def _go_jump(self, delta: int) -> None:
+        """Jump forward or backward by `delta` windows (e.g. +5 or -5 frames)."""
+        logger.info(f"User requested window jump by delta={delta} (from window index {self._window_idx})")
+        target_widx = max(0, min(self.total_windows - 1, self._window_idx + delta))
+        if target_widx != self._window_idx:
+            if not self._save_current():
+                return
+            self._stop_loop()
+            self._load_window(target_widx)
+
     def _video_end(self) -> None:
         messagebox.showinfo(
             "🎉 Annotation Complete",
@@ -802,6 +814,10 @@ class AnnotationScreen(ctk.CTkFrame):
             self._go_next()
         elif key == sc.get("prev_window") and sc.get("prev_window"):
             self._go_prev()
+        elif key == sc.get("step_forward") and sc.get("step_forward"):
+            self._next_frame()
+        elif key == sc.get("step_back") and sc.get("step_back"):
+            self._prev_frame()
 
     def destroy(self) -> None:
         self._stop_loop()

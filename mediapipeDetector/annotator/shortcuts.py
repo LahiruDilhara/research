@@ -15,26 +15,30 @@ SHORTCUT_FILE = os.path.join(os.path.dirname(__file__), "shortcuts.json")
 
 # Sensible defaults: fingers on Q W E R T, navigation on arrow keys, space for play
 DEFAULT_SHORTCUTS: dict[str, str] = {
-    "thumb":       "q",
-    "index":       "w",
-    "middle":      "e",
-    "ring":        "r",
-    "pinky":       "t",
-    "next_window": "Right",
-    "prev_window": "Left",
-    "play_window": "space",
+    "thumb":         "q",
+    "index":         "w",
+    "middle":        "e",
+    "ring":          "r",
+    "pinky":         "t",
+    "next_window":   "Right",
+    "prev_window":   "Left",
+    "step_forward":  "Down",
+    "step_back":     "Up",
+    "play_window":   "space",
 }
 
 # Human-readable labels shown in the settings dialog
 ACTION_LABELS: dict[str, str] = {
-    "thumb":       "Toggle Thumb Touch",
-    "index":       "Toggle Index Touch",
-    "middle":      "Toggle Middle Touch",
-    "ring":        "Toggle Ring Touch",
-    "pinky":       "Toggle Pinky Touch",
-    "next_window": "Next Window",
-    "prev_window": "Previous Window",
-    "play_window": "Play Window (Replay 1-5)",
+    "thumb":         "Toggle Thumb Touch",
+    "index":         "Toggle Index Touch",
+    "middle":        "Toggle Middle Touch",
+    "ring":          "Toggle Ring Touch",
+    "pinky":         "Toggle Pinky Touch",
+    "next_window":   "Next Window (+1 Frame)",
+    "prev_window":   "Previous Window (-1 Frame)",
+    "step_forward":  "Step Forward (Inside Window)",
+    "step_back":     "Step Backward (Inside Window)",
+    "play_window":   "Play Window (Replay 1-5)",
 }
 
 # Pretty-print map for special tkinter keysym names

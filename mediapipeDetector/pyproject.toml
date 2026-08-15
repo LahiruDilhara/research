@@ -6,7 +6,9 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "customtkinter>=6.0.0",
+    "ipykernel>=7.3.0",
     "mediapipe>=1.0.0",
     "numpy>=2.5.2",
     "opencv-python>=5.0.0.93",
+    "torch>=2.13.0",
 ]

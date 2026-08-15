@@ -30,7 +30,7 @@ _MODIFIER_KEYSYMS = {
 
 # Action groups for visual layout
 _FINGER_ACTIONS = ["thumb", "index", "middle", "ring", "pinky"]
-_NAV_ACTIONS = ["play_window", "next_window", "prev_window"]
+_NAV_ACTIONS = ["play_window", "next_window", "prev_window", "step_forward", "step_back"]
 _SECTION_LABELS = {
     "fingers": "Finger Touch Toggles",
     "nav":     "Playback & Navigation",
