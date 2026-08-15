@@ -273,37 +273,21 @@ def process_video(
         logger.error(f"Failed to open video file: {video_path}")
         raise RuntimeError(f"Cannot open video: {video_path}")
 
-    native_fps = cap.get(cv2.CAP_PROP_FPS) or 0.0
     header_total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv2.CAP_PROP_FPS) or 0.0
 
     logger.info(
-        f"Video opened: {w}x{h} resolution, {native_fps:.2f} FPS, header frame count {header_total}"
+        f"Video opened: {w}x{h} resolution, {fps:.2f} FPS, header frame count {header_total}"
     )
 
-    # ── FPS enforcement — mirror live_camera.py validate_camera_fps() ─────────
-    # Live camera rejects < 30 FPS and caps at 30 FPS.  Apply the same rule to
-    # recorded video so training data dt values are identical to inference.
-    TARGET_FPS = 30.0
-
-    if native_fps < TARGET_FPS:
+    # ── FPS enforcement — strictly mirror live_camera.py validate_camera_fps() ─
+    if fps < 30.0:
         cap.release()
-        msg = (
-            f"Video FPS ({native_fps:.2f}) is below {TARGET_FPS:.0f} FPS. "
-            f"This video cannot be processed — the training pipeline requires "
-            f"at least {TARGET_FPS:.0f} FPS to match the live-camera environment."
-        )
+        msg = f"Video FPS ({fps:.2f}) is less than 30 FPS. Processing aborted."
         logger.error(msg)
         raise ValueError(msg)
-
-    # How many native frames to skip between each processed frame.
-    # e.g. 60 FPS video → step=2 (process frames 0, 2, 4 …) → effective 30 FPS
-    frame_step = max(1, round(native_fps / TARGET_FPS))
-    logger.info(
-        f"FPS normalisation: native {native_fps:.2f} FPS → "
-        f"processing every {frame_step} frame(s) → effective {native_fps / frame_step:.2f} FPS ≈ {TARGET_FPS:.0f} FPS"
-    )
 
     # ── MediaPipe init ────────────────────────────────────────────────────────
     logger.info(f"Initializing MediaPipe HandLandmarker from model: {model_path}")
@@ -320,27 +304,16 @@ def process_video(
 
     state = _PipelineState()
     frame_data = []
-
-    native_fi = 0    # native (raw) frame counter
-    processed_fi = 0 # count of frames actually sent through the pipeline
+    fi = 0
 
     while True:
         ret, frame = cap.read()
         if not ret:
-            if header_total > 0 and native_fi < header_total:
-                logger.warning(
-                    f"Video reader reached EOF early at native frame {native_fi}/{header_total}"
-                )
+            logger.info(f"Reached end of video file at frame {fi}.")
             break
 
-        # Sub-sample: only process every frame_step-th native frame
-        if native_fi % frame_step != 0:
-            native_fi += 1
-            continue
-
-        # Synthesise a strict 30 FPS timestamp — identical to what the live
-        # camera pipeline produces — so dt in velocity calculation is always 1/30 s.
-        ts_ms = int((processed_fi / TARGET_FPS) * 1000)
+        # Exact timestamp calculation per frame
+        ts_ms = int((fi / fps) * 1000)
         t_s = ts_ms / 1000.0
 
         raw = _analyze(frame, landmarker, ts_ms, state)
@@ -353,7 +326,7 @@ def process_video(
         hd = filtered[0] if filtered else None
         if hd:
             annotated = draw_skeleton(annotated, hd)
-        cv2.putText(annotated, f"F:{processed_fi}", (8, 24),
+        cv2.putText(annotated, f"F:{fi}", (8, 24),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 0), 2)
         cv2.putText(annotated, f"{ts_ms}ms", (8, 44),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.42, (180, 180, 180), 1)
@@ -363,20 +336,17 @@ def process_video(
         jpg_bytes = buf.tobytes()
 
         frame_data.append({
-            "frame_idx": processed_fi,
+            "frame_idx": fi,
             "timestamp_ms": ts_ms,
             "annotated_jpg_bytes": jpg_bytes,
             "hand_data": hd,
             "velocity_data": vel[0] if vel else None,
         })
 
-        processed_fi += 1
-        native_fi += 1
-
-        # Progress: use header_total / frame_step as denominator estimate
-        denom = max(1, (header_total // frame_step) if header_total > 0 else processed_fi)
+        fi += 1
+        denom = header_total if header_total > 0 else fi
         if progress_cb:
-            progress_cb(processed_fi, denom)
+            progress_cb(fi, denom)
 
         # Yield GIL briefly (1ms) to allow Tkinter main thread to render progress bar smoothly
         time.sleep(0.001)
@@ -385,10 +355,9 @@ def process_video(
     landmarker.close()
 
     actual_total = len(frame_data)
-    duration_ms = int((actual_total / TARGET_FPS) * 1000)
+    duration_ms = int((actual_total / fps) * 1000)
     logger.info(
-        f"MediaPipe video processing finished. "
-        f"Extracted {actual_total} frames at effective {TARGET_FPS:.0f} FPS "
-        f"(from {native_fps:.2f} FPS source, step={frame_step}), duration {duration_ms} ms."
+        f"MediaPipe video processing finished. Extracted {actual_total} frames "
+        f"at {fps:.2f} FPS, duration {duration_ms} ms."
     )
-    return frame_data, TARGET_FPS, actual_total, duration_ms
+    return frame_data, fps, actual_total, duration_ms
