@@ -635,7 +635,7 @@ class AnnotationScreen(ctk.CTkFrame):
         self._lbl_fnum.configure(
             text=(f"Frame {fd['frame_idx']}"
                   f"   ·   {fd['timestamp_ms']} ms"
-                  f"   ·   Position {local_idx + 1}/5"
+                  f"   ·   Position {local_idx + 1}/{len(self._cached_pil)}"
                   f"   ·   {hand_state}")
         )
 

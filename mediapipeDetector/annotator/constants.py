@@ -42,16 +42,35 @@ FINGER_COLORS_HEX = {
     "Pinky":  "#3d7eff",   # Bright Blue
 }
 
+# ── Pipeline Frame Rate Target ─────────────────────────────────────────────
+TARGET_FPS = 12.0
+
 # ── 1€ Filter & Deadband (must match live_camera.py exactly) ─────────────────
 FILTER_MIN_CUTOFF = 1.5
 FILTER_BETA = 5.0
 DEADBAND_VELOCITY_THRESHOLD = 0.4
 MISSING_FRAMES_TOLERANCE = 2
 
-# ── Sliding-window parameters ────────────────────────────────────────────────
-WINDOW_SIZE = 5      # frames per window
-WINDOW_OVERLAP = 2   # shared frames between consecutive windows
-WINDOW_STEP = 3      # = WINDOW_SIZE - WINDOW_OVERLAP  (new frames per step)
+# ── Sliding-window parameters (configurable via SetupScreen UI) ─────────────
+DEFAULT_WINDOW_SIZE = 5
+DEFAULT_WINDOW_OVERLAP = 2
+
+WINDOW_SIZE = DEFAULT_WINDOW_SIZE      # frames per window
+WINDOW_OVERLAP = DEFAULT_WINDOW_OVERLAP   # shared frames between consecutive windows
+WINDOW_STEP = WINDOW_SIZE - WINDOW_OVERLAP  # = WINDOW_SIZE - WINDOW_OVERLAP  (new frames per step)
+
+
+def set_window_config(size: int, overlap: int) -> tuple[int, int, int]:
+    """Configure active sliding window parameters globally."""
+    global WINDOW_SIZE, WINDOW_OVERLAP, WINDOW_STEP, CSV_HEADERS
+    size = max(1, int(size))
+    overlap = max(0, min(size - 1, int(overlap)))
+    WINDOW_SIZE = size
+    WINDOW_OVERLAP = overlap
+    WINDOW_STEP = WINDOW_SIZE - WINDOW_OVERLAP
+    CSV_HEADERS = build_csv_headers(WINDOW_SIZE)
+    return WINDOW_SIZE, WINDOW_OVERLAP, WINDOW_STEP
+
 
 # ── Annotation option lists ──────────────────────────────────────────────────
 FINGERS = ["Thumb", "Index", "Middle", "Ring", "Pinky"]
@@ -76,14 +95,16 @@ MODEL_PATH = os.path.join(_ROOT, "hand_landmarker.task")
 
 
 # ── CSV header builder ───────────────────────────────────────────────────────
-def _build_csv_headers() -> list[str]:
+def build_csv_headers(window_size: int = None) -> list[str]:
+    """Generate dynamic CSV header columns based on window size."""
+    ws = window_size if window_size is not None else WINDOW_SIZE
     h: list[str] = [
         "video_file", "video_hash", "duration_ms",
         "start_ms", "end_ms", "start_frame", "end_frame",
     ]
 
-    # ── 160 Landmark coordinates (5 frames per window: f_step 1..5) ─────────
-    for f_step in range(1, 6):
+    # ── Landmark coordinates (ws frames per window: f_step 1..ws) ────────────
+    for f_step in range(1, ws + 1):
         h += [f"wrist{f_step}_x", f"wrist{f_step}_y"]
         for finger in FINGERS:
             for joint in JOINT_LABELS:
@@ -92,8 +113,8 @@ def _build_csv_headers() -> list[str]:
                     f"{finger.lower()}{f_step}_{joint.lower()}_y",
                 ]
 
-    # ── 128 Joint velocities (4 transitions per 5-frame window: v_step 1..4) ──
-    for v_step in range(1, 5):
+    # ── Joint velocities (ws-1 transitions per window: v_step 1..ws-1) ───────
+    for v_step in range(1, max(1, ws)):
         h += [f"wrist{v_step}_vx", f"wrist{v_step}_vy"]
         for finger in FINGERS:
             for joint in JOINT_LABELS:
@@ -112,4 +133,4 @@ def _build_csv_headers() -> list[str]:
     return h
 
 
-CSV_HEADERS: list[str] = _build_csv_headers()
+CSV_HEADERS: list[str] = build_csv_headers(WINDOW_SIZE)

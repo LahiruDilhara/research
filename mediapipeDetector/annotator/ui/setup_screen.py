@@ -43,11 +43,73 @@ class SetupScreen(ctk.CTkFrame):
 
         subtitle_lbl = ctk.CTkLabel(
             center,
-            text="MediaPipe 5-Frame Sliding-Window Feature Extractor & Touch Annotator",
+            text="MediaPipe Sliding-Window Feature Extractor & Touch Annotator",
             font=ctk.CTkFont(family=FONT_FAMILY, size=13),
             text_color="#cccccc",
         )
-        subtitle_lbl.pack(pady=(0, 36))
+        subtitle_lbl.pack(pady=(0, 20))
+
+        # ── Sliding Window Configuration Card ─────────────────────────────────
+        config_card = ctk.CTkFrame(
+            center,
+            corner_radius=4,
+            border_width=1,
+            border_color="#3c3c3c",
+            fg_color="#252526",
+        )
+        config_card.pack(fill="x", pady=(0, 20), padx=14)
+
+        config_inner = ctk.CTkFrame(config_card, fg_color="transparent")
+        config_inner.pack(padx=20, pady=16, fill="x")
+
+        ctk.CTkLabel(
+            config_inner,
+            text="⚙  Sliding Window Configuration",
+            font=ctk.CTkFont(family=FONT_FAMILY, size=14, weight="bold"),
+            text_color="#ffffff",
+        ).pack(anchor="w", pady=(0, 10))
+
+        inputs_row = ctk.CTkFrame(config_inner, fg_color="transparent")
+        inputs_row.pack(fill="x")
+
+        # Window Size Input
+        ctk.CTkLabel(
+            inputs_row,
+            text="Window Size (Frames):",
+            font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+            text_color="#cccccc",
+        ).pack(side="left", padx=(0, 8))
+
+        from annotator.constants import WINDOW_SIZE, WINDOW_OVERLAP, set_window_config
+        self._ent_window_size = ctk.CTkEntry(
+            inputs_row, width=70, height=28,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+        )
+        self._ent_window_size.insert(0, str(WINDOW_SIZE))
+        self._ent_window_size.pack(side="left", padx=(0, 24))
+
+        # Window Overlap Input
+        ctk.CTkLabel(
+            inputs_row,
+            text="Overlap (Frames):",
+            font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+            text_color="#cccccc",
+        ).pack(side="left", padx=(0, 8))
+
+        self._ent_window_overlap = ctk.CTkEntry(
+            inputs_row, width=70, height=28,
+            font=ctk.CTkFont(family=FONT_FAMILY, size=12),
+        )
+        self._ent_window_overlap.insert(0, str(WINDOW_OVERLAP))
+        self._ent_window_overlap.pack(side="left", padx=(0, 24))
+
+        self._lbl_config_status = ctk.CTkLabel(
+            config_inner,
+            text=f"Active: {WINDOW_SIZE}-frame window  ·  {WINDOW_OVERLAP}-frame overlap  ·  step={WINDOW_SIZE - WINDOW_OVERLAP} frames",
+            font=ctk.CTkFont(family=FONT_FAMILY, size=11),
+            text_color="#00c8ff",
+        )
+        self._lbl_config_status.pack(anchor="w", pady=(8, 0))
 
         # Cards Layout Container
         cards_frame = ctk.CTkFrame(center, fg_color="transparent")
@@ -77,7 +139,7 @@ class SetupScreen(ctk.CTkFrame):
 
         ctk.CTkLabel(
             new_inner,
-            text="Select a video file to run the MediaPipe pipeline and specify a CSV location to record new 308-feature touch gesture sequence data.",
+            text="Select a video file to run the MediaPipe pipeline and specify a CSV location to record new sequence feature dataset.",
             font=ctk.CTkFont(family=FONT_FAMILY, size=12),
             text_color="#cccccc",
             justify="left",
@@ -141,18 +203,35 @@ class SetupScreen(ctk.CTkFrame):
             command=self._open_existing,
         ).pack(fill="x")
 
-        # Pipeline Footer Specs
-        ctk.CTkLabel(
-            center,
-            text="Pipeline Spec: 5-frame window  ·  2-frame overlap  ·  1€ filter  ·  308 columns total",
-            font=ctk.CTkFont(family=FONT_FAMILY, size=11),
-            text_color="#858585",
-        ).pack(pady=(36, 0))
+    def _validate_and_apply_config(self) -> bool:
+        try:
+            sz = int(self._ent_window_size.get().strip())
+            ov = int(self._ent_window_overlap.get().strip())
+            if sz < 1:
+                messagebox.showerror("Invalid Setting", "Window size must be at least 1 frame.")
+                return False
+            if ov < 0 or ov >= sz:
+                messagebox.showerror(
+                    "Invalid Setting",
+                    f"Overlap must be between 0 and window size - 1 (0 to {sz - 1})."
+                )
+                return False
+            from annotator.constants import set_window_config
+            w_size, w_overlap, w_step = set_window_config(sz, ov)
+            self._lbl_config_status.configure(
+                text=f"Active: {w_size}-frame window  ·  {w_overlap}-frame overlap  ·  step={w_step} frames"
+            )
+            return True
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Window size and overlap must be integer numbers.")
+            return False
 
     # ── Actions ───────────────────────────────────────────────────────────────
 
     def _create_new(self) -> None:
         logger.info("User clicked 'Create New Dataset'")
+        if not self._validate_and_apply_config():
+            return
         video_path = open_video_dialog()
         if not video_path or not os.path.isfile(video_path):
             logger.info("No video selected or invalid path. Aborting setup.")
@@ -174,6 +253,8 @@ class SetupScreen(ctk.CTkFrame):
 
     def _open_existing(self) -> None:
         logger.info("User clicked 'Resume Session'")
+        if not self._validate_and_apply_config():
+            return
         csv_path = open_csv_dialog()
         if not csv_path or not os.path.isfile(csv_path):
             logger.info("No CSV selected. Aborting resume setup.")

@@ -96,11 +96,12 @@ def extract_window_record_data(
                     rec[f"{finger.lower()}{f_step}_{jlabel.lower()}_x"] = 0.0
                     rec[f"{finger.lower()}{f_step}_{jlabel.lower()}_y"] = 0.0
 
-    # ── 128 Joint velocities for 4 transitions (v_step 1..4) ────────────────
-    # Transition v_step (1..4) corresponds to window_frames[1..4]
-    for v_idx in range(1, 5):
+    # ── Joint velocities for transitions (v_step 1..N-1) ──────────────────────
+    # Transition v_step (1..N-1) corresponds to window_frames[1..N-1]
+    num_frames = len(window_frames)
+    for v_idx in range(1, max(2, num_frames)):
         v_step = v_idx
-        if v_idx < len(window_frames):
+        if v_idx < num_frames:
             fd = window_frames[v_idx]
             vd = fd.get("velocity_data")
         else:

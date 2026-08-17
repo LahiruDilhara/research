@@ -83,16 +83,28 @@ HAND_CONNECTIONS = [
     (0, 17),                                  # palm base
 ]
 
-# Global Per-Finger 5-Frame Velocity Queues
-# Each queue holds up to 5 frames of 8-element vectors:
-#   [wrist_vx, wrist_vy, joint0_vx, joint0_vy, joint1_vx, joint1_vy, joint2_vx, joint2_vy]
-FINGER_VELOCITY_QUEUES = {
-    "Thumb":  collections.deque(maxlen=5),
-    "Index":  collections.deque(maxlen=5),
-    "Middle": collections.deque(maxlen=5),
-    "Ring":   collections.deque(maxlen=5),
-    "Pinky":  collections.deque(maxlen=5),
-}
+# Dynamic Sliding Window Config (Default: 5 frames window, 2 frames overlap)
+DEFAULT_WINDOW_SIZE = 5
+DEFAULT_WINDOW_OVERLAP = 2
+WINDOW_SIZE = DEFAULT_WINDOW_SIZE
+WINDOW_OVERLAP = DEFAULT_WINDOW_OVERLAP
+
+
+def init_velocity_queues(window_size=5):
+    """Re-initializes global velocity queues with dynamic window_size capacity."""
+    global FINGER_VELOCITY_QUEUES, WINDOW_SIZE
+    WINDOW_SIZE = max(1, int(window_size))
+    FINGER_VELOCITY_QUEUES = {
+        "Thumb":  collections.deque(maxlen=WINDOW_SIZE),
+        "Index":  collections.deque(maxlen=WINDOW_SIZE),
+        "Middle": collections.deque(maxlen=WINDOW_SIZE),
+        "Ring":   collections.deque(maxlen=WINDOW_SIZE),
+        "Pinky":  collections.deque(maxlen=WINDOW_SIZE),
+    }
+
+
+# Initialize default 5-frame velocity queues
+init_velocity_queues(DEFAULT_WINDOW_SIZE)
 ACTIVE_HAND_LABEL = None
 
 
@@ -102,18 +114,18 @@ ACTIVE_HAND_LABEL = None
 
 def validate_camera_fps(cap):
     """
-    Checks if camera supports at least 30.0 FPS.
-    Sets target FPS to 30.0 if higher. Returns True if valid, False otherwise.
+    Checks if camera supports at least 12.0 FPS.
+    Sets target FPS to 12.0 if higher. Returns True if valid, False otherwise.
     """
     fps = cap.get(cv2.CAP_PROP_FPS)
     print(f"Camera FPS: {fps:.2f}")
 
-    if fps < 30.0:
-        print(f"Error: Camera FPS ({fps:.2f}) is less than 30 FPS. Program exiting.")
+    if fps < 12.0:
+        print(f"Error: Camera FPS ({fps:.2f}) is less than 12 FPS. Program exiting.")
         return False
 
-    if fps > 30.0:
-        cap.set(cv2.CAP_PROP_FPS, 30.0)
+    if fps > 12.0:
+        cap.set(cv2.CAP_PROP_FPS, 12.0)
 
     return True
 
@@ -667,7 +679,9 @@ def update_velocity_queue(hands_velocity_data):
 # MAIN LIVE PIPELINE
 # =============================================================
 
-def run_live_camera(camera_index=0):
+def run_live_camera(camera_index=0, window_size=5, window_overlap=2):
+    init_velocity_queues(window_size)
+    print(f"Configured Sliding Window: size={window_size} frames, overlap={window_overlap} frames")
     model_path = ensure_model_downloaded()
     landmarker = create_landmarker(model_path)
 
@@ -680,7 +694,7 @@ def run_live_camera(camera_index=0):
 
     camera_stream.start()
 
-    target_frame_duration = 1.0 / 30.0
+    target_frame_duration = 1.0 / 12.0
     frame_index = 0
     start_time = time.time()
     prev_frame_time = time.time()
@@ -706,7 +720,7 @@ def run_live_camera(camera_index=0):
         # Calculate real-time FPS
         curr_time = time.time()
         fps_dt = curr_time - prev_frame_time
-        fps = (1.0 / fps_dt) if fps_dt > 0 else 30.0
+        fps = (1.0 / fps_dt) if fps_dt > 0 else 12.0
         prev_frame_time = curr_time
 
         # Step 2: MediaPipe Landmark Detection
@@ -724,14 +738,14 @@ def run_live_camera(camera_index=0):
         # Step 5: Render Frame, Velocities, and FPS on Image
         annotated_frame = render_frame(frame, hands_data, hands_velocity_data, frame_index, fps)
 
-        # Step 6: Update Global 5-Element Velocity Queue
+        # Step 6: Update Global Velocity Queue
         update_velocity_queue(hands_velocity_data)
 
         # Display window
         cv2.imshow(window_name, annotated_frame)
         frame_index += 1
 
-        # Enforce 30 FPS timing pacing
+        # Enforce target pacing
         elapsed = time.time() - loop_start
         wait_time = target_frame_duration - elapsed
         if wait_time > 0:
@@ -749,6 +763,8 @@ def run_live_camera(camera_index=0):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Live Camera MediaPipe Hand Landmarker")
     parser.add_argument("--camera", type=int, default=0, help="Camera index (default: 0)")
+    parser.add_argument("--window-size", type=int, default=5, help="Sliding window size in frames (default: 5)")
+    parser.add_argument("--window-overlap", type=int, default=2, help="Window overlap in frames (default: 2)")
     args = parser.parse_args()
 
-    run_live_camera(camera_index=args.camera)
+    run_live_camera(camera_index=args.camera, window_size=args.window_size, window_overlap=args.window_overlap)

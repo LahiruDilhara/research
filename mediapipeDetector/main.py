@@ -175,19 +175,19 @@ def run(video_path=None, camera_index=0):
 
     fps = cap.get(cv2.CAP_PROP_FPS)
     if fps <= 0:
-        fps = 30.0  # Default fallback if camera spec isn't explicitly reported
+        fps = 12.0  # Default fallback if camera spec isn't explicitly reported
 
     print(f"Camera FPS: {fps:.2f}")
 
-    if fps < 30.0:
-        print(f"Error: Camera FPS ({fps:.2f}) is less than 30 FPS.")
+    if fps < 12.0:
+        print(f"Error: Camera FPS ({fps:.2f}) is less than 12 FPS.")
         cap.release()
         landmarker.close()
         return
 
-    if fps > 30.0:
-        cap.set(cv2.CAP_PROP_FPS, 30.0)
-        fps = 30.0
+    if fps > 12.0:
+        cap.set(cv2.CAP_PROP_FPS, 12.0)
+        fps = 12.0
 
     ms_per_frame = 1000.0 / fps
 
