@@ -63,7 +63,7 @@ WRIST_INDEX = 0
 # beta controls responsiveness during fast motion (e.g., 0.5 - 2.0)
 FILTER_MIN_CUTOFF = 1.5
 FILTER_BETA = 5.0
-DEADBAND_VELOCITY_THRESHOLD = 0.4  # Velocity deadband threshold in hand_lengths / sec
+DEADBAND_VELOCITY_THRESHOLD = 0.2  # Velocity deadband threshold in hand_lengths / sec
 MISSING_FRAMES_TOLERANCE = 2  # Require 2 consecutive missing frames before wiping tracker states
 
 FINGER_COLORS = {
@@ -88,6 +88,7 @@ DEFAULT_WINDOW_SIZE = 5
 DEFAULT_WINDOW_OVERLAP = 2
 WINDOW_SIZE = DEFAULT_WINDOW_SIZE
 WINDOW_OVERLAP = DEFAULT_WINDOW_OVERLAP
+FINGER_VELOCITY_QUEUES = {}
 
 
 def init_velocity_queues(window_size=5):
@@ -103,8 +104,6 @@ def init_velocity_queues(window_size=5):
     }
 
 
-# Initialize default 5-frame velocity queues
-init_velocity_queues(DEFAULT_WINDOW_SIZE)
 ACTIVE_HAND_LABEL = None
 
 
@@ -326,18 +325,21 @@ def analyze_landmarks(frame, landmarker, timestamp_ms):
 def select_single_hand(raw_hands_data):
     """
     Selects at most ONE hand to pass through the pipeline before filtration.
-    If both Left and Right hands are visible, always chooses 'Left' hand.
-    Otherwise returns the single visible hand or [] if none.
+    If both hands appear, selects the last processed hand.
+    If ambiguous, selects any of them.
     """
+    global ACTIVE_HAND_LABEL
+    
     if not raw_hands_data:
         return []
 
-    # If both hands visible, always select 'Left' hand
-    for hand_info in raw_hands_data:
-        if hand_info["hand"] == "Left":
-            return [hand_info]
+    # If the previously active hand is currently visible, stick with it
+    if ACTIVE_HAND_LABEL is not None:
+        for hand_info in raw_hands_data:
+            if hand_info["hand"] == ACTIVE_HAND_LABEL:
+                return [hand_info]
 
-    # Fallback to the single visible hand (e.g. 'Right')
+    # Otherwise, fallback to the single visible hand (or any of them)
     return [raw_hands_data[0]]
 
 
@@ -697,7 +699,8 @@ def run_live_camera(camera_index=0, window_size=5, window_overlap=2):
     target_frame_duration = 1.0 / 12.0
     frame_index = 0
     start_time = time.time()
-    prev_frame_time = time.time()
+    next_frame_time = start_time
+    prev_frame_time = start_time
     hand_filters_tracker = {}
     prev_hands_tracker = {}
 
@@ -706,7 +709,6 @@ def run_live_camera(camera_index=0, window_size=5, window_overlap=2):
     print("Starting live camera feed. Show hand to track. Press 'q' or 'ESC' to quit.")
 
     while True:
-        loop_start = time.time()
 
         # Step 1: Capture Frame from Background Thread
         frame = capture_frame(camera_stream)
@@ -746,10 +748,13 @@ def run_live_camera(camera_index=0, window_size=5, window_overlap=2):
         frame_index += 1
 
         # Enforce target pacing
-        elapsed = time.time() - loop_start
-        wait_time = target_frame_duration - elapsed
+        next_frame_time += target_frame_duration
+        wait_time = next_frame_time - time.time()
         if wait_time > 0:
             time.sleep(wait_time)
+        else:
+            # We fell behind, reset the clock to avoid burst catch-up
+            next_frame_time = time.time()
 
         key = cv2.waitKey(1) & 0xFF
         if key in (ord('q'), 27):

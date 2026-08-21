@@ -319,8 +319,9 @@ def process_video(
             logger.info(f"Reached end of video file. Processed {processed_fi} total frames.")
             break
 
-        # Downsample to 12 FPS target
-        if native_fi % frame_step != 0:
+        # Downsample to exactly 12 FPS target by mapping target frame to native frame
+        target_native_fi = round(processed_fi * (native_fps / TARGET_FPS))
+        if native_fi != target_native_fi:
             native_fi += 1
             continue
 
