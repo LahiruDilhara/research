@@ -313,20 +313,73 @@ def process_video(
     native_fi = 0
     processed_fi = 0
 
+    # Phase 1: Read all raw frames and timestamps into memory
+    all_raw_frames = []
     while True:
         ret, frame = cap.read()
         if not ret:
-            logger.info(f"Reached end of video file. Processed {processed_fi} total frames.")
+            break
+        msec = cap.get(cv2.CAP_PROP_POS_MSEC)
+        all_raw_frames.append((frame, msec))
+
+    cap.release()
+
+    if not all_raw_frames:
+        logger.info("Empty video file.")
+        landmarker.close()
+        return [], TARGET_FPS, 0, 0
+
+    total_native_frames = len(all_raw_frames)
+    last_msec = all_raw_frames[-1][1]
+    duration_sec = last_msec / 1000.0
+    calculated_native_fps = total_native_frames / duration_sec if duration_sec > 0 else 0
+    expected_target_frames = int(duration_sec * TARGET_FPS)
+
+    logger.info("=== Video Scan Statistics ===")
+    logger.info(f"Total Native Frames Available : {total_native_frames} frames")
+    logger.info(f"Full Length of Video        : {duration_sec:.3f} seconds ({last_msec:.1f} ms)")
+    logger.info(f"Estimated Native FPS        : {calculated_native_fps:.2f} FPS")
+    logger.info(f"Targeting Processing FPS    : {TARGET_FPS} FPS")
+    logger.info(f"Expected Processed Frames   : ~{expected_target_frames} frames")
+    logger.info("=============================")
+
+    # Phase 2: Downsample to exactly 12 FPS by nearest timestamp
+    buffered_frames = []
+    processed_fi = 0
+    native_idx = 0
+
+    while native_idx < total_native_frames:
+        curr_frame, curr_time = all_raw_frames[native_idx]
+        target_time = processed_fi * (1000.0 / TARGET_FPS)
+
+        # Stop if we are on the very last frame and target_time has surpassed it
+        is_last_frame = (native_idx == total_native_frames - 1)
+        if is_last_frame and target_time > curr_time:
             break
 
-        # Downsample to exactly 12 FPS target by mapping target frame to native frame
-        target_native_fi = round(processed_fi * (native_fps / TARGET_FPS))
-        if native_fi != target_native_fi:
-            native_fi += 1
-            continue
+        if not is_last_frame:
+            _, next_time = all_raw_frames[native_idx + 1]
+            if abs(next_time - target_time) < abs(curr_time - target_time):
+                native_idx += 1
+                continue
 
-        # Synthesise strict 12 FPS timestamps (dt = 1/12 s = 83.3 ms per frame)
-        ts_ms = int((processed_fi / TARGET_FPS) * 1000)
+        buffered_frames.append((curr_frame, int(target_time)))
+        processed_fi += 1
+
+    # Discard any trailing frames that cannot form a complete sliding window before MediaPipe processing
+    from annotator.constants import WINDOW_SIZE, WINDOW_STEP
+    total_extracted = len(buffered_frames)
+    if total_extracted >= WINDOW_SIZE:
+        valid_len = ((total_extracted - WINDOW_SIZE) // WINDOW_STEP) * WINDOW_STEP + WINDOW_SIZE
+        if valid_len < total_extracted:
+            logger.info(f"Throwing away {total_extracted - valid_len} trailing frame(s) to align with exact window boundaries before processing.")
+            buffered_frames = buffered_frames[:valid_len]
+    else:
+        logger.info("Not enough frames to form a single window. Discarding all.")
+        buffered_frames = []
+
+    # Run MediaPipe and 1Euro filter on the exact valid frames
+    for i, (frame, ts_ms) in enumerate(buffered_frames):
         t_s = ts_ms / 1000.0
 
         raw = _analyze(frame, landmarker, ts_ms, state)
@@ -334,39 +387,33 @@ def process_video(
         filtered = _filter(single, state, t_s)
         vel = _velocities(filtered, state, t_s)
 
-        # Draw skeleton and frame labels
         annotated = frame.copy()
         hd = filtered[0] if filtered else None
         if hd:
             annotated = draw_skeleton(annotated, hd)
-        cv2.putText(annotated, f"F:{processed_fi}", (8, 24),
+        cv2.putText(annotated, f"F:{i}", (8, 24),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 0), 2)
         cv2.putText(annotated, f"{ts_ms}ms", (8, 44),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.42, (180, 180, 180), 1)
 
-        # JPEG-compress annotated frame to save memory
         _, buf = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 82])
         jpg_bytes = buf.tobytes()
 
         frame_data.append({
-            "frame_idx": processed_fi,
+            "frame_idx": i,
             "timestamp_ms": ts_ms,
             "annotated_jpg_bytes": jpg_bytes,
             "hand_data": hd,
             "velocity_data": vel[0] if vel else None,
         })
 
-        processed_fi += 1
-        native_fi += 1
-
-        denom = max(1, (header_total // frame_step) if header_total > 0 else processed_fi)
+        denom = len(buffered_frames)
         if progress_cb:
-            progress_cb(processed_fi, denom)
+            progress_cb(i + 1, denom)
 
-        # Yield GIL briefly (1ms) to allow Tkinter main thread to render progress bar smoothly
+        # Yield GIL briefly
         time.sleep(0.001)
 
-    cap.release()
     landmarker.close()
 
     actual_total = len(frame_data)
