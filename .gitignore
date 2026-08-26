@@ -4,7 +4,7 @@
 *.xml
 *.png
 *.webm
-*.csv
+#*.csv
 
 # Python bytecode & cache
 __pycache__/
@@ -77,4 +77,5 @@ Thumbs.db
 *.log
 *.tmp
 *.bak
-videos/
+*.mp4
+*.webm
