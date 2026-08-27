@@ -65,19 +65,19 @@ WRIST_INDEX = 0
 #   Controls smoothing responsiveness when the hand is moving SLOWLY or STATIONARY.
 #   - INCREASE (e.g. 2.5 - 5.0): Reduces lag during slow movement, but allows static camera jitter/noise through.
 #   - DECREASE (e.g. 0.1 - 0.8): Removes static jitter completely when hand is still, but introduces slight lag/latency when starting slow movements.
-FILTER_MIN_CUTOFF = 0.2
+FILTER_MIN_CUTOFF = 0.1
 
 # FILTER_BETA (Speed Adaptation Coefficient, default: 1.0):
 #   Controls how aggressively the filter opens up cutoff frequency during FAST movements.
 #   - INCREASE (e.g. 3.0 - 10.0): Ultra-fast response to fast motion, preserving sharp impact/deceleration spikes (great for touch contact), but allows high-speed jitter through.
 #   - DECREASE (e.g. 0.1 - 0.5): Heavily smooths fast movements, eliminating fast motion jitter, but rounds off sharp deceleration peaks.
-FILTER_BETA = 0.2
+FILTER_BETA = 0.1
 
 # DEADBAND_VELOCITY_THRESHOLD (Velocity Noise Gate in hand_lengths / sec, default: 0.0):
 #   Acts as a velocity noise gate. Velocities with magnitude < threshold are force-zeroed to (0.0, 0.0).
 #   - INCREASE (e.g. 0.5 - 1.0): Eliminates residual landmark jitter when hand is completely still, but WIPES OUT subtle/slow touch approach movements.
 #   - DECREASE (0.0): Keeps all true micro-velocities intact for detecting light finger touches.
-DEADBAND_VELOCITY_THRESHOLD = 0.04
+DEADBAND_VELOCITY_THRESHOLD = 0.4
 
 # MISSING_FRAMES_TOLERANCE (Frame Drop Buffer, default: 2):
 #   Number of consecutive MediaPipe landmark drop frames tolerated before resetting 1€ filter and velocity memory.
