@@ -62,8 +62,8 @@ WRIST_INDEX = 0
 # min_cutoff controls responsiveness when moving slowly (e.g., 0.5 - 1.0)
 # beta controls responsiveness during fast motion (e.g., 0.5 - 2.0)
 FILTER_MIN_CUTOFF = 1.5
-FILTER_BETA = 5.0
-DEADBAND_VELOCITY_THRESHOLD = 0.2  # Velocity deadband threshold in hand_lengths / sec
+FILTER_BETA = 1.0
+DEADBAND_VELOCITY_THRESHOLD = 0.0  # Velocity deadband threshold disabled (0.0) to preserve micro-velocities
 MISSING_FRAMES_TOLERANCE = 2  # Require 2 consecutive missing frames before wiping tracker states
 
 FINGER_COLORS = {
@@ -107,25 +107,58 @@ def init_velocity_queues(window_size=5):
 ACTIVE_HAND_LABEL = None
 
 
+import glob
+
+def find_available_camera(requested_index: int = -1) -> int:
+    """
+    Auto-detect available camera index.
+    Checks requested_index first (if >= 0), then scans /dev/video* devices,
+    and returns the first index that successfully opens and reads a frame.
+    """
+    candidates = []
+    if requested_index >= 0:
+        candidates.append(requested_index)
+
+    # Scan /dev/video* devices on Linux
+    v4l_indices = []
+    for dev in sorted(glob.glob("/dev/video*")):
+        try:
+            idx = int(dev.replace("/dev/video", ""))
+            v4l_indices.append(idx)
+        except ValueError:
+            pass
+
+    for idx in v4l_indices + [0, 1, 2, 3, 4]:
+        if idx not in candidates:
+            candidates.append(idx)
+
+    for idx in candidates:
+        cap = cv2.VideoCapture(idx)
+        if cap.isOpened():
+            ret, _ = cap.read()
+            cap.release()
+            if ret:
+                print(f"[Info] Successfully auto-detected camera at index {idx} (/dev/video{idx})")
+                return idx
+
+    fallback = requested_index if requested_index >= 0 else (v4l_indices[0] if v4l_indices else 0)
+    print(f"[Warning] Could not auto-detect active camera stream; using index {fallback}")
+    return fallback
+
+
 # =============================================================
 # MODEL INITIALIZATION & SETUP
 # =============================================================
 
 def validate_camera_fps(cap):
     """
-    Checks if camera supports at least 12.0 FPS.
-    Sets target FPS to 12.0 if higher. Returns True if valid, False otherwise.
+    Retrieves camera FPS safely. Many Linux V4L2 drivers return 0.0/30.0.
     """
     fps = cap.get(cv2.CAP_PROP_FPS)
-    print(f"Camera FPS: {fps:.2f}")
-
-    if fps < 12.0:
-        print(f"Error: Camera FPS ({fps:.2f}) is less than 12 FPS. Program exiting.")
-        return False
-
-    if fps > 12.0:
-        cap.set(cv2.CAP_PROP_FPS, 12.0)
-
+    if fps > 0:
+        print(f"Camera reported FPS: {fps:.2f}")
+    else:
+        print("Camera reported FPS: Dynamic / V4L2 default")
     return True
 
 
@@ -160,14 +193,16 @@ class WebcamStreamThread:
     Thread-safe background camera reader that continuously fetches camera frames.
     Eliminates camera I/O wait latency without thread race conditions.
     """
-    def __init__(self, camera_index=0):
-        self.cap = cv2.VideoCapture(camera_index)
+    def __init__(self, camera_index=-1):
+        actual_index = find_available_camera(camera_index)
+        self.cap = cv2.VideoCapture(actual_index)
         self.lock = threading.Lock()
         self.stopped = False
         self.frame = None
+        self.actual_index = actual_index
 
         if not self.cap.isOpened():
-            print(f"Error: Could not open camera {camera_index}.")
+            print(f"Error: Could not open camera {actual_index}.")
             sys.exit(1)
 
         ret, frame = self.cap.read()
@@ -217,10 +252,10 @@ def capture_frame(camera_stream):
 # STEP 2: ANALYZE LANDMARKS
 # =============================================================
 
-def calculate_hand_scale(pts, prev_l_hand=None, alpha=0.2):
+def calculate_hand_scale(pts, prev_l_hand=None, alpha=1.0):
     """
     Calculates combined hand scale L_hand = sqrt(palm_length^2 + palm_width^2) from landmark pixel coordinates.
-    Applies exponential smoothing across frames to eliminate scale noise and skeleton flickering.
+    Calculated instantly per frame (alpha=1.0) to avoid scale lag during hand movement.
     """
     w_x, w_y = pts[WRIST_INDEX]
     m_x, m_y = pts[9]
@@ -234,7 +269,7 @@ def calculate_hand_scale(pts, prev_l_hand=None, alpha=0.2):
     if l_hand_raw <= 0:
         l_hand_raw = 1.0
 
-    if prev_l_hand is not None:
+    if prev_l_hand is not None and alpha < 1.0:
         l_hand = alpha * l_hand_raw + (1.0 - alpha) * prev_l_hand
     else:
         l_hand = l_hand_raw
@@ -280,7 +315,7 @@ def analyze_landmarks(frame, landmarker, timestamp_ms):
         pts_pixel = [(lm.x * w, lm.y * h) for lm in raw_landmarks]
         
         prev_scale = PREV_HAND_SCALES.get(hand_label)
-        l_hand = calculate_hand_scale(pts_pixel, prev_l_hand=prev_scale, alpha=0.2)
+        l_hand = calculate_hand_scale(pts_pixel, prev_l_hand=prev_scale, alpha=1.0)
         PREV_HAND_SCALES[hand_label] = l_hand
 
         # Scale-normalized landmarks (hand_lengths unit)
@@ -767,7 +802,7 @@ def run_live_camera(camera_index=0, window_size=5, window_overlap=2):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Live Camera MediaPipe Hand Landmarker")
-    parser.add_argument("--camera", type=int, default=0, help="Camera index (default: 0)")
+    parser.add_argument("--camera", type=int, default=-1, help="Camera index (default: -1 for auto-detect)")
     parser.add_argument("--window-size", type=int, default=5, help="Sliding window size in frames (default: 5)")
     parser.add_argument("--window-overlap", type=int, default=2, help="Window overlap in frames (default: 2)")
     args = parser.parse_args()

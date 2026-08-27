@@ -1,2 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,train_time_s,weight_file
-LSTM_Coords,1,64,2,0.2,0.001,32,80.1688,78.0591,0.6627,0.6962,0.679,10.1,LSTM_Coords_cfg01.pth
+LSTM_Coords,1,64,2,0.2,0.001,32,80.1688,78.0591,0.6627,0.6962,0.679,9.7,LSTM_Coords_cfg01.pth

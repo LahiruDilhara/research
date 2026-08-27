@@ -47,8 +47,8 @@ TARGET_FPS = 12.0
 
 # ── 1€ Filter & Deadband (must match live_camera.py exactly) ─────────────────
 FILTER_MIN_CUTOFF = 1.5
-FILTER_BETA = 5.0
-DEADBAND_VELOCITY_THRESHOLD = 0.4
+FILTER_BETA = 1.0
+DEADBAND_VELOCITY_THRESHOLD = 0.0
 MISSING_FRAMES_TOLERANCE = 2
 
 # ── Sliding-window parameters (configurable via SetupScreen UI) ─────────────

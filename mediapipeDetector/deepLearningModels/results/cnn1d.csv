@@ -1,2 +1,2 @@
 arch,config_id,conv_ch,fc_hid,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,train_time_s,weight_file
-CNN1D,1,64,64,0.2,0.001,32,88.045,87.4824,0.7782,0.8734,0.8231,5.5,CNN1D_cfg01.pth
+CNN1D,1,64,64,0.2,0.001,32,88.1857,87.3418,0.7579,0.9114,0.8276,6.2,CNN1D_cfg01.pth

@@ -46,7 +46,7 @@ class _PipelineState:
 
 # ── Hand-scale calculation (identical to live_camera.py) ────────────────────
 
-def _hand_scale(pts: list, prev: float | None, alpha: float = 0.2) -> float:
+def _hand_scale(pts: list, prev: float | None = None, alpha: float = 1.0) -> float:
     w_x, w_y = pts[WRIST_INDEX]
     m_x, m_y = pts[9]
     i_x, i_y = pts[5]
@@ -56,7 +56,7 @@ def _hand_scale(pts: list, prev: float | None, alpha: float = 0.2) -> float:
     raw = math.hypot(palm_len, palm_wid)
     if raw <= 0:
         raw = 1.0
-    return alpha * raw + (1.0 - alpha) * prev if prev is not None else raw
+    return alpha * raw + (1.0 - alpha) * prev if (prev is not None and alpha < 1.0) else raw
 
 
 # ── Step 1 → MediaPipe detection + scale normalisation ──────────────────────
@@ -82,7 +82,7 @@ def _analyze(frame_bgr: any, landmarker, timestamp_ms: int,
         seen.add(lbl)
         state.scale_stale[lbl] = 0
         pts_px = [(lm.x * w, lm.y * h) for lm in lms]
-        l_hand = _hand_scale(pts_px, state.prev_scales.get(lbl))
+        l_hand = _hand_scale(pts_px, state.prev_scales.get(lbl), alpha=1.0)
         state.prev_scales[lbl] = l_hand
         pts_n = [(px / l_hand, py / l_hand) for px, py in pts_px]
         raw.append({
