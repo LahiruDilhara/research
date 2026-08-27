@@ -57,14 +57,33 @@ FINGER_THREE_LANDMARKS = {
 }
 WRIST_INDEX = 0
 
-# 1€ Filter & Deadband Threshold Constants
-# FILTER_MIN_CUTOFF and FILTER_BETA operate in scale-invariant hand-relative units (hand_lengths / sec).
-# min_cutoff controls responsiveness when moving slowly (e.g., 0.5 - 1.0)
-# beta controls responsiveness during fast motion (e.g., 0.5 - 2.0)
-FILTER_MIN_CUTOFF = 1.5
-FILTER_BETA = 1.0
-DEADBAND_VELOCITY_THRESHOLD = 0.0  # Velocity deadband threshold disabled (0.0) to preserve micro-velocities
-MISSING_FRAMES_TOLERANCE = 2  # Require 2 consecutive missing frames before wiping tracker states
+# =============================================================
+# 1€ FILTER & DEADBAND CONFIGURATION PARAMETERS
+# =============================================================
+
+# FILTER_MIN_CUTOFF (Minimum Cutoff Frequency in Hz, default: 1.5):
+#   Controls smoothing responsiveness when the hand is moving SLOWLY or STATIONARY.
+#   - INCREASE (e.g. 2.5 - 5.0): Reduces lag during slow movement, but allows static camera jitter/noise through.
+#   - DECREASE (e.g. 0.1 - 0.8): Removes static jitter completely when hand is still, but introduces slight lag/latency when starting slow movements.
+FILTER_MIN_CUTOFF = 0.2
+
+# FILTER_BETA (Speed Adaptation Coefficient, default: 1.0):
+#   Controls how aggressively the filter opens up cutoff frequency during FAST movements.
+#   - INCREASE (e.g. 3.0 - 10.0): Ultra-fast response to fast motion, preserving sharp impact/deceleration spikes (great for touch contact), but allows high-speed jitter through.
+#   - DECREASE (e.g. 0.1 - 0.5): Heavily smooths fast movements, eliminating fast motion jitter, but rounds off sharp deceleration peaks.
+FILTER_BETA = 0.2
+
+# DEADBAND_VELOCITY_THRESHOLD (Velocity Noise Gate in hand_lengths / sec, default: 0.0):
+#   Acts as a velocity noise gate. Velocities with magnitude < threshold are force-zeroed to (0.0, 0.0).
+#   - INCREASE (e.g. 0.5 - 1.0): Eliminates residual landmark jitter when hand is completely still, but WIPES OUT subtle/slow touch approach movements.
+#   - DECREASE (0.0): Keeps all true micro-velocities intact for detecting light finger touches.
+DEADBAND_VELOCITY_THRESHOLD = 0.04
+
+# MISSING_FRAMES_TOLERANCE (Frame Drop Buffer, default: 2):
+#   Number of consecutive MediaPipe landmark drop frames tolerated before resetting 1€ filter and velocity memory.
+#   - INCREASE (e.g. 4 - 5): Prevents filter resets during temporary hand occlusion, but delays resetting when hand disappears.
+#   - DECREASE (1): Resets filter memory immediately on any single dropped detection frame.
+MISSING_FRAMES_TOLERANCE = 2
 
 FINGER_COLORS = {
     "Thumb":  (255, 140, 0),
@@ -389,8 +408,8 @@ PREV_HANDS_STALE_COUNTERS = {}
 
 def filter_landmarks(raw_hands_data, hand_filters_tracker, t_seconds):
     """
-    Filters normalized landmark coordinates (in hand_lengths) using the 1€ Filter.
-    Returns filtered scale-normalized hand landmark dictionaries.
+    Filters normalized landmark coordinates (in hand_lengths) and pixel coordinates using the 1€ Filter.
+    Returns filtered scale-normalized and pixel-space hand landmark dictionaries.
     Tolerates transient detection drops (< 2 consecutive missing frames).
     """
     global FILTER_STALE_COUNTERS
@@ -412,30 +431,35 @@ def filter_landmarks(raw_hands_data, hand_filters_tracker, t_seconds):
         current_hand_labels.add(hand_label)
         FILTER_STALE_COUNTERS[hand_label] = 0  # Reset missing frame counter
 
-        if hand_label not in hand_filters_tracker:
-            hand_filters_tracker[hand_label] = [
-                FingertipFilter(min_cutoff=FILTER_MIN_CUTOFF, beta=FILTER_BETA) for _ in range(21)
-            ]
+        if hand_label not in hand_filters_tracker or not isinstance(hand_filters_tracker[hand_label], dict):
+            hand_filters_tracker[hand_label] = {
+                "norm": [FingertipFilter(min_cutoff=FILTER_MIN_CUTOFF, beta=FILTER_BETA) for _ in range(21)],
+                "pixel": [FingertipFilter(min_cutoff=FILTER_MIN_CUTOFF, beta=FILTER_BETA) for _ in range(21)],
+            }
 
-        filters = hand_filters_tracker[hand_label]
+        tracker = hand_filters_tracker[hand_label]
+        norm_filters = tracker["norm"]
+        pixel_filters = tracker["pixel"]
 
-        # Filter all 21 scale-normalized raw landmarks
+        # 1. Filter scale-normalized landmarks (for velocity & model inference)
         filtered_all_pts = []
         for idx, (nx, ny) in enumerate(hand_info["all_pts"]):
-            fx, fy = filters[idx].update(t_seconds, nx, ny)
+            fx, fy = norm_filters[idx].update(t_seconds, nx, ny)
             filtered_all_pts.append((fx, fy))
 
+        # 2. Filter pixel coordinates directly (for rock-solid, jitter-free Video HUD rendering)
+        filtered_all_pts_pixel = []
+        for idx, (px, py) in enumerate(hand_info["all_pts_pixel"]):
+            fpx, fpy = pixel_filters[idx].update(t_seconds, px, py)
+            filtered_all_pts_pixel.append((round(fpx, 2), round(fpy, 2)))
+
         filtered_wrist = filtered_all_pts[WRIST_INDEX]
+        filtered_wrist_pixel = filtered_all_pts_pixel[WRIST_INDEX]
 
         filtered_fingers = {}
-        for finger_name, indices in FINGER_THREE_LANDMARKS.items():
-            filtered_fingers[finger_name] = [filtered_all_pts[i] for i in indices]
-
-        # Re-derive pixel coordinates for rendering visualization
-        filtered_all_pts_pixel = [(round(fx * l_hand, 2), round(fy * l_hand, 2)) for fx, fy in filtered_all_pts]
-        filtered_wrist_pixel = filtered_all_pts_pixel[WRIST_INDEX]
         filtered_fingers_pixel = {}
         for finger_name, indices in FINGER_THREE_LANDMARKS.items():
+            filtered_fingers[finger_name] = [filtered_all_pts[i] for i in indices]
             filtered_fingers_pixel[finger_name] = [filtered_all_pts_pixel[i] for i in indices]
 
         filtered_hand_info = {
