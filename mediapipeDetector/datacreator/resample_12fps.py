@@ -68,6 +68,11 @@ def resample_video_to_12fps(input_path: str, output_path: str, target_fps: float
     print(f" Target Output FPS      : {target_fps:.1f} FPS")
     print("===========================================")
 
+    if actual_native_fps < target_fps:
+        msg = f"Video FPS ({actual_native_fps:.2f}) is less than required {target_fps:.1f} FPS threshold. Processing aborted."
+        print(f"[Error] {msg}")
+        raise ValueError(msg)
+
     # Phase 2: Downsample to target_fps by nearest timestamp matching
     resampled_frames = []
     processed_fi = 0
