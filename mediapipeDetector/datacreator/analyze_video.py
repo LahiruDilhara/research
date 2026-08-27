@@ -206,11 +206,11 @@ def analyze_video(input_path: str) -> str:
             for idx, landmarks in enumerate(result.hand_landmarks):
                 hand_label = result.handedness[idx][0].category_name  # "Right" or "Left"
                 pts_px = [(lm.x * w, lm.y * h) for lm in landmarks]
+                pts_raw = [(lm.x, lm.y) for lm in landmarks]
                 l_hand = calculate_hand_scale(pts_px)
-                pts_norm = [(px / l_hand, py / l_hand) for px, py in pts_px]
                 raw_detected_hands.append({
                     "hand": hand_label,
-                    "all_pts_norm": pts_norm,
+                    "all_pts_raw": pts_raw,
                     "all_pts_px": pts_px,
                     "l_hand": l_hand
                 })
@@ -233,14 +233,14 @@ def analyze_video(input_path: str) -> str:
         if selected_hand:
             hd = selected_hand[0]
             hand_label = hd["hand"]
-            pts_norm = hd["all_pts_norm"]
+            pts_raw = hd["all_pts_raw"]
 
             row["hand"] = hand_label
 
             for lm_idx, lm_name in enumerate(ALL_21_LANDMARK_NAMES):
-                fx, fy = pts_norm[lm_idx]
-                row[f"{lm_name}_x"] = round(fx, 4)
-                row[f"{lm_name}_y"] = round(fy, 4)
+                rx, ry = pts_raw[lm_idx]
+                row[f"{lm_name}_x"] = round(rx, 6)
+                row[f"{lm_name}_y"] = round(ry, 6)
         else:
             row["hand"] = "None"
             for lm_name in ALL_21_LANDMARK_NAMES:
