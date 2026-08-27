@@ -89,6 +89,7 @@ def split_and_balance(
     test_out: str,
     touch_test_pct: float,
     untouch_train_ratio_pct: float,
+    untouch_test_ratio_pct: float | None,
     max_untouch_test: int | None,
     sort_output: bool,
     shuffle_output: bool,
@@ -144,8 +145,19 @@ def split_and_balance(
     untouch_train = shuffled_untouch[:target_untouch_train_count]
     remaining_untouch_test = shuffled_untouch[target_untouch_train_count:]
 
-    # Apply max cap to untouch test if specified
-    if max_untouch_test is not None and max_untouch_test >= 0:
+    # Calculate untouch test count based on --untouch-test-ratio-pct if provided, else use remaining
+    if untouch_test_ratio_pct is not None and untouch_test_ratio_pct > 0:
+        target_untouch_test_count = int(round(len(touch_test) * (untouch_test_ratio_pct / 100.0)))
+        if target_untouch_test_count > len(remaining_untouch_test):
+            logger.warning(
+                f"Requested untouch test size ({target_untouch_test_count}) exceeds remaining untouch rows ({len(remaining_untouch_test)}). "
+                f"Using all {len(remaining_untouch_test)} remaining rows."
+            )
+            untouch_test = remaining_untouch_test
+        else:
+            logger.info(f"Sampling balanced untouch test dataset ({untouch_test_ratio_pct}% of touch_test = {target_untouch_test_count} rows)")
+            untouch_test = remaining_untouch_test[:target_untouch_test_count]
+    elif max_untouch_test is not None and max_untouch_test >= 0:
         if len(remaining_untouch_test) > max_untouch_test:
             logger.info(f"Capping untouch test rows from {len(remaining_untouch_test)} to max allowed: {max_untouch_test}")
             untouch_test = remaining_untouch_test[:max_untouch_test]
@@ -205,6 +217,12 @@ def main():
         help="Ratio percentage of untouch rows to sample for training relative to touch_train count (default: 120.0)",
     )
     parser.add_argument(
+        "--untouch-test-ratio-pct",
+        type=float,
+        default=None,
+        help="Ratio percentage of untouch rows to sample for testing relative to touch_test count (e.g. 100 for equal ratio, 125 for 125%%)",
+    )
+    parser.add_argument(
         "--max-untouch-test",
         type=int,
         default=None,
@@ -239,6 +257,7 @@ def main():
         test_out=args.test_out,
         touch_test_pct=args.touch_test_pct,
         untouch_train_ratio_pct=args.untouch_train_ratio_pct,
+        untouch_test_ratio_pct=args.untouch_test_ratio_pct,
         max_untouch_test=args.max_untouch_test,
         sort_output=sort_output,
         shuffle_output=args.shuffle,
