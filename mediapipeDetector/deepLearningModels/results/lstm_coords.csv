@@ -1,0 +1,11 @@
+arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,train_time_s,weight_file
+LSTM_Coords,1,16,1,0.1,0.001,32,60.5422,59.9398,0.7089,0.3373,0.4571,7.5,LSTM_Coords_cfg01.pth
+LSTM_Coords,2,32,1,0.2,0.001,32,73.7952,70.4819,0.7464,0.6205,0.6776,7.5,LSTM_Coords_cfg02.pth
+LSTM_Coords,3,64,1,0.2,0.001,16,75.3012,74.6988,0.8203,0.6325,0.7143,8.7,LSTM_Coords_cfg03.pth
+LSTM_Coords,4,128,1,0.3,0.0005,32,77.1084,74.0964,0.839,0.5964,0.6972,7.2,LSTM_Coords_cfg04.pth
+LSTM_Coords,5,32,2,0.2,0.001,32,69.5783,66.5663,0.6687,0.6566,0.6626,7.0,LSTM_Coords_cfg05.pth
+LSTM_Coords,6,64,2,0.2,0.001,32,82.5301,82.2289,0.9573,0.6747,0.7915,16.9,LSTM_Coords_cfg06.pth
+LSTM_Coords,7,64,2,0.3,0.0005,64,71.3855,68.0723,0.7344,0.5663,0.6395,4.6,LSTM_Coords_cfg07.pth
+LSTM_Coords,8,128,2,0.2,0.001,64,75.6024,72.8916,0.7603,0.6687,0.7115,3.1,LSTM_Coords_cfg08.pth
+LSTM_Coords,9,64,3,0.3,0.0005,32,50.9036,50.3012,0.5135,0.1145,0.1872,7.3,LSTM_Coords_cfg09.pth
+LSTM_Coords,10,128,3,0.4,0.0001,16,50.3012,50.0,0.5,0.006,0.0119,10.1,LSTM_Coords_cfg10.pth

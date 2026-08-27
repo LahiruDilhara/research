@@ -1,0 +1,290 @@
+"""
+model_arch.py
+=============
+Shared model architectures and training utilities for deepLearningModels/.
+
+Models:
+  - SequenceLSTM      : Flexible LSTM for (N, T, F) binary classification
+  - TouchCNN1D        : 1D CNN over feature channels
+  - TouchResNet1D     : 1D ResNet with residual skip connections
+  - TouchAttentionNet : Multi-Head Self-Attention Transformer encoder
+"""
+
+import csv
+import time
+from pathlib import Path
+
+import numpy as np
+import torch
+from torch import nn
+from torch.utils.data import DataLoader, Dataset
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.preprocessing import StandardScaler
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Dataset
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TouchDataset(Dataset):
+    def __init__(self, X: torch.Tensor, y: torch.Tensor):
+        self.X = X
+        self.y = y
+
+    def __len__(self):
+        return len(self.X)
+
+    def __getitem__(self, idx):
+        return self.X[idx], self.y[idx]
+
+
+def make_loaders(X_train, y_train, X_test, y_test, batch_size: int):
+    train_loader = DataLoader(TouchDataset(X_train, y_train), batch_size=batch_size, shuffle=True,  drop_last=False)
+    test_loader  = DataLoader(TouchDataset(X_test,  y_test),  batch_size=batch_size, shuffle=False, drop_last=False)
+    return train_loader, test_loader
+
+
+def normalize(X_train_np: np.ndarray, X_test_np: np.ndarray):
+    """Fit StandardScaler on train, transform both train and test."""
+    scaler = StandardScaler()
+    N_tr, T, C = X_train_np.shape
+    N_te       = X_test_np.shape[0]
+    X_tr = scaler.fit_transform(X_train_np.reshape(N_tr, -1)).reshape(N_tr, T, C)
+    X_te = scaler.transform(X_test_np.reshape(N_te, -1)).reshape(N_te, T, C)
+    return torch.from_numpy(X_tr).float(), torch.from_numpy(X_te).float()
+
+
+def parse_labels(df):
+    """Parse binary touch label from DataFrame."""
+    tc = "touch_finger" if "touch_finger" in df.columns else "touch"
+    y  = df[tc].astype(str).str.strip().str.lower().isin(["1", "true", "t", "yes", "y"]).values.astype(np.float32)
+    return y.reshape(-1, 1)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Model Classes
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SequenceLSTM(nn.Module):
+    """Flexible LSTM binary classifier for sequences (N, T, F)."""
+    def __init__(self, input_features: int, hidden_units: int, num_layers: int, dropout: float = 0.2):
+        super().__init__()
+        self.lstm = nn.LSTM(
+            input_size=input_features,
+            hidden_size=hidden_units,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout if num_layers > 1 else 0.0,
+        )
+        fc_mid = max(hidden_units // 2, 8)
+        self.head = nn.Sequential(
+            nn.LayerNorm(hidden_units),
+            nn.Linear(hidden_units, fc_mid),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(fc_mid, 1),
+        )
+
+    def forward(self, x):
+        out, _ = self.lstm(x)
+        return self.head(out[:, -1, :])   # Last timestep
+
+
+class TouchCNN1D(nn.Module):
+    """Two-layer 1D CNN with global average pooling."""
+    def __init__(self, in_channels: int, conv_channels: int, fc_hidden: int, dropout: float = 0.2):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Conv1d(in_channels, conv_channels, kernel_size=3, padding=1),
+            nn.BatchNorm1d(conv_channels),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Conv1d(conv_channels, conv_channels * 2, kernel_size=3, padding=1),
+            nn.BatchNorm1d(conv_channels * 2),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool1d(1),
+            nn.Flatten(),
+            nn.Linear(conv_channels * 2, fc_hidden),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(fc_hidden, 1),
+        )
+
+    def forward(self, x):
+        # x: (N, T, F) → permute → (N, F, T) for Conv1d
+        return self.net(x.permute(0, 2, 1))
+
+
+class _ResBlock(nn.Module):
+    """Residual block: F(x) + x."""
+    def __init__(self, channels: int, dropout: float = 0.2):
+        super().__init__()
+        self.block = nn.Sequential(
+            nn.Conv1d(channels, channels, 3, padding=1),
+            nn.BatchNorm1d(channels),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Conv1d(channels, channels, 3, padding=1),
+            nn.BatchNorm1d(channels),
+        )
+        self.act = nn.ReLU()
+
+    def forward(self, x):
+        return self.act(x + self.block(x))
+
+
+class TouchResNet1D(nn.Module):
+    """1D ResNet with two residual blocks and global average pooling."""
+    def __init__(self, in_channels: int, hidden_dim: int, dropout: float = 0.2):
+        super().__init__()
+        self.stem = nn.Sequential(
+            nn.Conv1d(in_channels, hidden_dim, 3, padding=1),
+            nn.BatchNorm1d(hidden_dim),
+            nn.ReLU(),
+        )
+        self.res1 = _ResBlock(hidden_dim, dropout)
+        self.res2 = _ResBlock(hidden_dim, dropout)
+        self.pool = nn.AdaptiveAvgPool1d(1)
+        fc_mid    = max(hidden_dim // 2, 8)
+        self.head = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(hidden_dim, fc_mid),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(fc_mid, 1),
+        )
+
+    def forward(self, x):
+        z = self.stem(x.permute(0, 2, 1))   # (N, T, F) → (N, F, T)
+        z = self.res1(z)
+        z = self.res2(z)
+        return self.head(self.pool(z))
+
+
+class TouchAttentionNet(nn.Module):
+    """Single-layer Transformer encoder with mean pooling."""
+    def __init__(self, input_dim: int, embed_dim: int, num_heads: int, dropout: float = 0.2):
+        super().__init__()
+        self.embed  = nn.Linear(input_dim, embed_dim)
+        self.attn   = nn.MultiheadAttention(embed_dim, num_heads, batch_first=True, dropout=dropout)
+        self.norm1  = nn.LayerNorm(embed_dim)
+        self.ffn    = nn.Sequential(
+            nn.Linear(embed_dim, embed_dim * 2),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(embed_dim * 2, embed_dim),
+        )
+        self.norm2  = nn.LayerNorm(embed_dim)
+        self.head   = nn.Sequential(
+            nn.Linear(embed_dim, 16),
+            nn.ReLU(),
+            nn.Linear(16, 1),
+        )
+
+    def forward(self, x):
+        e         = self.embed(x)
+        a, _      = self.attn(e, e, e)
+        e         = self.norm1(e + a)
+        e         = self.norm2(e + self.ffn(e))
+        return self.head(e.mean(dim=1))    # Global mean pooling
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Training / Evaluation Utilities
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _run_epoch(model, loader, loss_fn, optimizer, device, train: bool):
+    """Single train or eval epoch. Returns (avg_loss, accuracy_%)."""
+    model.train(train)
+    total_loss, total_correct, total_n = 0.0, 0, 0
+
+    ctx = torch.enable_grad if train else torch.inference_mode
+    with ctx():
+        for X_b, y_b in loader:
+            X_b, y_b = X_b.to(device), y_b.to(device)
+            logits    = model(X_b)
+            loss      = loss_fn(logits, y_b)
+            preds     = torch.round(torch.sigmoid(logits))
+
+            if train:
+                optimizer.zero_grad()
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                optimizer.step()
+
+            total_loss    += loss.item() * len(X_b)
+            total_correct += torch.eq(y_b, preds).sum().item()
+            total_n       += len(X_b)
+
+    return total_loss / total_n, (total_correct / total_n) * 100.0
+
+
+def train_config(model, train_loader, test_loader, epochs: int, lr: float, device, patience: int = 8):
+    """
+    Full training loop with early stopping.
+    Returns: (best_test_acc, final_test_acc, history_dict)
+    """
+    loss_fn   = nn.BCEWithLogitsLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=4, factor=0.5, min_lr=1e-6)
+
+    best_acc   = 0.0
+    no_improve = 0
+    history    = {"train_acc": [], "test_acc": [], "train_loss": [], "test_loss": []}
+
+    for epoch in range(1, epochs + 1):
+        tr_loss, tr_acc = _run_epoch(model, train_loader, loss_fn, optimizer, device, train=True)
+        te_loss, te_acc = _run_epoch(model, test_loader,  loss_fn, None,      device, train=False)
+        scheduler.step(te_loss)
+
+        history["train_acc"].append(tr_acc)
+        history["test_acc"].append(te_acc)
+        history["train_loss"].append(tr_loss)
+        history["test_loss"].append(te_loss)
+
+        if te_acc > best_acc:
+            best_acc   = te_acc
+            no_improve = 0
+        else:
+            no_improve += 1
+            if no_improve >= patience:
+                print(f"      [Early stop @ epoch {epoch}]")
+                break
+
+        if epoch % 10 == 0 or epoch == 1:
+            print(f"      Ep {epoch:03d} | Train {tr_acc:5.1f}% | Test {te_acc:5.1f}%")
+
+    return best_acc, history["test_acc"][-1], history
+
+
+def evaluate_model(model, test_loader, device):
+    """Returns (confusion_matrix, classification_report_dict)."""
+    model.eval()
+    all_preds, all_targets = [], []
+    with torch.inference_mode():
+        for X_b, y_b in test_loader:
+            preds = torch.round(torch.sigmoid(model(X_b.to(device)))).cpu().numpy()
+            all_preds.extend(preds)
+            all_targets.extend(y_b.numpy())
+
+    p   = np.array(all_preds).squeeze()
+    t   = np.array(all_targets).squeeze()
+    cm  = confusion_matrix(t, p)
+    rpt = classification_report(t, p, target_names=["Untouch", "Touch"], output_dict=True)
+    return cm, rpt
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Result Persistence
+# ─────────────────────────────────────────────────────────────────────────────
+
+def save_result(row: dict, csv_path: str):
+    """Append one result row to csv_path (creates file/header on first write)."""
+    p = Path(csv_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    write_header = not p.exists()
+    with open(p, "a", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=list(row.keys()))
+        if write_header:
+            w.writeheader()
+        w.writerow(row)
