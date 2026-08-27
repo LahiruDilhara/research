@@ -37,6 +37,7 @@ def filter_dataset(
     remove_right_hand: bool = False,
     remove_left_hand: bool = False,
     remove_out_of_sync: bool = False,
+    remove_hand_invisible: bool = False,
 ) -> None:
     in_file = Path(input_path).resolve()
     out_file = Path(output_path).resolve()
@@ -63,6 +64,7 @@ def filter_dataset(
         removed_right_hand_cnt = 0
         removed_left_hand_cnt = 0
         removed_out_of_sync_cnt = 0
+        removed_hand_invisible_cnt = 0
 
         with open(out_file, mode="w", newline="", encoding="utf-8") as fout:
             writer = csv.DictWriter(fout, fieldnames=fieldnames)
@@ -116,6 +118,13 @@ def filter_dataset(
                         keep = False
                         removed_out_of_sync_cnt += 1
 
+                # 5. Filter hand invisible rows
+                if keep and remove_hand_invisible:
+                    is_hand_visible = parse_bool_flag(row.get("hand_visible", "1"))
+                    if not is_hand_visible:
+                        keep = False
+                        removed_hand_invisible_cnt += 1
+
                 if keep:
                     writer.writerow(row)
                     retained_rows += 1
@@ -131,6 +140,8 @@ def filter_dataset(
         logger.info(f"  Removed left-hand rows:      {removed_left_hand_cnt}")
     if remove_out_of_sync:
         logger.info(f"  Removed out-of-sync rows:    {removed_out_of_sync_cnt}")
+    if remove_hand_invisible:
+        logger.info(f"  Removed hand-invisible rows: {removed_hand_invisible_cnt}")
     logger.info(f"Filtered dataset successfully saved to '{out_file}'.")
 
 
@@ -164,6 +175,11 @@ def main():
         action="store_true",
         help="Remove out-of-sync rows (out_of_sync=1)",
     )
+    parser.add_argument(
+        "--remove-hand-invisible",
+        action="store_true",
+        help="Remove rows where hand is not visible (hand_visible=0)",
+    )
 
     args = parser.parse_args()
 
@@ -174,6 +190,7 @@ def main():
         remove_right_hand=args.remove_right_hand,
         remove_left_hand=args.remove_left_hand,
         remove_out_of_sync=args.remove_out_of_sync,
+        remove_hand_invisible=args.remove_hand_invisible,
     )
 
 
