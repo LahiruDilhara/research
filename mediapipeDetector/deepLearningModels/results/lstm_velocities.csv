@@ -1,11 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,train_time_s,weight_file
-LSTM_Velocities,1,16,1,0.1,0.001,32,92.7711,92.1687,0.9167,0.9277,0.9222,7.8,LSTM_Velocities_cfg01.pth
-LSTM_Velocities,2,32,1,0.2,0.001,32,92.7711,92.1687,0.9167,0.9277,0.9222,3.4,LSTM_Velocities_cfg02.pth
-LSTM_Velocities,3,64,1,0.2,0.001,16,92.1687,90.9639,0.9198,0.8976,0.9085,5.9,LSTM_Velocities_cfg03.pth
-LSTM_Velocities,4,128,1,0.3,0.0005,32,92.7711,91.8675,0.9017,0.9398,0.9204,6.2,LSTM_Velocities_cfg04.pth
-LSTM_Velocities,5,32,2,0.2,0.001,32,92.4699,92.1687,0.9217,0.9217,0.9217,3.7,LSTM_Velocities_cfg05.pth
-LSTM_Velocities,6,64,2,0.2,0.001,32,93.3735,93.0723,0.9181,0.9458,0.9318,3.9,LSTM_Velocities_cfg06.pth
-LSTM_Velocities,7,64,2,0.3,0.0005,64,92.7711,91.8675,0.9162,0.9217,0.9189,3.1,LSTM_Velocities_cfg07.pth
-LSTM_Velocities,8,128,2,0.2,0.001,64,93.3735,93.0723,0.9281,0.9337,0.9309,2.5,LSTM_Velocities_cfg08.pth
-LSTM_Velocities,9,64,3,0.3,0.0005,32,93.3735,93.0723,0.9181,0.9458,0.9318,8.6,LSTM_Velocities_cfg09.pth
-LSTM_Velocities,10,128,3,0.4,0.0001,16,92.7711,92.4699,0.9222,0.9277,0.9249,19.2,LSTM_Velocities_cfg10.pth
+LSTM_Velocities,1,64,2,0.2,0.001,32,88.4669,86.3572,0.7431,0.903,0.8152,9.0,LSTM_Velocities_cfg01.pth

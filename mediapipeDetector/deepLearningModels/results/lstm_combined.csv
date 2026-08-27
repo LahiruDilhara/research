@@ -1,11 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,train_time_s,weight_file
-LSTM_Combined,1,16,1,0.1,0.001,32,92.4699,92.1687,0.9375,0.9036,0.9202,4.7,LSTM_Combined_cfg01.pth
-LSTM_Combined,2,32,1,0.2,0.001,32,91.5663,90.6627,0.9299,0.8795,0.904,5.7,LSTM_Combined_cfg02.pth
-LSTM_Combined,3,64,1,0.2,0.001,16,91.2651,90.9639,0.9359,0.8795,0.9068,11.3,LSTM_Combined_cfg03.pth
-LSTM_Combined,4,128,1,0.3,0.0005,32,91.2651,90.6627,0.9245,0.8855,0.9046,5.1,LSTM_Combined_cfg04.pth
-LSTM_Combined,5,32,2,0.2,0.001,32,91.5663,90.6627,0.9245,0.8855,0.9046,6.0,LSTM_Combined_cfg05.pth
-LSTM_Combined,6,64,2,0.2,0.001,32,90.9639,90.0602,0.9182,0.8795,0.8985,3.4,LSTM_Combined_cfg06.pth
-LSTM_Combined,7,64,2,0.3,0.0005,64,89.4578,89.1566,0.9392,0.8373,0.8854,2.6,LSTM_Combined_cfg07.pth
-LSTM_Combined,8,128,2,0.2,0.001,64,90.6627,90.0602,0.929,0.8675,0.8972,2.8,LSTM_Combined_cfg08.pth
-LSTM_Combined,9,64,3,0.3,0.0005,32,91.8675,90.9639,0.9359,0.8795,0.9068,6.7,LSTM_Combined_cfg09.pth
-LSTM_Combined,10,128,3,0.4,0.0001,16,89.1566,88.8554,0.9388,0.8313,0.8818,9.0,LSTM_Combined_cfg10.pth
+LSTM_Combined,1,64,2,0.2,0.001,32,87.6231,87.3418,0.7579,0.9114,0.8276,5.7,LSTM_Combined_cfg01.pth

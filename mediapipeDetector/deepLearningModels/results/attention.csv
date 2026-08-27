@@ -1,11 +1,2 @@
 arch,config_id,embed_dim,num_heads,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,train_time_s,weight_file
-Attention,1,16,2,0.1,0.001,32,92.4699,91.8675,0.9162,0.9217,0.9189,9.0,Attention_cfg01.pth
-Attention,2,32,2,0.2,0.001,32,93.0723,92.7711,0.9329,0.9217,0.9273,7.7,Attention_cfg02.pth
-Attention,3,32,4,0.2,0.001,32,93.3735,92.7711,0.9226,0.9337,0.9281,6.6,Attention_cfg03.pth
-Attention,4,64,4,0.2,0.001,32,92.7711,91.8675,0.9162,0.9217,0.9189,3.7,Attention_cfg04.pth
-Attention,5,64,8,0.2,0.001,32,92.4699,92.1687,0.9217,0.9217,0.9217,4.3,Attention_cfg05.pth
-Attention,6,64,4,0.3,0.0005,64,93.0723,92.7711,0.9277,0.9277,0.9277,2.8,Attention_cfg06.pth
-Attention,7,128,4,0.2,0.001,32,92.7711,92.1687,0.9023,0.9458,0.9235,3.7,Attention_cfg07.pth
-Attention,8,128,8,0.3,0.0005,64,92.4699,92.4699,0.9325,0.9157,0.924,2.1,Attention_cfg08.pth
-Attention,9,128,4,0.3,0.0001,32,92.7711,92.1687,0.9321,0.9096,0.9207,9.8,Attention_cfg09.pth
-Attention,10,256,8,0.4,0.0001,16,92.4699,92.4699,0.9325,0.9157,0.924,10.5,Attention_cfg10.pth
+Attention,1,64,4,0.2,0.001,32,86.9198,84.5288,0.7153,0.8903,0.7932,4.6,Attention_cfg01.pth

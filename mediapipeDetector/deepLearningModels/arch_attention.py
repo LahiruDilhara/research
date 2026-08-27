@@ -35,10 +35,7 @@ SEED        = 42
 # ── 10 Hyperparameter Configurations ──────────────────────────────────────────
 # embed_dim must be divisible by num_heads (MultiheadAttention requirement)
 CONFIGS = [
-    {"id": 1, "embed": 32,  "heads": 2, "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # small
-    {"id": 2, "embed": 64,  "heads": 4, "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # medium
-    {"id": 3, "embed": 128, "heads": 4, "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # large
-    {"id": 4, "embed": 128, "heads": 8, "dropout": 0.30, "lr": 5e-4,  "bs": 64},  # large, more heads
+    {"id": 1, "embed": 64, "heads": 4, "dropout": 0.20, "lr": 1e-3, "bs": 32},
 ]
 
 # ── Data Loading ───────────────────────────────────────────────────────────────

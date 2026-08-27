@@ -34,10 +34,7 @@ SEED        = 42
 # ── 10 Hyperparameter Configurations ──────────────────────────────────────────
 # hidden_dim: channels after stem conv (residual blocks keep this same width)
 CONFIGS = [
-    {"id": 1, "hidden": 32,  "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # small
-    {"id": 2, "hidden": 64,  "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # medium
-    {"id": 3, "hidden": 128, "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # large
-    {"id": 4, "hidden": 128, "dropout": 0.30, "lr": 5e-4,  "bs": 64},  # large, low lr
+    {"id": 1, "hidden": 64, "dropout": 0.20, "lr": 1e-3, "bs": 32},
 ]
 
 # ── Data Loading ───────────────────────────────────────────────────────────────

@@ -51,16 +51,56 @@ def _find_python() -> str:
     return sys.executable
 
 
+def _check_data_files(base_dir: Path, python_bin: str):
+    """Ensure training_data.csv and test_data.csv exist before launching benchmark."""
+    data_dir = base_dir.parent / "data"
+    tr_csv   = data_dir / "training_data.csv"
+    te_csv   = data_dir / "test_data.csv"
+    alt_te   = data_dir / "testing_data.csv"
+
+    if not te_csv.exists() and alt_te.exists():
+        import shutil
+        shutil.copy(alt_te, te_csv)
+        print(f"  [Info] Copied {alt_te.name} → {te_csv.name}")
+
+    if not tr_csv.exists() or not te_csv.exists():
+        split_script = base_dir.parent / "analysis" / "create_train_test_split.py"
+        touch_in     = data_dir / "touch_dataset.csv"
+        untouch_in   = data_dir / "untouch_dataset.csv"
+
+        if split_script.exists() and touch_in.exists() and untouch_in.exists():
+            print("  [Info] Generating train/test split from raw dataset CSVs...")
+            subprocess.run([
+                python_bin, str(split_script),
+                "--touch-in", str(touch_in),
+                "--untouch-in", str(untouch_in),
+                "--train-out", str(tr_csv),
+                "--test-out", str(te_csv),
+                "--touch-test-pct", "15",
+                "--untouch-train-ratio-pct", "125",
+                "--seed", "50",
+            ], check=True)
+            print("  ✓ Train/test datasets generated successfully.\n")
+
+
 def main():
     base    = Path(__file__).resolve().parent
     python  = _find_python()
     log_dir = base / "results"
     log_dir.mkdir(parents=True, exist_ok=True)
+    # Clean previous CSV result files before running new benchmarks
+    for old_csv in log_dir.glob("*.csv"):
+        try:
+            old_csv.unlink()
+        except Exception:
+            pass
+
+    _check_data_files(base, python)
 
     bar = "=" * 70
     print(f"\n{bar}")
     print("  DEEP LEARNING BENCHMARK RUNNER")
-    print(f"  {len(SCRIPTS)} Architectures × 4 Configs = {len(SCRIPTS)*4} total training runs")
+    print(f"  {len(SCRIPTS)} Architectures × 1 Config = {len(SCRIPTS)} total training runs")
     print(f"  Running ONE architecture at a time  (sequential mode)")
     print(f"{bar}\n")
 

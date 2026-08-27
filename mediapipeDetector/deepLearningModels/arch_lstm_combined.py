@@ -37,10 +37,7 @@ SEED        = 42
 
 # ── 10 Hyperparameter Configurations ──────────────────────────────────────────
 CONFIGS = [
-    {"id": 1, "hidden": 32,  "layers": 1, "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # small, shallow
-    {"id": 2, "hidden": 64,  "layers": 1, "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # medium, shallow
-    {"id": 3, "hidden": 64,  "layers": 2, "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # medium, deep
-    {"id": 4, "hidden": 128, "layers": 2, "dropout": 0.30, "lr": 5e-4,  "bs": 64},  # large, deep
+    {"id": 1, "hidden": 64, "layers": 2, "dropout": 0.20, "lr": 1e-3, "bs": 32},
 ]
 
 # ── Data Loading ───────────────────────────────────────────────────────────────

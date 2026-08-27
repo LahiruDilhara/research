@@ -297,9 +297,11 @@ def _run_epoch(model, loader, loss_fn, optimizer, device, train: bool):
     return total_loss / total_n, (total_correct / total_n) * 100.0
 
 
-def train_config(model, train_loader, test_loader, epochs: int, lr: float, device, patience: int = 8):
+def train_config(model, train_loader, test_loader, epochs: int, lr: float, device,
+                 patience: int = 8, verbose: bool = True):
     """
     Full training loop with early stopping.
+    Set verbose=False when running multiple configs in parallel threads.
     Returns: (best_test_acc, final_test_acc, history_dict)
     """
     loss_fn   = nn.BCEWithLogitsLoss()
@@ -326,10 +328,11 @@ def train_config(model, train_loader, test_loader, epochs: int, lr: float, devic
         else:
             no_improve += 1
             if no_improve >= patience:
-                print(f"      [Early stop @ epoch {epoch}]")
+                if verbose:
+                    print(f"      [Early stop @ epoch {epoch}]")
                 break
 
-        if epoch % 10 == 0 or epoch == 1:
+        if verbose and (epoch % 10 == 0 or epoch == 1):
             print(f"      Ep {epoch:03d} | Train {tr_acc:5.1f}% | Test {te_acc:5.1f}%")
 
     return best_acc, history["test_acc"][-1], history

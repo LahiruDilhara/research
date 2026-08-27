@@ -58,23 +58,33 @@ def load_all_results() -> pd.DataFrame:
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
+def _get_acc_pct(val) -> float:
+    """Normalize accuracy to 0..100 percentage float."""
+    f = float(val)
+    return f if f > 1.0 else f * 100.0
+
+
 def fmt_row(df: pd.DataFrame) -> pd.DataFrame:
     """Format numeric columns for display."""
-    for col in ["best_test_acc", "final_test_acc", "f1_touch", "precision_touch", "recall_touch"]:
+    if "best_test_acc" in df.columns:
+        df["best_test_acc"] = df["best_test_acc"].apply(lambda v: f"{_get_acc_pct(v):.2f}%")
+    if "final_test_acc" in df.columns:
+        df["final_test_acc"] = df["final_test_acc"].apply(lambda v: f"{_get_acc_pct(v):.2f}%")
+    for col in ["f1_touch", "precision_touch", "recall_touch"]:
         if col in df.columns:
-            df[col] = (df[col] * 100).round(2).astype(str) + "%"
+            df[col] = df[col].apply(lambda v: f"{float(v):.4f}")
     if "train_time_s" in df.columns:
-        df["train_time_s"] = df["train_time_s"].round(1).astype(str) + "s"
+        df["train_time_s"] = df["train_time_s"].apply(lambda v: f"{float(v):.1f}s")
     return df
 
 
 def print_full_table(df: pd.DataFrame):
-    """Print all 60 rows sorted by test accuracy."""
+    """Print all rows sorted by test accuracy."""
     df_sorted = df.sort_values("best_test_acc_raw", ascending=False).reset_index(drop=True)
     df_sorted.insert(0, "rank", df_sorted.index + 1)
 
     print(f"\n{BAR}")
-    print("  FULL BENCHMARK RESULTS  ─  All 60 Runs  (sorted by Test Accuracy)")
+    print("  FULL BENCHMARK RESULTS  (sorted by Test Accuracy)")
     print(f"{BAR}")
 
     display = df_sorted.copy()
@@ -95,7 +105,7 @@ def print_top_n(df: pd.DataFrame, n: int = 5):
     for rank, (_, row) in enumerate(top.iterrows(), 1):
         arch = row.get("arch", "?")
         cid  = int(row.get("config_id", 0))
-        acc  = float(row["best_test_acc_raw"]) * 100
+        acc  = _get_acc_pct(row["best_test_acc_raw"])
         f1   = float(row.get("f1_touch", 0))
         prec = float(row.get("precision_touch", 0))
         rec  = float(row.get("recall_touch", 0))
@@ -114,7 +124,7 @@ def print_per_arch_best(df: pd.DataFrame):
     for arch, grp in df.groupby("arch"):
         best = grp.loc[grp["best_test_acc_raw"].idxmax()]
         cid  = int(best.get("config_id", 0))
-        acc  = float(best["best_test_acc_raw"]) * 100
+        acc  = _get_acc_pct(best["best_test_acc_raw"])
         f1   = float(best.get("f1_touch", 0))
         t    = best.get("train_time_s", "?")
 
@@ -138,9 +148,11 @@ def print_arch_ranking(df: pd.DataFrame):
     )
     arch_best.columns = ["arch", "best_acc"]
     for i, row in arch_best.iterrows():
-        bar_len = int(row["best_acc"] * 60)
+        acc_val = float(row["best_acc"])
+        acc_pct = acc_val * 100.0 if acc_val <= 1.0 else acc_val
+        bar_len = int((acc_pct / 100.0) * 15)  # Clean, short bar (max 15 chars)
         bar_vis = "█" * bar_len
-        print(f"  #{i+1}  {row['arch']:22s}  {row['best_acc']*100:6.2f}%  {bar_vis}")
+        print(f"  #{i+1}  {row['arch']:22s}  {acc_pct:6.2f}%  {bar_vis}")
     print(f"{DASH}")
 
 
