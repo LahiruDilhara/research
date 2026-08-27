@@ -82,6 +82,14 @@ def sort_rows(rows: list[dict]) -> list[dict]:
     return sorted(rows, key=sort_key)
 
 
+def group_by_video(rows: list[dict]) -> dict[str, list[dict]]:
+    groups: dict[str, list[dict]] = {}
+    for r in rows:
+        v_key = f"{r.get('video_file', 'unknown')}___{r.get('video_hash', 'unknown')}"
+        groups.setdefault(v_key, []).append(r)
+    return groups
+
+
 def split_and_balance(
     touch_in: str,
     untouch_in: str,
@@ -91,6 +99,7 @@ def split_and_balance(
     untouch_train_ratio_pct: float,
     untouch_test_ratio_pct: float | None,
     max_untouch_test: int | None,
+    no_video_leak: bool,
     sort_output: bool,
     shuffle_output: bool,
     seed: int | None,
@@ -114,57 +123,120 @@ def split_and_balance(
 
     logger.info(f"Loaded {len(touch_rows)} touch rows and {len(untouch_rows)} untouch rows.")
 
-    # 1. Separate touch dataset into test and train
-    touch_count = len(touch_rows)
-    touch_test_count = int(round(touch_count * (touch_test_pct / 100.0)))
-    touch_test_count = max(0, min(touch_count, touch_test_count))
+    if no_video_leak:
+        logger.info("Enforcing strict video-level partitioning (--no-video-leak enabled). No video source will be shared between train and test datasets.")
 
-    shuffled_touch = list(touch_rows)
-    random.shuffle(shuffled_touch)
+        # Group touch rows by video source
+        touch_vgroups = group_by_video(touch_rows)
+        v_keys = list(touch_vgroups.keys())
+        random.shuffle(v_keys)
 
-    touch_test = shuffled_touch[:touch_test_count]
-    touch_train = shuffled_touch[touch_test_count:]
+        total_touch = len(touch_rows)
+        target_touch_test = int(round(total_touch * (touch_test_pct / 100.0)))
 
-    logger.info(f"Touch split ({touch_test_pct}% test): {len(touch_train)} train, {len(touch_test)} test.")
+        touch_test_vkeys = set()
+        current_test_cnt = 0
 
-    # 2. Separate untouch dataset into train and test
-    # untouch_train count = untouch_train_ratio_pct % of touch_train count
-    target_untouch_train_count = int(round(len(touch_train) * (untouch_train_ratio_pct / 100.0)))
-    untouch_count = len(untouch_rows)
+        # Select whole videos for touch_test until reaching target
+        for vk in v_keys:
+            vk_cnt = len(touch_vgroups[vk])
+            if current_test_cnt == 0 or abs((current_test_cnt + vk_cnt) - target_touch_test) < abs(current_test_cnt - target_touch_test):
+                touch_test_vkeys.add(vk)
+                current_test_cnt += vk_cnt
+            else:
+                break
 
-    if target_untouch_train_count > untouch_count:
-        logger.warning(
-            f"Requested untouch train size ({target_untouch_train_count}) exceeds available untouch rows ({untouch_count}). "
-            f"Using all {untouch_count} rows for untouch train."
-        )
-        target_untouch_train_count = untouch_count
+        touch_test = []
+        touch_train = []
+        for vk, rows in touch_vgroups.items():
+            if vk in touch_test_vkeys:
+                touch_test.extend(rows)
+            else:
+                touch_train.extend(rows)
 
-    shuffled_untouch = list(untouch_rows)
-    random.shuffle(shuffled_untouch)
+        logger.info(f"Video-partitioned Touch split ({len(touch_test_vkeys)} test videos, {len(touch_vgroups) - len(touch_test_vkeys)} train videos): {len(touch_train)} train, {len(touch_test)} test.")
 
-    untouch_train = shuffled_untouch[:target_untouch_train_count]
-    remaining_untouch_test = shuffled_untouch[target_untouch_train_count:]
+        # Partition untouch dataset using the exact same video key assignment
+        untouch_vgroups = group_by_video(untouch_rows)
+        
+        untouch_test_candidate = []
+        untouch_train_candidate = []
 
-    # Calculate untouch test count based on --untouch-test-ratio-pct if provided, else use remaining
-    if untouch_test_ratio_pct is not None and untouch_test_ratio_pct > 0:
-        target_untouch_test_count = int(round(len(touch_test) * (untouch_test_ratio_pct / 100.0)))
-        if target_untouch_test_count > len(remaining_untouch_test):
-            logger.warning(
-                f"Requested untouch test size ({target_untouch_test_count}) exceeds remaining untouch rows ({len(remaining_untouch_test)}). "
-                f"Using all {len(remaining_untouch_test)} remaining rows."
-            )
-            untouch_test = remaining_untouch_test
+        for vk, rows in untouch_vgroups.items():
+            if vk in touch_test_vkeys:
+                untouch_test_candidate.extend(rows)
+            else:
+                untouch_train_candidate.extend(rows)
+
+        # Handle remaining untouch videos that were not present in touch dataset
+        remaining_vkeys = set(untouch_vgroups.keys()) - set(touch_vgroups.keys())
+        for vk in remaining_vkeys:
+            untouch_train_candidate.extend(untouch_vgroups[vk])
+
+        # Balance untouch train
+        target_untouch_train_count = int(round(len(touch_train) * (untouch_train_ratio_pct / 100.0)))
+        random.shuffle(untouch_train_candidate)
+        untouch_train = untouch_train_candidate[:target_untouch_train_count]
+
+        # Balance untouch test
+        random.shuffle(untouch_test_candidate)
+        if untouch_test_ratio_pct is not None and untouch_test_ratio_pct > 0:
+            target_untouch_test_count = int(round(len(touch_test) * (untouch_test_ratio_pct / 100.0)))
+            untouch_test = untouch_test_candidate[:target_untouch_test_count]
+        elif max_untouch_test is not None and max_untouch_test >= 0:
+            untouch_test = untouch_test_candidate[:max_untouch_test]
         else:
-            logger.info(f"Sampling balanced untouch test dataset ({untouch_test_ratio_pct}% of touch_test = {target_untouch_test_count} rows)")
-            untouch_test = remaining_untouch_test[:target_untouch_test_count]
-    elif max_untouch_test is not None and max_untouch_test >= 0:
-        if len(remaining_untouch_test) > max_untouch_test:
-            logger.info(f"Capping untouch test rows from {len(remaining_untouch_test)} to max allowed: {max_untouch_test}")
-            untouch_test = remaining_untouch_test[:max_untouch_test]
-        else:
-            untouch_test = remaining_untouch_test
+            untouch_test = untouch_test_candidate
+
     else:
-        untouch_test = remaining_untouch_test
+        # Standard row-level random sampling
+        touch_count = len(touch_rows)
+        touch_test_count = int(round(touch_count * (touch_test_pct / 100.0)))
+        touch_test_count = max(0, min(touch_count, touch_test_count))
+
+        shuffled_touch = list(touch_rows)
+        random.shuffle(shuffled_touch)
+
+        touch_test = shuffled_touch[:touch_test_count]
+        touch_train = shuffled_touch[touch_test_count:]
+
+        logger.info(f"Row-sampled Touch split ({touch_test_pct}% test): {len(touch_train)} train, {len(touch_test)} test.")
+
+        target_untouch_train_count = int(round(len(touch_train) * (untouch_train_ratio_pct / 100.0)))
+        untouch_count = len(untouch_rows)
+
+        if target_untouch_train_count > untouch_count:
+            logger.warning(
+                f"Requested untouch train size ({target_untouch_train_count}) exceeds available untouch rows ({untouch_count}). "
+                f"Using all {untouch_count} rows for untouch train."
+            )
+            target_untouch_train_count = untouch_count
+
+        shuffled_untouch = list(untouch_rows)
+        random.shuffle(shuffled_untouch)
+
+        untouch_train = shuffled_untouch[:target_untouch_train_count]
+        remaining_untouch_test = shuffled_untouch[target_untouch_train_count:]
+
+        if untouch_test_ratio_pct is not None and untouch_test_ratio_pct > 0:
+            target_untouch_test_count = int(round(len(touch_test) * (untouch_test_ratio_pct / 100.0)))
+            if target_untouch_test_count > len(remaining_untouch_test):
+                logger.warning(
+                    f"Requested untouch test size ({target_untouch_test_count}) exceeds remaining untouch rows ({len(remaining_untouch_test)}). "
+                    f"Using all {len(remaining_untouch_test)} remaining rows."
+                )
+                untouch_test = remaining_untouch_test
+            else:
+                logger.info(f"Sampling balanced untouch test dataset ({untouch_test_ratio_pct}% of touch_test = {target_untouch_test_count} rows)")
+                untouch_test = remaining_untouch_test[:target_untouch_test_count]
+        elif max_untouch_test is not None and max_untouch_test >= 0:
+            if len(remaining_untouch_test) > max_untouch_test:
+                logger.info(f"Capping untouch test rows from {len(remaining_untouch_test)} to max allowed: {max_untouch_test}")
+                untouch_test = remaining_untouch_test[:max_untouch_test]
+            else:
+                untouch_test = remaining_untouch_test
+        else:
+            untouch_test = remaining_untouch_test
 
     # 3. Combine datasets
     train_rows = touch_train + untouch_train
@@ -229,6 +301,11 @@ def main():
         help="Maximum limit on number of untouch rows in the test dataset",
     )
     parser.add_argument(
+        "--no-video-leak",
+        action="store_true",
+        help="Ensure no video file/hash source is shared between train and test datasets to prevent video frame data leakage",
+    )
+    parser.add_argument(
         "--shuffle",
         action="store_true",
         help="Shuffle final combined datasets (default behavior is to sort by video_file, video_hash, start_frame, finger_name)",
@@ -259,6 +336,7 @@ def main():
         untouch_train_ratio_pct=args.untouch_train_ratio_pct,
         untouch_test_ratio_pct=args.untouch_test_ratio_pct,
         max_untouch_test=args.max_untouch_test,
+        no_video_leak=args.no_video_leak,
         sort_output=sort_output,
         shuffle_output=args.shuffle,
         seed=args.seed,
