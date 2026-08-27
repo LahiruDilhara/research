@@ -34,17 +34,10 @@ SEED        = 42
 # ── 10 Hyperparameter Configurations ──────────────────────────────────────────
 # hidden_dim: channels after stem conv (residual blocks keep this same width)
 CONFIGS = [
-    # id   hidden  dropout    lr      bs
-    {"id": 1,  "hidden": 16,  "dropout": 0.10, "lr": 1e-3,  "bs": 32},
-    {"id": 2,  "hidden": 32,  "dropout": 0.20, "lr": 1e-3,  "bs": 32},
-    {"id": 3,  "hidden": 32,  "dropout": 0.20, "lr": 1e-3,  "bs": 16},
-    {"id": 4,  "hidden": 64,  "dropout": 0.20, "lr": 1e-3,  "bs": 32},
-    {"id": 5,  "hidden": 64,  "dropout": 0.30, "lr": 1e-3,  "bs": 32},
-    {"id": 6,  "hidden": 64,  "dropout": 0.20, "lr": 5e-4,  "bs": 64},
-    {"id": 7,  "hidden": 128, "dropout": 0.20, "lr": 1e-3,  "bs": 32},
-    {"id": 8,  "hidden": 128, "dropout": 0.30, "lr": 5e-4,  "bs": 64},
-    {"id": 9,  "hidden": 128, "dropout": 0.30, "lr": 1e-4,  "bs": 32},
-    {"id": 10, "hidden": 256, "dropout": 0.40, "lr": 1e-4,  "bs": 16},
+    {"id": 1, "hidden": 32,  "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # small
+    {"id": 2, "hidden": 64,  "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # medium
+    {"id": 3, "hidden": 128, "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # large
+    {"id": 4, "hidden": 128, "dropout": 0.30, "lr": 5e-4,  "bs": 64},  # large, low lr
 ]
 
 # ── Data Loading ───────────────────────────────────────────────────────────────

@@ -37,17 +37,10 @@ SEED        = 42
 
 # ── 10 Hyperparameter Configurations ──────────────────────────────────────────
 CONFIGS = [
-    # id   hidden  layers  dropout    lr      bs
-    {"id": 1,  "hidden": 16,  "layers": 1, "dropout": 0.10, "lr": 1e-3,  "bs": 32},
-    {"id": 2,  "hidden": 32,  "layers": 1, "dropout": 0.20, "lr": 1e-3,  "bs": 32},
-    {"id": 3,  "hidden": 64,  "layers": 1, "dropout": 0.20, "lr": 1e-3,  "bs": 16},
-    {"id": 4,  "hidden": 128, "layers": 1, "dropout": 0.30, "lr": 5e-4,  "bs": 32},
-    {"id": 5,  "hidden": 32,  "layers": 2, "dropout": 0.20, "lr": 1e-3,  "bs": 32},
-    {"id": 6,  "hidden": 64,  "layers": 2, "dropout": 0.20, "lr": 1e-3,  "bs": 32},
-    {"id": 7,  "hidden": 64,  "layers": 2, "dropout": 0.30, "lr": 5e-4,  "bs": 64},
-    {"id": 8,  "hidden": 128, "layers": 2, "dropout": 0.20, "lr": 1e-3,  "bs": 64},
-    {"id": 9,  "hidden": 64,  "layers": 3, "dropout": 0.30, "lr": 5e-4,  "bs": 32},
-    {"id": 10, "hidden": 128, "layers": 3, "dropout": 0.40, "lr": 1e-4,  "bs": 16},
+    {"id": 1, "hidden": 32,  "layers": 1, "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # small, shallow
+    {"id": 2, "hidden": 64,  "layers": 1, "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # medium, shallow
+    {"id": 3, "hidden": 64,  "layers": 2, "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # medium, deep
+    {"id": 4, "hidden": 128, "layers": 2, "dropout": 0.30, "lr": 5e-4,  "bs": 64},  # large, deep
 ]
 
 # ── Data Loading ───────────────────────────────────────────────────────────────

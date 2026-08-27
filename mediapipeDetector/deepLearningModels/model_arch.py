@@ -189,9 +189,87 @@ class TouchAttentionNet(nn.Module):
         return self.head(e.mean(dim=1))    # Global mean pooling
 
 
+class TouchBiLSTM(nn.Module):
+    """
+    Bidirectional LSTM — processes sequence in both directions.
+    Last timestep from forward + backward passes are concatenated (2×hidden).
+    """
+    def __init__(self, input_features: int, hidden_units: int, num_layers: int, dropout: float = 0.2):
+        super().__init__()
+        self.lstm = nn.LSTM(
+            input_size=input_features,
+            hidden_size=hidden_units,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout if num_layers > 1 else 0.0,
+            bidirectional=True,
+        )
+        out_dim = hidden_units * 2   # bidirectional doubles the output dim
+        fc_mid  = max(out_dim // 2, 8)
+        self.head = nn.Sequential(
+            nn.LayerNorm(out_dim),
+            nn.Linear(out_dim, fc_mid),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(fc_mid, 1),
+        )
+
+    def forward(self, x):
+        out, _ = self.lstm(x)
+        return self.head(out[:, -1, :])   # Last timestep (fwd + bwd concatenated)
+
+
+class _TCNBlock(nn.Module):
+    """Single dilated TCN block with residual skip connection."""
+    def __init__(self, in_ch: int, out_ch: int, dilation: int, dropout: float = 0.2):
+        super().__init__()
+        pad = dilation   # kernel_size=3, so padding=dilation keeps length same
+        self.conv = nn.Sequential(
+            nn.Conv1d(in_ch, out_ch, kernel_size=3, padding=pad, dilation=dilation),
+            nn.BatchNorm1d(out_ch),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+        )
+        self.skip = nn.Conv1d(in_ch, out_ch, 1) if in_ch != out_ch else nn.Identity()
+        self.act  = nn.ReLU()
+
+    def forward(self, x):
+        return self.act(self.conv(x) + self.skip(x))
+
+
+class TouchTCN(nn.Module):
+    """
+    Temporal Convolutional Network with exponentially growing dilations.
+    Each level doubles the dilation: [1, 2, 4, ...].
+    Input: (N, T, F) → permuted to (N, F, T) for Conv1d.
+    """
+    def __init__(self, in_channels: int, tcn_channels: int, num_levels: int, dropout: float = 0.2):
+        super().__init__()
+        blocks = []
+        for i in range(num_levels):
+            dilation = 2 ** i
+            in_ch    = in_channels if i == 0 else tcn_channels
+            blocks.append(_TCNBlock(in_ch, tcn_channels, dilation, dropout))
+        self.network = nn.Sequential(*blocks)
+        self.pool    = nn.AdaptiveAvgPool1d(1)
+        fc_mid       = max(tcn_channels // 2, 8)
+        self.head    = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(tcn_channels, fc_mid),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(fc_mid, 1),
+        )
+
+    def forward(self, x):
+        z = self.network(x.permute(0, 2, 1))   # (N, T, F) → (N, F, T)
+        return self.head(self.pool(z))
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  Training / Evaluation Utilities
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _run_epoch(model, loader, loss_fn, optimizer, device, train: bool):
     """Single train or eval epoch. Returns (avg_loss, accuracy_%)."""

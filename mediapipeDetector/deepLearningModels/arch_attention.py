@@ -35,17 +35,10 @@ SEED        = 42
 # ── 10 Hyperparameter Configurations ──────────────────────────────────────────
 # embed_dim must be divisible by num_heads (MultiheadAttention requirement)
 CONFIGS = [
-    # id   embed  heads  dropout    lr      bs
-    {"id": 1,  "embed": 16,  "heads": 2,  "dropout": 0.10, "lr": 1e-3,  "bs": 32},
-    {"id": 2,  "embed": 32,  "heads": 2,  "dropout": 0.20, "lr": 1e-3,  "bs": 32},
-    {"id": 3,  "embed": 32,  "heads": 4,  "dropout": 0.20, "lr": 1e-3,  "bs": 32},
-    {"id": 4,  "embed": 64,  "heads": 4,  "dropout": 0.20, "lr": 1e-3,  "bs": 32},
-    {"id": 5,  "embed": 64,  "heads": 8,  "dropout": 0.20, "lr": 1e-3,  "bs": 32},
-    {"id": 6,  "embed": 64,  "heads": 4,  "dropout": 0.30, "lr": 5e-4,  "bs": 64},
-    {"id": 7,  "embed": 128, "heads": 4,  "dropout": 0.20, "lr": 1e-3,  "bs": 32},
-    {"id": 8,  "embed": 128, "heads": 8,  "dropout": 0.30, "lr": 5e-4,  "bs": 64},
-    {"id": 9,  "embed": 128, "heads": 4,  "dropout": 0.30, "lr": 1e-4,  "bs": 32},
-    {"id": 10, "embed": 256, "heads": 8,  "dropout": 0.40, "lr": 1e-4,  "bs": 16},
+    {"id": 1, "embed": 32,  "heads": 2, "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # small
+    {"id": 2, "embed": 64,  "heads": 4, "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # medium
+    {"id": 3, "embed": 128, "heads": 4, "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # large
+    {"id": 4, "embed": 128, "heads": 8, "dropout": 0.30, "lr": 5e-4,  "bs": 64},  # large, more heads
 ]
 
 # ── Data Loading ───────────────────────────────────────────────────────────────

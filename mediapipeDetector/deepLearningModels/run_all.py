@@ -24,6 +24,8 @@ SCRIPTS = [
     "arch_cnn1d.py",             # 1D CNN on combined input     (N, 5, 16)
     "arch_resnet1d.py",          # 1D ResNet on combined input  (N, 5, 16)
     "arch_attention.py",         # Transformer on combined      (N, 5, 16)
+    "arch_bilstm.py",            # Bidirectional LSTM           (N, 5, 16)
+    "arch_tcn.py",               # Temporal Conv Network (TCN)  (N, 5, 16)
 ]
 
 ARCH_DESCRIPTIONS = {
@@ -33,6 +35,8 @@ ARCH_DESCRIPTIONS = {
     "arch_cnn1d.py":           "CNN1D (combined  5×16)",
     "arch_resnet1d.py":        "ResNet1D (combined 5×16)",
     "arch_attention.py":       "Attention (combined 5×16)",
+    "arch_bilstm.py":          "BiLSTM (combined 5×16)",
+    "arch_tcn.py":             "TCN   (combined  5×16)",
 }
 
 
@@ -56,7 +60,7 @@ def main():
     bar = "=" * 70
     print(f"\n{bar}")
     print("  DEEP LEARNING BENCHMARK RUNNER")
-    print(f"  6 Architectures × 10 Configs = 60 total training runs")
+    print(f"  {len(SCRIPTS)} Architectures × 4 Configs = {len(SCRIPTS)*4} total training runs")
     print(f"  Running ONE architecture at a time  (sequential mode)")
     print(f"{bar}\n")
 

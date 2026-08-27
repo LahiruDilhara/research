@@ -35,17 +35,10 @@ SEED        = 42
 # conv_ch: first conv output channels (second = conv_ch*2)
 # fc_hid : size of fully-connected layer after pooling
 CONFIGS = [
-    # id   conv_ch  fc_hid  dropout    lr      bs
-    {"id": 1,  "conv_ch": 16,  "fc_hid": 32,  "dropout": 0.10, "lr": 1e-3,  "bs": 32},
-    {"id": 2,  "conv_ch": 32,  "fc_hid": 32,  "dropout": 0.20, "lr": 1e-3,  "bs": 32},
-    {"id": 3,  "conv_ch": 32,  "fc_hid": 64,  "dropout": 0.20, "lr": 1e-3,  "bs": 16},
-    {"id": 4,  "conv_ch": 64,  "fc_hid": 64,  "dropout": 0.20, "lr": 1e-3,  "bs": 32},
-    {"id": 5,  "conv_ch": 64,  "fc_hid": 128, "dropout": 0.30, "lr": 1e-3,  "bs": 32},
-    {"id": 6,  "conv_ch": 128, "fc_hid": 64,  "dropout": 0.30, "lr": 1e-3,  "bs": 32},
-    {"id": 7,  "conv_ch": 32,  "fc_hid": 32,  "dropout": 0.20, "lr": 5e-4,  "bs": 64},
-    {"id": 8,  "conv_ch": 64,  "fc_hid": 64,  "dropout": 0.20, "lr": 5e-4,  "bs": 64},
-    {"id": 9,  "conv_ch": 128, "fc_hid": 128, "dropout": 0.30, "lr": 5e-4,  "bs": 32},
-    {"id": 10, "conv_ch": 128, "fc_hid": 256, "dropout": 0.40, "lr": 1e-4,  "bs": 16},
+    {"id": 1, "conv_ch": 32,  "fc_hid": 32,  "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # small
+    {"id": 2, "conv_ch": 64,  "fc_hid": 64,  "dropout": 0.20, "lr": 1e-3,  "bs": 32},  # medium
+    {"id": 3, "conv_ch": 128, "fc_hid": 64,  "dropout": 0.30, "lr": 1e-3,  "bs": 32},  # large filters
+    {"id": 4, "conv_ch": 128, "fc_hid": 128, "dropout": 0.30, "lr": 5e-4,  "bs": 64},  # large, low lr
 ]
 
 # ── Data Loading (identical combined extractor) ────────────────────────────────
