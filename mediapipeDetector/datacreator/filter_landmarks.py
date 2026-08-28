@@ -100,9 +100,15 @@ class OneEuroFilter1D:
 class LandmarkEuroFilter:
     """Manages 1€ filters for x and y coordinates for all 21 hand landmarks."""
 
-    def __init__(self, min_cutoff: float = FILTER_MIN_CUTOFF, beta: float = FILTER_BETA):
+    def __init__(
+        self,
+        min_cutoff: float = FILTER_MIN_CUTOFF,
+        beta: float = FILTER_BETA,
+        d_cutoff: float = FILTER_D_CUTOFF
+    ):
         self.min_cutoff = min_cutoff
         self.beta = beta
+        self.d_cutoff = d_cutoff
         self.filters: dict[str, tuple[OneEuroFilter1D, OneEuroFilter1D]] = {}
 
     def reset(self):
@@ -110,8 +116,8 @@ class LandmarkEuroFilter:
 
     def filter_landmark(self, name: str, t_sec: float, x: float, y: float) -> tuple[float, float]:
         if name not in self.filters:
-            fx = OneEuroFilter1D(t_sec, x, min_cutoff=self.min_cutoff, beta=self.beta)
-            fy = OneEuroFilter1D(t_sec, y, min_cutoff=self.min_cutoff, beta=self.beta)
+            fx = OneEuroFilter1D(t_sec, x, min_cutoff=self.min_cutoff, beta=self.beta, d_cutoff=self.d_cutoff)
+            fy = OneEuroFilter1D(t_sec, y, min_cutoff=self.min_cutoff, beta=self.beta, d_cutoff=self.d_cutoff)
             self.filters[name] = (fx, fy)
             return float(x), float(y)
 
@@ -137,7 +143,8 @@ def filter_raw_landmarks_csv(
     input_csv: str,
     output_csv: str = None,
     min_cutoff: float = FILTER_MIN_CUTOFF,
-    beta: float = FILTER_BETA
+    beta: float = FILTER_BETA,
+    d_cutoff: float = FILTER_D_CUTOFF
 ) -> str:
     """
     Reads raw landmarks CSV, applies One Euro filter across video frames, and writes filtered CSV.
@@ -156,9 +163,9 @@ def filter_raw_landmarks_csv(
     if not raw_rows:
         raise ValueError(f"Input CSV '{input_csv}' is empty!")
 
-    print(f"[2/3] Filtering {len(raw_rows)} frames with 1€ Filter (min_cutoff={min_cutoff}, beta={beta})...")
+    print(f"[2/3] Filtering {len(raw_rows)} frames with 1€ Filter (min_cutoff={min_cutoff}, beta={beta}, d_cutoff={d_cutoff})...")
 
-    hand_filter = LandmarkEuroFilter(min_cutoff=min_cutoff, beta=beta)
+    hand_filter = LandmarkEuroFilter(min_cutoff=min_cutoff, beta=beta, d_cutoff=d_cutoff)
     filtered_rows = []
 
     for row_idx, row in enumerate(raw_rows):
@@ -202,18 +209,29 @@ def main():
     parser = argparse.ArgumentParser(description="Applies 1€ temporal filter to raw MediaPipe hand landmark CSV")
     parser.add_argument("-i", "--input", required=True, help="Path to raw landmarks CSV file")
     parser.add_argument("-o", "--output", default="", help="Optional output filtered CSV path")
-    parser.add_argument("-min", "--min-cutoff", type=float, default=FILTER_MIN_CUTOFF, help=f"1€ Filter min_cutoff (default: {FILTER_MIN_CUTOFF})")
-    parser.add_argument("-beta", "--beta", type=float, default=FILTER_BETA, help=f"1€ Filter beta parameter (default: {FILTER_BETA})")
+    parser.add_argument("-min", "--min-cutoff", "--min_cutoff", type=float, default=None, help=f"1€ Filter min_cutoff in Hz (default: {FILTER_MIN_CUTOFF})")
+    parser.add_argument("-beta", "--beta", type=float, default=None, help=f"1€ Filter beta parameter (default: {FILTER_BETA})")
+    parser.add_argument("-d", "-dcutoff", "--d-cutoff", "--d_cutoff", type=float, default=None, help=f"1€ Filter derivative cutoff frequency (d_cutoff) in Hz (default: {FILTER_D_CUTOFF})")
 
     args = parser.parse_args()
 
-    filter_raw_landmarks_csv(
-        input_csv=args.input,
-        output_csv=args.output,
-        min_cutoff=args.min_cutoff,
-        beta=args.beta
-    )
+    min_cutoff = args.min_cutoff if args.min_cutoff is not None else FILTER_MIN_CUTOFF
+    beta = args.beta if args.beta is not None else FILTER_BETA
+    d_cutoff = args.d_cutoff if args.d_cutoff is not None else FILTER_D_CUTOFF
+
+    try:
+        filter_raw_landmarks_csv(
+            input_csv=args.input,
+            output_csv=args.output,
+            min_cutoff=min_cutoff,
+            beta=beta,
+            d_cutoff=d_cutoff
+        )
+    except Exception as e:
+        print(f"[Error] {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
     main()
+
