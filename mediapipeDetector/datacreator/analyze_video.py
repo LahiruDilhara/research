@@ -1,3 +1,12 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "mediapipe>=1.0.0",
+#     "numpy>=2.5.2",
+#     "opencv-python>=5.0.0.93",
+# ]
+# ///
+
 """
 datacreator/analyze_video.py
 

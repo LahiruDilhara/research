@@ -1,3 +1,11 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "numpy>=2.5.2",
+#     "opencv-python>=5.0.0.93",
+# ]
+# ///
+
 """
 datacreator/resample_12fps.py
 
