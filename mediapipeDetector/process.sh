@@ -4,6 +4,7 @@ mkdir -p dataprocessing/2_normalized_coordinates
 mkdir -p dataprocessing/3_euroFilter_coordinates
 mkdir -p dataprocessing/4_filtered_coordinates_and_annotations
 mkdir -p dataprocessing/5_windowed_dataset
+mkdir -p dataprocessing/6_merged_windowed_dataset
 
 # Copy CSV files to data processing directory
 cp -f -r ./videos/*.raw_landmarks.* dataprocessing/1_rawCSVFiles/
@@ -20,3 +21,6 @@ cp -f -r ./dataprocessing/3_euroFilter_coordinates/*.filtered_landmarks.* ./data
 
 # Create windowed sequence datasets
 python3 datacreator/create_windows.py -i ./dataprocessing/4_filtered_coordinates_and_annotations/ -o ./dataprocessing/5_windowed_dataset/
+
+# Merge all windowed datasets into a single combined CSV dataset
+python3 datacreator/merge_windows.py -i ./dataprocessing/5_windowed_dataset/ -o ./dataprocessing/6_merged_windowed_dataset/all_windowed_dataset.csv
