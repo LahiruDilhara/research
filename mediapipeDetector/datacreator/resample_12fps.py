@@ -11,10 +11,15 @@ datacreator/resample_12fps.py
 
 Resamples input video files to exactly 12.0 FPS using nearest-timestamp matching,
 identical to the frame downsampling calculation in annotator/pipeline.py.
+
+Supports processing a single video file or a list/glob pattern of video files (e.g. '*', '*.mp4', 'videos/*').
+All output files are saved into a specified output directory with the same base name and .mp4 extension.
 """
 
 import argparse
+import glob
 import os
+import sys
 import cv2
 
 
@@ -25,9 +30,18 @@ def resample_video_to_12fps(input_path: str, output_path: str, target_fps: float
     """
     Reads all video frames, calculates actual time range and frame count dynamically (does not rely on header FPS),
     downsamples to target_fps (12.0 FPS) by nearest timestamp, and saves out an MP4 video file.
+
+    If output_path is an existing directory (or ends with a path separator), the resampled video will be saved inside
+    output_path using the base name of input_path with a .mp4 extension.
     """
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Input video file not found: {input_path}")
+
+    # If output_path is specified as a directory, append base_name.mp4
+    if os.path.isdir(output_path) or output_path.endswith(os.sep) or output_path.endswith("/") or output_path.endswith("\\"):
+        os.makedirs(output_path, exist_ok=True)
+        base_name = os.path.splitext(os.path.basename(input_path))[0]
+        output_path = os.path.join(output_path, f"{base_name}.mp4")
 
     cap = cv2.VideoCapture(input_path)
     if not cap.isOpened():
@@ -49,7 +63,7 @@ def resample_video_to_12fps(input_path: str, output_path: str, target_fps: float
     cap.release()
 
     if not all_raw_frames:
-        print("[Warning] Video is empty. Skipping.")
+        print(f"[Warning] Video '{input_path}' is empty. Skipping.")
         return
 
     total_native_frames = len(all_raw_frames)
@@ -113,19 +127,99 @@ def resample_video_to_12fps(input_path: str, output_path: str, target_fps: float
 
     out.release()
 
-    print(f"[Success] 12 FPS MP4 Video saved to: {output_path}")
+    print(f"[Success] {target_fps:.1f} FPS MP4 Video saved to: {output_path}")
     print(f"          Output Frame Count: {len(resampled_frames)} frames ({len(resampled_frames) / target_fps:.2f} seconds)")
 
 
+def collect_input_files(input_patterns: list[str]) -> list[str]:
+    """
+    Expands glob patterns or directory paths into a list of file paths.
+    """
+    matched_files = []
+    for pattern in input_patterns:
+        # If input is an existing directory, search for all files inside it
+        search_pattern = os.path.join(pattern, "*") if os.path.isdir(pattern) else pattern
+
+        glob_matches = glob.glob(search_pattern, recursive=True)
+        if glob_matches:
+            for filepath in sorted(glob_matches):
+                if os.path.isfile(filepath) and filepath not in matched_files:
+                    matched_files.append(filepath)
+        elif os.path.isfile(pattern) and pattern not in matched_files:
+            matched_files.append(pattern)
+        else:
+            print(f"[Warning] No files found for input pattern/path: '{pattern}'")
+
+    return matched_files
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Resample video to 12.0 FPS matching annotator.py logic")
-    parser.add_argument("-i", "--input", required=True, help="Input video file path")
-    parser.add_argument("-o", "--output", required=True, help="Output video file path")
-    parser.add_argument("--fps", type=float, default=12.0, help="Target FPS (default: 12.0)")
+    parser = argparse.ArgumentParser(
+        description="Resample video(s) to 12.0 FPS MP4 format matching annotator.py logic"
+    )
+    parser.add_argument(
+        "-i", "--input",
+        nargs="+",
+        required=True,
+        help="Input video file path(s) or glob pattern(s) (e.g. video.mp4, '*.mp4', 'videos/*', 'v1.mov v2.avi')"
+    )
+    parser.add_argument(
+        "-o", "--output",
+        required=True,
+        help="Output directory path where processed MP4 files will be saved"
+    )
+    parser.add_argument(
+        "--fps",
+        type=float,
+        default=12.0,
+        help="Target FPS (default: 12.0)"
+    )
 
     args = parser.parse_args()
-    resample_video_to_12fps(args.input, args.output, target_fps=args.fps)
+
+    # Expand input patterns/paths
+    input_files = collect_input_files(args.input)
+    if not input_files:
+        print("[Error] No valid input video files found. Exiting.")
+        sys.exit(1)
+
+    output_dir = args.output
+    if os.path.exists(output_dir) and not os.path.isdir(output_dir):
+        print(f"[Error] Output path '{output_dir}' exists but is not a directory.")
+        sys.exit(1)
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    print(f"Found {len(input_files)} video file(s) to process:")
+    for f in input_files:
+        print(f"  - {f}")
+    print(f"Output directory: {output_dir}\n")
+
+    success_count = 0
+    fail_count = 0
+
+    for idx, input_file in enumerate(input_files, start=1):
+        base_name = os.path.splitext(os.path.basename(input_file))[0]
+        out_file_path = os.path.join(output_dir, f"{base_name}.mp4")
+
+        print(f"[{idx}/{len(input_files)}] Processing: {input_file} -> {out_file_path}")
+        try:
+            resample_video_to_12fps(input_file, out_file_path, target_fps=args.fps)
+            success_count += 1
+        except Exception as e:
+            print(f"[Failed] Could not process '{input_file}': {e}")
+            fail_count += 1
+
+    print(f"\n==========================================")
+    print(f"Batch Processing Finished:")
+    print(f"  Success: {success_count}/{len(input_files)}")
+    print(f"  Failed : {fail_count}/{len(input_files)}")
+    print(f"==========================================")
+
+    if success_count == 0:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
     main()
+

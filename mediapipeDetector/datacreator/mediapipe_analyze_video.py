@@ -8,18 +8,23 @@
 # ///
 
 """
-datacreator/analyze_video.py
+datacreator/mediapipe_analyze_video.py
 
 Video analyzer script for 12.0 FPS videos:
-1. Strictly validates that the input video is 12.0 FPS (aborts if not).
-2. Calculates SHA-256 fingerprint hash of the video file.
+1. Validates that input video(s) are 12.0 FPS (skips non-12.0 FPS files).
+2. Calculates SHA-256 fingerprint hash of each video file.
 3. Uses MediaPipe HandLandmarker to extract raw landmarks on every frame.
 4. Uses reusable hand_selection logic (datacreator.hand_selection) prioritizing 'Right' hand over 'Left' hand.
 5. Annotates detected hand label ('Right' / 'Left') and exports frame-by-frame landmarks to a CSV file.
+
+Supports processing single video files, glob patterns (e.g. '*', 'videos/*', '*.mp4'), or directory paths.
+CSV files are saved in the same directory as the source video file (or an optional output directory override)
+and automatically overwrite existing CSV files of the same name.
 """
 
 import argparse
 import csv
+import glob
 import hashlib
 import os
 import sys
@@ -51,6 +56,7 @@ MODEL_URL = ("https://storage.googleapis.com/mediapipe-models/"
 
 TARGET_FPS = 12.0
 FPS_TOLERANCE = 0.5  # Allowed deviation for 12 FPS check (11.5 to 12.5 FPS)
+VIDEO_EXTENSIONS = {".mp4", ".webm", ".avi", ".mov", ".mkv", ".flv", ".wmv", ".m4v", ".ts"}
 
 ALL_21_LANDMARK_NAMES = [
     "wrist",         # 0
@@ -122,16 +128,21 @@ def build_csv_headers() -> list[str]:
     return headers
 
 
-def analyze_video(input_path: str) -> str:
+def analyze_video(input_path: str, output_dir: str | None = None) -> str | None:
     """
     Validates strictly 12.0 FPS, computes SHA-256 hash, runs MediaPipe frame-by-frame
     with Right-hand prioritization, and outputs 100% raw (unfiltered) landmarks CSV
-    with full video metadata in the video's directory. Overwrites the file if it already exists.
+    with full video metadata in the video's directory (or optional output_dir). Overwrites existing CSV files.
+    Returns the output CSV path on success, or None if skipped.
     """
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Input video file not found: {input_path}")
 
-    # 1. Compute SHA-256 Hash and automatic output path in same directory
+    if os.path.getsize(input_path) == 0:
+        print(f"[Warning] Video file '{input_path}' is empty (0 bytes). Skipping.")
+        return None
+
+    # 1. Compute SHA-256 Hash and automatic output path in video's directory (or output_dir)
     video_hash_full = compute_file_hash(input_path)
     video_hash_short = video_hash_full[:16]
     abs_input_path = os.path.abspath(input_path)
@@ -139,7 +150,9 @@ def analyze_video(input_path: str) -> str:
     video_basename = os.path.basename(abs_input_path)
     video_name_no_ext = os.path.splitext(video_basename)[0]
 
-    output_csv_path = os.path.join(video_dir, f"{video_name_no_ext}.raw_landmarks.{video_hash_short}.csv")
+    target_dir = output_dir if output_dir else video_dir
+    os.makedirs(target_dir, exist_ok=True)
+    output_csv_path = os.path.join(target_dir, f"{video_name_no_ext}.raw_landmarks.{video_hash_short}.csv")
 
     print("=== Analyzing Video File ===")
     print(f" Input Video File : {input_path}")
@@ -149,7 +162,8 @@ def analyze_video(input_path: str) -> str:
     # 2. Strict 12.0 FPS Validation
     cap = cv2.VideoCapture(input_path)
     if not cap.isOpened():
-        raise RuntimeError(f"Cannot open video file: {input_path}")
+        print(f"[Warning] Cannot open video file '{input_path}' (file may be corrupted or unsupported format). Skipping.")
+        return None
 
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -166,7 +180,8 @@ def analyze_video(input_path: str) -> str:
     cap.release()
 
     if not all_raw_frames:
-        raise ValueError(f"Video file is empty: {input_path}")
+        print(f"[Warning] Video file '{input_path}' has no readable frames. Skipping.")
+        return None
 
     total_frames = len(all_raw_frames)
     first_msec = all_raw_frames[0][1]
@@ -180,11 +195,11 @@ def analyze_video(input_path: str) -> str:
     print(f" Measured FPS     : {actual_fps:.2f} FPS")
 
     if abs(actual_fps - TARGET_FPS) > FPS_TOLERANCE:
-        msg = (f"[STRICT ERROR] Input video is NOT 12.0 FPS! "
+        msg = (f"[Warning] Input video '{input_path}' is NOT 12.0 FPS! "
                f"Measured FPS: {actual_fps:.2f} (Header: {header_fps:.2f}). "
-               f"Please run 'python3 datacreator/resample_12fps.py -i {input_path} -o <output_path>' first.")
+               f"Skipping. (Please run resample_12fps.py first).")
         print(f"\n{msg}\n")
-        raise ValueError(msg)
+        return None
 
     print(f"[Check Passed] Video is strictly 12.0 FPS (Measured: {actual_fps:.2f} FPS).")
 
@@ -271,15 +286,108 @@ def analyze_video(input_path: str) -> str:
     return output_csv_path
 
 
+def collect_input_files(input_patterns: list[str]) -> list[str]:
+    """
+    Expands glob patterns or directory paths into a list of file paths.
+    Only includes existing non-empty video files.
+    """
+    matched_files = []
+    for pattern in input_patterns:
+        search_pattern = os.path.join(pattern, "*") if os.path.isdir(pattern) else pattern
+        glob_matches = glob.glob(search_pattern, recursive=True)
+        if glob_matches:
+            for filepath in sorted(glob_matches):
+                ext = os.path.splitext(filepath)[1].lower()
+                if os.path.isfile(filepath) and ext in VIDEO_EXTENSIONS and filepath not in matched_files:
+                    matched_files.append(filepath)
+        elif os.path.isfile(pattern) and pattern not in matched_files:
+            ext = os.path.splitext(pattern)[1].lower()
+            if ext in VIDEO_EXTENSIONS or not ext:
+                matched_files.append(pattern)
+        else:
+            print(f"[Warning] No files found for input pattern/path: '{pattern}'")
+
+    return matched_files
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Analyze 12.0 FPS Video & Export Raw Hand Landmarks CSV")
-    parser.add_argument("-i", "--input", required=True, help="Input 12 FPS video file path")
+    parser = argparse.ArgumentParser(
+        description="Analyze 12.0 FPS Video(s) & Export Raw Hand Landmarks CSV"
+    )
+    parser.add_argument(
+        "pos_args",
+        nargs="*",
+        help="Input video file(s), glob pattern(s), or directory path(s)"
+    )
+    parser.add_argument(
+        "-i", "--input",
+        nargs="+",
+        default=None,
+        help="Input video file path(s) or glob pattern(s) (e.g. video.mp4, '*.mp4', 'videos/*')"
+    )
+    parser.add_argument(
+        "-o", "--output",
+        default=None,
+        help="Optional output directory path (defaults to each video's own directory)"
+    )
 
     args = parser.parse_args()
-    try:
-        analyze_video(args.input)
-    except Exception as e:
-        print(f"[Error] {e}")
+
+    input_patterns = []
+    if args.input:
+        input_patterns.extend(args.input)
+    if args.pos_args:
+        input_patterns.extend(args.pos_args)
+
+    if not input_patterns:
+        parser.print_help()
+        sys.exit(1)
+
+    input_files = collect_input_files(input_patterns)
+    if not input_files:
+        print("[Error] No valid input video files found. Exiting.")
+        sys.exit(1)
+
+    output_dir = args.output
+    if output_dir:
+        if os.path.exists(output_dir) and not os.path.isdir(output_dir):
+            print(f"[Error] Output path '{output_dir}' exists but is not a directory.")
+            sys.exit(1)
+        os.makedirs(output_dir, exist_ok=True)
+
+    print(f"Found {len(input_files)} video file(s) to analyze:")
+    for f in input_files:
+        print(f"  - {f}")
+    if output_dir:
+        print(f"Output directory override: {output_dir}")
+    print()
+
+    success_count = 0
+    skipped_count = 0
+    fail_count = 0
+
+    for idx, input_file in enumerate(input_files, start=1):
+        print(f"[{idx}/{len(input_files)}] Analyzing: {input_file}")
+        try:
+            csv_path = analyze_video(input_file, output_dir=output_dir)
+            if csv_path:
+                success_count += 1
+            else:
+                skipped_count += 1
+        except Exception as e:
+            print(f"[Failed] Could not analyze '{input_file}': {e}")
+            fail_count += 1
+        print()
+
+    print("==========================================")
+    print("Batch Analysis Finished:")
+    print(f"  Success: {success_count}/{len(input_files)}")
+    if skipped_count > 0:
+        print(f"  Skipped: {skipped_count}/{len(input_files)}")
+    print(f"  Failed : {fail_count}/{len(input_files)}")
+    print("==========================================")
+
+    if success_count == 0 and fail_count > 0:
         sys.exit(1)
 
 
