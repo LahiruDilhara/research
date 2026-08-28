@@ -8,6 +8,7 @@ mkdir -p dataprocessing/6_merged_windowed_dataset
 mkdir -p dataprocessing/7_dataset_with_velocities
 mkdir -p dataprocessing/8_cleaned_dataset
 mkdir -p dataprocessing/9_per_finger_dataset
+mkdir -p dataprocessing/10_split_touch_dataset
 
 # Copy CSV files to data processing directory
 cp -f -r ./videos/*.raw_landmarks.* dataprocessing/1_rawCSVFiles/
@@ -36,3 +37,6 @@ python3 datacreator/filter_dataset.py -i ./dataprocessing/7_dataset_with_velocit
 
 # Unroll sequence windows into per-finger dataset records (thumb, index, middle, ring, pinky)
 python3 datacreator/split_fingers.py -i ./dataprocessing/8_cleaned_dataset/cleaned_dataset.csv -o ./dataprocessing/9_per_finger_dataset/per_finger_dataset.csv
+
+# Separate per-finger dataset into touch_dataset.csv and untouch_dataset.csv
+python3 datacreator/split_touch.py -i ./dataprocessing/9_per_finger_dataset/per_finger_dataset.csv -o ./dataprocessing/10_split_touch_dataset/
