@@ -129,6 +129,57 @@ def merge_window_csv_files(input_files: list[str], output_csv_path: str) -> str:
         writer.writeheader()
         writer.writerows(combined_rows)
 
+    # ── Compute Analytics Report ──────────────────────────────────────────────
+    total_cnt = len(combined_rows)
+    touch_cnt = 0
+    non_touch_cnt = 0
+    right_cnt = 0
+    left_cnt = 0
+    finger_touch_cnts = {"thumb": 0, "index": 0, "middle": 0, "ring": 0, "pinky": 0}
+
+    def _parse_b(val):
+        return str(val).strip().lower() in ("1", "true", "t", "yes", "y")
+
+    for r in combined_rows:
+        is_touch = _parse_b(r.get("any_touch", "0"))
+        if not is_touch:
+            for fg in ["thumb", "index", "middle", "ring", "pinky"]:
+                if _parse_b(r.get(f"{fg}_touch", "0")):
+                    is_touch = True
+                    break
+
+        if is_touch:
+            touch_cnt += 1
+        else:
+            non_touch_cnt += 1
+
+        is_right = _parse_b(r.get("right_hand", r.get("rightHand", "0")))
+        if is_right:
+            right_cnt += 1
+        else:
+            left_cnt += 1
+
+        for fg in ["thumb", "index", "middle", "ring", "pinky"]:
+            if _parse_b(r.get(f"{fg}_touch", "0")):
+                finger_touch_cnts[fg] += 1
+
+    touch_pct = (touch_cnt / total_cnt * 100.0) if total_cnt > 0 else 0.0
+    non_touch_pct = (non_touch_cnt / total_cnt * 100.0) if total_cnt > 0 else 0.0
+
+    print(f"\n==========================================")
+    print(f"   MERGED WINDOW DATASET ANALYTICS REPORT")
+    print(f"==========================================")
+    print(f"  Files Merged           : {total_files_merged}")
+    print(f"  Total Window Sequence  : {total_cnt} windows")
+    print(f"  Touch Windows (any_touch): {touch_cnt} ({touch_pct:.2f}%)")
+    print(f"  Non-Touch Windows      : {non_touch_cnt} ({non_touch_pct:.2f}%)")
+    print(f"  Handedness Breakdown   : Right: {right_cnt} | Left: {left_cnt}")
+    print(f"  Per-Finger Touches     :")
+    for fg, cnt in finger_touch_cnts.items():
+        fg_pct = (cnt / total_cnt * 100.0) if total_cnt > 0 else 0.0
+        print(f"    - {fg.capitalize():<6} touch       : {cnt} ({fg_pct:.2f}%)")
+    print(f"==========================================\n")
+
     print(f"[Success] Merged {len(combined_rows)} window records into: {output_csv_path}")
     return output_csv_path
 

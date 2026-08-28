@@ -6,6 +6,7 @@ mkdir -p dataprocessing/4_filtered_coordinates_and_annotations
 mkdir -p dataprocessing/5_windowed_dataset
 mkdir -p dataprocessing/6_merged_windowed_dataset
 mkdir -p dataprocessing/7_dataset_with_velocities
+mkdir -p dataprocessing/8_cleaned_dataset
 
 # Copy CSV files to data processing directory
 cp -f -r ./videos/*.raw_landmarks.* dataprocessing/1_rawCSVFiles/
@@ -28,3 +29,6 @@ python3 datacreator/merge_windows.py -i ./dataprocessing/5_windowed_dataset/ -o 
 
 # Calculate 4-step velocities (vx, vy) & 2D speeds sqrt(vx^2 + vy^2) for all landmarks
 python3 datacreator/calculate_velocities.py -i ./dataprocessing/6_merged_windowed_dataset/all_windowed_dataset.csv -o ./dataprocessing/7_dataset_with_velocities/all_windowed_dataset_velocities.csv
+
+# Filter and clean windowed dataset based on configurable flags
+python3 datacreator/filter_dataset.py -i ./dataprocessing/7_dataset_with_velocities/all_windowed_dataset_velocities.csv -o ./dataprocessing/8_cleaned_dataset/cleaned_dataset.csv --remove-zero-vel-touch --remove-out-of-sync --remove-hand-invisible
