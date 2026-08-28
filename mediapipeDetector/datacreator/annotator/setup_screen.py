@@ -115,15 +115,18 @@ class SetupScreen(ctk.CTkFrame):
 
     def _browse_video(self):
         from datacreator.annotator.utils import open_video_dialog
-        p = open_video_dialog()
+        current_val = self.video_path_var.get().strip()
+        p = open_video_dialog(initial_path=current_val)
         if p:
             self.video_path_var.set(p)
 
     def _browse_csv(self):
         from datacreator.annotator.utils import open_csv_dialog
-        p = open_csv_dialog()
+        current_val = self.csv_path_var.get().strip() or self.video_path_var.get().strip()
+        p = open_csv_dialog(initial_path=current_val)
         if p:
             self.csv_path_var.set(p)
+
 
     def _on_start_click(self):
         v_path = self.video_path_var.get().strip()
