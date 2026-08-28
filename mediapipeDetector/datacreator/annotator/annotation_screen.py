@@ -150,10 +150,12 @@ class AnnotationScreen(ctk.CTkFrame):
         # Video Display Canvas / Label
         self.video_label = ctk.CTkLabel(left_col, text="Loading Video...", text_color=TXT_MUT)
         self.video_label.pack(fill="both", expand=True, padx=12, pady=12)
+        self.video_label.bind("<Configure>", self._on_video_label_resize)
 
         # Subframe & Playback Control Bar
         subframe_bar = ctk.CTkFrame(left_col, fg_color="transparent")
         subframe_bar.pack(fill="x", padx=12, pady=(0, 6))
+
 
         self.btn_prev_frame = ctk.CTkButton(
             subframe_bar, text="Step ◄ (Left / ,)", width=140, height=30, fg_color=BTN_GHO, hover_color=BTN_GHH,
@@ -313,7 +315,19 @@ class AnnotationScreen(ctk.CTkFrame):
         )
         self.lbl_metadata.pack(fill="both", expand=True, padx=16, pady=(0, 12))
 
+    def _on_video_label_resize(self, event):
+        if event.width < 50 or event.height < 50:
+            return
+        prev_w = getattr(self, "_cached_label_w", 0)
+        prev_h = getattr(self, "_cached_label_h", 0)
+        if abs(event.width - prev_w) > 20 or abs(event.height - prev_h) > 20:
+            self._cached_label_w = event.width
+            self._cached_label_h = event.height
+            if hasattr(self, "csv_mgr") and self.csv_mgr and hasattr(self, "slider_window"):
+                self.show_window(self.current_window_idx, self.current_subframe_offset)
+
     def _on_speed_changed(self, val):
+
         if hasattr(self, "lbl_speed_val"):
             self.lbl_speed_val.configure(text=f"{int(float(val))} FPS")
 
@@ -455,7 +469,22 @@ class AnnotationScreen(ctk.CTkFrame):
         # Convert to PIL Image for CustomTkinter Display
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         pil_img = Image.fromarray(rgb)
-        ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(640, 480))
+
+        # Calculate dynamic aspect-ratio-preserved display size based on video_label container bounds
+        frame_h, frame_w = frame.shape[:2]
+        container_w = self.video_label.winfo_width()
+        container_h = self.video_label.winfo_height()
+
+        if container_w <= 50 or container_h <= 50:
+            container_w = getattr(self, "_cached_label_w", 800)
+            container_h = getattr(self, "_cached_label_h", 600)
+
+        scale = min(container_w / frame_w, container_h / frame_h)
+        display_w = max(1, int(frame_w * scale))
+        display_h = max(1, int(frame_h * scale))
+
+        ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(display_w, display_h))
+
 
         self.video_label.configure(image=ctk_img, text="")
         self.slider_window.set(window_idx)
