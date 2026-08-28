@@ -7,6 +7,7 @@ mkdir -p dataprocessing/5_windowed_dataset
 mkdir -p dataprocessing/6_merged_windowed_dataset
 mkdir -p dataprocessing/7_dataset_with_velocities
 mkdir -p dataprocessing/8_cleaned_dataset
+mkdir -p dataprocessing/9_per_finger_dataset
 
 # Copy CSV files to data processing directory
 cp -f -r ./videos/*.raw_landmarks.* dataprocessing/1_rawCSVFiles/
@@ -32,3 +33,6 @@ python3 datacreator/calculate_velocities.py -i ./dataprocessing/6_merged_windowe
 
 # Filter and clean windowed dataset based on configurable flags
 python3 datacreator/filter_dataset.py -i ./dataprocessing/7_dataset_with_velocities/all_windowed_dataset_velocities.csv -o ./dataprocessing/8_cleaned_dataset/cleaned_dataset.csv --remove-zero-vel-touch --remove-out-of-sync --remove-hand-invisible
+
+# Unroll sequence windows into per-finger dataset records (thumb, index, middle, ring, pinky)
+python3 datacreator/split_fingers.py -i ./dataprocessing/8_cleaned_dataset/cleaned_dataset.csv -o ./dataprocessing/9_per_finger_dataset/per_finger_dataset.csv
