@@ -79,3 +79,5 @@ Thumbs.db
 *.bak
 *.mp4
 *.webm
+
+dataprocessing/

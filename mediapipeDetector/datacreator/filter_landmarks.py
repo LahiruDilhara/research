@@ -12,12 +12,17 @@ Landmark noise filtering script for 12 FPS raw MediaPipe landmark CSVs.
 Applies temporal One Euro (1€) filtering across all 21 hand joint coordinates (x, y)
 over the entire video stream to remove jitter while preserving fast motion.
 
-Saves output CSV to <video_name>.filtered_landmarks.<hash>.csv in the same location as input video/CSV.
-Overrides file if it already exists.
+Supports processing single CSV files, glob wildcard patterns (e.g. '*', '*.raw_landmarks.*', 'videos/*.csv'),
+or directory paths. Saves filtered CSV files to a specified output directory or beside the source CSV.
+Overrides/prunes target file if it already exists.
+
+Preserves all metadata columns (video_file, video_hash, video_width, video_height, video_fps,
+total_video_frames, video_duration_sec, frame_idx, timestamp_ms, hand) unchanged.
 """
 
 import argparse
 import csv
+import glob
 import math
 import os
 import sys
@@ -132,6 +137,8 @@ def get_default_output_path(raw_csv_path: str) -> str:
 
     if ".raw_landmarks." in base_name:
         out_name = base_name.replace(".raw_landmarks.", ".filtered_landmarks.")
+    elif ".normalize_landmarks." in base_name:
+        out_name = base_name.replace(".normalize_landmarks.", ".filtered_landmarks.")
     else:
         name_no_ext = os.path.splitext(base_name)[0]
         out_name = f"{name_no_ext}.filtered_landmarks.csv"
@@ -147,7 +154,8 @@ def filter_raw_landmarks_csv(
     d_cutoff: float = FILTER_D_CUTOFF
 ) -> str:
     """
-    Reads raw landmarks CSV, applies One Euro filter across video frames, and writes filtered CSV.
+    Reads raw landmarks CSV, applies One Euro filter continuously across video frame timestamps,
+    and writes filtered CSV while keeping metadata columns intact. Overwrites existing destination files.
     """
     if not os.path.exists(input_csv):
         raise FileNotFoundError(f"Input CSV file not found: {input_csv}")
@@ -167,6 +175,7 @@ def filter_raw_landmarks_csv(
 
     hand_filter = LandmarkEuroFilter(min_cutoff=min_cutoff, beta=beta, d_cutoff=d_cutoff)
     filtered_rows = []
+    prev_hand_type = None
 
     for row_idx, row in enumerate(raw_rows):
         out_row = dict(row)
@@ -174,10 +183,11 @@ def filter_raw_landmarks_csv(
         t_sec = t_ms / 1000.0
         hand_type = row.get("hand", "None")
 
-        if hand_type == "None":
-            # Hand missing in this frame: reset filter state
+        # Reset 1€ filter state if hand is missing ("None") OR if hand label switched (e.g. Left -> Right or Right -> Left)
+        if hand_type == "None" or (prev_hand_type is not None and hand_type != prev_hand_type):
             hand_filter.reset()
-        else:
+
+        if hand_type != "None":
             for lm_name in ALL_21_LANDMARK_NAMES:
                 x_col = f"{lm_name}_x"
                 y_col = f"{lm_name}_y"
@@ -192,10 +202,20 @@ def filter_raw_landmarks_csv(
                 out_row[x_col] = f"{fx:.6f}"
                 out_row[y_col] = f"{fy:.6f}"
 
+        prev_hand_type = hand_type
         filtered_rows.append(out_row)
 
     print(f"[3/3] Saving filtered landmarks to: {output_csv}")
     os.makedirs(os.path.dirname(os.path.abspath(output_csv)), exist_ok=True)
+
+    if os.path.exists(output_csv):
+        print(f"[Info] Overwriting existing file: {output_csv}")
+        try:
+            os.remove(output_csv)
+        except OSError as e:
+            print(f"[Warning] Could not remove existing file '{output_csv}': {e}")
+
+    # Truncate / overwrite target file if it exists
     with open(output_csv, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=headers)
         writer.writeheader()
@@ -205,13 +225,68 @@ def filter_raw_landmarks_csv(
     return output_csv
 
 
+def collect_input_files(input_patterns: list[str]) -> list[str]:
+    """
+    Expands glob patterns, directory paths, or file lists into a list of landmark CSV file paths.
+    Filters out already-filtered landmark files (.filtered_landmarks.) unless explicitly matched.
+    """
+    matched_files = []
+    for pattern in input_patterns:
+        search_pattern = os.path.join(pattern, "*.csv") if os.path.isdir(pattern) else pattern
+        glob_matches = glob.glob(search_pattern, recursive=True)
+        if glob_matches:
+            for filepath in sorted(glob_matches):
+                if os.path.isfile(filepath) and filepath.endswith(".csv"):
+                    if ".filtered_landmarks." in filepath and ".filtered_landmarks." not in pattern:
+                        continue
+                    if filepath not in matched_files:
+                        matched_files.append(filepath)
+        elif os.path.isfile(pattern) and pattern not in matched_files:
+            matched_files.append(pattern)
+        else:
+            print(f"[Warning] No files found matching input pattern/path: '{pattern}'")
+
+    return matched_files
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Applies 1€ temporal filter to raw MediaPipe hand landmark CSV")
-    parser.add_argument("-i", "--input", required=True, help="Path to raw landmarks CSV file")
-    parser.add_argument("-o", "--output", default="", help="Optional output filtered CSV path")
-    parser.add_argument("-min", "--min-cutoff", "--min_cutoff", type=float, default=None, help=f"1€ Filter min_cutoff in Hz (default: {FILTER_MIN_CUTOFF})")
-    parser.add_argument("-beta", "--beta", type=float, default=None, help=f"1€ Filter beta parameter (default: {FILTER_BETA})")
-    parser.add_argument("-d", "-dcutoff", "--d-cutoff", "--d_cutoff", type=float, default=None, help=f"1€ Filter derivative cutoff frequency (d_cutoff) in Hz (default: {FILTER_D_CUTOFF})")
+    parser = argparse.ArgumentParser(
+        description="Applies 1€ temporal filter to raw MediaPipe hand landmark CSV(s)"
+    )
+    parser.add_argument(
+        "pos_args",
+        nargs="*",
+        help="Input CSV file(s), glob pattern(s), or output directory"
+    )
+    parser.add_argument(
+        "-i", "--input",
+        nargs="+",
+        default=None,
+        help="Input CSV file path(s) or glob pattern(s) (e.g. '*.raw_landmarks.*.csv', 'videos/')"
+    )
+    parser.add_argument(
+        "-o", "--output",
+        default=None,
+        help="Output directory path (or output file path for single input)"
+    )
+    parser.add_argument(
+        "-min", "--min-cutoff", "--min_cutoff",
+        type=float,
+        default=None,
+        help=f"1€ Filter min_cutoff in Hz (default: {FILTER_MIN_CUTOFF})"
+    )
+    parser.add_argument(
+        "-beta", "--beta",
+        type=float,
+        default=None,
+        help=f"1€ Filter beta parameter (default: {FILTER_BETA})"
+    )
+    parser.add_argument(
+        "-d", "-dcutoff", "--d-cutoff", "--d_cutoff",
+        type=float,
+        default=None,
+        help=f"1€ Filter derivative cutoff frequency (d_cutoff) in Hz (default: {FILTER_D_CUTOFF})"
+    )
 
     args = parser.parse_args()
 
@@ -219,16 +294,89 @@ def main():
     beta = args.beta if args.beta is not None else FILTER_BETA
     d_cutoff = args.d_cutoff if args.d_cutoff is not None else FILTER_D_CUTOFF
 
-    try:
-        filter_raw_landmarks_csv(
-            input_csv=args.input,
-            output_csv=args.output,
-            min_cutoff=min_cutoff,
-            beta=beta,
-            d_cutoff=d_cutoff
-        )
-    except Exception as e:
-        print(f"[Error] {e}")
+    input_patterns = []
+    output_target = None
+
+    if args.output:
+        output_target = args.output
+        if args.input:
+            input_patterns = args.input
+        elif args.pos_args:
+            input_patterns = args.pos_args
+    else:
+        combined = []
+        if args.input:
+            combined.extend(args.input)
+        if args.pos_args:
+            combined.extend(args.pos_args)
+
+        if len(combined) >= 2:
+            output_target = combined[-1]
+            input_patterns = combined[:-1]
+        elif len(combined) == 1:
+            input_patterns = combined
+            output_target = None
+        else:
+            parser.print_help()
+            sys.exit(1)
+
+    input_files = collect_input_files(input_patterns)
+    if not input_files:
+        print("[Error] No valid input CSV files found. Exiting.")
+        sys.exit(1)
+
+    print(f"Found {len(input_files)} CSV file(s) to process:")
+    for f in input_files:
+        print(f"  - {f}")
+    print(f"Using 1€ Filter parameters: min_cutoff={min_cutoff}, beta={beta}, d_cutoff={d_cutoff}\n")
+
+    success_count = 0
+    fail_count = 0
+
+    for idx, input_file in enumerate(input_files, start=1):
+        print(f"[{idx}/{len(input_files)}] Filtering landmarks: {input_file}")
+        try:
+            out_file_path = None
+            if output_target:
+                if os.path.isdir(output_target) or output_target.endswith(os.sep) or output_target.endswith("/"):
+                    os.makedirs(output_target, exist_ok=True)
+                    base_name = os.path.basename(input_file)
+                    if ".raw_landmarks." in base_name:
+                        out_name = base_name.replace(".raw_landmarks.", ".filtered_landmarks.")
+                    elif ".normalize_landmarks." in base_name:
+                        out_name = base_name.replace(".normalize_landmarks.", ".filtered_landmarks.")
+                    else:
+                        name_no_ext = os.path.splitext(base_name)[0]
+                        out_name = f"{name_no_ext}.filtered_landmarks.csv"
+                    out_file_path = os.path.join(output_target, out_name)
+                elif len(input_files) == 1:
+                    out_file_path = output_target
+                else:
+                    os.makedirs(output_target, exist_ok=True)
+                    out_file_path = os.path.join(output_target, os.path.basename(get_default_output_path(input_file)))
+            else:
+                out_file_path = get_default_output_path(input_file)
+
+            filter_raw_landmarks_csv(
+                input_csv=input_file,
+                output_csv=out_file_path,
+                min_cutoff=min_cutoff,
+                beta=beta,
+                d_cutoff=d_cutoff
+            )
+            success_count += 1
+        except Exception as e:
+            print(f"[Failed] Could not filter '{input_file}': {e}")
+            fail_count += 1
+        print()
+
+    print("==========================================")
+    print("Batch Landmark Filtering Finished:")
+    print(f"  Success: {success_count}/{len(input_files)}")
+    print(f"  Failed : {fail_count}/{len(input_files)}")
+    print("==========================================")
+
+    if success_count == 0 and fail_count > 0:
         sys.exit(1)
 
 
