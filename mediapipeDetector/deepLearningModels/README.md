@@ -96,6 +96,11 @@ The suite benchmark 10 model variants:
   - **Accuracy Curve**: 🟢 Green (Train Acc %) vs. 🟡 Yellow (Test Acc %)
 - **Log Files**: Full stdout logs for each model are saved under `deepLearningModels/results/<arch_name>.log`.
 - **CSV Results**: Summary metric CSVs are generated in `deepLearningModels/results/`.
+- **Overfitting & Underfitting Analytics**: Right after training each model, real-time analytics are computed and printed:
+  - **Diagnosis Status**: Automatically classifies training as `OVERFITTING (Severe/Moderate/Mild)`, `UNDERFITTING (High)`, or `GOOD FIT (OPTIMAL)`.
+  - **Overfit Onset Epoch**: Exact epoch where test loss minimum was reached before rising or where generalization gap started widening.
+  - **Accuracy Gap Scale (`max_gap_pct`)**: Maximum percentage difference between Train Acc and Test Acc (`+X.XX%`).
+  - **Actionable Recommendation**: Suggests early stopping epoch, dropout increase, or capacity adjustments.
 - **Single-Line Master Experiment Log**: Appends **exactly one single line** to `deepLearningModels/results/experiment_history.log` on every benchmark execution detailing:
   - **Timestamp**: Execution date and time.
   - **All Model Performance**: Best accuracy, F1-score, precision, recall, and training duration for **every** model.

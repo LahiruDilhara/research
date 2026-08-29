@@ -120,6 +120,106 @@ def plot_matplotlib_curves(history: dict, title: str = "", save_path: Path = Non
     plt.close(fig)
 
 
+def analyze_fit_quality(history: dict) -> dict:
+    """Analyzes training history to detect Overfitting, Underfitting, or Good Fit,
+    determining the onset epoch and overfitting gap percentage scale.
+    """
+    tr_loss = history.get("train_loss", [])
+    te_loss = history.get("test_loss", [])
+    tr_acc  = history.get("train_acc", [])
+    te_acc  = history.get("test_acc", [])
+
+    if not tr_loss or not te_loss or not tr_acc or not te_acc:
+        return {
+            "fit_status": "UNKNOWN",
+            "fit_scale": "N/A",
+            "onset_epoch": 0,
+            "max_gap_pct": 0.0,
+            "final_gap_pct": 0.0,
+            "min_loss_epoch": 0,
+            "recommendation": "N/A",
+        }
+
+    n_epochs = len(tr_loss)
+    min_te_loss_idx = int(np.argmin(te_loss))
+    min_te_loss_epoch = min_te_loss_idx + 1
+
+    gaps = [tr - te for tr, te in zip(tr_acc, te_acc)]
+    max_gap_pct   = max(gaps)
+    final_gap_pct = gaps[-1]
+    best_te_acc   = max(te_acc)
+
+    loss_increase_after_min = te_loss[-1] - te_loss[min_te_loss_idx] if min_te_loss_idx < n_epochs - 1 else 0.0
+
+    if best_te_acc < 70.0 or (tr_acc[-1] < 72.0 and te_acc[-1] < 72.0):
+        status = "UNDERFITTING"
+        scale = "High"
+        onset_epoch = 1
+        recommendation = "Increase model capacity (units/layers) or reduce regularization."
+
+    elif max_gap_pct > 5.0 or loss_increase_after_min > 0.03 or (min_te_loss_epoch < n_epochs - 3 and gaps[-1] > 4.0):
+        status = "OVERFITTING"
+        onset_epoch = min_te_loss_epoch
+        for ep_idx in range(min_te_loss_idx, n_epochs):
+            if gaps[ep_idx] > 4.0 or te_loss[ep_idx] > te_loss[min_te_loss_idx] + 0.015:
+                onset_epoch = ep_idx + 1
+                break
+
+        if max_gap_pct >= 12.0:
+            scale = "Severe"
+        elif max_gap_pct >= 7.0:
+            scale = "Moderate"
+        else:
+            scale = "Mild"
+
+        recommendation = f"Increase dropout (gap: +{max_gap_pct:.1f}%), stop early at epoch {min_te_loss_epoch}, or add weight decay."
+
+    else:
+        status = "GOOD FIT (OPTIMAL)"
+        scale = "None"
+        onset_epoch = min_te_loss_epoch
+        recommendation = "Model generalization is well-balanced."
+
+    return {
+        "fit_status": status,
+        "fit_scale": scale,
+        "onset_epoch": onset_epoch,
+        "max_gap_pct": round(max_gap_pct, 2),
+        "final_gap_pct": round(final_gap_pct, 2),
+        "min_loss_epoch": min_te_loss_epoch,
+        "recommendation": recommendation,
+    }
+
+
+def print_overfit_analytics(analytics: dict, title: str = ""):
+    """Prints overfitting/underfitting diagnostic report to standard output."""
+    status   = analytics["fit_status"]
+    scale    = analytics["fit_scale"]
+    onset    = analytics["onset_epoch"]
+    max_gap  = analytics["max_gap_pct"]
+    final_gap= analytics["final_gap_pct"]
+    min_ep   = analytics["min_loss_epoch"]
+    rec      = analytics["recommendation"]
+
+    print(f"\n{'='*70}", flush=True)
+    print(f"  {title} — OVERFITTING & DIAGNOSTIC ANALYTICS", flush=True)
+    print(f"{'='*70}", flush=True)
+
+    if status == "OVERFITTING":
+        tag = f"⚠️  OVERFITTING ({scale})"
+    elif status == "UNDERFITTING":
+        tag = f"⚠️  UNDERFITTING ({scale})"
+    else:
+        tag = f"✅  GOOD FIT (OPTIMAL)"
+
+    print(f"  Diagnosis Status:  {tag}", flush=True)
+    print(f"  Overfit Onset:     Epoch {onset} (Test loss minimum at epoch {min_ep})", flush=True)
+    print(f"  Max Acc Gap:       +{max_gap:.2f}% (Train Acc - Test Acc)", flush=True)
+    print(f"  Final Acc Gap:     +{final_gap:.2f}% (Train Acc - Test Acc)", flush=True)
+    print(f"  Recommendation:    {rec}", flush=True)
+    print(f"{'='*70}\n", flush=True)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  Dataset
 # ─────────────────────────────────────────────────────────────────────────────

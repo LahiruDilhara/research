@@ -31,6 +31,7 @@ EXPERIMENT_LOG = RESULTS_DIR / "experiment_history.log"
 DISPLAY_COLS = [
     "rank", "arch", "config_id",
     "best_test_acc", "f1_touch", "precision_touch", "recall_touch",
+    "fit_status", "onset_epoch", "max_gap_pct",
     "train_time_s",
 ]
 
@@ -138,10 +139,12 @@ def print_per_arch_best(df: pd.DataFrame):
         cid  = int(best.get("config_id", 0))
         acc  = _get_acc_pct(best["best_test_acc_raw"])
         f1   = float(best.get("f1_touch", 0))
+        fit  = best.get("fit_status", "N/A")
+        ep   = best.get("onset_epoch", "?")
 
         param_keys = PARAM_COLS_PER_ARCH.get(arch, [])
         params = "  ".join(f"{k}={best[k]}" for k in param_keys if k in best)
-        print(f"  {arch:22s}  cfg{cid:02d}  Acc={acc:6.2f}%  F1={f1:.4f}  |  {params}")
+        print(f"  {arch:22s}  cfg{cid:02d}  Acc={acc:6.2f}%  F1={f1:.4f}  |  Fit={fit} (Onset: Ep {ep})  |  {params}")
     print(f"{DASH}")
 
 

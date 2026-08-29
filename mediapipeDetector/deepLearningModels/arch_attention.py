@@ -18,7 +18,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from model_arch import (
     TouchAttentionNet, normalize, make_loaders, train_config,
     evaluate_model, save_result, get_data_paths, parse_labels,
-    print_terminal_curves, save_history, plot_matplotlib_curves
+    print_terminal_curves, save_history, plot_matplotlib_curves,
+    analyze_fit_quality, print_overfit_analytics
 )
 
 BASE        = Path(__file__).resolve().parent.parent
@@ -118,6 +119,8 @@ def main():
         elapsed                   = time.time() - t0
 
         print_terminal_curves(hist, title=ARCH_NAME)
+        analytics = analyze_fit_quality(hist)
+        print_overfit_analytics(analytics, title=ARCH_NAME)
 
         history_path = Path(__file__).resolve().parent / "results" / f"{ARCH_NAME.lower()}_history.json"
         save_history(hist, history_path)
@@ -144,6 +147,9 @@ def main():
             "precision_touch":  round(rpt["Touch"]["precision"], 4),
             "recall_touch":     round(rpt["Touch"]["recall"], 4),
             "f1_touch":         round(rpt["Touch"]["f1-score"], 4),
+            "fit_status":       f"{analytics['fit_status']} ({analytics['fit_scale']})" if analytics['fit_scale'] != "None" else analytics['fit_status'],
+            "onset_epoch":      analytics["onset_epoch"],
+            "max_gap_pct":      analytics["max_gap_pct"],
             "train_time_s":     round(elapsed, 1),
             "weight_file":      wf.name,
         }
