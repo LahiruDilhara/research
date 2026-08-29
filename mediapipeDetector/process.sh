@@ -46,7 +46,7 @@ python3 datacreator/split_fingers.py -i ./dataprocessing/8_cleaned_dataset/clean
 python3 datacreator/split_touch.py -i ./dataprocessing/9_per_finger_dataset/per_finger_dataset.csv -o ./dataprocessing/10_split_touch_dataset/
 
 # Create balanced training and testing datasets
-python3 datacreator/create_train_test_split.py --touch-in ./dataprocessing/10_split_touch_dataset/touch_dataset.csv --untouch-in ./dataprocessing/10_split_touch_dataset/untouch_dataset.csv --train-out ./dataprocessing/11_train_test_split/training_dataset.csv --test-out ./dataprocessing/11_train_test_split/testing_dataset.csv --touch-test-pct 15 --untouch-train-ratio-pct 100 --untouch-test-ratio-pct 100 --seed 50 --no-video-leak
+python3 datacreator/create_train_test_split.py --touch-in ./dataprocessing/10_split_touch_dataset/touch_dataset.csv --untouch-in ./dataprocessing/10_split_touch_dataset/untouch_dataset.csv --train-out ./dataprocessing/11_train_test_split/training_dataset.csv --test-out ./dataprocessing/11_train_test_split/testing_dataset.csv --touch-test-pct 20 --untouch-train-ratio-pct 125 --untouch-test-ratio-pct 100 --seed 50 --no-video-leak
 
 # Copy training and testing data to root
 mkdir training_testing_data

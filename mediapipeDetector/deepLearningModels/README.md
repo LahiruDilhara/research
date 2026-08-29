@@ -18,35 +18,39 @@ python3 deepLearningModels/run_all.py
 
 `run_all.py` and all individual architecture scripts (`arch_*.py`) support command-line parameter overrides. When passed to `run_all.py`, the flags apply to **all internal models**. If omitted, each model uses its tuned default values.
 
-| Flag           | Short Flag |  Type   | Default | Description                                                              |
-| :------------- | :--------: | :-----: | :-----: | :----------------------------------------------------------------------- |
-| `--epochs`     |    `-e`    |  `int`  |  `70`   | Number of training epochs per configuration                              |
-| `--dropout`    |    `-d`    | `float` | `0.20`  | Dropout probability applied across layers                                |
-| `--lr`         |            | `float` | `0.001` | Adam optimizer learning rate                                             |
-| `--batch-size` |   `-bs`    |  `int`  |  `32`   | Training and evaluation batch size                                       |
-| `--hidden`     |            |  `int`  |  `32`   | Hidden dimension / channels (LSTM units, CNN channels, ResNet dim, etc.) |
+| Flag           | Short Flag            |  Type   | Default    | Description                                                              |
+| :------------- | :-------------------- | :-----: | :--------- | :----------------------------------------------------------------------- |
+| `--epochs`     | `-e`                  | `int`   | `70`       | Number of training epochs per configuration                              |
+| `--dropout`    | `-d`                  | `float` | `0.20`     | Dropout probability applied across layers                                |
+| `--lr`         |                       | `float` | `0.001`    | Adam optimizer learning rate                                             |
+| `--batch-size` | `-bs`                 | `int`   | `32`       | Training and evaluation batch size                                       |
+| `--hidden`     |                       | `int`   | `32`       | Hidden dimension / channels (LSTM units, CNN channels, ResNet dim, etc.) |
+| `--plot`       | `-p`, `--plot-curves` | `flag`  | `Disabled` | Generates Matplotlib publication-quality Loss & Acc plot PNGs for each model and a master comparison grid |
 
 ---
 
 ## 💡 Usage Examples
 
-### 1. Override Epochs and Dropout for All Models
-
-Run all benchmark models for 50 epochs with a 0.30 dropout rate:
-
-```bash
-python3 deepLearningModels/run_all.py --epochs 50 --dropout 0.30
-```
-
-### 2. Override Learning Rate and Batch Size
-
-Train all models with a smaller learning rate (`0.0005`) and larger batch size (`64`):
+### 1. Generate Matplotlib Curve Plots for All Models
+Run all benchmark models and generate Jupyter-notebook style Matplotlib Loss & Accuracy curve PNGs (`results/plots/<arch_name>.png` and `results/plots/all_models_curves_grid.png`):
 
 ```bash
-python3 deepLearningModels/run_all.py --lr 0.0005 -bs 64
+python3 deepLearningModels/run_all.py --plot
 ```
 
-### 3. Override All Parameters Simultaneously
+### 2. Combine Parameter Overrides with Matplotlib Plotting
+Run for 50 epochs with 0.25 dropout and generate plots:
+
+```bash
+python3 deepLearningModels/run_all.py --epochs 50 --dropout 0.25 --plot
+```
+
+### 3. Generate Plot for a Single Model Script
+```bash
+python3 deepLearningModels/arch_lstm_velocities.py --epochs 50 --plot
+```
+
+### 4. Override All Parameters Simultaneously
 
 Customize epochs, dropout, learning rate, batch size, and hidden dimension across all models:
 
@@ -86,7 +90,15 @@ The suite benchmark 10 model variants:
 
 ## 📊 Benchmark Output & Reports
 
-- **Console Stream**: Unbuffered real-time loss and accuracy printed for every single training epoch (`Epoch: 01`, `Epoch: 02`, ...).
+- **Real-Time Epoch Progress**: Unbuffered live loss and accuracy printed for every single epoch (`Epoch: 01`, `Epoch: 02`, ...).
+- **Terminal Loss & Accuracy Curves**: Renders ASCII line graphs using `asciichartpy` immediately after training each model:
+  - **Loss Curve**: 🔴 Red (Train Loss) vs. 🔵 Cyan (Test Loss)
+  - **Accuracy Curve**: 🟢 Green (Train Acc %) vs. 🟡 Yellow (Test Acc %)
 - **Log Files**: Full stdout logs for each model are saved under `deepLearningModels/results/<arch_name>.log`.
 - **CSV Results**: Summary metric CSVs are generated in `deepLearningModels/results/`.
-- **Ranked Summary**: `compare_results.py` automatically generates a ranked summary table (`deepLearningModels/results/summary_all.csv`) sorting models by test accuracy, touch F1-score, precision, recall, and training time.
+- **Single-Line Master Experiment Log**: Appends **exactly one single line** to `deepLearningModels/results/experiment_history.log` on every benchmark execution detailing:
+  - **Timestamp**: Execution date and time.
+  - **All Model Performance**: Best accuracy, F1-score, precision, recall, and training duration for **every** model.
+  - **All Model Hyperparameters**: Epochs, dropout, learning rate, batch size, and hidden units per model.
+  - **Dataset Statistics**: Training samples count (`train_len`), testing samples count (`test_len`), and touch target class distribution.
+  - **Pipeline Parameters (`process.sh`)**: Preserves all data processing parameters and execution flags line-by-line (e.g. 1Euro filter `min`/`beta`/`d`, window split, dataset cleaning flags, train/test split percentages, seed, `no-video-leak`).

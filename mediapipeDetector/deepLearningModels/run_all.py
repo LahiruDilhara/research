@@ -63,6 +63,7 @@ def parse_args():
     parser.add_argument("--lr", type=float, default=None, help="Override default learning rate for all models")
     parser.add_argument("--batch-size", "-bs", type=int, default=None, help="Override default batch size for all models")
     parser.add_argument("--hidden", type=int, default=None, help="Override default hidden dimension for all models")
+    parser.add_argument("--plot", "-p", "--plot-curves", dest="plot", action="store_true", help="Generate Jupyter notebook style Matplotlib Loss & Accuracy curve plots")
     return parser.parse_args()
 
 
@@ -93,6 +94,8 @@ def main():
         extra_flags.extend(["--batch-size", str(cli_args.batch_size)])
     if cli_args.hidden is not None:
         extra_flags.extend(["--hidden", str(cli_args.hidden)])
+    if cli_args.plot:
+        extra_flags.append("--plot")
 
     bar = "=" * 70
     print(f"\n{bar}")
@@ -155,8 +158,12 @@ def main():
     print(f"{bar}\n")
 
     print("  Generating results comparison report...\n")
+    compare_cmd = [python, str(base / "compare_results.py")]
+    if cli_args.plot:
+        compare_cmd.append("--plot")
+
     result = subprocess.run(
-        [python, str(base / "compare_results.py")],
+        compare_cmd,
         cwd=str(base.parent),
     )
 

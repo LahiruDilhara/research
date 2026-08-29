@@ -1,2 +1,2 @@
 arch,config_id,embed_dim,num_heads,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,train_time_s,weight_file
-Attention,1,32,4,0.2,0.001,32,86.6366,86.4865,0.8423,0.8979,0.8692,2.7,Attention_cfg01.pth
+Attention,1,32,4,0.0,0.001,32,87.5,86.875,0.8624,0.8775,0.8699,13.7,Attention_cfg01.pth

@@ -21,6 +21,104 @@ from torch.utils.data import DataLoader, Dataset
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.preprocessing import StandardScaler
 
+try:
+    import asciichartpy as ac
+    HAS_ASCIICHART = True
+except ImportError:
+    HAS_ASCIICHART = False
+
+
+def print_terminal_curves(history: dict, title: str = ""):
+    """Prints terminal-rendered ASCII charts for Loss and Accuracy curves."""
+    if not HAS_ASCIICHART:
+        return
+
+    tr_loss = history.get("train_loss", [])
+    te_loss = history.get("test_loss", [])
+    tr_acc  = history.get("train_acc", [])
+    te_acc  = history.get("test_acc", [])
+
+    if not tr_loss or not te_loss or not tr_acc or not te_acc:
+        return
+
+    print(f"\n{'='*70}", flush=True)
+    print(f"  {title} — TRAINING & EVALUATION CURVES", flush=True)
+    print(f"{'='*70}", flush=True)
+
+    # Loss Curve
+    print("\n  [LOSS CURVE]  🔴 Red: Train Loss | 🔵 Cyan: Test Loss", flush=True)
+    loss_chart = ac.plot([tr_loss, te_loss], {'height': 8, 'colors': [ac.red, ac.cyan]})
+    for line in loss_chart.split("\n"):
+        print("   " + line, flush=True)
+
+    # Accuracy Curve
+    print("\n  [ACCURACY CURVE %]  🟢 Green: Train Acc | 🟡 Yellow: Test Acc", flush=True)
+    acc_chart = ac.plot([tr_acc, te_acc], {'height': 8, 'colors': [ac.green, ac.yellow]})
+    for line in acc_chart.split("\n"):
+        print("   " + line, flush=True)
+
+    print(f"{'='*70}\n", flush=True)
+
+
+def save_history(history: dict, json_path: Path):
+    """Saves training history dictionary to JSON."""
+    import json
+    json_path = Path(json_path)
+    json_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(json_path, "w") as f:
+        json.dump(history, f, indent=2)
+
+
+def plot_matplotlib_curves(history: dict, title: str = "", save_path: Path = None, show: bool = False):
+    """Generates publication-quality Jupyter notebook style Matplotlib plots for Loss and Accuracy curves."""
+    import matplotlib.pyplot as plt
+
+    tr_loss = history.get("train_loss", [])
+    te_loss = history.get("test_loss", [])
+    tr_acc  = history.get("train_acc", [])
+    te_acc  = history.get("test_acc", [])
+
+    if not tr_loss or not te_loss or not tr_acc or not te_acc:
+        return
+
+    epochs = list(range(1, len(tr_loss) + 1))
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5), dpi=120)
+
+    # --- Loss Plot ---
+    axes[0].plot(epochs, tr_loss, label="Train Loss", color="#e74c3c", linewidth=2.0, marker="o", markersize=3)
+    axes[0].plot(epochs, te_loss, label="Test Loss", color="#3498db", linewidth=2.0, linestyle="--", marker="s", markersize=3)
+    axes[0].set_title(f"{title} — Loss Curve", fontsize=12, fontweight="bold")
+    axes[0].set_xlabel("Epoch", fontsize=10)
+    axes[0].set_ylabel("BCE Loss", fontsize=10)
+    axes[0].grid(True, linestyle=":", alpha=0.6)
+    axes[0].legend(frameon=True, facecolor="white", framealpha=0.9, fontsize=9)
+
+    # --- Accuracy Plot ---
+    axes[1].plot(epochs, tr_acc, label="Train Acc", color="#2ecc71", linewidth=2.0, marker="o", markersize=3)
+    axes[1].plot(epochs, te_acc, label="Test Acc", color="#f39c12", linewidth=2.0, linestyle="--", marker="s", markersize=3)
+    axes[1].set_title(f"{title} — Accuracy Curve (%)", fontsize=12, fontweight="bold")
+    axes[1].set_xlabel("Epoch", fontsize=10)
+    axes[1].set_ylabel("Accuracy (%)", fontsize=10)
+    axes[1].grid(True, linestyle=":", alpha=0.6)
+    axes[1].legend(frameon=True, facecolor="white", framealpha=0.9, fontsize=9)
+
+    plt.tight_layout()
+
+    if save_path:
+        save_path = Path(save_path)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        print(f"  📊 Matplotlib curve plot saved → results/plots/{save_path.name}", flush=True)
+
+    if show:
+        try:
+            plt.show()
+        except Exception:
+            pass
+
+    plt.close(fig)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Dataset

@@ -1,2 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,train_time_s,weight_file
-LSTM_Velocities,1,32,2,0.2,0.001,32,86.9369,86.9369,0.875,0.8619,0.8684,2.4,LSTM_Velocities_cfg01.pth
+LSTM_Velocities,1,32,2,0.0,0.001,32,87.875,87.125,0.8817,0.8575,0.8695,7.6,LSTM_Velocities_cfg01.pth

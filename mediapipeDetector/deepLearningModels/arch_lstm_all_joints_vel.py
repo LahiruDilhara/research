@@ -17,7 +17,8 @@ import torch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from model_arch import (
     SequenceLSTM, normalize, make_loaders, train_config,
-    evaluate_model, save_result, get_data_paths, parse_labels
+    evaluate_model, save_result, get_data_paths, parse_labels,
+    print_terminal_curves, save_history, plot_matplotlib_curves
 )
 
 BASE        = Path(__file__).resolve().parent.parent
@@ -42,6 +43,7 @@ def parse_args():
     parser.add_argument("--lr", type=float, default=None, help="Learning rate")
     parser.add_argument("--batch-size", "-bs", type=int, default=None, help="Batch size")
     parser.add_argument("--hidden", type=int, default=None, help="Hidden dimension")
+    parser.add_argument("--plot", "-p", "--plot-curves", dest="plot", action="store_true", help="Generate Matplotlib Loss & Acc curve plots")
     return parser.parse_args()
 
 
@@ -107,6 +109,15 @@ def main():
         t0                        = time.time()
         best_acc, final_acc, hist = train_config(model, train_loader, test_loader, args.epochs, cfg["lr"], device, verbose=True)
         elapsed                   = time.time() - t0
+
+        print_terminal_curves(hist, title=ARCH_NAME)
+
+        history_path = Path(__file__).resolve().parent / "results" / f"{ARCH_NAME.lower()}_history.json"
+        save_history(hist, history_path)
+
+        if args.plot:
+            plot_path = Path(__file__).resolve().parent / "results" / "plots" / f"{ARCH_NAME.lower()}.png"
+            plot_matplotlib_curves(hist, title=ARCH_NAME, save_path=plot_path, show=False)
 
         _, rpt = evaluate_model(model, test_loader, device)
 
