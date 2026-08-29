@@ -11,8 +11,8 @@ datacreator/create_windows.py
 Combines matching pairs of landmark CSVs (*.filtered_landmarks.*.csv, *.normalize_landmarks.*.csv,
 or *.raw_landmarks.*.csv) and window annotation CSVs (*.window_annotations.*.csv) into sequence window CSV datasets.
 
-For each 5-frame window in the annotation CSV, extracts all 21 landmark (x, y) coordinates for all 5 frames
-(210 coordinate features per window row) along with window metadata and touch/environment labels.
+For each 5-frame window in the annotation CSV, extracts all 21 landmark (x, y, z, visibility, presence) coordinates
+and hand confidence score for all 5 frames (k = 1..5) along with window metadata and touch/environment labels.
 
 Outputs window dataset CSV files to a specified directory (or beside source files), renaming '.window_annotations.'
 (or landmark identifier) to '.window_dataset.'. Overwrites target file if it already exists.
@@ -53,14 +53,18 @@ ANNOTATION_LABEL_KEYS = [
 
 
 def build_window_csv_headers() -> list[str]:
-    """Builds CSV headers for sequence window dataset (metadata + 210 coordinates for 5 frames + labels)."""
+    """Builds CSV headers for sequence window dataset (metadata + 5-frame hand_score & 21 landmark x,y,z,vis,pres + labels)."""
     headers = list(ANNOTATION_METADATA_KEYS)
 
-    # 210 Landmark coordinate columns for 5 frame steps (k = 1..5)
+    # 5 Frame steps (k = 1..5)
     for k in range(1, 6):
+        headers.append(f"hand_score{k}")
         for lm_name in ALL_21_LANDMARK_NAMES:
             headers.append(f"{lm_name}{k}_x")
             headers.append(f"{lm_name}{k}_y")
+            headers.append(f"{lm_name}{k}_z")
+            headers.append(f"{lm_name}{k}_visibility")
+            headers.append(f"{lm_name}{k}_presence")
 
     # Touch and environment annotation flags
     headers.extend(ANNOTATION_LABEL_KEYS)
@@ -102,7 +106,6 @@ def find_csv_pairs(input_patterns: list[str]) -> list[tuple[str, str]]:
     ann_files = [f for f in all_files if ".window_annotations." in os.path.basename(f)]
     lm_files = [f for f in all_files if any(k in os.path.basename(f) for k in [".filtered_landmarks.", ".normalize_landmarks.", ".raw_landmarks."])]
 
-    # Index landmark files by (prefix, hash)
     lm_dict: dict[tuple[str, str], list[str]] = {}
     for lmf in lm_files:
         key = parse_filename_key(lmf)
@@ -114,14 +117,13 @@ def find_csv_pairs(input_patterns: list[str]) -> list[tuple[str, str]]:
         matched_lms = lm_dict.get(key, [])
 
         if not matched_lms:
-            # Fallback: search by prefix match if hash didn't match directly
             prefix, hash_val = key
             for (p, h), flist in lm_dict.items():
                 if p == prefix:
-                    matched_lms.extend(flist)
+                    matched_lms = flist
+                    break
 
         if matched_lms:
-            # Select best matching landmark CSV: filtered > normalize > raw
             best_lm = matched_lms[0]
             for candidate in matched_lms:
                 if ".filtered_landmarks." in candidate:
@@ -174,7 +176,6 @@ def create_windowed_dataset_csv(
     if not ann_rows:
         raise ValueError(f"Window annotations CSV '{ann_csv_path}' is empty!")
 
-    # Index landmark rows by frame_idx (as int)
     lm_by_frame: dict[int, dict] = {}
     for r in lm_rows:
         try:
@@ -218,17 +219,26 @@ def create_windowed_dataset_csv(
             "window_overlap": ann_row.get("window_overlap", "2"),
         }
 
-        # Populate 210 landmark coordinates for all 5 frames in the window (k = 1..5)
+        # Populate landmark features & hand_score for all 5 frames in the window (k = 1..5)
         expected_window_size = int(ann_row.get("window_size", 5))
         for k in range(1, expected_window_size + 1):
             target_frame_idx = start_frame + (k - 1)
             frame_lm = lm_by_frame.get(target_frame_idx, {})
 
+            out_row[f"hand_score{k}"] = frame_lm.get("hand_score", "0.0")
+
             for lm_name in ALL_21_LANDMARK_NAMES:
                 x_val = frame_lm.get(f"{lm_name}_x", "0.0")
                 y_val = frame_lm.get(f"{lm_name}_y", "0.0")
+                z_val = frame_lm.get(f"{lm_name}_z", "0.0")
+                vis_val = frame_lm.get(f"{lm_name}_visibility", "0.0")
+                pres_val = frame_lm.get(f"{lm_name}_presence", "0.0")
+
                 out_row[f"{lm_name}{k}_x"] = x_val
                 out_row[f"{lm_name}{k}_y"] = y_val
+                out_row[f"{lm_name}{k}_z"] = z_val
+                out_row[f"{lm_name}{k}_visibility"] = vis_val
+                out_row[f"{lm_name}{k}_presence"] = pres_val
 
         # Populate touch & environment annotation flags
         for key in ANNOTATION_LABEL_KEYS:
@@ -240,7 +250,6 @@ def create_windowed_dataset_csv(
     os.makedirs(os.path.dirname(os.path.abspath(output_csv_path)), exist_ok=True)
 
     if os.path.exists(output_csv_path):
-        print(f"[Info] Overwriting existing file: {output_csv_path}")
         try:
             os.remove(output_csv_path)
         except OSError as e:
@@ -268,21 +277,21 @@ def main():
         "-i", "--input",
         nargs="+",
         default=None,
-        help="Input CSV file path(s) or directory containing paired landmark & annotation CSVs"
+        help="Input CSV file path(s) or glob pattern(s)"
     )
     parser.add_argument(
         "-o", "--output",
         default=None,
-        help="Output directory path (or output file path for single pair)"
+        help="Output directory path"
     )
 
     args = parser.parse_args()
 
     input_patterns = []
-    output_target = None
+    output_dir = None
 
     if args.output:
-        output_target = args.output
+        output_dir = args.output
         if args.input:
             input_patterns = args.input
         elif args.pos_args:
@@ -295,54 +304,57 @@ def main():
             combined.extend(args.pos_args)
 
         if len(combined) >= 2:
-            output_target = combined[-1]
+            output_dir = combined[-1]
             input_patterns = combined[:-1]
         elif len(combined) == 1:
             input_patterns = combined
-            output_target = None
+            output_dir = None
         else:
             parser.print_help()
             sys.exit(1)
 
     pairs = find_csv_pairs(input_patterns)
     if not pairs:
-        print("[Error] No matching landmark & window annotation CSV pairs found. Exiting.")
+        print("[Error] No matching landmark & annotation CSV pairs found. Exiting.")
         sys.exit(1)
 
-    print(f"Found {len(pairs)} CSV pair(s) to process:")
+    print(f"Found {len(pairs)} landmark & annotation CSV pair(s) to process:")
     for lm_f, ann_f in pairs:
-        print(f"  - Landmark   : {lm_f}")
-        print(f"    Annotation : {ann_f}")
+        print(f"  - Landmark:   {lm_f}")
+        print(f"    Annotation: {ann_f}")
+    if output_dir:
+        print(f"Output directory override: {output_dir}")
     print()
 
     success_count = 0
     fail_count = 0
 
-    for idx, (lm_f, ann_f) in enumerate(pairs, start=1):
-        print(f"[{idx}/{len(pairs)}] Creating window dataset for: {ann_f}")
+    for idx, (lm_file, ann_file) in enumerate(pairs, start=1):
+        print(f"[{idx}/{len(pairs)}] Creating sequence window dataset...")
         try:
             out_file_path = None
-            if output_target:
-                if os.path.isdir(output_target) or output_target.endswith(os.sep) or output_target.endswith("/"):
-                    os.makedirs(output_target, exist_ok=True)
-                    out_name = os.path.basename(get_default_output_path(ann_f))
-                    out_file_path = os.path.join(output_target, out_name)
+            if output_dir:
+                if os.path.isdir(output_dir) or output_dir.endswith(os.sep) or output_dir.endswith("/"):
+                    os.makedirs(output_dir, exist_ok=True)
+                    out_name = os.path.basename(get_default_output_path(ann_file))
+                    out_file_path = os.path.join(output_dir, out_name)
                 elif len(pairs) == 1:
-                    out_file_path = output_target
+                    out_file_path = output_dir
                 else:
-                    os.makedirs(output_target, exist_ok=True)
-                    out_file_path = os.path.join(output_target, os.path.basename(get_default_output_path(ann_f)))
+                    os.makedirs(output_dir, exist_ok=True)
+                    out_name = os.path.basename(get_default_output_path(ann_file))
+                    out_file_path = os.path.join(output_dir, out_name)
             else:
-                out_file_path = get_default_output_path(ann_f)
+                out_file_path = get_default_output_path(ann_file)
 
             create_windowed_dataset_csv(
-                lm_csv_path=lm_f,
-                ann_csv_path=ann_f,
+                lm_csv_path=lm_file,
+                ann_csv_path=ann_file,
                 output_csv_path=out_file_path
             )
             success_count += 1
         except Exception as e:
-            print(f"[Failed] Could not create window dataset for '{ann_f}': {e}")
+            print(f"[Failed] Could not process pair ('{lm_file}', '{ann_file}'): {e}")
             fail_count += 1
         print()
 

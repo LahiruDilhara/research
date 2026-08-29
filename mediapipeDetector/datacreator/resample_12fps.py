@@ -14,6 +14,9 @@ identical to the frame downsampling calculation in annotator/pipeline.py.
 
 Supports processing a single video file or a list/glob pattern of video files (e.g. '*', '*.mp4', 'videos/*').
 All output files are saved into a specified output directory with the same base name and .mp4 extension.
+
+Default behavior: Overwrites existing destination video files.
+If '--skip' is passed: Skips conversion if the destination video file already exists.
 """
 
 import argparse
@@ -22,17 +25,23 @@ import os
 import sys
 import cv2
 
-
 TARGET_FPS = 12.0
 
 
-def resample_video_to_12fps(input_path: str, output_path: str, target_fps: float = TARGET_FPS):
+def resample_video_to_12fps(
+    input_path: str,
+    output_path: str,
+    target_fps: float = TARGET_FPS,
+    skip_existing: bool = False
+) -> str | None:
     """
     Reads all video frames, calculates actual time range and frame count dynamically (does not rely on header FPS),
     downsamples to target_fps (12.0 FPS) by nearest timestamp, and saves out an MP4 video file.
 
     If output_path is an existing directory (or ends with a path separator), the resampled video will be saved inside
     output_path using the base name of input_path with a .mp4 extension.
+
+    If skip_existing is True and destination file exists, skips conversion.
     """
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Input video file not found: {input_path}")
@@ -42,6 +51,11 @@ def resample_video_to_12fps(input_path: str, output_path: str, target_fps: float
         os.makedirs(output_path, exist_ok=True)
         base_name = os.path.splitext(os.path.basename(input_path))[0]
         output_path = os.path.join(output_path, f"{base_name}.mp4")
+
+    # Check --skip condition
+    if skip_existing and os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+        print(f"[Skip] Destination video '{output_path}' already exists. Skipping (--skip enabled).")
+        return output_path
 
     cap = cv2.VideoCapture(input_path)
     if not cap.isOpened():
@@ -64,7 +78,7 @@ def resample_video_to_12fps(input_path: str, output_path: str, target_fps: float
 
     if not all_raw_frames:
         print(f"[Warning] Video '{input_path}' is empty. Skipping.")
-        return
+        return None
 
     total_native_frames = len(all_raw_frames)
     first_msec = all_raw_frames[0][1]
@@ -119,6 +133,13 @@ def resample_video_to_12fps(input_path: str, output_path: str, target_fps: float
         native_idx += 1
 
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    
+    if os.path.exists(output_path):
+        try:
+            os.remove(output_path)
+        except OSError:
+            pass
+
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(output_path, fourcc, target_fps, (w, h))
 
@@ -129,6 +150,7 @@ def resample_video_to_12fps(input_path: str, output_path: str, target_fps: float
 
     print(f"[Success] {target_fps:.1f} FPS MP4 Video saved to: {output_path}")
     print(f"          Output Frame Count: {len(resampled_frames)} frames ({len(resampled_frames) / target_fps:.2f} seconds)")
+    return output_path
 
 
 def collect_input_files(input_patterns: list[str]) -> list[str]:
@@ -137,7 +159,6 @@ def collect_input_files(input_patterns: list[str]) -> list[str]:
     """
     matched_files = []
     for pattern in input_patterns:
-        # If input is an existing directory, search for all files inside it
         search_pattern = os.path.join(pattern, "*") if os.path.isdir(pattern) else pattern
 
         glob_matches = glob.glob(search_pattern, recursive=True)
@@ -174,10 +195,14 @@ def main():
         default=12.0,
         help="Target FPS (default: 12.0)"
     )
+    parser.add_argument(
+        "--skip",
+        action="store_true",
+        help="Skip conversion if destination video file already exists (by default, existing destination videos are overwritten)"
+    )
 
     args = parser.parse_args()
 
-    # Expand input patterns/paths
     input_files = collect_input_files(args.input)
     if not input_files:
         print("[Error] No valid input video files found. Exiting.")
@@ -193,9 +218,14 @@ def main():
     print(f"Found {len(input_files)} video file(s) to process:")
     for f in input_files:
         print(f"  - {f}")
-    print(f"Output directory: {output_dir}\n")
+    print(f"Output directory: {output_dir}")
+    if args.skip:
+        print("Flag --skip enabled: Will skip conversion if output video already exists.\n")
+    else:
+        print("Default mode: Existing output video files will be overwritten.\n")
 
     success_count = 0
+    skip_count = 0
     fail_count = 0
 
     for idx, input_file in enumerate(input_files, start=1):
@@ -204,22 +234,30 @@ def main():
 
         print(f"[{idx}/{len(input_files)}] Processing: {input_file} -> {out_file_path}")
         try:
-            resample_video_to_12fps(input_file, out_file_path, target_fps=args.fps)
-            success_count += 1
+            res = resample_video_to_12fps(input_file, out_file_path, target_fps=args.fps, skip_existing=args.skip)
+            if res:
+                if args.skip and os.path.exists(out_file_path) and os.path.getsize(out_file_path) > 0 and "[Skip]" in str(res):
+                    skip_count += 1
+                else:
+                    success_count += 1
+            else:
+                fail_count += 1
         except Exception as e:
             print(f"[Failed] Could not process '{input_file}': {e}")
             fail_count += 1
+        print()
 
-    print(f"\n==========================================")
-    print(f"Batch Processing Finished:")
+    print("==========================================")
+    print("Batch Processing Finished:")
     print(f"  Success: {success_count}/{len(input_files)}")
+    if skip_count > 0:
+        print(f"  Skipped: {skip_count}/{len(input_files)}")
     print(f"  Failed : {fail_count}/{len(input_files)}")
-    print(f"==========================================")
+    print("==========================================")
 
-    if success_count == 0:
+    if success_count == 0 and skip_count == 0 and fail_count > 0:
         sys.exit(1)
 
 
 if __name__ == "__main__":
     main()
-

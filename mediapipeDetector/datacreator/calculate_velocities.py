@@ -8,11 +8,11 @@
 """
 datacreator/calculate_velocities.py
 
-Calculates 4 frame-to-frame velocity components (vx, vy) and 2D speeds sqrt(vx^2 + vy^2) across 5-frame sequence windows
+Calculates 4 frame-to-frame velocity components (vx, vy, vz) and speeds (2D & 3D) across 5-frame sequence windows
 for all 21 MediaPipe hand landmarks.
 
 Input: Window dataset CSV file(s) containing 5 frame landmark coordinates.
-Output: Enhanced CSV dataset file(s) with 252 velocity & speed columns added before annotation labels.
+Output: Enhanced CSV dataset file(s) with velocity & speed columns added before annotation labels.
 
 Supports batch execution over single CSVs, glob patterns, or directories. Overwrites target file if it already exists.
 """
@@ -53,8 +53,8 @@ REQUIRED_LABEL_KEYS = [
 
 def build_velocity_csv_headers(input_headers: list[str]) -> list[str]:
     """
-    Constructs output CSV headers by inserting 252 velocity & speed columns
-    after frame 5 coordinate columns and before annotation labels.
+    Constructs output CSV headers by inserting velocity & speed columns
+    after frame coordinate columns and before annotation labels.
     """
     meta_and_coords = []
     labels = []
@@ -75,7 +75,9 @@ def build_velocity_csv_headers(input_headers: list[str]) -> list[str]:
         for lm_name in ALL_21_LANDMARK_NAMES:
             velocity_headers.append(f"{lm_name}{v}_vx")
             velocity_headers.append(f"{lm_name}{v}_vy")
+            velocity_headers.append(f"{lm_name}{v}_vz")
             velocity_headers.append(f"{lm_name}{v}_speed_2d")
+            velocity_headers.append(f"{lm_name}{v}_speed_3d")
 
     return meta_and_coords + velocity_headers + labels
 
@@ -103,7 +105,7 @@ def validate_window_columns(headers: list[str], csv_path: str):
 
 def calculate_window_velocities_csv(input_csv: str, output_csv: str = None) -> str:
     """
-    Reads window dataset CSV, calculates 4 frame-to-frame velocities (vx, vy) and 2D speed sqrt(vx^2 + vy^2)
+    Reads window dataset CSV, calculates 4 frame-to-frame velocities (vx, vy, vz) and speeds (2D & 3D)
     for all 21 joints, and writes output CSV with velocity columns inserted.
     """
     if not os.path.exists(input_csv):
@@ -131,13 +133,12 @@ def calculate_window_velocities_csv(input_csv: str, output_csv: str = None) -> s
     validate_window_columns(headers, input_csv)
     output_headers = build_velocity_csv_headers(headers)
 
-    print(f"[2/3] Calculating 4-step 2D velocities & speeds across {len(rows)} window sequence records...")
+    print(f"[2/3] Calculating 4-step 2D/3D velocities & speeds across {len(rows)} window sequence records...")
 
     output_rows = []
     for row in rows:
         out_row = dict(row)
 
-        # Calculate velocities for 4 transitions: v = 1..4 (frame v to frame v+1)
         for v in range(1, 5):
             curr_frame = v
             next_frame = v + 1
@@ -145,22 +146,28 @@ def calculate_window_velocities_csv(input_csv: str, output_csv: str = None) -> s
             for lm_name in ALL_21_LANDMARK_NAMES:
                 x1_str = row.get(f"{lm_name}{curr_frame}_x", "0.0")
                 y1_str = row.get(f"{lm_name}{curr_frame}_y", "0.0")
+                z1_str = row.get(f"{lm_name}{curr_frame}_z", "0.0")
                 x2_str = row.get(f"{lm_name}{next_frame}_x", "0.0")
                 y2_str = row.get(f"{lm_name}{next_frame}_y", "0.0")
+                z2_str = row.get(f"{lm_name}{next_frame}_z", "0.0")
 
                 try:
-                    x1, y1 = float(x1_str), float(y1_str)
-                    x2, y2 = float(x2_str), float(y2_str)
+                    x1, y1, z1 = float(x1_str), float(y1_str), float(z1_str)
+                    x2, y2, z2 = float(x2_str), float(y2_str), float(z2_str)
 
                     vx = x2 - x1
                     vy = y2 - y1
+                    vz = z2 - z1
                     speed_2d = math.sqrt(vx * vx + vy * vy)
+                    speed_3d = math.sqrt(vx * vx + vy * vy + vz * vz)
                 except ValueError:
-                    vx, vy, speed_2d = 0.0, 0.0, 0.0
+                    vx, vy, vz, speed_2d, speed_3d = 0.0, 0.0, 0.0, 0.0, 0.0
 
                 out_row[f"{lm_name}{v}_vx"] = f"{vx:.6f}"
                 out_row[f"{lm_name}{v}_vy"] = f"{vy:.6f}"
+                out_row[f"{lm_name}{v}_vz"] = f"{vz:.6f}"
                 out_row[f"{lm_name}{v}_speed_2d"] = f"{speed_2d:.6f}"
+                out_row[f"{lm_name}{v}_speed_3d"] = f"{speed_3d:.6f}"
 
         output_rows.append(out_row)
 
@@ -168,7 +175,6 @@ def calculate_window_velocities_csv(input_csv: str, output_csv: str = None) -> s
     os.makedirs(os.path.dirname(os.path.abspath(output_csv)), exist_ok=True)
 
     if os.path.exists(output_csv):
-        print(f"[Info] Overwriting existing file: {output_csv}")
         try:
             os.remove(output_csv)
         except OSError as e:
@@ -179,12 +185,12 @@ def calculate_window_velocities_csv(input_csv: str, output_csv: str = None) -> s
         writer.writeheader()
         writer.writerows(output_rows)
 
-    print(f"[Success] Saved velocity dataset to: {output_csv}")
+    print(f"[Success] Saved dataset with velocities to: {output_csv}")
     return output_csv
 
 
-def collect_csv_files(input_patterns: list[str]) -> list[str]:
-    """Expands glob patterns, directory paths, or file lists into a sorted list of CSV file paths."""
+def collect_input_files(input_patterns: list[str]) -> list[str]:
+    """Expands glob patterns, directory paths, or file lists into a list of CSV file paths."""
     matched_files = []
     for pattern in input_patterns:
         search_pattern = os.path.join(pattern, "*.csv") if os.path.isdir(pattern) else pattern
@@ -202,7 +208,7 @@ def collect_csv_files(input_patterns: list[str]) -> list[str]:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Calculates 4-step velocities (vx, vy) and 2D speeds sqrt(vx^2+vy^2) for window sequence CSVs"
+        description="Calculates 4-step frame-to-frame velocities (vx, vy, vz) and speeds for all 21 hand joints"
     )
     parser.add_argument(
         "pos_args",
@@ -213,12 +219,12 @@ def main():
         "-i", "--input",
         nargs="+",
         default=None,
-        help="Input window CSV file path(s), glob pattern(s), or input directory"
+        help="Input CSV file path(s) or glob pattern(s)"
     )
     parser.add_argument(
         "-o", "--output",
         default=None,
-        help="Output directory path (or output CSV file path for single input)"
+        help="Output directory path"
     )
 
     args = parser.parse_args()
@@ -249,15 +255,14 @@ def main():
             parser.print_help()
             sys.exit(1)
 
-    input_files = collect_csv_files(input_patterns)
+    input_files = collect_input_files(input_patterns)
     if not input_files:
-        print("[Error] No valid CSV files found for velocity calculation. Exiting.")
+        print("[Error] No valid input CSV files found. Exiting.")
         sys.exit(1)
 
     print(f"Found {len(input_files)} CSV file(s) to process:")
     for f in input_files:
         print(f"  - {f}")
-    print()
 
     success_count = 0
     fail_count = 0
@@ -270,19 +275,23 @@ def main():
                 if os.path.isdir(output_target) or output_target.endswith(os.sep) or output_target.endswith("/"):
                     os.makedirs(output_target, exist_ok=True)
                     base_name = os.path.basename(input_file)
-                    out_file_path = os.path.join(output_target, base_name)
+                    if ".csv" in base_name:
+                        out_name = base_name.replace(".csv", ".velocities.csv")
+                    else:
+                        out_name = f"{base_name}.velocities.csv"
+                    out_file_path = os.path.join(output_target, out_name)
                 elif len(input_files) == 1:
                     out_file_path = output_target
                 else:
                     os.makedirs(output_target, exist_ok=True)
                     out_file_path = os.path.join(output_target, os.path.basename(input_file))
             else:
-                out_file_path = None  # Auto-derives <name>.velocities.csv
+                out_file_path = None
 
-            calculate_window_velocities_csv(input_file, out_file_path)
+            calculate_window_velocities_csv(input_csv=input_file, output_csv=out_file_path)
             success_count += 1
         except Exception as e:
-            print(f"[Failed] Could not calculate velocities for '{input_file}': {e}")
+            print(f"[Failed] Could not process '{input_file}': {e}")
             fail_count += 1
         print()
 

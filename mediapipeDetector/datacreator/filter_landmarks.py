@@ -9,15 +9,14 @@
 datacreator/filter_landmarks.py
 
 Landmark noise filtering script for 12 FPS raw MediaPipe landmark CSVs.
-Applies temporal One Euro (1€) filtering across all 21 hand joint coordinates (x, y)
+Applies temporal One Euro (1€) filtering across all 21 hand joint 3D coordinates (x, y, z)
 over the entire video stream to remove jitter while preserving fast motion.
 
 Supports processing single CSV files, glob wildcard patterns (e.g. '*', '*.raw_landmarks.*', 'videos/*.csv'),
 or directory paths. Saves filtered CSV files to a specified output directory or beside the source CSV.
 Overrides/prunes target file if it already exists.
 
-Preserves all metadata columns (video_file, video_hash, video_width, video_height, video_fps,
-total_video_frames, video_duration_sec, frame_idx, timestamp_ms, hand) unchanged.
+Preserves all metadata & extra landmark columns (hand_score, visibility, presence) untouched.
 """
 
 import argparse
@@ -88,22 +87,22 @@ class OneEuroFilter1D:
         if t_elapsed <= 0:
             return self.x_prev
 
-        # Filtered derivative (velocity) of the signal
         a_d = self._smoothing_factor(t_elapsed, self.d_cutoff)
         dx = (x - self.x_prev) / t_elapsed
         dx_hat = self._exponential_smoothing(a_d, dx, self.dx_prev)
 
-        # Adaptive cutoff: higher when moving fast, lower when still
         cutoff = self.min_cutoff + self.beta * abs(dx_hat)
         a = self._smoothing_factor(t_elapsed, cutoff)
         x_hat = self._exponential_smoothing(a, x, self.x_prev)
 
-        self.x_prev, self.dx_prev, self.t_prev = x_hat, dx_hat, t
+        self.x_prev = x_hat
+        self.dx_prev = dx_hat
+        self.t_prev = t
         return x_hat
 
 
 class LandmarkEuroFilter:
-    """Manages 1€ filters for x and y coordinates for all 21 hand landmarks."""
+    """Manages 1€ filters for (x, y, z) coordinates of all 21 hand joints."""
 
     def __init__(
         self,
@@ -114,26 +113,28 @@ class LandmarkEuroFilter:
         self.min_cutoff = min_cutoff
         self.beta = beta
         self.d_cutoff = d_cutoff
-        self.filters: dict[str, tuple[OneEuroFilter1D, OneEuroFilter1D]] = {}
+        self.filters: dict[str, OneEuroFilter1D] = {}
 
     def reset(self):
+        """Resets filter states when hand tracking is lost or hand label changes."""
         self.filters.clear()
 
-    def filter_landmark(self, name: str, t_sec: float, x: float, y: float) -> tuple[float, float]:
-        if name not in self.filters:
-            fx = OneEuroFilter1D(t_sec, x, min_cutoff=self.min_cutoff, beta=self.beta, d_cutoff=self.d_cutoff)
-            fy = OneEuroFilter1D(t_sec, y, min_cutoff=self.min_cutoff, beta=self.beta, d_cutoff=self.d_cutoff)
-            self.filters[name] = (fx, fy)
-            return float(x), float(y)
+    def filter_coordinate(self, key: str, t: float, val: float) -> float:
+        if key not in self.filters:
+            self.filters[key] = OneEuroFilter1D(
+                t0=t, x0=val,
+                min_cutoff=self.min_cutoff,
+                beta=self.beta,
+                d_cutoff=self.d_cutoff
+            )
+            return val
+        return self.filters[key].filter(t, val)
 
-        fx, fy = self.filters[name]
-        return fx.filter(t_sec, x), fy.filter(t_sec, y)
 
-
-def get_default_output_path(raw_csv_path: str) -> str:
+def get_default_output_path(input_csv_path: str) -> str:
     """Derives default output path <video_name>.filtered_landmarks.<hash>.csv in the same location."""
-    dir_name = os.path.dirname(os.path.abspath(raw_csv_path))
-    base_name = os.path.basename(raw_csv_path)
+    dir_name = os.path.dirname(os.path.abspath(input_csv_path))
+    base_name = os.path.basename(input_csv_path)
 
     if ".raw_landmarks." in base_name:
         out_name = base_name.replace(".raw_landmarks.", ".filtered_landmarks.")
@@ -146,7 +147,7 @@ def get_default_output_path(raw_csv_path: str) -> str:
     return os.path.join(dir_name, out_name)
 
 
-def filter_raw_landmarks_csv(
+def filter_landmarks_csv(
     input_csv: str,
     output_csv: str = None,
     min_cutoff: float = FILTER_MIN_CUTOFF,
@@ -154,8 +155,9 @@ def filter_raw_landmarks_csv(
     d_cutoff: float = FILTER_D_CUTOFF
 ) -> str:
     """
-    Reads raw landmarks CSV, applies One Euro filter continuously across video frame timestamps,
-    and writes filtered CSV while keeping metadata columns intact. Overwrites existing destination files.
+    Reads raw landmarks CSV, applies One Euro filter to (x, y, z) coordinates continuously across video frame timestamps,
+    and writes filtered CSV while keeping metadata, visibility, presence, and hand_score intact.
+    Overwrites existing destination files.
     """
     if not os.path.exists(input_csv):
         raise FileNotFoundError(f"Input CSV file not found: {input_csv}")
@@ -171,7 +173,7 @@ def filter_raw_landmarks_csv(
     if not raw_rows:
         raise ValueError(f"Input CSV '{input_csv}' is empty!")
 
-    print(f"[2/3] Filtering {len(raw_rows)} frames with 1€ Filter (min_cutoff={min_cutoff}, beta={beta}, d_cutoff={d_cutoff})...")
+    print(f"[2/3] Filtering {len(raw_rows)} frames with 1€ Filter on (x, y, z) (min_cutoff={min_cutoff}, beta={beta}, d_cutoff={d_cutoff})...")
 
     hand_filter = LandmarkEuroFilter(min_cutoff=min_cutoff, beta=beta, d_cutoff=d_cutoff)
     filtered_rows = []
@@ -183,7 +185,6 @@ def filter_raw_landmarks_csv(
         t_sec = t_ms / 1000.0
         hand_type = row.get("hand", "None")
 
-        # Reset 1€ filter state if hand is missing ("None") OR if hand label switched (e.g. Left -> Right or Right -> Left)
         if hand_type == "None" or (prev_hand_type is not None and hand_type != prev_hand_type):
             hand_filter.reset()
 
@@ -191,6 +192,7 @@ def filter_raw_landmarks_csv(
             for lm_name in ALL_21_LANDMARK_NAMES:
                 x_col = f"{lm_name}_x"
                 y_col = f"{lm_name}_y"
+                z_col = f"{lm_name}_z"
 
                 raw_x = float(row.get(x_col, 0.0))
                 raw_y = float(row.get(y_col, 0.0))
@@ -198,9 +200,15 @@ def filter_raw_landmarks_csv(
                 if raw_x == 0.0 and raw_y == 0.0:
                     continue
 
-                fx, fy = hand_filter.filter_landmark(lm_name, t_sec, raw_x, raw_y)
+                fx = hand_filter.filter_coordinate(x_col, t_sec, raw_x)
+                fy = hand_filter.filter_coordinate(y_col, t_sec, raw_y)
                 out_row[x_col] = f"{fx:.6f}"
                 out_row[y_col] = f"{fy:.6f}"
+
+                if z_col in row:
+                    raw_z = float(row.get(z_col, 0.0))
+                    fz = hand_filter.filter_coordinate(z_col, t_sec, raw_z)
+                    out_row[z_col] = f"{fz:.6f}"
 
         prev_hand_type = hand_type
         filtered_rows.append(out_row)
@@ -209,13 +217,11 @@ def filter_raw_landmarks_csv(
     os.makedirs(os.path.dirname(os.path.abspath(output_csv)), exist_ok=True)
 
     if os.path.exists(output_csv):
-        print(f"[Info] Overwriting existing file: {output_csv}")
         try:
             os.remove(output_csv)
         except OSError as e:
             print(f"[Warning] Could not remove existing file '{output_csv}': {e}")
 
-    # Truncate / overwrite target file if it exists
     with open(output_csv, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=headers)
         writer.writeheader()
@@ -226,10 +232,7 @@ def filter_raw_landmarks_csv(
 
 
 def collect_input_files(input_patterns: list[str]) -> list[str]:
-    """
-    Expands glob patterns, directory paths, or file lists into a list of landmark CSV file paths.
-    Filters out already-filtered landmark files (.filtered_landmarks.) unless explicitly matched.
-    """
+    """Expands glob patterns, directory paths, or file lists into a list of landmark CSV file paths."""
     matched_files = []
     for pattern in input_patterns:
         search_pattern = os.path.join(pattern, "*.csv") if os.path.isdir(pattern) else pattern
@@ -251,7 +254,7 @@ def collect_input_files(input_patterns: list[str]) -> list[str]:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Applies 1€ temporal filter to raw MediaPipe hand landmark CSV(s)"
+        description="Applies One Euro (1€) filtering to 3D (x, y, z) coordinates of MediaPipe hand landmark CSV(s)"
     )
     parser.add_argument(
         "pos_args",
@@ -262,37 +265,33 @@ def main():
         "-i", "--input",
         nargs="+",
         default=None,
-        help="Input CSV file path(s) or glob pattern(s) (e.g. '*.raw_landmarks.*.csv', 'videos/')"
+        help="Input CSV file path(s) or glob pattern(s)"
     )
     parser.add_argument(
         "-o", "--output",
         default=None,
-        help="Output directory path (or output file path for single input)"
+        help="Output directory path"
     )
     parser.add_argument(
-        "-min", "--min-cutoff", "--min_cutoff",
+        "-min", "--min-cutoff",
         type=float,
-        default=None,
-        help=f"1€ Filter min_cutoff in Hz (default: {FILTER_MIN_CUTOFF})"
+        default=FILTER_MIN_CUTOFF,
+        help=f"Minimum cutoff frequency in Hz (default: {FILTER_MIN_CUTOFF})"
     )
     parser.add_argument(
         "-beta", "--beta",
         type=float,
-        default=None,
-        help=f"1€ Filter beta parameter (default: {FILTER_BETA})"
+        default=FILTER_BETA,
+        help=f"Speed coefficient beta (default: {FILTER_BETA})"
     )
     parser.add_argument(
-        "-d", "-dcutoff", "--d-cutoff", "--d_cutoff",
+        "-d", "--d-cutoff",
         type=float,
-        default=None,
-        help=f"1€ Filter derivative cutoff frequency (d_cutoff) in Hz (default: {FILTER_D_CUTOFF})"
+        default=FILTER_D_CUTOFF,
+        help=f"Derivative cutoff frequency in Hz (default: {FILTER_D_CUTOFF})"
     )
 
     args = parser.parse_args()
-
-    min_cutoff = args.min_cutoff if args.min_cutoff is not None else FILTER_MIN_CUTOFF
-    beta = args.beta if args.beta is not None else FILTER_BETA
-    d_cutoff = args.d_cutoff if args.d_cutoff is not None else FILTER_D_CUTOFF
 
     input_patterns = []
     output_target = None
@@ -328,13 +327,14 @@ def main():
     print(f"Found {len(input_files)} CSV file(s) to process:")
     for f in input_files:
         print(f"  - {f}")
-    print(f"Using 1€ Filter parameters: min_cutoff={min_cutoff}, beta={beta}, d_cutoff={d_cutoff}\n")
+
+    print(f"1€ Filter Parameters on (x, y, z): min_cutoff={args.min_cutoff} Hz, beta={args.beta}, d_cutoff={args.d_cutoff} Hz\n")
 
     success_count = 0
     fail_count = 0
 
     for idx, input_file in enumerate(input_files, start=1):
-        print(f"[{idx}/{len(input_files)}] Filtering landmarks: {input_file}")
+        print(f"[{idx}/{len(input_files)}] Filtering (x, y, z) landmarks: {input_file}")
         try:
             out_file_path = None
             if output_target:
@@ -357,16 +357,16 @@ def main():
             else:
                 out_file_path = get_default_output_path(input_file)
 
-            filter_raw_landmarks_csv(
+            filter_landmarks_csv(
                 input_csv=input_file,
                 output_csv=out_file_path,
-                min_cutoff=min_cutoff,
-                beta=beta,
-                d_cutoff=d_cutoff
+                min_cutoff=args.min_cutoff,
+                beta=args.beta,
+                d_cutoff=args.d_cutoff
             )
             success_count += 1
         except Exception as e:
-            print(f"[Failed] Could not filter '{input_file}': {e}")
+            print(f"[Failed] Could not process '{input_file}': {e}")
             fail_count += 1
         print()
 
@@ -382,4 +382,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

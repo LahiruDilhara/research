@@ -1,2 +1,2 @@
 arch,config_id,tcn_channels,num_levels,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-TCN,1,32,2,0.2,0.001,32,89.6629,89.6629,0.8624,0.9438,0.9013,378,67,25,420,GOOD FIT (OPTIMAL),15,-2.24,7.3,TCN_cfg01.pth
+TCN,1,32,2,0.2,0.001,32,89.2135,89.2135,0.8613,0.9348,0.8966,378,67,29,416,GOOD FIT (OPTIMAL),3,-4.34,2.7,TCN_cfg01.pth

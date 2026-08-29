@@ -9,7 +9,7 @@
 datacreator/normalize_landmarks.py
 
 Landmark scale normalization script for MediaPipe landmark CSVs.
-Converts normalized [0, 1] 2D coordinates to true pixel coordinates using video width W and height H,
+Converts normalized [0, 1] 2D/3D coordinates to true pixel coordinates using video width W and height H,
 calculates rigid palm scale L_hand using the Root-Mean-Square (RMS) of 8 symmetric rigid palm skeleton segments
 (Wrist to Index/Middle/Ring/Pinky MCPs, contiguous MCP knuckle joints, and outer MCP width) for perfectly
 balanced noise resistance without finger-side bias.
@@ -19,14 +19,7 @@ hand poses produce identical normalized coordinates regardless of frame order or
 Subtracts wrist position to make coordinates zero-centered at the wrist (translation-invariant).
 
 Throws an explicit error and halts if resolution metadata (video_width / video_height) is missing or invalid.
-
-Supports batch processing single CSV files, glob wildcard patterns (e.g. '*', '*.raw_landmarks.*'),
-or directory paths. Outputs normalized CSV files to a specified directory or beside the source CSV,
-renaming '.raw_landmarks.' (or '.filtered_landmarks.') to '.normalize_landmarks.'. Overwrites target file if it already exists.
-
-Includes:
-- '-k' / '--keep-raw' / '--no-normalize' flag: bypasses scale normalization to test pipelines without normalization.
-- '--no-center': bypasses wrist translation centering (divides by L_hand without wrist subtraction).
+Preserves all extra landmark columns (hand_score, z, visibility, presence) dynamically.
 """
 
 import argparse
@@ -43,7 +36,6 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 # ── Landmark Indices for Symmetric Palm Skeleton Box ─────────────────────────
-# Wrist = 0, Index MCP = 5, Middle MCP = 9, Ring MCP = 13, Pinky MCP = 17
 WRIST_INDEX = 0
 INDEX_MCP_INDEX = 5
 MIDDLE_MCP_INDEX = 9
@@ -68,7 +60,7 @@ ALL_21_LANDMARK_NAMES = [
 
 class HandScaleNormalizer:
     """
-    Calculates rigid palm scale L_hand from 8 symmetric palm segments and normalizes 2D landmarks.
+    Calculates rigid palm scale L_hand from 8 symmetric palm segments and normalizes 2D/3D landmarks.
     Pure per-frame function (no EMA history across frames).
     """
 
@@ -77,28 +69,20 @@ class HandScaleNormalizer:
 
     def normalize(
         self,
-        pts_px: list[tuple[float, float]]
-    ) -> tuple[list[tuple[float, float]], float]:
+        pts_px: list[tuple[float, float, float]]
+    ) -> tuple[list[tuple[float, float, float]], float]:
         """
-        Given 21 pixel coordinates [(x_px, y_px), ...]:
-        1. Computes 8 symmetric rigid palm skeleton distances:
-           - d1: Wrist(0) -> Index_MCP(5)
-           - d2: Wrist(0) -> Middle_MCP(9)
-           - d3: Wrist(0) -> Ring_MCP(13)
-           - d4: Wrist(0) -> Pinky_MCP(17)
-           - d5: Index_MCP(5) -> Middle_MCP(9)
-           - d6: Middle_MCP(9) -> Ring_MCP(13)
-           - d7: Ring_MCP(13) -> Pinky_MCP(17)
-           - d8: Index_MCP(5) -> Pinky_MCP(17)
+        Given 21 coordinates [(x_px, y_px, z_px), ...]:
+        1. Computes 8 symmetric rigid palm skeleton distances in 2D pixel space.
         2. Computes robust palm scale L_hand = RMS(d1..d8) = sqrt(mean(d_i^2)).
-        3. Subtracts wrist position (if self.center_wrist is True) and divides by L_hand.
+        3. Subtracts wrist position (if self.center_wrist is True) and divides x, y, z by L_hand.
         Returns (normalized_points, L_hand).
         """
-        w_x, w_y = pts_px[WRIST_INDEX]
-        i_x, i_y = pts_px[INDEX_MCP_INDEX]
-        m_x, m_y = pts_px[MIDDLE_MCP_INDEX]
-        r_x, r_y = pts_px[RING_MCP_INDEX]
-        p_x, p_y = pts_px[PINKY_MCP_INDEX]
+        w_x, w_y, w_z = pts_px[WRIST_INDEX]
+        i_x, i_y, _   = pts_px[INDEX_MCP_INDEX]
+        m_x, m_y, _   = pts_px[MIDDLE_MCP_INDEX]
+        r_x, r_y, _   = pts_px[RING_MCP_INDEX]
+        p_x, p_y, _   = pts_px[PINKY_MCP_INDEX]
 
         # 8 Symmetric Palm Skeleton Segments
         d1_sq = (i_x - w_x) ** 2 + (i_y - w_y) ** 2  # Wrist -> Index
@@ -118,10 +102,11 @@ class HandScaleNormalizer:
 
         offset_x = w_x if self.center_wrist else 0.0
         offset_y = w_y if self.center_wrist else 0.0
+        offset_z = w_z if self.center_wrist else 0.0
 
         normalized_pts = [
-            ((px - offset_x) / l_hand, (py - offset_y) / l_hand)
-            for px, py in pts_px
+            ((px - offset_x) / l_hand, (py - offset_y) / l_hand, (pz - offset_z) / l_hand)
+            for px, py, pz in pts_px
         ]
         return normalized_pts, l_hand
 
@@ -143,7 +128,7 @@ def get_default_output_path(input_csv_path: str) -> str:
 
 
 def validate_columns(headers: list[str], csv_path: str):
-    """Ensures input CSV contains required metadata and all 42 landmark coordinate columns."""
+    """Ensures input CSV contains required metadata and landmark coordinate columns."""
     missing = []
     for col in REQUIRED_METADATA_COLUMNS:
         if col not in headers:
@@ -172,8 +157,7 @@ def normalize_landmarks_csv(
     """
     Reads landmark CSV file, validates columns, converts MediaPipe coords to pixels using video width/height,
     calculates rigid 8-distance symmetric palm scale L_hand, applies scale & translation normalization, and writes output CSV.
-    If keep_raw (-k) is True, passes through input coordinates unchanged.
-    Halts and raises ValueError if video_width or video_height metadata is missing or non-positive.
+    Preserves all extra columns (hand_score, z, visibility, presence).
     """
     if not os.path.exists(input_csv):
         raise FileNotFoundError(f"Input CSV file not found: {input_csv}")
@@ -210,7 +194,6 @@ def normalize_landmarks_csv(
             output_rows.append(out_row)
             continue
 
-        # Get video resolution (W, H). Halt with error if missing or invalid.
         raw_w = row.get("video_width")
         raw_h = row.get("video_height")
         if raw_w is None or raw_w == "" or raw_h is None or raw_h == "":
@@ -230,33 +213,34 @@ def normalize_landmarks_csv(
                 f"Invalid video resolution values ('video_width': '{raw_w}', 'video_height': '{raw_h}') in row {row_idx + 1} of '{input_csv}': {e}"
             )
 
-        # Step 1: Extract 21 points and convert normalized [0, 1] coords to pixel coordinates (X_px = x_mp * W, Y_px = y_mp * H)
         pts_px = []
         is_all_zero = True
 
         for lm_name in ALL_21_LANDMARK_NAMES:
             raw_x = float(row.get(f"{lm_name}_x", 0.0))
             raw_y = float(row.get(f"{lm_name}_y", 0.0))
+            raw_z = float(row.get(f"{lm_name}_z", 0.0))
 
             if raw_x != 0.0 or raw_y != 0.0:
                 is_all_zero = False
 
-            # Convert to true pixel coordinates
             x_px = raw_x * w
             y_px = raw_y * h
-            pts_px.append((x_px, y_px))
+            z_px = raw_z * w  # Depth scaled proportionally to width
+            pts_px.append((x_px, y_px, z_px))
 
         if is_all_zero:
             output_rows.append(out_row)
             continue
 
-        # Step 2-4: Calculate rigid 8-distance symmetric palm scale & normalize coordinates by L_hand
         norm_pts, l_hand = normalizer.normalize(pts_px)
 
         for lm_idx, lm_name in enumerate(ALL_21_LANDMARK_NAMES):
-            nx, ny = norm_pts[lm_idx]
+            nx, ny, nz = norm_pts[lm_idx]
             out_row[f"{lm_name}_x"] = f"{nx:.6f}"
             out_row[f"{lm_name}_y"] = f"{ny:.6f}"
+            if f"{lm_name}_z" in row:
+                out_row[f"{lm_name}_z"] = f"{nz:.6f}"
 
         output_rows.append(out_row)
 
@@ -264,7 +248,6 @@ def normalize_landmarks_csv(
     os.makedirs(os.path.dirname(os.path.abspath(output_csv)), exist_ok=True)
 
     if os.path.exists(output_csv):
-        print(f"[Info] Overwriting existing file: {output_csv}")
         try:
             os.remove(output_csv)
         except OSError as e:
@@ -323,12 +306,12 @@ def main():
     parser.add_argument(
         "-k", "--keep-raw", "--no-normalize",
         action="store_true",
-        help="Bypass scale normalization and keep original coordinates (useful for testing pipeline without normalization)"
+        help="Bypass scale normalization and keep original coordinates"
     )
     parser.add_argument(
         "--no-center",
         action="store_true",
-        help="Bypass wrist translation centering (divide pixel coordinates by L_hand without subtracting wrist position)"
+        help="Bypass wrist translation centering"
     )
 
     args = parser.parse_args()
@@ -373,7 +356,7 @@ def main():
         print("Flag -k / --keep-raw enabled: Passing through raw coordinates without scale normalization.\n")
     else:
         centering_desc = "wrist-centered (0,0)" if center_wrist else "uncentered"
-        print(f"Pure per-frame Scale Normalization enabled (6-distance palm RMS, {centering_desc}).\n")
+        print(f"Pure per-frame Scale Normalization enabled (8-distance palm RMS, {centering_desc}).\n")
 
     success_count = 0
     fail_count = 0

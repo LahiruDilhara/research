@@ -18,7 +18,8 @@ Each unrolled per-finger row preserves:
    - For Middle: middle_pip -> pip, middle_dip -> dip, middle_tip -> tip
    - For Ring: ring_pip -> pip, ring_dip -> dip, ring_tip -> tip
    - For Pinky: pinky_pip -> pip, pinky_dip -> dip, pinky_tip -> tip
-3. Per-finger touch label (touch_finger) and context flags.
+3. 5-frame hand confidence scores (hand_score1..5), 3D depth (z), visibility, presence, and 3D velocities/speeds.
+4. Per-finger touch label (touch_finger) and context flags.
 
 Supports batch execution over single CSVs, glob patterns, or directories. Overwrites target output file if it already exists.
 """
@@ -66,16 +67,23 @@ def build_split_finger_headers() -> list[str]:
     headers = list(METADATA_KEYS)
     headers.append("finger_name")
 
-    # 1. 5-frame coordinates (k = 1..5)
+    # 1. 5-frame coordinates & confidence scores (k = 1..5)
     for k in range(1, 6):
+        headers.append(f"hand_score{k}")
         # Common palm joints
         for j in COMMON_PALM_JOINTS:
             headers.append(f"{j}{k}_x")
             headers.append(f"{j}{k}_y")
+            headers.append(f"{j}{k}_z")
+            headers.append(f"{j}{k}_visibility")
+            headers.append(f"{j}{k}_presence")
         # Finger-specific joints
         for j in ["pip", "dip", "tip"]:
             headers.append(f"{j}{k}_x")
             headers.append(f"{j}{k}_y")
+            headers.append(f"{j}{k}_z")
+            headers.append(f"{j}{k}_visibility")
+            headers.append(f"{j}{k}_presence")
 
     # 2. 4-step velocities & speeds (v = 1..4)
     for v in range(1, 5):
@@ -83,12 +91,16 @@ def build_split_finger_headers() -> list[str]:
         for j in COMMON_PALM_JOINTS:
             headers.append(f"{j}{v}_vx")
             headers.append(f"{j}{v}_vy")
+            headers.append(f"{j}{v}_vz")
             headers.append(f"{j}{v}_speed_2d")
+            headers.append(f"{j}{v}_speed_3d")
         # Finger-specific joints
         for j in ["pip", "dip", "tip"]:
             headers.append(f"{j}{v}_vx")
             headers.append(f"{j}{v}_vy")
+            headers.append(f"{j}{v}_vz")
             headers.append(f"{j}{v}_speed_2d")
+            headers.append(f"{j}{v}_speed_3d")
 
     # 3. Target per-finger touch label & context flags
     headers.append("touch_finger")
@@ -140,7 +152,6 @@ def split_fingers_csv(input_csv: str, output_csv: str = None) -> str:
     total_touch_records = 0
 
     for row in rows:
-        # Extract metadata & label flags once per window
         meta_dict = {k: row.get(k, "") for k in METADATA_KEYS}
         label_dict = {}
         for flag in LABEL_FLAGS:
@@ -154,18 +165,26 @@ def split_fingers_csv(input_csv: str, output_csv: str = None) -> str:
             f_row = dict(meta_dict)
             f_row["finger_name"] = finger
 
-            # 1. Populate 5-frame coordinates (k = 1..5)
+            # 1. Populate 5-frame coordinates & confidence (k = 1..5)
             for k in range(1, 6):
+                f_row[f"hand_score{k}"] = row.get(f"hand_score{k}", "0.0")
+
                 # Common palm joints
                 for j in COMMON_PALM_JOINTS:
                     f_row[f"{j}{k}_x"] = row.get(f"{j}{k}_x", "0.0")
                     f_row[f"{j}{k}_y"] = row.get(f"{j}{k}_y", "0.0")
+                    f_row[f"{j}{k}_z"] = row.get(f"{j}{k}_z", "0.0")
+                    f_row[f"{j}{k}_visibility"] = row.get(f"{j}{k}_visibility", "0.0")
+                    f_row[f"{j}{k}_presence"] = row.get(f"{j}{k}_presence", "0.0")
 
                 # Finger-specific joints (pip, dip, tip)
                 jmap = FINGER_JOINT_MAP[finger]
                 for target_j, src_j in jmap.items():
                     f_row[f"{target_j}{k}_x"] = row.get(f"{src_j}{k}_x", "0.0")
                     f_row[f"{target_j}{k}_y"] = row.get(f"{src_j}{k}_y", "0.0")
+                    f_row[f"{target_j}{k}_z"] = row.get(f"{src_j}{k}_z", "0.0")
+                    f_row[f"{target_j}{k}_visibility"] = row.get(f"{src_j}{k}_visibility", "0.0")
+                    f_row[f"{target_j}{k}_presence"] = row.get(f"{src_j}{k}_presence", "0.0")
 
             # 2. Populate 4-step velocities & speeds (v = 1..4)
             for v in range(1, 5):
@@ -173,14 +192,18 @@ def split_fingers_csv(input_csv: str, output_csv: str = None) -> str:
                 for j in COMMON_PALM_JOINTS:
                     f_row[f"{j}{v}_vx"] = row.get(f"{j}{v}_vx", "0.000000")
                     f_row[f"{j}{v}_vy"] = row.get(f"{j}{v}_vy", "0.000000")
+                    f_row[f"{j}{v}_vz"] = row.get(f"{j}{v}_vz", "0.000000")
                     f_row[f"{j}{v}_speed_2d"] = row.get(f"{j}{v}_speed_2d", "0.000000")
+                    f_row[f"{j}{v}_speed_3d"] = row.get(f"{j}{v}_speed_3d", "0.000000")
 
                 # Finger-specific joints (pip, dip, tip)
                 jmap = FINGER_JOINT_MAP[finger]
                 for target_j, src_j in jmap.items():
                     f_row[f"{target_j}{v}_vx"] = row.get(f"{src_j}{v}_vx", "0.000000")
                     f_row[f"{target_j}{v}_vy"] = row.get(f"{src_j}{v}_vy", "0.000000")
+                    f_row[f"{target_j}{v}_vz"] = row.get(f"{src_j}{v}_vz", "0.000000")
                     f_row[f"{target_j}{v}_speed_2d"] = row.get(f"{src_j}{v}_speed_2d", "0.000000")
+                    f_row[f"{target_j}{v}_speed_3d"] = row.get(f"{src_j}{v}_speed_3d", "0.000000")
 
             # 3. Finger touch label
             finger_touch_val = row.get(f"{finger}_touch", "0")
@@ -218,7 +241,6 @@ def split_fingers_csv(input_csv: str, output_csv: str = None) -> str:
     os.makedirs(os.path.dirname(os.path.abspath(output_csv)), exist_ok=True)
 
     if os.path.exists(output_csv):
-        print(f"[Info] Overwriting existing file: {output_csv}")
         try:
             os.remove(output_csv)
         except OSError as e:
@@ -233,8 +255,8 @@ def split_fingers_csv(input_csv: str, output_csv: str = None) -> str:
     return output_csv
 
 
-def collect_csv_files(input_patterns: list[str]) -> list[str]:
-    """Expands glob patterns, directory paths, or file lists into a sorted list of CSV file paths."""
+def collect_input_files(input_patterns: list[str]) -> list[str]:
+    """Expands glob patterns, directory paths, or file lists into a list of CSV file paths."""
     matched_files = []
     for pattern in input_patterns:
         search_pattern = os.path.join(pattern, "*.csv") if os.path.isdir(pattern) else pattern
@@ -263,12 +285,12 @@ def main():
         "-i", "--input",
         nargs="+",
         default=None,
-        help="Input window dataset CSV file path(s), glob pattern(s), or input directory"
+        help="Input CSV file path(s) or glob pattern(s)"
     )
     parser.add_argument(
         "-o", "--output",
         default=None,
-        help="Output directory path (or output CSV file path for single input)"
+        help="Output directory path"
     )
 
     args = parser.parse_args()
@@ -299,28 +321,31 @@ def main():
             parser.print_help()
             sys.exit(1)
 
-    input_files = collect_csv_files(input_patterns)
+    input_files = collect_input_files(input_patterns)
     if not input_files:
-        print("[Error] No valid CSV files found for per-finger splitting. Exiting.")
+        print("[Error] No valid input CSV files found. Exiting.")
         sys.exit(1)
 
     print(f"Found {len(input_files)} CSV file(s) to process:")
     for f in input_files:
         print(f"  - {f}")
-    print()
 
     success_count = 0
     fail_count = 0
 
     for idx, input_file in enumerate(input_files, start=1):
-        print(f"[{idx}/{len(input_files)}] Splitting into per-finger dataset: {input_file}")
+        print(f"[{idx}/{len(input_files)}] Unrolling per-finger dataset: {input_file}")
         try:
             out_file_path = None
             if output_target:
                 if os.path.isdir(output_target) or output_target.endswith(os.sep) or output_target.endswith("/"):
                     os.makedirs(output_target, exist_ok=True)
                     base_name = os.path.basename(input_file)
-                    out_file_path = os.path.join(output_target, base_name)
+                    if ".csv" in base_name:
+                        out_name = base_name.replace(".csv", ".per_finger.csv")
+                    else:
+                        out_name = f"{base_name}.per_finger.csv"
+                    out_file_path = os.path.join(output_target, out_name)
                 elif len(input_files) == 1:
                     out_file_path = output_target
                 else:
@@ -329,15 +354,15 @@ def main():
             else:
                 out_file_path = None
 
-            split_fingers_csv(input_file, out_file_path)
+            split_fingers_csv(input_csv=input_file, output_csv=out_file_path)
             success_count += 1
         except Exception as e:
-            print(f"[Failed] Could not split fingers for '{input_file}': {e}")
+            print(f"[Failed] Could not process '{input_file}': {e}")
             fail_count += 1
         print()
 
     print("==========================================")
-    print("Batch Per-Finger Splitting Finished:")
+    print("Batch Per-Finger Dataset Unrolling Finished:")
     print(f"  Success: {success_count}/{len(input_files)}")
     print(f"  Failed : {fail_count}/{len(input_files)}")
     print("==========================================")
