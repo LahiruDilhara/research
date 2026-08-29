@@ -22,7 +22,7 @@ cp -f -r ./dataset/*.window_annotations.* dataprocessing/1_rawCSVFiles/
 python3 datacreator/normalize_landmarks.py -i ./dataprocessing/1_rawCSVFiles/*.raw_landmarks.* -o ./dataprocessing/2_normalized_coordinates/
 
 # Filter landmarks using 1Euro Filter
-python3 datacreator/filter_landmarks.py -min 5 -beta 2.4 -d 1.0 -i ./dataprocessing/2_normalized_coordinates/*.normalize_landmarks.* -o ./dataprocessing/3_euroFilter_coordinates/
+python3 datacreator/filter_landmarks.py -min 4.0 -beta 1.4 -d 1.0 -i ./dataprocessing/2_normalized_coordinates/*.normalize_landmarks.* -o ./dataprocessing/3_euroFilter_coordinates/
 
 cp -f -r ./dataprocessing/1_rawCSVFiles/*.window_annotations.* ./dataprocessing/4_filtered_coordinates_and_annotations/
 cp -f -r ./dataprocessing/3_euroFilter_coordinates/*.filtered_landmarks.* ./dataprocessing/4_filtered_coordinates_and_annotations/
@@ -52,3 +52,95 @@ python3 datacreator/create_train_test_split.py --touch-in ./dataprocessing/10_sp
 mkdir training_testing_data
 cp -f ./dataprocessing/11_train_test_split/training_dataset.csv training_testing_data/train_dataset.csv
 cp -f ./dataprocessing/11_train_test_split/testing_dataset.csv training_testing_data/test_dataset.csv
+
+# min 3.0, beta 2.4, d 1.0 90*3
+
+  #1  CNN1D                    90.56%  █████████████
+  #2  LSTM_Vel_Speed           90.11%  █████████████
+  #3  ResNet1D                 90.11%  █████████████
+  #4  TCN                      89.78%  █████████████
+  #5  LSTM_Velocities          89.55%  █████████████
+  #6  BiLSTM                   89.33%  █████████████
+  #7  LSTM_Combined            89.21%  █████████████
+  #8  Attention                88.99%  █████████████
+  #9  LSTM_All_Joints_Vel      88.76%  █████████████
+  #10  LSTM_Coords              82.47%  ████████████
+
+
+# -min 3.8 -beta 1.6 -d 1.0 90*3
+
+  #1  LSTM_Vel_Speed           90.34%  █████████████
+  #2  CNN1D                    90.34%  █████████████
+  #3  TCN                      90.11%  █████████████
+  #4  LSTM_Velocities          89.66%  █████████████
+  #5  LSTM_Combined            89.44%  █████████████
+  #6  BiLSTM                   89.33%  █████████████
+  #7  ResNet1D                 88.99%  █████████████
+  #8  LSTM_All_Joints_Vel      88.88%  █████████████
+  #9  Attention                88.76%  █████████████
+  #10  LSTM_Coords              83.93%  ████████████
+
+# -min 3.8 -beta 1.6 -d 1.0 
+  #1  CNN1D                    90.56%  █████████████
+  #2  LSTM_Vel_Speed           90.34%  █████████████
+  #3  TCN                      90.22%  █████████████
+  #4  LSTM_Velocities          89.66%  █████████████
+  #5  LSTM_Combined            89.44%  █████████████
+  #6  BiLSTM                   89.33%  █████████████
+  #7  ResNet1D                 89.10%  █████████████
+  #8  LSTM_All_Joints_Vel      88.88%  █████████████
+  #9  Attention                88.76%  █████████████
+  #10  LSTM_Coords              83.93%  ████████████
+
+
+
+# -min 1.0 -beta 1.6 -d 1.0
+  #1  LSTM_Vel_Speed           88.88%  █████████████
+  #2  CNN1D                    88.76%  █████████████
+  #3  TCN                      88.65%  █████████████
+  #4  ResNet1D                 88.31%  █████████████
+  #5  LSTM_Combined            87.87%  █████████████
+  #6  BiLSTM                   87.87%  █████████████
+  #7  LSTM_Velocities          87.64%  █████████████
+  #8  LSTM_All_Joints_Vel      87.64%  █████████████
+  #9  Attention                86.18%  ████████████
+  #10  LSTM_Coords              78.54%  ███████████
+
+
+# -min 2.4 -beta 2.4 -d 1.0
+  #1  TCN                      90.11%  █████████████
+  #2  CNN1D                    90.00%  █████████████
+  #3  LSTM_Vel_Speed           89.66%  █████████████
+  #4  LSTM_Velocities          89.44%  █████████████
+  #5  ResNet1D                 89.33%  █████████████
+  #6  BiLSTM                   89.21%  █████████████
+  #7  LSTM_Combined            88.99%  █████████████
+  #8  Attention                88.65%  █████████████
+  #9  LSTM_All_Joints_Vel      88.54%  █████████████
+  #10  LSTM_Coords              83.48%  ████████████
+
+
+# -min 3.0 -beta 1.4 -d 1.0
+  #1  LSTM_Vel_Speed           90.11%  █████████████
+  #2  CNN1D                    90.11%  █████████████
+  #3  TCN                      90.11%  █████████████
+  #4  LSTM_Velocities          89.33%  █████████████
+  #5  LSTM_Combined            89.21%  █████████████
+  #6  BiLSTM                   89.21%  █████████████
+  #7  ResNet1D                 89.21%  █████████████
+  #8  LSTM_All_Joints_Vel      88.65%  █████████████
+  #9  Attention                88.43%  █████████████
+  #10  LSTM_Coords              83.03%  ████████████
+
+
+# -min 4.0 -beta 1.4 -d 1.0
+  #1  CNN1D                    90.56%  █████████████
+  #2  LSTM_Vel_Speed           90.22%  █████████████
+  #3  BiLSTM                   89.89%  █████████████
+  #4  LSTM_Velocities          89.78%  █████████████
+  #5  TCN                      89.66%  █████████████
+  #6  ResNet1D                 89.55%  █████████████
+  #7  LSTM_Combined            89.33%  █████████████
+  #8  LSTM_All_Joints_Vel      88.99%  █████████████
+  #9  Attention                88.65%  █████████████
+  #10  LSTM_Coords              87.75%  █████████████

@@ -1,2 +1,2 @@
-arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-LSTM_Coords,1,32,2,0.2,0.001,32,86.0674,82.3596,0.8077,0.8494,0.828,OVERFITTING (Mild),24,5.87,14.7,LSTM_Coords_cfg01.pth
+arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
+LSTM_Coords,1,32,2,0.2,0.001,32,87.7528,87.191,0.884,0.8562,0.8699,395,50,64,381,OVERFITTING (Mild),56,6.6,24.0,LSTM_Coords_cfg01.pth

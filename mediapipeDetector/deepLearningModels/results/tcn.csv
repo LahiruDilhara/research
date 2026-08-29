@@ -1,2 +1,2 @@
-arch,config_id,tcn_channels,num_levels,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-TCN,1,32,2,0.2,0.001,32,90.8989,90.4494,0.8734,0.9461,0.9083,GOOD FIT (OPTIMAL),15,-0.87,16.2,TCN_cfg01.pth
+arch,config_id,tcn_channels,num_levels,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
+TCN,1,32,2,0.2,0.001,32,89.6629,89.6629,0.8624,0.9438,0.9013,378,67,25,420,GOOD FIT (OPTIMAL),15,-2.24,7.3,TCN_cfg01.pth

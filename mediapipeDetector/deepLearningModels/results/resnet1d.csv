@@ -1,2 +1,2 @@
-arch,config_id,hidden_dim,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-ResNet1D,1,32,0.2,0.001,32,90.4494,88.8764,0.8446,0.9528,0.8955,OVERFITTING (Mild),7,-0.12,9.1,ResNet1D_cfg01.pth
+arch,config_id,hidden_dim,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
+ResNet1D,1,32,0.2,0.001,32,89.5506,88.764,0.8402,0.9573,0.895,364,81,19,426,OVERFITTING (Mild),10,-1.1,7.5,ResNet1D_cfg01.pth

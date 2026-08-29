@@ -1,2 +1,2 @@
-arch,config_id,conv_ch,fc_hid,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-CNN1D,1,32,32,0.2,0.001,32,91.0112,90.5618,0.8737,0.9483,0.9095,GOOD FIT (OPTIMAL),21,-1.32,13.5,CNN1D_cfg01.pth
+arch,config_id,conv_ch,fc_hid,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
+CNN1D,1,32,32,0.2,0.001,32,90.5618,90.1124,0.8696,0.9438,0.9052,382,63,25,420,GOOD FIT (OPTIMAL),21,-1.21,10.7,CNN1D_cfg01.pth

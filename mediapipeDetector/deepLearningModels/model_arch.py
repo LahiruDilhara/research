@@ -220,6 +220,89 @@ def print_overfit_analytics(analytics: dict, title: str = ""):
     print(f"{'='*70}\n", flush=True)
 
 
+def print_terminal_confusion_matrix(cm: np.ndarray, title: str = ""):
+    """Prints formatted 2x2 confusion matrix with detailed classification metrics in standard output."""
+    if cm.shape != (2, 2):
+        return
+
+    tn, fp, fn, tp = cm.ravel()
+    total          = tn + fp + fn + tp
+    actual_untouch = tn + fp
+    actual_touch   = fn + tp
+    pred_untouch   = tn + fn
+    pred_touch     = fp + tp
+
+    acc  = (tp + tn) / total * 100.0 if total > 0 else 0.0
+    prec = tp / (tp + fp) * 100.0 if (tp + fp) > 0 else 0.0
+    rec  = tp / (tp + fn) * 100.0 if (tp + fn) > 0 else 0.0
+    spec = tn / (tn + fp) * 100.0 if (tn + fp) > 0 else 0.0
+    f1   = 2 * (prec * rec) / (prec + rec) / 100.0 if (prec + rec) > 0 else 0.0
+
+    print(f"\n{'='*70}", flush=True)
+    print(f"  {title} — CONFUSION MATRIX & EVALUATION METRICS", flush=True)
+    print(f"{'='*70}", flush=True)
+    print(f"                       Predicted Untouch (0)   Predicted Touch (1)   Total", flush=True)
+    print(f"  Actual Untouch (0)   [ {tn:7d} ]           [ {fp:7d} ]           {actual_untouch:6d}", flush=True)
+    print(f"  Actual Touch   (1)   [ {fn:7d} ]           [ {tp:7d} ]           {actual_touch:6d}", flush=True)
+    print(f"  Total                {pred_untouch:7d}             {pred_touch:7d}           {total:6d}\n", flush=True)
+
+    print(f"  Accuracy:      {acc:6.2f}%", flush=True)
+    print(f"  Precision:     {prec:6.2f}%  (Touch Positive Predictive Value)", flush=True)
+    print(f"  Recall/Sens:   {rec:6.2f}%  (Touch True Positive Rate)", flush=True)
+    print(f"  Specificity:   {spec:6.2f}%  (Untouch True Negative Rate)", flush=True)
+    print(f"  F1-Score:      {f1:.4f}   (Harmonic Mean)", flush=True)
+    print(f"{'='*70}\n", flush=True)
+
+
+def plot_matplotlib_confusion_matrix(cm: np.ndarray, title: str = "", save_path: Path = None, show: bool = False):
+    """Generates publication-quality Jupyter notebook style Matplotlib Confusion Matrix heatmap."""
+    import matplotlib.pyplot as plt
+
+    if cm.shape != (2, 2):
+        return
+
+    fig, ax = plt.subplots(figsize=(6, 5), dpi=150)
+    im = ax.imshow(cm, interpolation="nearest", cmap=plt.cm.Blues)
+
+    cbar = ax.figure.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    cbar.ax.tick_params(labelsize=9)
+
+    classes = ["Untouch (0)", "Touch (1)"]
+    ax.set(xticks=[0, 1], yticks=[0, 1], xticklabels=classes, yticklabels=classes)
+    ax.set_title(f"{title} — Confusion Matrix", fontsize=12, fontweight="bold", pad=12)
+    ax.set_xlabel("Predicted Class Label", fontsize=10, fontweight="bold", labelpad=8)
+    ax.set_ylabel("True Class Label", fontsize=10, fontweight="bold", labelpad=8)
+    ax.tick_params(labelsize=10)
+
+    thresh = cm.max() / 2.0
+    total  = cm.sum()
+    labels_matrix = [["TN", "FP"], ["FN", "TP"]]
+
+    for i in range(2):
+        for j in range(2):
+            count = cm[i, j]
+            pct   = (count / total) * 100.0 if total > 0 else 0.0
+            text  = f"{labels_matrix[i][j]}\n{count}\n({pct:.1f}%)"
+            color = "white" if count > thresh else "black"
+            ax.text(j, i, text, ha="center", va="center", color=color, fontsize=11, fontweight="bold")
+
+    plt.tight_layout()
+
+    if save_path:
+        save_path = Path(save_path)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        print(f"  📊 Matplotlib Confusion Matrix saved → results/plots/{save_path.name}", flush=True)
+
+    if show:
+        try:
+            plt.show()
+        except Exception:
+            pass
+
+    plt.close(fig)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  Dataset
 # ─────────────────────────────────────────────────────────────────────────────

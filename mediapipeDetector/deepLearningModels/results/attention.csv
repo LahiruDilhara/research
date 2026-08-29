@@ -1,2 +1,2 @@
-arch,config_id,embed_dim,num_heads,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-Attention,1,32,4,0.2,0.001,32,89.3258,88.5393,0.8423,0.9483,0.8922,GOOD FIT (OPTIMAL),4,-0.95,10.4,Attention_cfg01.pth
+arch,config_id,embed_dim,num_heads,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
+Attention,1,32,4,0.2,0.001,32,88.6517,87.0787,0.8149,0.9596,0.8813,348,97,18,427,OVERFITTING (Mild),5,-1.15,6.6,Attention_cfg01.pth

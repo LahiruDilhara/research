@@ -228,6 +228,67 @@ def plot_all_models_grid():
     plt.close(fig)
 
 
+def plot_all_confusion_matrices_grid(df: pd.DataFrame):
+    """Generates a master grid figure displaying Confusion Matrix heatmaps for all models."""
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    if df.empty or "tn" not in df.columns:
+        return
+
+    df_sorted = df.sort_values("best_test_acc_raw", ascending=False).reset_index(drop=True)
+    n_models  = len(df_sorted)
+    if n_models == 0:
+        return
+
+    n_cols = 3
+    n_rows = (n_models + n_cols - 1) // n_cols
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(14, 4.2 * n_rows), dpi=150)
+    axes_flat = axes.flatten() if n_models > 1 else [axes]
+
+    labels_matrix = [["TN", "FP"], ["FN", "TP"]]
+
+    for idx, (_, row) in enumerate(df_sorted.iterrows()):
+        ax   = axes_flat[idx]
+        arch = row.get("arch", "?")
+        tn   = int(row.get("tn", 0))
+        fp   = int(row.get("fp", 0))
+        fn   = int(row.get("fn", 0))
+        tp   = int(row.get("tp", 0))
+        cm   = np.array([[tn, fp], [fn, tp]])
+        total= cm.sum()
+
+        im = ax.imshow(cm, interpolation="nearest", cmap=plt.cm.Blues)
+        classes = ["Untouch (0)", "Touch (1)"]
+        ax.set(xticks=[0, 1], yticks=[0, 1], xticklabels=classes, yticklabels=classes)
+        acc_str = f"{_get_acc_pct(row['best_test_acc_raw']):.2f}%"
+        ax.set_title(f"{arch}\n(Acc: {acc_str})", fontsize=11, fontweight="bold", pad=8)
+        ax.set_xlabel("Predicted Label", fontsize=9, fontweight="bold")
+        ax.set_ylabel("True Label", fontsize=9, fontweight="bold")
+        ax.tick_params(labelsize=8)
+
+        thresh = cm.max() / 2.0 if cm.max() > 0 else 1.0
+        for i in range(2):
+            for j in range(2):
+                count = cm[i, j]
+                pct   = (count / total) * 100.0 if total > 0 else 0.0
+                text  = f"{labels_matrix[i][j]}\n{count}\n({pct:.1f}%)"
+                color = "white" if count > thresh else "black"
+                ax.text(j, i, text, ha="center", va="center", color=color, fontsize=10, fontweight="bold")
+
+    for idx in range(n_models, len(axes_flat)):
+        axes_flat[idx].axis("off")
+
+    plt.tight_layout()
+    plot_dir = RESULTS_DIR / "plots"
+    plot_dir.mkdir(parents=True, exist_ok=True)
+    grid_path = plot_dir / "all_models_confusion_matrices_grid.png"
+    plt.savefig(grid_path, dpi=300, bbox_inches="tight")
+    print(f"  📊 Master Matplotlib Confusion Matrix grid saved → results/plots/{grid_path.name}\n", flush=True)
+    plt.close(fig)
+
+
 def get_process_sh_commands(base_dir: Path) -> str:
     process_sh = base_dir / "process.sh"
     if not process_sh.exists():
@@ -338,6 +399,7 @@ def main():
 
     if args.plot:
         plot_all_models_grid()
+        plot_all_confusion_matrices_grid(df)
 
 
 if __name__ == "__main__":

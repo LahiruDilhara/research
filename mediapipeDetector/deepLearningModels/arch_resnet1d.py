@@ -19,7 +19,8 @@ from model_arch import (
     TouchResNet1D, normalize, make_loaders, train_config,
     evaluate_model, save_result, get_data_paths, parse_labels,
     print_terminal_curves, save_history, plot_matplotlib_curves,
-    analyze_fit_quality, print_overfit_analytics
+    analyze_fit_quality, print_overfit_analytics,
+    print_terminal_confusion_matrix, plot_matplotlib_confusion_matrix
 )
 
 BASE        = Path(__file__).resolve().parent.parent
@@ -44,7 +45,7 @@ def parse_args():
     parser.add_argument("--lr", type=float, default=None, help="Learning rate")
     parser.add_argument("--batch-size", "-bs", type=int, default=None, help="Batch size")
     parser.add_argument("--hidden", type=int, default=None, help="Hidden dimension")
-    parser.add_argument("--plot", "-p", "--plot-curves", dest="plot", action="store_true", help="Generate Matplotlib Loss & Acc curve plots")
+    parser.add_argument("--plot", "-p", "--plot-curves", dest="plot", action="store_true", help="Generate Matplotlib Loss & Acc curve plots and Confusion Matrix heatmaps")
     return parser.parse_args()
 
 
@@ -124,14 +125,20 @@ def main():
         history_path = Path(__file__).resolve().parent / "results" / f"{ARCH_NAME.lower()}_history.json"
         save_history(hist, history_path)
 
+        cm, rpt = evaluate_model(model, test_loader, device)
+        print_terminal_confusion_matrix(cm, title=ARCH_NAME)
+
         if args.plot:
             plot_path = Path(__file__).resolve().parent / "results" / "plots" / f"{ARCH_NAME.lower()}.png"
             plot_matplotlib_curves(hist, title=ARCH_NAME, save_path=plot_path, show=False)
 
-        _, rpt = evaluate_model(model, test_loader, device)
+            cm_plot_path = Path(__file__).resolve().parent / "results" / "plots" / f"{ARCH_NAME.lower()}_confusion_matrix.png"
+            plot_matplotlib_confusion_matrix(cm, title=ARCH_NAME, save_path=cm_plot_path, show=False)
 
         wf = WEIGHTS_DIR / f"{ARCH_NAME}_cfg{cfg['id']:02d}.pth"
         torch.save(model.state_dict(), wf)
+
+        tn, fp, fn, tp = cm.ravel() if cm.shape == (2, 2) else (0, 0, 0, 0)
 
         row = {
             "arch":             ARCH_NAME,
@@ -145,6 +152,10 @@ def main():
             "precision_touch":  round(rpt["Touch"]["precision"], 4),
             "recall_touch":     round(rpt["Touch"]["recall"], 4),
             "f1_touch":         round(rpt["Touch"]["f1-score"], 4),
+            "tn":               tn,
+            "fp":               fp,
+            "fn":               fn,
+            "tp":               tp,
             "fit_status":       f"{analytics['fit_status']} ({analytics['fit_scale']})" if analytics['fit_scale'] != "None" else analytics['fit_status'],
             "onset_epoch":      analytics["onset_epoch"],
             "max_gap_pct":      analytics["max_gap_pct"],

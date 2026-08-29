@@ -94,8 +94,10 @@ The suite benchmark 10 model variants:
 - **Terminal Loss & Accuracy Curves**: Renders ASCII line graphs using `asciichartpy` immediately after training each model:
   - **Loss Curve**: 🔴 Red (Train Loss) vs. 🔵 Cyan (Test Loss)
   - **Accuracy Curve**: 🟢 Green (Train Acc %) vs. 🟡 Yellow (Test Acc %)
-- **Log Files**: Full stdout logs for each model are saved under `deepLearningModels/results/<arch_name>.log`.
-- **CSV Results**: Summary metric CSVs are generated in `deepLearningModels/results/`.
+- **Confusion Matrix & Classification Metrics**: Right after model evaluation, a formatted 2x2 binary confusion matrix (True Positives, True Negatives, False Positives, False Negatives) along with Accuracy, Precision, Recall, Specificity, and F1-score is printed to stdout.
+- **Jupyter Notebook-Style Graphical Confusion Matrix Heatmaps**: When running with `--plot` / `-p`, publication-quality Matplotlib Confusion Matrix heatmaps are rendered:
+  - Per-model heatmap PNGs: `results/plots/<arch_name>_confusion_matrix.png`
+  - Master multi-model confusion matrix grid PNG: `results/plots/all_models_confusion_matrices_grid.png`
 - **Overfitting & Underfitting Analytics**: Right after training each model, real-time analytics are computed and printed:
   - **Diagnosis Status**: Automatically classifies training as `OVERFITTING (Severe/Moderate/Mild)`, `UNDERFITTING (High)`, or `GOOD FIT (OPTIMAL)`.
   - **Overfit Onset Epoch**: Exact epoch where test loss minimum was reached before rising or where generalization gap started widening.

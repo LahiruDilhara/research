@@ -1,11 +1,11 @@
-arch,config_id,embed_dim,num_heads,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file,hidden,layers,conv_ch,fc_hid,hidden_dim,tcn_channels,num_levels
-CNN1D,1,,,0.2,0.001,32,91.0112,90.5618,0.8737,0.9483,0.9095,GOOD FIT (OPTIMAL),21,-1.32,13.5,CNN1D_cfg01.pth,,,32.0,32.0,,,
-TCN,1,,,0.2,0.001,32,90.8989,90.4494,0.8734,0.9461,0.9083,GOOD FIT (OPTIMAL),15,-0.87,16.2,TCN_cfg01.pth,,,,,,32.0,2.0
-LSTM_Vel_Speed,1,,,0.2,0.001,32,90.5618,90.1124,0.8711,0.9416,0.905,GOOD FIT (OPTIMAL),17,-1.99,13.7,LSTM_Vel_Speed_cfg01.pth,32.0,2.0,,,,,
-BiLSTM,1,,,0.2,0.001,32,90.4494,89.6629,0.8654,0.9393,0.9009,GOOD FIT (OPTIMAL),14,-0.14,12.7,BiLSTM_cfg01.pth,32.0,2.0,,,,,
-ResNet1D,1,,,0.2,0.001,32,90.4494,88.8764,0.8446,0.9528,0.8955,OVERFITTING (Mild),7,-0.12,9.1,ResNet1D_cfg01.pth,,,,,32.0,,
-LSTM_Velocities,1,,,0.2,0.001,32,89.8876,88.8764,0.8634,0.9236,0.8925,GOOD FIT (OPTIMAL),7,-1.8,7.5,LSTM_Velocities_cfg01.pth,32.0,2.0,,,,,
-LSTM_Combined,1,,,0.2,0.001,32,89.4382,88.9888,0.8563,0.9371,0.8948,GOOD FIT (OPTIMAL),8,-0.42,7.3,LSTM_Combined_cfg01.pth,32.0,2.0,,,,,
-Attention,1,32.0,4.0,0.2,0.001,32,89.3258,88.5393,0.8423,0.9483,0.8922,GOOD FIT (OPTIMAL),4,-0.95,10.4,Attention_cfg01.pth,,,,,,,
-LSTM_All_Joints_Vel,1,,,0.2,0.001,32,88.764,88.2022,0.8696,0.8989,0.884,GOOD FIT (OPTIMAL),3,2.3,8.9,LSTM_All_Joints_Vel_cfg01.pth,32.0,2.0,,,,,
-LSTM_Coords,1,,,0.2,0.001,32,86.0674,82.3596,0.8077,0.8494,0.828,OVERFITTING (Mild),24,5.87,14.7,LSTM_Coords_cfg01.pth,32.0,2.0,,,,,
+arch,config_id,embed_dim,num_heads,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file,hidden,layers,conv_ch,fc_hid,hidden_dim,tcn_channels,num_levels
+CNN1D,1,,,0.2,0.001,32,90.5618,90.1124,0.8696,0.9438,0.9052,382,63,25,420,GOOD FIT (OPTIMAL),21,-1.21,10.7,CNN1D_cfg01.pth,,,32.0,32.0,,,
+LSTM_Vel_Speed,1,,,0.2,0.001,32,90.2247,89.6629,0.8654,0.9393,0.9009,380,65,27,418,GOOD FIT (OPTIMAL),17,-2.02,8.5,LSTM_Vel_Speed_cfg01.pth,32.0,2.0,,,,,
+BiLSTM,1,,,0.2,0.001,32,89.8876,89.4382,0.8545,0.9506,0.9,373,72,22,423,GOOD FIT (OPTIMAL),14,0.05,9.9,BiLSTM_cfg01.pth,32.0,2.0,,,,,
+LSTM_Velocities,1,,,0.2,0.001,32,89.7753,89.5506,0.8621,0.9416,0.9001,378,67,26,419,GOOD FIT (OPTIMAL),7,-1.71,6.6,LSTM_Velocities_cfg01.pth,32.0,2.0,,,,,
+TCN,1,,,0.2,0.001,32,89.6629,89.6629,0.8624,0.9438,0.9013,378,67,25,420,GOOD FIT (OPTIMAL),15,-2.24,7.3,TCN_cfg01.pth,,,,,,32.0,2.0
+ResNet1D,1,,,0.2,0.001,32,89.5506,88.764,0.8402,0.9573,0.895,364,81,19,426,OVERFITTING (Mild),10,-1.1,7.5,ResNet1D_cfg01.pth,,,,,32.0,,
+LSTM_Combined,1,,,0.2,0.001,32,89.3258,88.764,0.8457,0.9483,0.8941,368,77,23,422,GOOD FIT (OPTIMAL),8,0.11,7.2,LSTM_Combined_cfg01.pth,32.0,2.0,,,,,
+LSTM_All_Joints_Vel,1,,,0.2,0.001,32,88.9888,88.427,0.8592,0.9191,0.8882,378,67,36,409,GOOD FIT (OPTIMAL),3,0.5,4.7,LSTM_All_Joints_Vel_cfg01.pth,32.0,2.0,,,,,
+Attention,1,32.0,4.0,0.2,0.001,32,88.6517,87.0787,0.8149,0.9596,0.8813,348,97,18,427,OVERFITTING (Mild),5,-1.15,6.6,Attention_cfg01.pth,,,,,,,
+LSTM_Coords,1,,,0.2,0.001,32,87.7528,87.191,0.884,0.8562,0.8699,395,50,64,381,OVERFITTING (Mild),56,6.6,24.0,LSTM_Coords_cfg01.pth,32.0,2.0,,,,,
