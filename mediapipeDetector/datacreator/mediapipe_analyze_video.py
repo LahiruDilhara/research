@@ -15,7 +15,7 @@ Video analyzer script for 12.0 FPS videos:
 2. Calculates SHA-256 fingerprint hash of each video file.
 3. Uses MediaPipe HandLandmarker to extract raw landmarks on every frame.
 4. Uses reusable hand_selection logic (datacreator.hand_selection) prioritizing 'Right' hand over 'Left' hand.
-5. Annotates detected hand label ('Right' / 'Left') and exports frame-by-frame landmarks to a CSV file.
+5. Annotates detected hand label ('Right' / 'Left'), hand confidence score, and exports frame-by-frame landmarks (x, y, z, visibility, presence) to a CSV file.
 
 Supports processing single video files, glob patterns (e.g. '*', 'videos/*', '*.mp4'), or directory paths.
 CSV files are saved in the same directory as the source video file (or an optional output directory override)
@@ -116,22 +116,25 @@ def calculate_hand_scale(pts_px: list) -> float:
 
 
 def build_csv_headers() -> list[str]:
-    """Builds CSV headers for video metadata and all 21 raw unfiltered landmark features."""
+    """Builds CSV headers for video metadata, hand confidence score, and all 21 raw landmark features (x, y, z, visibility, presence)."""
     headers = [
         "video_file", "video_hash", "video_width", "video_height",
         "video_fps", "total_video_frames", "video_duration_sec",
-        "frame_idx", "timestamp_ms", "hand"
+        "frame_idx", "timestamp_ms", "hand", "hand_score"
     ]
     for lm_name in ALL_21_LANDMARK_NAMES:
         headers.append(f"{lm_name}_x")
         headers.append(f"{lm_name}_y")
+        headers.append(f"{lm_name}_z")
+        headers.append(f"{lm_name}_visibility")
+        headers.append(f"{lm_name}_presence")
     return headers
 
 
 def analyze_video(input_path: str, output_dir: str | None = None) -> str | None:
     """
     Validates strictly 12.0 FPS, computes SHA-256 hash, runs MediaPipe frame-by-frame
-    with Right-hand prioritization, and outputs 100% raw (unfiltered) landmarks CSV
+    with Right-hand prioritization, and outputs raw landmarks CSV (x, y, z, visibility, presence, hand_score)
     with full video metadata in the video's directory (or optional output_dir). Overwrites existing CSV files.
     Returns the output CSV path on success, or None if skipped.
     """
@@ -215,7 +218,7 @@ def analyze_video(input_path: str, output_dir: str | None = None) -> str | None:
     )
     landmarker = HandLandmarker.create_from_options(options)
 
-    # 4. Extract Per-Frame Landmark Features (100% RAW UNFILTERED)
+    # 4. Extract Per-Frame Landmark Features (RAW UNFILTERED with x, y, z, visibility, presence, hand_score)
     csv_rows = []
     headers = build_csv_headers()
 
@@ -229,12 +232,24 @@ def analyze_video(input_path: str, output_dir: str | None = None) -> str | None:
         if result.hand_landmarks and result.handedness:
             for idx, landmarks in enumerate(result.hand_landmarks):
                 hand_label = result.handedness[idx][0].category_name  # "Right" or "Left"
+                hand_score = float(result.handedness[idx][0].score)
                 pts_px = [(lm.x * w, lm.y * h) for lm in landmarks]
-                pts_raw = [(lm.x, lm.y) for lm in landmarks]
+
+                full_lms = []
+                for lm in landmarks:
+                    rx = float(lm.x)
+                    ry = float(lm.y)
+                    rz = float(lm.z)
+                    vis = float(getattr(lm, "visibility", 0.0)) if getattr(lm, "visibility", None) is not None else 0.0
+                    pres = float(getattr(lm, "presence", 0.0)) if getattr(lm, "presence", None) is not None else 0.0
+                    full_lms.append((rx, ry, rz, vis, pres))
+
                 l_hand = calculate_hand_scale(pts_px)
                 raw_detected_hands.append({
                     "hand": hand_label,
-                    "all_pts_raw": pts_raw,
+                    "hand_score": hand_score,
+                    "all_pts_raw": [(lm.x, lm.y) for lm in landmarks],
+                    "all_lms_full": full_lms,
                     "all_pts_px": pts_px,
                     "l_hand": l_hand
                 })
@@ -257,31 +272,46 @@ def analyze_video(input_path: str, output_dir: str | None = None) -> str | None:
         if selected_hand:
             hd = selected_hand[0]
             hand_label = hd["hand"]
-            pts_raw = hd["all_pts_raw"]
+            hand_score = hd["hand_score"]
+            full_lms = hd["all_lms_full"]
 
             row["hand"] = hand_label
+            row["hand_score"] = round(hand_score, 6)
 
             for lm_idx, lm_name in enumerate(ALL_21_LANDMARK_NAMES):
-                rx, ry = pts_raw[lm_idx]
+                rx, ry, rz, vis, pres = full_lms[lm_idx]
                 row[f"{lm_name}_x"] = round(rx, 6)
                 row[f"{lm_name}_y"] = round(ry, 6)
+                row[f"{lm_name}_z"] = round(rz, 6)
+                row[f"{lm_name}_visibility"] = round(vis, 6)
+                row[f"{lm_name}_presence"] = round(pres, 6)
         else:
             row["hand"] = "None"
+            row["hand_score"] = 0.0
             for lm_name in ALL_21_LANDMARK_NAMES:
                 row[f"{lm_name}_x"] = 0.0
                 row[f"{lm_name}_y"] = 0.0
+                row[f"{lm_name}_z"] = 0.0
+                row[f"{lm_name}_visibility"] = 0.0
+                row[f"{lm_name}_presence"] = 0.0
 
         csv_rows.append(row)
 
     landmarker.close()
 
-    # 5. Write to CSV File (Overwriting if file exists)
+    # 5. Write to CSV File (Removing existing file first to force fresh overwrite)
+    if os.path.exists(output_csv_path):
+        try:
+            os.remove(output_csv_path)
+        except Exception:
+            pass
+
     with open(output_csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=headers)
         writer.writeheader()
         writer.writerows(csv_rows)
 
-    print(f"[Success] Extracted {len(csv_rows)} frame records.")
+    print(f"[Success] Extracted {len(csv_rows)} frame records with z-depth, visibility, presence, & hand_score.")
     print(f"          Saved raw landmark CSV to: {output_csv_path}")
     return output_csv_path
 
