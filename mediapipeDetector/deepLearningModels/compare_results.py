@@ -142,9 +142,9 @@ def print_per_arch_best(df: pd.DataFrame):
         fit  = best.get("fit_status", "N/A")
         ep   = best.get("onset_epoch", "?")
 
-        param_keys = PARAM_COLS_PER_ARCH.get(arch, [])
-        params = "  ".join(f"{k}={best[k]}" for k in param_keys if k in best)
-        print(f"  {arch:22s}  cfg{cid:02d}  Acc={acc:6.2f}%  F1={f1:.4f}  |  Fit={fit} (Onset: Ep {ep})  |  {params}")
+        param_keys = PARAM_COLS_PER_ARCH.get(arch, ["hidden", "conv_ch", "embed_dim", "tcn_channels", "dropout", "lr", "batch_size"])
+        params = "  ".join(f"{k}={best[k]}" for k in param_keys if k in best and pd.notna(best[k]))
+        print(f"  {arch:26s}  cfg{cid:02d}  Acc={acc:6.2f}%  F1={f1:.4f}  |  Fit={fit} (Onset: Ep {ep})  |  {params}")
     print(f"{DASH}")
 
 

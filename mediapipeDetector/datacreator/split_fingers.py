@@ -252,6 +252,22 @@ def split_fingers_csv(input_csv: str, output_csv: str = None) -> str:
         writer.writerows(unrolled_rows)
 
     print(f"[Success] Saved per-finger dataset to: {output_csv}")
+
+    # Save summary JSON for pipeline audit
+    try:
+        from summary_utils import save_step_summary
+        save_step_summary("step_10_split_fingers.json", {
+            "step": 10,
+            "name": "split_fingers",
+            "input_window_rows": len(rows),
+            "unrolled_rows": total_unrolled,
+            "touch_records": total_touch_records,
+            "untouch_records": non_touch_records,
+            "per_finger_touches": touch_finger_counts
+        })
+    except Exception as e:
+        pass
+
     return output_csv
 
 

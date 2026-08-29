@@ -159,6 +159,21 @@ def split_touch_csv(
         writer.writerows(untouch_rows)
 
     print(f"[Success] Touch split datasets saved to:\n  - {touch_out_path}\n  - {untouch_out_path}")
+
+    # Save summary JSON for pipeline audit
+    try:
+        from summary_utils import save_step_summary
+        save_step_summary("step_11_split_touch.json", {
+            "step": 11,
+            "name": "split_touch",
+            "total_input_rows": total_cnt,
+            "touch_records": len(touch_rows),
+            "untouch_records": len(untouch_rows),
+            "touch_pct": round(touch_pct, 2)
+        })
+    except Exception as e:
+        pass
+
     return touch_out_path, untouch_out_path
 
 

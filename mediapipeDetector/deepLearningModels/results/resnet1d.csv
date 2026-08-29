@@ -1,2 +1,0 @@
-arch,config_id,hidden_dim,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-ResNet1D,1,32,0.2,0.001,32,83.6538,83.6538,0.8092,0.8808,0.8435,206,54,31,229,GOOD FIT (OPTIMAL),3,2.01,2.7,ResNet1D_cfg01.pth

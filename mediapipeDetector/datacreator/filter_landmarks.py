@@ -376,6 +376,24 @@ def main():
     print(f"  Failed : {fail_count}/{len(input_files)}")
     print("==========================================")
 
+    # Save comprehensive summary JSON for pipeline audit
+    try:
+        from summary_utils import save_step_summary
+        save_step_summary("step_3_filter_landmarks.json", {
+            "step": 3,
+            "name": "filter_landmarks",
+            "total_files": len(input_files),
+            "success_count": success_count,
+            "fail_count": fail_count,
+            "min_cutoff": args.min_cutoff,
+            "beta": args.beta,
+            "d_cutoff": args.d_cutoff,
+            "filtered_coordinates": ["x", "y", "z"],
+            "unfiltered_metadata": ["hand_score", "visibility", "presence"]
+        })
+    except Exception as e:
+        pass
+
     if success_count == 0 and fail_count > 0:
         sys.exit(1)
 

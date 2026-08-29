@@ -364,6 +364,19 @@ def main():
     print(f"  Failed : {fail_count}/{len(pairs)}")
     print("==========================================")
 
+    # Save summary JSON for pipeline audit
+    try:
+        from summary_utils import save_step_summary
+        save_step_summary("step_5_create_windows.json", {
+            "step": 5,
+            "name": "create_windows",
+            "total_pairs": len(pairs),
+            "success_count": success_count,
+            "fail_count": fail_count
+        })
+    except Exception as e:
+        pass
+
     if success_count == 0 and fail_count > 0:
         sys.exit(1)
 

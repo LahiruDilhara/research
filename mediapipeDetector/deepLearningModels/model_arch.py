@@ -1,20 +1,25 @@
 """
 model_arch.py
 =============
-Shared model architectures and training utilities for deepLearningModels/.
+Shared model architectures, data loaders, and training utilities for deepLearningModels/.
 
 Models:
   - SequenceLSTM      : Flexible LSTM for (N, T, F) binary classification
   - TouchCNN1D        : 1D CNN over feature channels
   - TouchResNet1D     : 1D ResNet with residual skip connections
   - TouchAttentionNet : Multi-Head Self-Attention Transformer encoder
+  - TouchTCN          : Temporal Convolutional Network (TCN)
 """
 
+import argparse
 import csv
+import json
+import math
 import time
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
@@ -62,7 +67,6 @@ def print_terminal_curves(history: dict, title: str = ""):
 
 def save_history(history: dict, json_path: Path):
     """Saves training history dictionary to JSON."""
-    import json
     json_path = Path(json_path)
     json_path.parent.mkdir(parents=True, exist_ok=True)
     with open(json_path, "w") as f:
@@ -229,8 +233,6 @@ def print_terminal_confusion_matrix(cm: np.ndarray, title: str = ""):
     total          = tn + fp + fn + tp
     actual_untouch = tn + fp
     actual_touch   = fn + tp
-    pred_untouch   = tn + fn
-    pred_touch     = fp + tp
 
     acc  = (tp + tn) / total * 100.0 if total > 0 else 0.0
     prec = tp / (tp + fp) * 100.0 if (tp + fp) > 0 else 0.0
@@ -239,45 +241,45 @@ def print_terminal_confusion_matrix(cm: np.ndarray, title: str = ""):
     f1   = 2 * (prec * rec) / (prec + rec) / 100.0 if (prec + rec) > 0 else 0.0
 
     print(f"\n{'='*70}", flush=True)
-    print(f"  {title} — CONFUSION MATRIX & EVALUATION METRICS", flush=True)
+    print(f"  {title} — CONFUSION MATRIX & METRICS REPORT", flush=True)
     print(f"{'='*70}", flush=True)
-    print(f"                       Predicted Untouch (0)   Predicted Touch (1)   Total", flush=True)
-    print(f"  Actual Untouch (0)   [ {tn:7d} ]           [ {fp:7d} ]           {actual_untouch:6d}", flush=True)
-    print(f"  Actual Touch   (1)   [ {fn:7d} ]           [ {tp:7d} ]           {actual_touch:6d}", flush=True)
-    print(f"  Total                {pred_untouch:7d}             {pred_touch:7d}           {total:6d}\n", flush=True)
-
-    print(f"  Accuracy:      {acc:6.2f}%", flush=True)
-    print(f"  Precision:     {prec:6.2f}%  (Touch Positive Predictive Value)", flush=True)
-    print(f"  Recall/Sens:   {rec:6.2f}%  (Touch True Positive Rate)", flush=True)
-    print(f"  Specificity:   {spec:6.2f}%  (Untouch True Negative Rate)", flush=True)
-    print(f"  F1-Score:      {f1:.4f}   (Harmonic Mean)", flush=True)
+    print(f"                 Predicted UNTOUCH    Predicted TOUCH     Total Actual", flush=True)
+    print(f"  Actual UNTOUCH     TN = {tn:<8d}     FP = {fp:<8d}     {actual_untouch:<8d}", flush=True)
+    print(f"  Actual TOUCH       FN = {fn:<8d}     TP = {tp:<8d}     {actual_touch:<8d}", flush=True)
+    print(f"  ------------------------------------------------------------------", flush=True)
+    print(f"  Overall Accuracy : {acc:.2f}% ({tp + tn}/{total})", flush=True)
+    print(f"  Precision (Touch): {prec:.2f}% ({tp}/{tp + fp if (tp + fp) > 0 else 1})", flush=True)
+    print(f"  Recall (Touch)   : {rec:.2f}% ({tp}/{actual_touch if actual_touch > 0 else 1})", flush=True)
+    print(f"  Specificity      : {spec:.2f}% ({tn}/{actual_untouch if actual_untouch > 0 else 1})", flush=True)
+    print(f"  F1-Score (Touch) : {f1:.4f}", flush=True)
     print(f"{'='*70}\n", flush=True)
 
 
 def plot_matplotlib_confusion_matrix(cm: np.ndarray, title: str = "", save_path: Path = None, show: bool = False):
-    """Generates publication-quality Jupyter notebook style Matplotlib Confusion Matrix heatmap."""
+    """Generates Jupyter notebook style Matplotlib confusion matrix heatmap visualization."""
     import matplotlib.pyplot as plt
 
     if cm.shape != (2, 2):
         return
 
-    fig, ax = plt.subplots(figsize=(6, 5), dpi=150)
+    fig, ax = plt.subplots(figsize=(5, 4), dpi=120)
     im = ax.imshow(cm, interpolation="nearest", cmap=plt.cm.Blues)
+    ax.figure.colorbar(im, ax=ax)
 
-    cbar = ax.figure.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    cbar.ax.tick_params(labelsize=9)
-
-    classes = ["Untouch (0)", "Touch (1)"]
-    ax.set(xticks=[0, 1], yticks=[0, 1], xticklabels=classes, yticklabels=classes)
-    ax.set_title(f"{title} — Confusion Matrix", fontsize=12, fontweight="bold", pad=12)
-    ax.set_xlabel("Predicted Class Label", fontsize=10, fontweight="bold", labelpad=8)
-    ax.set_ylabel("True Class Label", fontsize=10, fontweight="bold", labelpad=8)
-    ax.tick_params(labelsize=10)
+    ax.set(
+        xticks=np.arange(2),
+        yticks=np.arange(2),
+        xticklabels=["Untouch (0)", "Touch (1)"],
+        yticklabels=["Untouch (0)", "Touch (1)"],
+        title=f"{title} — Confusion Matrix",
+        ylabel="Actual Label",
+        xlabel="Predicted Label"
+    )
 
     thresh = cm.max() / 2.0
-    total  = cm.sum()
     labels_matrix = [["TN", "FP"], ["FN", "TP"]]
 
+    total = cm.sum()
     for i in range(2):
         for j in range(2):
             count = cm[i, j]
@@ -304,7 +306,7 @@ def plot_matplotlib_confusion_matrix(cm: np.ndarray, title: str = "", save_path:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Dataset
+#  Dataset & Loaders
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TouchDataset(Dataset):
@@ -344,19 +346,184 @@ def parse_labels(df):
 
 def get_data_paths(base_dir: Path):
     """Resolve train and test CSV file paths with robust fallback search."""
-    p1_tr = base_dir / "training_testing_data" / "train_dataset.csv"
-    p1_te = base_dir / "training_testing_data" / "test_dataset.csv"
-    if p1_tr.exists() and p1_te.exists():
-        return p1_tr, p1_te
+    candidates = [
+        (base_dir / "training_testing_data" / "train_dataset.csv", base_dir / "training_testing_data" / "test_dataset.csv"),
+        (base_dir / "dataprocessing" / "11_train_test_split" / "training_dataset.csv", base_dir / "dataprocessing" / "11_train_test_split" / "testing_dataset.csv"),
+        (base_dir / "dataprocessing" / "12_train_test_split" / "training_dataset.csv", base_dir / "dataprocessing" / "12_train_test_split" / "testing_dataset.csv"),
+        (base_dir / "data" / "training_data.csv", base_dir / "data" / "test_data.csv"),
+    ]
+    for tr, te in candidates:
+        if tr.exists() and te.exists():
+            return tr, te
+    return candidates[0][0], candidates[0][1]
 
-    p2_tr = base_dir / "dataprocessing" / "11_train_test_split" / "training_dataset.csv"
-    p2_te = base_dir / "dataprocessing" / "11_train_test_split" / "testing_dataset.csv"
-    if p2_tr.exists() and p2_te.exists():
-        return p2_tr, p2_te
 
-    p3_tr = base_dir / "data" / "training_data.csv"
-    p3_te = base_dir / "data" / "test_data.csv"
-    return p3_tr, p3_te
+def load_variant_data(variant_name: str, base_dir: Path):
+    """Parses and returns normalized X_train, y_train, X_test, y_test tensors for a specified feature representation."""
+    train_csv, test_csv = get_data_paths(base_dir)
+
+    def parse_file(csv_path):
+        df = pd.read_csv(csv_path)
+        n  = len(df)
+        y  = parse_labels(df)
+
+        if variant_name == "coords_2d":
+            seq_len, feature_dim = 5, 8
+            X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+            for k in range(1, 6):
+                cols = [f"wrist{k}_x", f"wrist{k}_y", f"pip{k}_x", f"pip{k}_y", f"dip{k}_x", f"dip{k}_y", f"tip{k}_x", f"tip{k}_y"]
+                X[:, k - 1, :] = df[cols].fillna(0.0).values.astype(np.float32)
+            return X, y, seq_len, feature_dim
+
+        elif variant_name == "coords_3d":
+            seq_len, feature_dim = 5, 12
+            X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+            for k in range(1, 6):
+                cols = [f"wrist{k}_x", f"wrist{k}_y", f"wrist{k}_z", f"pip{k}_x", f"pip{k}_y", f"pip{k}_z", f"dip{k}_x", f"dip{k}_y", f"dip{k}_z", f"tip{k}_x", f"tip{k}_y", f"tip{k}_z"]
+                X[:, k - 1, :] = df[cols].fillna(0.0).values.astype(np.float32)
+            return X, y, seq_len, feature_dim
+
+        elif variant_name in ("vel_2d", "vel_velocities"):
+            seq_len, feature_dim = 4, 8
+            X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+            for v in range(1, 5):
+                cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"pip{v}_vx", f"pip{v}_vy", f"dip{v}_vx", f"dip{v}_vy", f"tip{v}_vx", f"tip{v}_vy"]
+                X[:, v - 1, :] = df[cols].fillna(0.0).values.astype(np.float32)
+            return X, y, seq_len, feature_dim
+
+        elif variant_name == "vel_3d":
+            seq_len, feature_dim = 4, 12
+            X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+            for v in range(1, 5):
+                cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"wrist{v}_vz", f"pip{v}_vx", f"pip{v}_vy", f"pip{v}_vz", f"dip{v}_vx", f"dip{v}_vy", f"dip{v}_vz", f"tip{v}_vx", f"tip{v}_vy", f"tip{v}_vz"]
+                X[:, v - 1, :] = df[cols].fillna(0.0).values.astype(np.float32)
+            return X, y, seq_len, feature_dim
+
+        elif variant_name in ("vel_speed_2d", "vel_speed"):
+            seq_len, feature_dim = 4, 12
+            X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+            for v in range(1, 5):
+                vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"pip{v}_vx", f"pip{v}_vy", f"dip{v}_vx", f"dip{v}_vy", f"tip{v}_vx", f"tip{v}_vy"]
+                speed_cols = [f"wrist{v}_speed_2d", f"pip{v}_speed_2d", f"dip{v}_speed_2d", f"tip{v}_speed_2d"]
+                v_vals = df[vel_cols].fillna(0.0).values.astype(np.float32)
+                s_vals = df[speed_cols].fillna(0.0).values.astype(np.float32)
+                X[:, v - 1, :] = np.hstack([v_vals, s_vals])
+            return X, y, seq_len, feature_dim
+
+        elif variant_name == "vel_speed_3d":
+            seq_len, feature_dim = 4, 16
+            X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+            for v in range(1, 5):
+                vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"wrist{v}_vz", f"pip{v}_vx", f"pip{v}_vy", f"pip{v}_vz", f"dip{v}_vx", f"dip{v}_vy", f"dip{v}_vz", f"tip{v}_vx", f"tip{v}_vy", f"tip{v}_vz"]
+                speed_cols = [f"wrist{v}_speed_3d", f"pip{v}_speed_3d", f"dip{v}_speed_3d", f"tip{v}_speed_3d"]
+                v_vals = df[vel_cols].fillna(0.0).values.astype(np.float32)
+                s_vals = df[speed_cols].fillna(0.0).values.astype(np.float32)
+                X[:, v - 1, :] = np.hstack([v_vals, s_vals])
+            return X, y, seq_len, feature_dim
+
+        elif variant_name in ("combined_2d", "combined"):
+            seq_len, feature_dim = 4, 16
+            X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+            for v in range(1, 5):
+                pos_cols = [f"wrist{v}_x", f"wrist{v}_y", f"pip{v}_x", f"pip{v}_y", f"dip{v}_x", f"dip{v}_y", f"tip{v}_x", f"tip{v}_y"]
+                vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"pip{v}_vx", f"pip{v}_vy", f"dip{v}_vx", f"dip{v}_vy", f"tip{v}_vx", f"tip{v}_vy"]
+                p_vals = df[pos_cols].fillna(0.0).values.astype(np.float32)
+                v_vals = df[vel_cols].fillna(0.0).values.astype(np.float32)
+                X[:, v - 1, :] = np.hstack([p_vals, v_vals])
+            return X, y, seq_len, feature_dim
+
+        elif variant_name == "combined_3d":
+            seq_len, feature_dim = 4, 24
+            X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+            for v in range(1, 5):
+                pos_cols = [f"wrist{v}_x", f"wrist{v}_y", f"wrist{v}_z", f"pip{v}_x", f"pip{v}_y", f"pip{v}_z", f"dip{v}_x", f"dip{v}_y", f"dip{v}_z", f"tip{v}_x", f"tip{v}_y", f"tip{v}_z"]
+                vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"wrist{v}_vz", f"pip{v}_vx", f"pip{v}_vy", f"pip{v}_vz", f"dip{v}_vx", f"dip{v}_vy", f"dip{v}_vz", f"tip{v}_vx", f"tip{v}_vy", f"tip{v}_vz"]
+                p_vals = df[pos_cols].fillna(0.0).values.astype(np.float32)
+                v_vals = df[vel_cols].fillna(0.0).values.astype(np.float32)
+                X[:, v - 1, :] = np.hstack([p_vals, v_vals])
+            return X, y, seq_len, feature_dim
+
+        elif variant_name == "all_joints_vel":
+            seq_len, feature_dim = 4, 18
+            X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+            for v in range(1, 5):
+                cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"thumb_cmc{v}_vx", f"thumb_cmc{v}_vy", f"index_mcp{v}_vx", f"index_mcp{v}_vy", f"middle_mcp{v}_vx", f"middle_mcp{v}_vy", f"ring_mcp{v}_vx", f"ring_mcp{v}_vy", f"pinky_mcp{v}_vx", f"pinky_mcp{v}_vy", f"pip{v}_vx", f"pip{v}_vy", f"dip{v}_vx", f"dip{v}_vy", f"tip{v}_vx", f"tip{v}_vy"]
+                X[:, v - 1, :] = df[cols].fillna(0.0).values.astype(np.float32)
+            return X, y, seq_len, feature_dim
+
+        elif variant_name in ("all_joints_coords_vel", "all_combined"):
+            seq_len, feature_dim = 4, 36
+            X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+            for v in range(1, 5):
+                pos_cols = [f"wrist{v}_x", f"wrist{v}_y", f"thumb_cmc{v}_x", f"thumb_cmc{v}_y", f"index_mcp{v}_x", f"index_mcp{v}_y", f"middle_mcp{v}_x", f"middle_mcp{v}_y", f"ring_mcp{v}_x", f"ring_mcp{v}_y", f"pinky_mcp{v}_x", f"pinky_mcp{v}_y", f"pip{v}_x", f"pip{v}_y", f"dip{v}_x", f"dip{v}_y", f"tip{v}_x", f"tip{v}_y"]
+                vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"thumb_cmc{v}_vx", f"thumb_cmc{v}_vy", f"index_mcp{v}_vx", f"index_mcp{v}_vy", f"middle_mcp{v}_vx", f"middle_mcp{v}_vy", f"ring_mcp{v}_vx", f"ring_mcp{v}_vy", f"pinky_mcp{v}_vx", f"pinky_mcp{v}_vy", f"pip{v}_vx", f"pip{v}_vy", f"dip{v}_vx", f"dip{v}_vy", f"tip{v}_vx", f"tip{v}_vy"]
+                p_vals = df[pos_cols].fillna(0.0).values.astype(np.float32)
+                v_vals = df[vel_cols].fillna(0.0).values.astype(np.float32)
+                X[:, v - 1, :] = np.hstack([p_vals, v_vals])
+            return X, y, seq_len, feature_dim
+
+        elif variant_name == "z_kinematics":
+            seq_len, feature_dim = 4, 8
+            X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+            for v in range(1, 5):
+                z_pos = [f"wrist{v}_z", f"pip{v}_z", f"dip{v}_z", f"tip{v}_z"]
+                z_vel = [f"wrist{v}_vz", f"pip{v}_vz", f"dip{v}_vz", f"tip{v}_vz"]
+                zp = df[z_pos].fillna(0.0).values.astype(np.float32)
+                zv = df[z_vel].fillna(0.0).values.astype(np.float32)
+                X[:, v - 1, :] = np.hstack([zp, zv])
+            return X, y, seq_len, feature_dim
+
+        elif variant_name in ("super_combined", "super"):
+            seq_len, feature_dim = 4, 28
+            X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+            for v in range(1, 5):
+                pos_cols = [f"wrist{v}_x", f"wrist{v}_y", f"wrist{v}_z", f"pip{v}_x", f"pip{v}_y", f"pip{v}_z", f"dip{v}_x", f"dip{v}_y", f"dip{v}_z", f"tip{v}_x", f"tip{v}_y", f"tip{v}_z"]
+                vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"wrist{v}_vz", f"pip{v}_vx", f"pip{v}_vy", f"pip{v}_vz", f"dip{v}_vx", f"dip{v}_vy", f"dip{v}_vz", f"tip{v}_vx", f"tip{v}_vy", f"tip{v}_vz"]
+                speed_cols = [f"wrist{v}_speed_3d", f"pip{v}_speed_3d", f"dip{v}_speed_3d", f"tip{v}_speed_3d"]
+                p_vals = df[pos_cols].fillna(0.0).values.astype(np.float32)
+                v_vals = df[vel_cols].fillna(0.0).values.astype(np.float32)
+                s_vals = df[speed_cols].fillna(0.0).values.astype(np.float32)
+                X[:, v - 1, :] = np.hstack([p_vals, v_vals, s_vals])
+            return X, y, seq_len, feature_dim
+
+        elif variant_name in ("wrist_relative_3d", "wrist_rel_3d"):
+            seq_len, feature_dim = 4, 21
+            X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+            for v in range(1, 5):
+                wx, wy, wz = df[f"wrist{v}_x"].fillna(0.0).values, df[f"wrist{v}_y"].fillna(0.0).values, df[f"wrist{v}_z"].fillna(0.0).values
+                px, py, pz = df[f"pip{v}_x"].fillna(0.0).values - wx, df[f"pip{v}_y"].fillna(0.0).values - wy, df[f"pip{v}_z"].fillna(0.0).values - wz
+                dx, dy, dz = df[f"dip{v}_x"].fillna(0.0).values - wx, df[f"dip{v}_y"].fillna(0.0).values - wy, df[f"dip{v}_z"].fillna(0.0).values - wz
+                tx, ty, tz = df[f"tip{v}_x"].fillna(0.0).values - wx, df[f"tip{v}_y"].fillna(0.0).values - wy, df[f"tip{v}_z"].fillna(0.0).values - wz
+                vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"wrist{v}_vz", f"pip{v}_vx", f"pip{v}_vy", f"pip{v}_vz", f"dip{v}_vx", f"dip{v}_vy", f"dip{v}_vz", f"tip{v}_vx", f"tip{v}_vy", f"tip{v}_vz"]
+                v_vals = df[vel_cols].fillna(0.0).values.astype(np.float32)
+                rel_coords = np.column_stack([px, py, pz, dx, dy, dz, tx, ty, tz])
+                X[:, v - 1, :] = np.hstack([rel_coords, v_vals])
+            return X, y, seq_len, feature_dim
+
+        elif variant_name in ("fingertip_velocity_ratios", "tip_vel_ratios"):
+            seq_len, feature_dim = 4, 16
+            X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+            for v in range(1, 5):
+                w_vx, w_vy, w_vz = df[f"wrist{v}_vx"].fillna(0.0).values, df[f"wrist{v}_vy"].fillna(0.0).values, df[f"wrist{v}_vz"].fillna(0.0).values
+                t_vx, t_vy, t_vz = df[f"tip{v}_vx"].fillna(0.0).values, df[f"tip{v}_vy"].fillna(0.0).values, df[f"tip{v}_vz"].fillna(0.0).values
+                rel_vx, rel_vy, rel_vz = t_vx - w_vx, t_vy - w_vy, t_vz - w_vz
+                tip_speed = df[f"tip{v}_speed_3d"].fillna(0.0).values
+                wrist_speed = df[f"wrist{v}_speed_3d"].fillna(0.0).values
+                speed_ratio = (tip_speed + 1e-5) / (wrist_speed + 1e-5)
+                vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"wrist{v}_vz", f"pip{v}_vx", f"pip{v}_vy", f"pip{v}_vz", f"dip{v}_vx", f"dip{v}_vy", f"dip{v}_vz", f"tip{v}_vx", f"tip{v}_vy", f"tip{v}_vz"]
+                v_vals = df[vel_cols].fillna(0.0).values.astype(np.float32)
+                rel_kinematics = np.column_stack([rel_vx, rel_vy, rel_vz, speed_ratio])
+                X[:, v - 1, :] = np.hstack([v_vals, rel_kinematics])
+            return X, y, seq_len, feature_dim
+
+        else:
+            raise ValueError(f"Unknown data variant: '{variant_name}'")
+
+    X_tr_raw, y_tr, seq_len, feature_dim = parse_file(train_csv)
+    X_te_raw, y_te, _, _                 = parse_file(test_csv)
+
+    X_tr, X_te = normalize(X_tr_raw, X_te_raw)
+    return X_tr, torch.from_numpy(y_tr).float(), X_te, torch.from_numpy(y_te).float(), seq_len, feature_dim
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -374,33 +541,56 @@ class SequenceLSTM(nn.Module):
             batch_first=True,
             dropout=dropout if num_layers > 1 else 0.0,
         )
-        fc_mid = max(hidden_units // 2, 8)
         self.head = nn.Sequential(
-            nn.LayerNorm(hidden_units),
-            nn.Linear(hidden_units, fc_mid),
+            nn.Linear(hidden_units, hidden_units // 2),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(fc_mid, 1),
+            nn.Linear(hidden_units // 2, 1),
         )
 
     def forward(self, x):
         out, _ = self.lstm(x)
-        return self.head(out[:, -1, :])   # Last timestep
+        return self.head(out[:, -1, :])
+
+
+class BiLSTM(nn.Module):
+    """Bidirectional LSTM binary classifier for sequences (N, T, F)."""
+    def __init__(self, input_features: int, hidden_units: int, num_layers: int, dropout: float = 0.2):
+        super().__init__()
+        self.lstm = nn.LSTM(
+            input_size=input_features,
+            hidden_size=hidden_units,
+            num_layers=num_layers,
+            batch_first=True,
+            bidirectional=True,
+            dropout=dropout if num_layers > 1 else 0.0,
+        )
+        self.head = nn.Sequential(
+            nn.Linear(hidden_units * 2, hidden_units),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_units, 1),
+        )
+
+    def forward(self, x):
+        out, _ = self.lstm(x)
+        return self.head(out[:, -1, :])
 
 
 class TouchCNN1D(nn.Module):
-    """Two-layer 1D CNN with global average pooling."""
-    def __init__(self, in_channels: int, conv_channels: int, fc_hidden: int, dropout: float = 0.2):
+    """1D CNN classifier operating over temporal sequence channels."""
+    def __init__(self, input_features: int, conv_channels: int = 32, fc_hidden: int = 32, dropout: float = 0.2):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Conv1d(in_channels, conv_channels, kernel_size=3, padding=1),
+            nn.Conv1d(input_features, conv_channels, kernel_size=3, padding=1),
             nn.BatchNorm1d(conv_channels),
             nn.ReLU(),
-            nn.Dropout(dropout),
             nn.Conv1d(conv_channels, conv_channels * 2, kernel_size=3, padding=1),
             nn.BatchNorm1d(conv_channels * 2),
             nn.ReLU(),
             nn.AdaptiveAvgPool1d(1),
+        )
+        self.head = nn.Sequential(
             nn.Flatten(),
             nn.Linear(conv_channels * 2, fc_hidden),
             nn.ReLU(),
@@ -409,144 +599,110 @@ class TouchCNN1D(nn.Module):
         )
 
     def forward(self, x):
-        # x: (N, T, F) → permute → (N, F, T) for Conv1d
-        return self.net(x.permute(0, 2, 1))
+        return self.head(self.net(x.permute(0, 2, 1)))
 
 
-class _ResBlock(nn.Module):
-    """Residual block: F(x) + x."""
-    def __init__(self, channels: int, dropout: float = 0.2):
+class _ResBlock1D(nn.Module):
+    def __init__(self, channels: int, dropout: float):
         super().__init__()
-        self.block = nn.Sequential(
-            nn.Conv1d(channels, channels, 3, padding=1),
-            nn.BatchNorm1d(channels),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Conv1d(channels, channels, 3, padding=1),
-            nn.BatchNorm1d(channels),
-        )
-        self.act = nn.ReLU()
+        self.conv1 = nn.Conv1d(channels, channels, 3, padding=1)
+        self.bn1   = nn.BatchNorm1d(channels)
+        self.conv2 = nn.Conv1d(channels, channels, 3, padding=1)
+        self.bn2   = nn.BatchNorm1d(channels)
+        self.drop  = nn.Dropout(dropout)
+        self.act   = nn.ReLU()
 
     def forward(self, x):
-        return self.act(x + self.block(x))
+        res = x
+        out = self.act(self.bn1(self.conv1(x)))
+        out = self.drop(out)
+        out = self.bn2(self.conv2(out))
+        return self.act(out + res)
 
 
 class TouchResNet1D(nn.Module):
-    """1D ResNet with two residual blocks and global average pooling."""
-    def __init__(self, in_channels: int, hidden_dim: int, dropout: float = 0.2):
+    """Residual 1D CNN with skip connections for temporal sequences."""
+    def __init__(self, input_features: int, hidden_dim: int = 32, dropout: float = 0.2):
         super().__init__()
-        self.stem = nn.Sequential(
-            nn.Conv1d(in_channels, hidden_dim, 3, padding=1),
+        self.in_conv = nn.Sequential(
+            nn.Conv1d(input_features, hidden_dim, 3, padding=1),
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
         )
-        self.res1 = _ResBlock(hidden_dim, dropout)
-        self.res2 = _ResBlock(hidden_dim, dropout)
+        self.b1   = _ResBlock1D(hidden_dim, dropout)
+        self.b2   = _ResBlock1D(hidden_dim, dropout)
         self.pool = nn.AdaptiveAvgPool1d(1)
-        fc_mid    = max(hidden_dim // 2, 8)
         self.head = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(hidden_dim, fc_mid),
+            nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(fc_mid, 1),
+            nn.Linear(hidden_dim // 2, 1),
         )
 
     def forward(self, x):
-        z = self.stem(x.permute(0, 2, 1))   # (N, T, F) → (N, F, T)
-        z = self.res1(z)
-        z = self.res2(z)
+        z = self.in_conv(x.permute(0, 2, 1))
+        z = self.b1(z)
+        z = self.b2(z)
         return self.head(self.pool(z))
 
 
 class TouchAttentionNet(nn.Module):
-    """Single-layer Transformer encoder with mean pooling."""
-    def __init__(self, input_dim: int, embed_dim: int, num_heads: int, dropout: float = 0.2):
+    """Transformer Encoder classifier with Multi-Head Self-Attention."""
+    def __init__(self, input_features: int, embed_dim: int = 32, num_heads: int = 4, dropout: float = 0.2):
         super().__init__()
-        self.embed  = nn.Linear(input_dim, embed_dim)
-        self.attn   = nn.MultiheadAttention(embed_dim, num_heads, batch_first=True, dropout=dropout)
-        self.norm1  = nn.LayerNorm(embed_dim)
-        self.ffn    = nn.Sequential(
-            nn.Linear(embed_dim, embed_dim * 2),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(embed_dim * 2, embed_dim),
-        )
-        self.norm2  = nn.LayerNorm(embed_dim)
-        self.head   = nn.Sequential(
-            nn.Linear(embed_dim, 16),
-            nn.ReLU(),
-            nn.Linear(16, 1),
-        )
-
-    def forward(self, x):
-        e         = self.embed(x)
-        a, _      = self.attn(e, e, e)
-        e         = self.norm1(e + a)
-        e         = self.norm2(e + self.ffn(e))
-        return self.head(e.mean(dim=1))    # Global mean pooling
-
-
-class TouchBiLSTM(nn.Module):
-    """
-    Bidirectional LSTM — processes sequence in both directions.
-    Last timestep from forward + backward passes are concatenated (2×hidden).
-    """
-    def __init__(self, input_features: int, hidden_units: int, num_layers: int, dropout: float = 0.2):
-        super().__init__()
-        self.lstm = nn.LSTM(
-            input_size=input_features,
-            hidden_size=hidden_units,
-            num_layers=num_layers,
+        self.in_proj = nn.Linear(input_features, embed_dim)
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=embed_dim,
+            nhead=num_heads,
+            dim_feedforward=embed_dim * 2,
+            dropout=dropout,
             batch_first=True,
-            dropout=dropout if num_layers > 1 else 0.0,
-            bidirectional=True,
         )
-        out_dim = hidden_units * 2   # bidirectional doubles the output dim
-        fc_mid  = max(out_dim // 2, 8)
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=2)
         self.head = nn.Sequential(
-            nn.LayerNorm(out_dim),
-            nn.Linear(out_dim, fc_mid),
+            nn.Linear(embed_dim, embed_dim // 2),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(fc_mid, 1),
+            nn.Linear(embed_dim // 2, 1),
         )
 
     def forward(self, x):
-        out, _ = self.lstm(x)
-        return self.head(out[:, -1, :])   # Last timestep (fwd + bwd concatenated)
+        h   = self.in_proj(x)
+        out = self.transformer(h)
+        return self.head(out[:, -1, :])
 
 
 class _TCNBlock(nn.Module):
-    """Single dilated TCN block with residual skip connection."""
-    def __init__(self, in_ch: int, out_ch: int, dilation: int, dropout: float = 0.2):
+    def __init__(self, in_ch: int, out_ch: int, dilation: int, dropout: float):
         super().__init__()
-        pad = dilation   # kernel_size=3, so padding=dilation keeps length same
-        self.conv = nn.Sequential(
-            nn.Conv1d(in_ch, out_ch, kernel_size=3, padding=pad, dilation=dilation),
-            nn.BatchNorm1d(out_ch),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-        )
-        self.skip = nn.Conv1d(in_ch, out_ch, 1) if in_ch != out_ch else nn.Identity()
-        self.act  = nn.ReLU()
+        padding    = (3 - 1) * dilation
+        self.conv1 = nn.Conv1d(in_ch, out_ch, 3, padding=padding, dilation=dilation)
+        self.bn1   = nn.BatchNorm1d(out_ch)
+        self.act1  = nn.ReLU()
+        self.drop1 = nn.Dropout(dropout)
+        self.conv2 = nn.Conv1d(out_ch, out_ch, 3, padding=padding, dilation=dilation)
+        self.bn2   = nn.BatchNorm1d(out_ch)
+        self.act2  = nn.ReLU()
+        self.drop2 = nn.Dropout(dropout)
+        self.down = nn.Conv1d(in_ch, out_ch, 1) if in_ch != out_ch else nn.Identity()
 
     def forward(self, x):
-        return self.act(self.conv(x) + self.skip(x))
+        res  = self.down(x)
+        out1 = self.drop1(self.act1(self.bn1(self.conv1(x))))
+        out2 = self.drop2(self.act2(self.bn2(self.conv2(out1))))
+        L    = res.shape[-1]
+        return out2[:, :, :L] + res
 
 
 class TouchTCN(nn.Module):
-    """
-    Temporal Convolutional Network with exponentially growing dilations.
-    Each level doubles the dilation: [1, 2, 4, ...].
-    Input: (N, T, F) → permuted to (N, F, T) for Conv1d.
-    """
-    def __init__(self, in_channels: int, tcn_channels: int, num_levels: int, dropout: float = 0.2):
+    """Temporal Convolutional Network with dilated causal 1D convolutions."""
+    def __init__(self, input_features: int, tcn_channels: int = 32, num_levels: int = 2, dropout: float = 0.2):
         super().__init__()
         blocks = []
         for i in range(num_levels):
             dilation = 2 ** i
-            in_ch    = in_channels if i == 0 else tcn_channels
+            in_ch    = input_features if i == 0 else tcn_channels
             blocks.append(_TCNBlock(in_ch, tcn_channels, dilation, dropout))
         self.network = nn.Sequential(*blocks)
         self.pool    = nn.AdaptiveAvgPool1d(1)
@@ -560,14 +716,13 @@ class TouchTCN(nn.Module):
         )
 
     def forward(self, x):
-        z = self.network(x.permute(0, 2, 1))   # (N, T, F) → (N, F, T)
+        z = self.network(x.permute(0, 2, 1))
         return self.head(self.pool(z))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Training / Evaluation Utilities
+#  Training / Evaluation Utilities & Universal Benchmark Runner
 # ─────────────────────────────────────────────────────────────────────────────
-
 
 def _run_epoch(model, loader, loss_fn, optimizer, device, train: bool):
     """Single train or eval epoch. Returns (avg_loss, accuracy_%)."""
@@ -597,11 +752,7 @@ def _run_epoch(model, loader, loss_fn, optimizer, device, train: bool):
 
 def train_config(model, train_loader, test_loader, epochs: int, lr: float, device,
                  patience: int = 8, verbose: bool = True):
-    """
-    Full training loop with early stopping.
-    Set verbose=False when running multiple configs in parallel threads.
-    Returns: (best_test_acc, final_test_acc, history_dict)
-    """
+    """Full training loop with early stopping."""
     loss_fn   = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=4, factor=0.5, min_lr=1e-6)
@@ -653,10 +804,6 @@ def evaluate_model(model, test_loader, device):
     return cm, rpt
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  Result Persistence
-# ─────────────────────────────────────────────────────────────────────────────
-
 def save_result(row: dict, csv_path: str):
     """Append one result row to csv_path (creates file/header on first write)."""
     p = Path(csv_path)
@@ -667,3 +814,110 @@ def save_result(row: dict, csv_path: str):
         if write_header:
             w.writeheader()
         w.writerow(row)
+
+
+def run_model_benchmark(
+    arch_name: str,
+    variant_name: str,
+    create_model_fn,
+    configs: list[dict],
+    default_epochs: int = 70,
+    seed: int = 42,
+):
+    """Universal benchmark execution runner for any deep learning model variant script."""
+    parser = argparse.ArgumentParser(description=f"Train {arch_name}")
+    parser.add_argument("--epochs", "-e", type=int, default=default_epochs, help="Number of training epochs")
+    parser.add_argument("--dropout", "-d", type=float, default=None, help="Dropout probability")
+    parser.add_argument("--lr", type=float, default=None, help="Learning rate")
+    parser.add_argument("--batch-size", "-bs", type=int, default=None, help="Batch size")
+    parser.add_argument("--hidden", type=int, default=None, help="Hidden dimension")
+    parser.add_argument("--plot", "-p", "--plot-curves", dest="plot", action="store_true", help="Generate Matplotlib curve plots and Confusion Matrix heatmaps")
+    args = parser.parse_args()
+
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    BASE        = Path(__file__).resolve().parent.parent
+    RESULTS_CSV = Path(__file__).resolve().parent / "results" / f"{arch_name.lower()}.csv"
+    WEIGHTS_DIR = Path(__file__).resolve().parent / "weights"
+
+    X_tr, y_tr, X_te, y_te, seq_len, feature_dim = load_variant_data(variant_name, BASE)
+
+    print(f"\n{'='*65}")
+    print(f"  {arch_name}  |  Input: (N, {seq_len}, {feature_dim})  |  Device: {device}")
+    print(f"{'='*65}")
+
+    WEIGHTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    for cfg in configs:
+        if args.dropout is not None:
+            cfg["dropout"] = args.dropout
+        if args.lr is not None:
+            cfg["lr"] = args.lr
+        if args.batch_size is not None:
+            cfg["bs"] = args.batch_size
+        if args.hidden is not None:
+            cfg["hidden"] = args.hidden
+
+        hid_dim = cfg.get("hidden", cfg.get("conv_ch", cfg.get("embed_dim", cfg.get("tcn_channels", 32))))
+
+        print(f"\n  [Config {cfg['id']:02d}]  hidden/channels={hid_dim}  "
+              f"dropout={cfg['dropout']}  lr={cfg['lr']}  bs={cfg['bs']}")
+
+        train_loader, test_loader = make_loaders(X_tr, y_tr, X_te, y_te, cfg["bs"])
+        model = create_model_fn(feature_dim, cfg).to(device)
+
+        t0                        = time.time()
+        best_acc, final_acc, hist = train_config(model, train_loader, test_loader, args.epochs, cfg["lr"], device, verbose=True)
+        elapsed                   = time.time() - t0
+
+        print_terminal_curves(hist, title=arch_name)
+        analytics = analyze_fit_quality(hist)
+        print_overfit_analytics(analytics, title=arch_name)
+
+        history_path = Path(__file__).resolve().parent / "results" / f"{arch_name.lower()}_history.json"
+        save_history(hist, history_path)
+
+        cm, rpt = evaluate_model(model, test_loader, device)
+        print_terminal_confusion_matrix(cm, title=arch_name)
+
+        if args.plot:
+            plot_path = Path(__file__).resolve().parent / "results" / "plots" / f"{arch_name.lower()}.png"
+            plot_matplotlib_curves(hist, title=arch_name, save_path=plot_path, show=False)
+
+            cm_plot_path = Path(__file__).resolve().parent / "results" / "plots" / f"{arch_name.lower()}_confusion_matrix.png"
+            plot_matplotlib_confusion_matrix(cm, title=arch_name, save_path=cm_plot_path, show=False)
+
+        wf = WEIGHTS_DIR / f"{arch_name}_cfg{cfg['id']:02d}.pth"
+        torch.save(model.state_dict(), wf)
+
+        tn, fp, fn, tp = cm.ravel() if cm.shape == (2, 2) else (0, 0, 0, 0)
+
+        row = {
+            "arch":             arch_name,
+            "config_id":        cfg["id"],
+            "hidden":           hid_dim,
+            "layers":           cfg.get("layers", cfg.get("num_levels", 2)),
+            "dropout":          cfg["dropout"],
+            "lr":               cfg["lr"],
+            "batch_size":       cfg["bs"],
+            "best_test_acc":    round(best_acc, 4),
+            "final_test_acc":   round(final_acc, 4),
+            "precision_touch":  round(rpt["Touch"]["precision"], 4),
+            "recall_touch":     round(rpt["Touch"]["recall"], 4),
+            "f1_touch":         round(rpt["Touch"]["f1-score"], 4),
+            "tn":               tn,
+            "fp":               fp,
+            "fn":               fn,
+            "tp":               tp,
+            "fit_status":       f"{analytics['fit_status']} ({analytics['fit_scale']})" if analytics['fit_scale'] != "None" else analytics['fit_status'],
+            "onset_epoch":      analytics["onset_epoch"],
+            "max_gap_pct":      analytics["max_gap_pct"],
+            "train_time_s":     round(elapsed, 1),
+            "weight_file":      wf.name,
+        }
+        save_result(row, str(RESULTS_CSV))
+        print(f"  → Best: {best_acc:.2f}%  |  F1(Touch): {rpt['Touch']['f1-score']:.4f}  |  {elapsed:.0f}s")
+
+    print(f"\n  ✓ {arch_name} complete. Results → {RESULTS_CSV.name}\n")

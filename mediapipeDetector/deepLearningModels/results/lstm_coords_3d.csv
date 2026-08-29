@@ -1,2 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-BiLSTM,1,32,2,0.2,0.001,32,79.8077,79.8077,0.7558,0.8808,0.8135,186,74,31,229,GOOD FIT (OPTIMAL),3,4.26,2.2,BiLSTM_cfg01.pth
+LSTM_Coords_3D,1,32,2,0.2,0.001,32,87.6638,84.4978,0.8292,0.869,0.8486,376,82,60,398,OVERFITTING (Mild),44,4.44,21.1,LSTM_Coords_3D_cfg01.pth

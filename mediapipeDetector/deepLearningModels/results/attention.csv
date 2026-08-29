@@ -1,2 +1,0 @@
-arch,config_id,embed_dim,num_heads,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-Attention,1,32,4,0.2,0.001,32,81.5385,81.3462,0.79,0.8538,0.8207,201,59,38,222,GOOD FIT (OPTIMAL),3,3.57,2.2,Attention_cfg01.pth

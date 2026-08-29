@@ -140,13 +140,14 @@ def merge_window_csv_files(input_files: list[str], output_csv_path: str) -> str:
     def _parse_b(val):
         return str(val).strip().lower() in ("1", "true", "t", "yes", "y")
 
+    multi_touch_cnt = 0
     for r in combined_rows:
         is_touch = _parse_b(r.get("any_touch", "0"))
-        if not is_touch:
-            for fg in ["thumb", "index", "middle", "ring", "pinky"]:
-                if _parse_b(r.get(f"{fg}_touch", "0")):
-                    is_touch = True
-                    break
+        active_fingers = sum(1 for fg in ["thumb", "index", "middle", "ring", "pinky"] if _parse_b(r.get(f"{fg}_touch", "0")))
+        if active_fingers > 1:
+            multi_touch_cnt += 1
+        if not is_touch and active_fingers > 0:
+            is_touch = True
 
         if is_touch:
             touch_cnt += 1
@@ -173,6 +174,7 @@ def merge_window_csv_files(input_files: list[str], output_csv_path: str) -> str:
     print(f"  Total Window Sequence  : {total_cnt} windows")
     print(f"  Touch Windows (any_touch): {touch_cnt} ({touch_pct:.2f}%)")
     print(f"  Non-Touch Windows      : {non_touch_cnt} ({non_touch_pct:.2f}%)")
+    print(f"  Multi-Touch Windows    : {multi_touch_cnt}")
     print(f"  Handedness Breakdown   : Right: {right_cnt} | Left: {left_cnt}")
     print(f"  Per-Finger Touches     :")
     for fg, cnt in finger_touch_cnts.items():
@@ -181,6 +183,26 @@ def merge_window_csv_files(input_files: list[str], output_csv_path: str) -> str:
     print(f"==========================================\n")
 
     print(f"[Success] Merged {len(combined_rows)} window records into: {output_csv_path}")
+
+    # Save summary JSON for pipeline audit
+    try:
+        from summary_utils import save_step_summary
+        save_step_summary("step_6_merge_windows.json", {
+            "step": 6,
+            "name": "merge_windows",
+            "files_merged": total_files_merged,
+            "total_windows": total_cnt,
+            "touch_windows": touch_cnt,
+            "untouch_windows": non_touch_cnt,
+            "multi_touch_windows": multi_touch_cnt,
+            "touch_pct": round(touch_pct, 2),
+            "right_hand_count": right_cnt,
+            "left_hand_count": left_cnt,
+            "per_finger_touches": finger_touch_cnts
+        })
+    except Exception as e:
+        pass
+
     return output_csv_path
 
 

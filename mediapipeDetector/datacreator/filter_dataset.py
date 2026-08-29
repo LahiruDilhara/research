@@ -262,6 +262,29 @@ def filter_dataset_csv(
         writer.writerows(filtered_rows)
 
     print(f"[Success] Cleaned dataset saved to: {output_csv}")
+
+    # Save summary JSON for pipeline audit
+    try:
+        from summary_utils import save_step_summary
+        save_step_summary("step_8_filter_dataset.json", {
+            "step": 8,
+            "name": "filter_dataset",
+            "total_input_windows": total_rows,
+            "retained_windows": retained_cnt,
+            "dropped_windows": dropped_cnt,
+            "retention_pct": round(retention_pct, 2),
+            "removed_zero_vel_touch_cnt": removed_zero_vel_touch_cnt,
+            "removed_right_hand_cnt": removed_right_hand_cnt,
+            "removed_left_hand_cnt": removed_left_hand_cnt,
+            "removed_out_of_sync_cnt": removed_out_of_sync_cnt,
+            "removed_hand_invisible_cnt": removed_hand_invisible_cnt,
+            "touch_windows": touch_cnt,
+            "untouch_windows": non_touch_cnt,
+            "touch_pct": round(touch_pct, 2)
+        })
+    except Exception as e:
+        pass
+
     return output_csv
 
 

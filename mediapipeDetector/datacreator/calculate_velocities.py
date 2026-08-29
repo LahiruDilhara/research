@@ -185,7 +185,41 @@ def calculate_window_velocities_csv(input_csv: str, output_csv: str = None) -> s
         writer.writeheader()
         writer.writerows(output_rows)
 
+    # Collect speed statistics across output rows
+    speeds_2d = []
+    speeds_3d = []
+    for r in output_rows:
+        for v in range(1, 5):
+            for lm_name in ALL_21_LANDMARK_NAMES:
+                try:
+                    speeds_2d.append(float(r.get(f"{lm_name}{v}_speed_2d", "0.0")))
+                    speeds_3d.append(float(r.get(f"{lm_name}{v}_speed_3d", "0.0")))
+                except ValueError:
+                    pass
+
+    s2d_min = round(min(speeds_2d), 4) if speeds_2d else 0.0
+    s2d_max = round(max(speeds_2d), 4) if speeds_2d else 0.0
+    s2d_mean = round(sum(speeds_2d) / len(speeds_2d), 4) if speeds_2d else 0.0
+
+    s3d_min = round(min(speeds_3d), 4) if speeds_3d else 0.0
+    s3d_max = round(max(speeds_3d), 4) if speeds_3d else 0.0
+    s3d_mean = round(sum(speeds_3d) / len(speeds_3d), 4) if speeds_3d else 0.0
+
     print(f"[Success] Saved dataset with velocities to: {output_csv}")
+
+    # Save summary JSON for pipeline audit
+    try:
+        from summary_utils import save_step_summary
+        save_step_summary("step_7_calculate_velocities.json", {
+            "step": 7,
+            "name": "calculate_velocities",
+            "total_windows": len(output_rows),
+            "speed_2d_stats": {"min": s2d_min, "max": s2d_max, "mean": s2d_mean},
+            "speed_3d_stats": {"min": s3d_min, "max": s3d_max, "mean": s3d_mean}
+        })
+    except Exception as e:
+        pass
+
     return output_csv
 
 
@@ -300,6 +334,19 @@ def main():
     print(f"  Success: {success_count}/{len(input_files)}")
     print(f"  Failed : {fail_count}/{len(input_files)}")
     print("==========================================")
+
+    # Save summary JSON for pipeline audit
+    try:
+        from summary_utils import save_step_summary
+        save_step_summary("step_7_calculate_velocities.json", {
+            "step": 7,
+            "name": "calculate_velocities",
+            "total_files": len(input_files),
+            "success_count": success_count,
+            "fail_count": fail_count
+        })
+    except Exception as e:
+        pass
 
     if success_count == 0 and fail_count > 0:
         sys.exit(1)

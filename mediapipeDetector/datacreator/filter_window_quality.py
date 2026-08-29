@@ -88,6 +88,9 @@ def extract_frame_hand_scores(row: dict) -> list[float]:
             scores.append(float(row["hand_score"]))
         except ValueError:
             scores.append(0.0)
+    # If hand_score is unpopulated in legacy datasets (all 0.0s), treat as missing to prevent dropping all rows
+    if scores and max(scores) == 0.0:
+        return []
     return scores
 
 
@@ -438,6 +441,30 @@ def filter_window_quality_csv(
         writer.writerows(filtered_rows)
 
     print(f"[Success] Saved quality filtered dataset to: {output_csv}")
+
+    # Save summary JSON for pipeline audit
+    try:
+        from summary_utils import save_step_summary
+        save_step_summary("step_9_filter_window_quality.json", {
+            "step": 9,
+            "name": "filter_window_quality",
+            "total_input_windows": total_rows,
+            "retained_windows": retained_rows,
+            "dropped_windows": dropped_rows,
+            "retained_pct": round(retained_pct, 2),
+            "drop_min_avg_score_cnt": drop_min_avg_score_cnt,
+            "drop_min_frame_score_cnt": drop_min_frame_score_cnt,
+            "drop_max_score_drop_cnt": drop_max_score_drop_cnt,
+            "drop_max_speed_2d_cnt": drop_max_speed_2d_cnt,
+            "drop_max_speed_3d_cnt": drop_max_speed_3d_cnt,
+            "touch_before": init_touch_cnt,
+            "touch_after": final_touch_cnt,
+            "untouch_before": init_untouch_cnt,
+            "untouch_after": final_untouch_cnt
+        })
+    except Exception as e:
+        pass
+
     return output_csv
 
 

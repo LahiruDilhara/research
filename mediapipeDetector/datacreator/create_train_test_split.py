@@ -279,6 +279,23 @@ def create_train_test_split(
 
     print(f"[Success] Train/Test datasets saved to:\n  - {train_out}\n  - {test_out}")
 
+    # Save summary JSON for pipeline audit
+    try:
+        from summary_utils import save_step_summary
+        save_step_summary("step_12_train_test_split.json", {
+            "step": 12,
+            "name": "create_train_test_split",
+            "train_records": len(train_rows),
+            "test_records": len(test_rows),
+            "train_touch": len(touch_train),
+            "train_untouch": len(untouch_train),
+            "test_touch": len(touch_test),
+            "test_untouch": len(untouch_test),
+            "no_video_leak": no_video_leak
+        })
+    except Exception as e:
+        pass
+
 
 def main():
     parser = argparse.ArgumentParser(

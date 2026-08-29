@@ -397,11 +397,22 @@ def main():
             fail_count += 1
         print()
 
-    print("==========================================")
-    print("Batch Landmark Normalization Finished:")
-    print(f"  Success: {success_count}/{len(input_files)}")
-    print(f"  Failed : {fail_count}/{len(input_files)}")
-    print("==========================================")
+    # Save comprehensive summary JSON for pipeline audit
+    try:
+        from summary_utils import save_step_summary
+        save_step_summary("step_2_normalize_landmarks.json", {
+            "step": 2,
+            "name": "normalize_landmarks",
+            "total_files": len(input_files),
+            "success_count": success_count,
+            "fail_count": fail_count,
+            "center_wrist": center_wrist,
+            "keep_raw": args.keep_raw,
+            "normalization_method": "Pure per-frame 8-distance palm RMS scale L_hand",
+            "wrist_origin": [0.0, 0.0, 0.0] if center_wrist else "uncentered",
+        })
+    except Exception as e:
+        pass
 
     if success_count == 0 and fail_count > 0:
         sys.exit(1)
