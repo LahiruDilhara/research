@@ -1,2 +1,2 @@
 arch,config_id,tcn_channels,num_levels,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,train_time_s,weight_file
-TCN,1,64,3,0.2,0.001,32,87.0605,85.654,0.732,0.8987,0.8068,4.5,TCN_cfg01.pth
+TCN,1,32,2,0.2,0.001,32,87.0871,87.0871,0.8946,0.8408,0.8669,2.5,TCN_cfg01.pth

@@ -1,13 +1,11 @@
 """
 arch_attention.py
 =================
-Architecture 6: Multi-Head Self-Attention Transformer encoder on combined input.
-Input shape: (N, 5, 16)
-
-10 hyperparameter configurations vary embed_dim, num_heads, dropout, lr, batch_size.
-Note: embed_dim must be divisible by num_heads.
+Multi-Head Self-Attention Transformer Encoder on combined coordinates + velocities.
+Input shape: (N, 4, 16).
 """
 
+import argparse
 import sys
 import time
 from pathlib import Path
@@ -17,61 +15,69 @@ import pandas as pd
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from model_arch import TouchAttentionNet, normalize, make_loaders, train_config, evaluate_model, save_result
+from model_arch import (
+    TouchAttentionNet, normalize, make_loaders, train_config,
+    evaluate_model, save_result, get_data_paths, parse_labels
+)
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
 BASE        = Path(__file__).resolve().parent.parent
-TRAIN_CSV   = BASE / "data" / "training_data.csv"
-TEST_CSV    = BASE / "data" / "test_data.csv"
 RESULTS_CSV = Path(__file__).resolve().parent / "results" / "attention.csv"
 WEIGHTS_DIR = Path(__file__).resolve().parent / "weights"
 
 ARCH_NAME   = "Attention"
-SEQ_LEN     = 5
+SEQ_LEN     = 4
 FEATURE_DIM = 16
-EPOCHS      = 60
+EPOCHS      = 70
 SEED        = 42
 
-# ── 10 Hyperparameter Configurations ──────────────────────────────────────────
-# embed_dim must be divisible by num_heads (MultiheadAttention requirement)
 CONFIGS = [
-    {"id": 1, "embed": 64, "heads": 4, "dropout": 0.20, "lr": 1e-3, "bs": 32},
+    {"id": 1, "embed_dim": 32, "num_heads": 4, "dropout": 0.20, "lr": 1e-3, "bs": 32},
 ]
 
-# ── Data Loading ───────────────────────────────────────────────────────────────
+
+def parse_args():
+    parser = argparse.ArgumentParser(description=f"Train {ARCH_NAME}")
+    parser.add_argument("--epochs", "-e", type=int, default=EPOCHS, help="Number of training epochs")
+    parser.add_argument("--dropout", "-d", type=float, default=None, help="Dropout probability")
+    parser.add_argument("--lr", type=float, default=None, help="Learning rate")
+    parser.add_argument("--batch-size", "-bs", type=int, default=None, help="Batch size")
+    parser.add_argument("--hidden", type=int, default=None, help="Hidden dimension (embedding dim)")
+    return parser.parse_args()
+
+
 def load_data():
+    train_csv, test_csv = get_data_paths(BASE)
     def parse(path):
         df = pd.read_csv(path)
         n  = len(df)
         X  = np.zeros((n, SEQ_LEN, FEATURE_DIM), dtype=np.float32)
-        for k in range(1, 6):
-            coord_cols = [f"wrist{k}_x", f"wrist{k}_y",
-                          f"mcp{k}_x",   f"mcp{k}_y",
-                          f"pip{k}_x",   f"pip{k}_y",
-                          f"dip{k}_x",   f"dip{k}_y"]
+        for v in range(1, 5):
+            coord_cols = [
+                f"wrist{v}_x", f"wrist{v}_y",
+                f"pip{v}_x",   f"pip{v}_y",
+                f"dip{v}_x",   f"dip{v}_y",
+                f"tip{v}_x",   f"tip{v}_y"
+            ]
+            vel_cols = [
+                f"wrist{v}_vx", f"wrist{v}_vy",
+                f"pip{v}_vx",   f"pip{v}_vy",
+                f"dip{v}_vx",   f"dip{v}_vy",
+                f"tip{v}_vx",   f"tip{v}_vy"
+            ]
             coords = df[coord_cols].fillna(0.0).values.astype(np.float32)
-            if k == 1:
-                vels = np.zeros((n, 8), dtype=np.float32)
-            else:
-                v = k - 1
-                vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy",
-                            f"mcp{v}_vx",   f"mcp{v}_vy",
-                            f"pip{v}_vx",   f"pip{v}_vy",
-                            f"dip{v}_vx",   f"dip{v}_vy"]
-                vels = df[vel_cols].fillna(0.0).values.astype(np.float32)
-            X[:, k - 1, :] = np.hstack([coords, vels])
-        tc = "touch_finger" if "touch_finger" in df.columns else "touch"
-        y  = df[tc].astype(str).str.strip().str.lower().isin(["1","true","t","yes","y"]).values.astype(np.float32)
-        return X, y.reshape(-1, 1)
+            vels   = df[vel_cols].fillna(0.0).values.astype(np.float32)
+            X[:, v - 1, :] = np.hstack([coords, vels])
+        y = parse_labels(df)
+        return X, y
 
-    X_tr, y_tr = parse(TRAIN_CSV)
-    X_te, y_te = parse(TEST_CSV)
+    X_tr, y_tr = parse(train_csv)
+    X_te, y_te = parse(test_csv)
     X_tr_t, X_te_t = normalize(X_tr, X_te)
     return X_tr_t, torch.from_numpy(y_tr).float(), X_te_t, torch.from_numpy(y_te).float()
 
 
-# ── Main ───────────────────────────────────────────────────────────────────────
 def main():
+    args = parse_args()
     torch.manual_seed(SEED)
     np.random.seed(SEED)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -84,20 +90,29 @@ def main():
     WEIGHTS_DIR.mkdir(parents=True, exist_ok=True)
 
     for cfg in CONFIGS:
-        print(f"\n  [Config {cfg['id']:02d}/10]  embed={cfg['embed']}  heads={cfg['heads']}  "
+        if args.dropout is not None:
+            cfg["dropout"] = args.dropout
+        if args.lr is not None:
+            cfg["lr"] = args.lr
+        if args.batch_size is not None:
+            cfg["bs"] = args.batch_size
+        if args.hidden is not None:
+            cfg["embed_dim"] = args.hidden
+
+        print(f"\n  [Config {cfg['id']:02d}]  embed_dim={cfg['embed_dim']}  num_heads={cfg['num_heads']}  "
               f"dropout={cfg['dropout']}  lr={cfg['lr']}  bs={cfg['bs']}")
 
         train_loader, test_loader = make_loaders(X_tr, y_tr, X_te, y_te, cfg["bs"])
 
         model = TouchAttentionNet(
             input_dim=FEATURE_DIM,
-            embed_dim=cfg["embed"],
-            num_heads=cfg["heads"],
+            embed_dim=cfg["embed_dim"],
+            num_heads=cfg["num_heads"],
             dropout=cfg["dropout"],
         ).to(device)
 
         t0                        = time.time()
-        best_acc, final_acc, hist = train_config(model, train_loader, test_loader, EPOCHS, cfg["lr"], device)
+        best_acc, final_acc, hist = train_config(model, train_loader, test_loader, args.epochs, cfg["lr"], device, verbose=True)
         elapsed                   = time.time() - t0
 
         _, rpt = evaluate_model(model, test_loader, device)
@@ -108,8 +123,8 @@ def main():
         row = {
             "arch":             ARCH_NAME,
             "config_id":        cfg["id"],
-            "embed_dim":        cfg["embed"],
-            "num_heads":        cfg["heads"],
+            "embed_dim":        cfg["embed_dim"],
+            "num_heads":        cfg["num_heads"],
             "dropout":          cfg["dropout"],
             "lr":               cfg["lr"],
             "batch_size":       cfg["bs"],

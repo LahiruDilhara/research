@@ -346,11 +346,11 @@ def train_config(model, train_loader, test_loader, epochs: int, lr: float, devic
             no_improve += 1
             if no_improve >= patience:
                 if verbose:
-                    print(f"      [Early stop @ epoch {epoch}]")
+                    print(f"      [Early stop @ epoch {epoch}]", flush=True)
                 break
 
-        if verbose and (epoch % 5 == 0 or epoch == 1):
-            print(f"Epoch: {epoch:02d} | Train Loss: {tr_loss:.4f} | Train Acc: {tr_acc:.2f}% | Test Loss: {te_loss:.4f} | Test Acc: {te_acc:.2f}%")
+        if verbose:
+            print(f"Epoch: {epoch:02d} | Train Loss: {tr_loss:.4f} | Train Acc: {tr_acc:.2f}% | Test Loss: {te_loss:.4f} | Test Acc: {te_acc:.2f}%", flush=True)
 
     return best_acc, history["test_acc"][-1], history
 

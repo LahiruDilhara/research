@@ -1,16 +1,11 @@
 """
 arch_lstm_combined.py
 =====================
-Architecture 3: LSTM trained on BOTH COORDINATES + VELOCITIES.
-Input shape: (N, 5, 16)  — 5 timesteps × 16 features.
-
-Features per step:
-  [wrist_x/y, mcp_x/y, pip_x/y, dip_x/y]  (8 coords)
-  [wrist_vx/vy, mcp_vx/vy, pip_vx/vy, dip_vx/vy]  (8 vels, step-1 padded with zeros)
-
-10 hyperparameter configurations are trained sequentially.
+LSTM trained on COMBINED COORDINATES + VELOCITIES.
+Input shape: (N, 4, 16) — 4 transition steps × 16 features (8 coords + 8 vels).
 """
 
+import argparse
 import sys
 import time
 from pathlib import Path
@@ -20,66 +15,69 @@ import pandas as pd
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from model_arch import SequenceLSTM, normalize, make_loaders, train_config, evaluate_model, save_result
+from model_arch import (
+    SequenceLSTM, normalize, make_loaders, train_config,
+    evaluate_model, save_result, get_data_paths, parse_labels
+)
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
 BASE        = Path(__file__).resolve().parent.parent
-TRAIN_CSV   = BASE / "data" / "training_data.csv"
-TEST_CSV    = BASE / "data" / "test_data.csv"
 RESULTS_CSV = Path(__file__).resolve().parent / "results" / "lstm_combined.csv"
 WEIGHTS_DIR = Path(__file__).resolve().parent / "weights"
 
 ARCH_NAME   = "LSTM_Combined"
-SEQ_LEN     = 5      # 5 frame timesteps
-FEATURE_DIM = 16     # 8 coords + 8 velocities per step
-EPOCHS      = 60
+SEQ_LEN     = 4
+FEATURE_DIM = 16
+EPOCHS      = 70
 SEED        = 42
 
-# ── 10 Hyperparameter Configurations ──────────────────────────────────────────
 CONFIGS = [
-    {"id": 1, "hidden": 64, "layers": 2, "dropout": 0.20, "lr": 1e-3, "bs": 32},
+    {"id": 1, "hidden": 32, "layers": 2, "dropout": 0.20, "lr": 1e-3, "bs": 32},
 ]
 
-# ── Data Loading ───────────────────────────────────────────────────────────────
+
+def parse_args():
+    parser = argparse.ArgumentParser(description=f"Train {ARCH_NAME}")
+    parser.add_argument("--epochs", "-e", type=int, default=EPOCHS, help="Number of training epochs")
+    parser.add_argument("--dropout", "-d", type=float, default=None, help="Dropout probability")
+    parser.add_argument("--lr", type=float, default=None, help="Learning rate")
+    parser.add_argument("--batch-size", "-bs", type=int, default=None, help="Batch size")
+    parser.add_argument("--hidden", type=int, default=None, help="Hidden dimension")
+    return parser.parse_args()
+
+
 def load_data():
+    train_csv, test_csv = get_data_paths(BASE)
     def parse(path):
         df = pd.read_csv(path)
         n  = len(df)
         X  = np.zeros((n, SEQ_LEN, FEATURE_DIM), dtype=np.float32)
-
-        for k in range(1, 6):
-            # 8 coordinates
-            coord_cols = [f"wrist{k}_x", f"wrist{k}_y",
-                          f"mcp{k}_x",   f"mcp{k}_y",
-                          f"pip{k}_x",   f"pip{k}_y",
-                          f"dip{k}_x",   f"dip{k}_y"]
+        for v in range(1, 5):
+            coord_cols = [
+                f"wrist{v}_x", f"wrist{v}_y",
+                f"pip{v}_x",   f"pip{v}_y",
+                f"dip{v}_x",   f"dip{v}_y",
+                f"tip{v}_x",   f"tip{v}_y"
+            ]
+            vel_cols = [
+                f"wrist{v}_vx", f"wrist{v}_vy",
+                f"pip{v}_vx",   f"pip{v}_vy",
+                f"dip{v}_vx",   f"dip{v}_vy",
+                f"tip{v}_vx",   f"tip{v}_vy"
+            ]
             coords = df[coord_cols].fillna(0.0).values.astype(np.float32)
+            vels   = df[vel_cols].fillna(0.0).values.astype(np.float32)
+            X[:, v - 1, :] = np.hstack([coords, vels])
+        y = parse_labels(df)
+        return X, y
 
-            # 8 velocities (step k=1 → zero-padded)
-            if k == 1:
-                vels = np.zeros((n, 8), dtype=np.float32)
-            else:
-                v = k - 1
-                vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy",
-                            f"mcp{v}_vx",   f"mcp{v}_vy",
-                            f"pip{v}_vx",   f"pip{v}_vy",
-                            f"dip{v}_vx",   f"dip{v}_vy"]
-                vels = df[vel_cols].fillna(0.0).values.astype(np.float32)
-
-            X[:, k - 1, :] = np.hstack([coords, vels])
-
-        tc = "touch_finger" if "touch_finger" in df.columns else "touch"
-        y  = df[tc].astype(str).str.strip().str.lower().isin(["1","true","t","yes","y"]).values.astype(np.float32)
-        return X, y.reshape(-1, 1)
-
-    X_tr, y_tr = parse(TRAIN_CSV)
-    X_te, y_te = parse(TEST_CSV)
+    X_tr, y_tr = parse(train_csv)
+    X_te, y_te = parse(test_csv)
     X_tr_t, X_te_t = normalize(X_tr, X_te)
     return X_tr_t, torch.from_numpy(y_tr).float(), X_te_t, torch.from_numpy(y_te).float()
 
 
-# ── Main ───────────────────────────────────────────────────────────────────────
 def main():
+    args = parse_args()
     torch.manual_seed(SEED)
     np.random.seed(SEED)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -92,7 +90,16 @@ def main():
     WEIGHTS_DIR.mkdir(parents=True, exist_ok=True)
 
     for cfg in CONFIGS:
-        print(f"\n  [Config {cfg['id']:02d}/10]  hidden={cfg['hidden']}  layers={cfg['layers']}  "
+        if args.dropout is not None:
+            cfg["dropout"] = args.dropout
+        if args.lr is not None:
+            cfg["lr"] = args.lr
+        if args.batch_size is not None:
+            cfg["bs"] = args.batch_size
+        if args.hidden is not None:
+            cfg["hidden"] = args.hidden
+
+        print(f"\n  [Config {cfg['id']:02d}]  hidden={cfg['hidden']}  layers={cfg['layers']}  "
               f"dropout={cfg['dropout']}  lr={cfg['lr']}  bs={cfg['bs']}")
 
         train_loader, test_loader = make_loaders(X_tr, y_tr, X_te, y_te, cfg["bs"])
@@ -105,7 +112,7 @@ def main():
         ).to(device)
 
         t0                        = time.time()
-        best_acc, final_acc, hist = train_config(model, train_loader, test_loader, EPOCHS, cfg["lr"], device)
+        best_acc, final_acc, hist = train_config(model, train_loader, test_loader, args.epochs, cfg["lr"], device, verbose=True)
         elapsed                   = time.time() - t0
 
         _, rpt = evaluate_model(model, test_loader, device)

@@ -1,2 +1,2 @@
 arch,config_id,hidden_dim,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,train_time_s,weight_file
-ResNet1D,1,64,0.2,0.001,32,87.0605,85.3727,0.7224,0.9114,0.806,5.8,ResNet1D_cfg01.pth
+ResNet1D,1,32,0.2,0.001,32,86.9369,86.9369,0.8773,0.8589,0.868,3.1,ResNet1D_cfg01.pth

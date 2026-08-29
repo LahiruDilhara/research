@@ -25,14 +25,16 @@ DISPLAY_COLS = [
 ]
 
 PARAM_COLS_PER_ARCH = {
-    "LSTM_Velocities": ["hidden", "layers", "dropout", "lr", "batch_size"],
-    "LSTM_Coords":     ["hidden", "layers", "dropout", "lr", "batch_size"],
-    "LSTM_Combined":   ["hidden", "layers", "dropout", "lr", "batch_size"],
-    "CNN1D":           ["conv_ch", "fc_hid", "dropout", "lr", "batch_size"],
-    "ResNet1D":        ["hidden_dim", "dropout", "lr", "batch_size"],
-    "Attention":       ["embed_dim", "num_heads", "dropout", "lr", "batch_size"],
-    "BiLSTM":          ["hidden", "layers", "dropout", "lr", "batch_size"],
-    "TCN":             ["tcn_channels", "num_levels", "dropout", "lr", "batch_size"],
+    "LSTM_Velocities":      ["hidden", "layers", "dropout", "lr", "batch_size"],
+    "LSTM_Coords":          ["hidden", "layers", "dropout", "lr", "batch_size"],
+    "LSTM_Combined":        ["hidden", "layers", "dropout", "lr", "batch_size"],
+    "LSTM_Vel_Speed":       ["hidden", "layers", "dropout", "lr", "batch_size"],
+    "LSTM_All_Joints_Vel":  ["hidden", "layers", "dropout", "lr", "batch_size"],
+    "CNN1D":                ["conv_ch", "fc_hid", "dropout", "lr", "batch_size"],
+    "ResNet1D":             ["hidden_dim", "dropout", "lr", "batch_size"],
+    "Attention":            ["embed_dim", "num_heads", "dropout", "lr", "batch_size"],
+    "BiLSTM":               ["hidden", "layers", "dropout", "lr", "batch_size"],
+    "TCN":                  ["tcn_channels", "num_levels", "dropout", "lr", "batch_size"],
 }
 
 BAR  = "=" * 90

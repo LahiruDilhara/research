@@ -1,2 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,train_time_s,weight_file
-LSTM_Combined,1,64,2,0.2,0.001,32,87.6231,87.3418,0.7579,0.9114,0.8276,5.8,LSTM_Combined_cfg01.pth
+LSTM_Combined,1,32,2,0.2,0.001,32,86.4865,86.4865,0.8605,0.8709,0.8657,2.6,LSTM_Combined_cfg01.pth

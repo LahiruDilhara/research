@@ -1,2 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,train_time_s,weight_file
-BiLSTM,1,64,2,0.2,0.001,32,87.3418,86.6385,0.7448,0.9114,0.8197,5.0,BiLSTM_cfg01.pth
+BiLSTM,1,32,2,0.2,0.001,32,85.7357,85.2853,0.8529,0.8529,0.8529,2.7,BiLSTM_cfg01.pth

@@ -1,8 +1,8 @@
 """
-arch_cnn1d.py
-=============
-1D CNN over combined landmark coordinates + velocities.
-Input shape: (N, 4, 16).
+arch_lstm_vel_speed.py
+======================
+LSTM trained on VELOCITIES + 2D SPEED.
+Input shape: (N, 4, 12) — 4 transition steps × 12 features (8 2D vels + 4 2D speeds).
 """
 
 import argparse
@@ -16,22 +16,22 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from model_arch import (
-    TouchCNN1D, normalize, make_loaders, train_config,
+    SequenceLSTM, normalize, make_loaders, train_config,
     evaluate_model, save_result, get_data_paths, parse_labels
 )
 
 BASE        = Path(__file__).resolve().parent.parent
-RESULTS_CSV = Path(__file__).resolve().parent / "results" / "cnn1d.csv"
+RESULTS_CSV = Path(__file__).resolve().parent / "results" / "lstm_vel_speed.csv"
 WEIGHTS_DIR = Path(__file__).resolve().parent / "weights"
 
-ARCH_NAME   = "CNN1D"
+ARCH_NAME   = "LSTM_Vel_Speed"
 SEQ_LEN     = 4
-FEATURE_DIM = 16
+FEATURE_DIM = 12
 EPOCHS      = 70
 SEED        = 42
 
 CONFIGS = [
-    {"id": 1, "conv_ch": 32, "fc_hid": 32, "dropout": 0.20, "lr": 1e-3, "bs": 32},
+    {"id": 1, "hidden": 32, "layers": 2, "dropout": 0.20, "lr": 1e-3, "bs": 32},
 ]
 
 
@@ -41,7 +41,7 @@ def parse_args():
     parser.add_argument("--dropout", "-d", type=float, default=None, help="Dropout probability")
     parser.add_argument("--lr", type=float, default=None, help="Learning rate")
     parser.add_argument("--batch-size", "-bs", type=int, default=None, help="Batch size")
-    parser.add_argument("--hidden", type=int, default=None, help="Hidden dimension (conv channels)")
+    parser.add_argument("--hidden", type=int, default=None, help="Hidden dimension")
     return parser.parse_args()
 
 
@@ -52,21 +52,21 @@ def load_data():
         n  = len(df)
         X  = np.zeros((n, SEQ_LEN, FEATURE_DIM), dtype=np.float32)
         for v in range(1, 5):
-            coord_cols = [
-                f"wrist{v}_x", f"wrist{v}_y",
-                f"pip{v}_x",   f"pip{v}_y",
-                f"dip{v}_x",   f"dip{v}_y",
-                f"tip{v}_x",   f"tip{v}_y"
-            ]
             vel_cols = [
                 f"wrist{v}_vx", f"wrist{v}_vy",
                 f"pip{v}_vx",   f"pip{v}_vy",
                 f"dip{v}_vx",   f"dip{v}_vy",
                 f"tip{v}_vx",   f"tip{v}_vy"
             ]
-            coords = df[coord_cols].fillna(0.0).values.astype(np.float32)
+            speed_cols = [
+                f"wrist{v}_speed_2d",
+                f"pip{v}_speed_2d",
+                f"dip{v}_speed_2d",
+                f"tip{v}_speed_2d"
+            ]
             vels   = df[vel_cols].fillna(0.0).values.astype(np.float32)
-            X[:, v - 1, :] = np.hstack([coords, vels])
+            speeds = df[speed_cols].fillna(0.0).values.astype(np.float32)
+            X[:, v - 1, :] = np.hstack([vels, speeds])
         y = parse_labels(df)
         return X, y
 
@@ -97,18 +97,17 @@ def main():
         if args.batch_size is not None:
             cfg["bs"] = args.batch_size
         if args.hidden is not None:
-            cfg["conv_ch"] = args.hidden
-            cfg["fc_hid"]  = args.hidden
+            cfg["hidden"] = args.hidden
 
-        print(f"\n  [Config {cfg['id']:02d}]  conv_ch={cfg['conv_ch']}  fc_hid={cfg['fc_hid']}  "
+        print(f"\n  [Config {cfg['id']:02d}]  hidden={cfg['hidden']}  layers={cfg['layers']}  "
               f"dropout={cfg['dropout']}  lr={cfg['lr']}  bs={cfg['bs']}")
 
         train_loader, test_loader = make_loaders(X_tr, y_tr, X_te, y_te, cfg["bs"])
 
-        model = TouchCNN1D(
-            in_channels=FEATURE_DIM,
-            conv_channels=cfg["conv_ch"],
-            fc_hidden=cfg["fc_hid"],
+        model = SequenceLSTM(
+            input_features=FEATURE_DIM,
+            hidden_units=cfg["hidden"],
+            num_layers=cfg["layers"],
             dropout=cfg["dropout"],
         ).to(device)
 
@@ -124,8 +123,8 @@ def main():
         row = {
             "arch":             ARCH_NAME,
             "config_id":        cfg["id"],
-            "conv_ch":          cfg["conv_ch"],
-            "fc_hid":           cfg["fc_hid"],
+            "hidden":           cfg["hidden"],
+            "layers":           cfg["layers"],
             "dropout":          cfg["dropout"],
             "lr":               cfg["lr"],
             "batch_size":       cfg["bs"],
