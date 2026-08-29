@@ -61,6 +61,23 @@ def parse_labels(df):
     return y.reshape(-1, 1)
 
 
+def get_data_paths(base_dir: Path):
+    """Resolve train and test CSV file paths with robust fallback search."""
+    p1_tr = base_dir / "training_testing_data" / "train_dataset.csv"
+    p1_te = base_dir / "training_testing_data" / "test_dataset.csv"
+    if p1_tr.exists() and p1_te.exists():
+        return p1_tr, p1_te
+
+    p2_tr = base_dir / "dataprocessing" / "11_train_test_split" / "training_dataset.csv"
+    p2_te = base_dir / "dataprocessing" / "11_train_test_split" / "testing_dataset.csv"
+    if p2_tr.exists() and p2_te.exists():
+        return p2_tr, p2_te
+
+    p3_tr = base_dir / "data" / "training_data.csv"
+    p3_te = base_dir / "data" / "test_data.csv"
+    return p3_tr, p3_te
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  Model Classes
 # ─────────────────────────────────────────────────────────────────────────────
@@ -332,8 +349,8 @@ def train_config(model, train_loader, test_loader, epochs: int, lr: float, devic
                     print(f"      [Early stop @ epoch {epoch}]")
                 break
 
-        if verbose and (epoch % 10 == 0 or epoch == 1):
-            print(f"      Ep {epoch:03d} | Train {tr_acc:5.1f}% | Test {te_acc:5.1f}%")
+        if verbose and (epoch % 5 == 0 or epoch == 1):
+            print(f"Epoch: {epoch:02d} | Train Loss: {tr_loss:.4f} | Train Acc: {tr_acc:.2f}% | Test Loss: {te_loss:.4f} | Test Acc: {te_acc:.2f}%")
 
     return best_acc, history["test_acc"][-1], history
 

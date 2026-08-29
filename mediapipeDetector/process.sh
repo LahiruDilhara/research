@@ -1,3 +1,6 @@
+rm -r dataprocessing
+rm -r training_testing_data
+
 # Ensure all data processing directories exist
 mkdir -p dataprocessing/1_rawCSVFiles
 mkdir -p dataprocessing/2_normalized_coordinates
@@ -12,8 +15,8 @@ mkdir -p dataprocessing/10_split_touch_dataset
 mkdir -p dataprocessing/11_train_test_split
 
 # Copy CSV files to data processing directory
-cp -f -r ./videos/*.raw_landmarks.* dataprocessing/1_rawCSVFiles/
-cp -f -r ./videos/*.window_annotations.* dataprocessing/1_rawCSVFiles/
+cp -f -r ./dataset/*.raw_landmarks.* dataprocessing/1_rawCSVFiles/
+cp -f -r ./dataset/*.window_annotations.* dataprocessing/1_rawCSVFiles/
 
 # Normalize landmarks
 python3 datacreator/normalize_landmarks.py -i ./dataprocessing/1_rawCSVFiles/*.raw_landmarks.* -o ./dataprocessing/2_normalized_coordinates/
@@ -44,3 +47,8 @@ python3 datacreator/split_touch.py -i ./dataprocessing/9_per_finger_dataset/per_
 
 # Create balanced training and testing datasets
 python3 datacreator/create_train_test_split.py --touch-in ./dataprocessing/10_split_touch_dataset/touch_dataset.csv --untouch-in ./dataprocessing/10_split_touch_dataset/untouch_dataset.csv --train-out ./dataprocessing/11_train_test_split/training_dataset.csv --test-out ./dataprocessing/11_train_test_split/testing_dataset.csv --touch-test-pct 15 --untouch-train-ratio-pct 100 --untouch-test-ratio-pct 100 --seed 50 --no-video-leak
+
+# Copy training and testing data to root
+mkdir training_testing_data
+cp -f ./dataprocessing/11_train_test_split/training_dataset.csv training_testing_data/train_dataset.csv
+cp -f ./dataprocessing/11_train_test_split/testing_dataset.csv training_testing_data/test_dataset.csv
