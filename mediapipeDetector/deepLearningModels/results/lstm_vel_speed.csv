@@ -1,2 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-LSTM_Vel_Speed,1,32,2,0.2,0.001,32,89.7753,89.7753,0.8598,0.9506,0.9029,376,69,22,423,GOOD FIT (OPTIMAL),3,-5.27,2.7,LSTM_Vel_Speed_cfg01.pth
+LSTM_Vel_Speed,1,32,2,0.2,0.001,32,83.6538,83.6538,0.8136,0.8731,0.8423,208,52,33,227,GOOD FIT (OPTIMAL),3,3.7,2.0,LSTM_Vel_Speed_cfg01.pth

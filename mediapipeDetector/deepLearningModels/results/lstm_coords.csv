@@ -1,2 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-LSTM_Coords,1,32,2,0.2,0.001,32,61.7978,61.7978,0.6207,0.6067,0.6136,280,165,175,270,UNDERFITTING (High),1,6.6,2.7,LSTM_Coords_cfg01.pth
+LSTM_Coords,1,32,2,0.2,0.001,32,54.0385,51.5385,0.5114,0.6923,0.5882,88,172,80,180,UNDERFITTING (High),1,8.63,2.4,LSTM_Coords_cfg01.pth
