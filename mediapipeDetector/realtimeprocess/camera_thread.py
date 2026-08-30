@@ -194,6 +194,13 @@ class CameraThread(threading.Thread):
                                 self.callback(norm_window_5, scores_5, w, h)
                             except Exception as e:
                                 print(f"[CameraThread] Callback error: {e}")
+                else:
+                    # Hand lost or tracking interrupted: Clear ring buffers & reset 1€ filter to prevent velocity jump spikes
+                    self.landmark_buffer.clear()
+                    self.timestamp_buffer.clear()
+                    score_buffer.clear()
+                    self.shift_counter = 0
+                    euro_filter_bank.reset()
 
         cap.release()
         try:
@@ -204,6 +211,13 @@ class CameraThread(threading.Thread):
 
     def stop(self):
         self.running = False
+
+    def reset_buffers(self):
+        """Clears sequence ring buffers to reset state when switching models or settings."""
+        with self.lock:
+            self.landmark_buffer.clear()
+            self.timestamp_buffer.clear()
+            self.shift_counter = 0
 
     def get_latest_frame_data(self):
         with self.lock:
