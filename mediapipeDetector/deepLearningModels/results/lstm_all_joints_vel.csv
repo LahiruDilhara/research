@@ -1,0 +1,2 @@
+arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
+LSTM_All_Joints_Vel,1,32,2,0.2,0.001,32,90.2838,89.1921,0.9055,0.8996,0.9025,415,43,46,412,GOOD FIT (OPTIMAL),16,2.27,13.8,LSTM_All_Joints_Vel_cfg01.pth

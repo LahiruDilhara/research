@@ -70,6 +70,16 @@ class OneEuroFilterBank:
         """Resets all joint filter states when hand tracking is interrupted or model switches."""
         self.filters.clear()
 
+    def update_params(self, min_cutoff: float, beta: float, d_cutoff: float):
+        """Updates min_cutoff, beta, and d_cutoff parameters on all live filter instances."""
+        self.min_cutoff = float(min_cutoff)
+        self.beta = float(beta)
+        self.d_cutoff = float(d_cutoff)
+        for f in self.filters.values():
+            f.min_cutoff = self.min_cutoff
+            f.beta = self.beta
+            f.d_cutoff = self.d_cutoff
+
     def filter_frame(self, t_sec: float, norm_pts: list[tuple[float, float, float]]) -> list[tuple[float, float, float]]:
         """
         Given timestamp t_sec and 21 scale-normalized wrist-centered 3D coordinates (nx, ny, nz):
