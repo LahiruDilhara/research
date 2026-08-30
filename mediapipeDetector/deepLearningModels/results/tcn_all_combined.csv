@@ -1,2 +1,0 @@
-arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-TCN_All_Combined,1,32,2,0.2,0.001,32,91.2664,90.7205,0.9191,0.893,0.9059,422,36,49,409,GOOD FIT (OPTIMAL),16,1.15,12.8,TCN_All_Combined_cfg01.pth

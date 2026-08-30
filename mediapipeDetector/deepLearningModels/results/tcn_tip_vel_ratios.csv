@@ -1,2 +1,0 @@
-arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-TCN_Tip_Vel_Ratios,1,32,2,0.2,0.001,32,90.5022,89.738,0.8792,0.9214,0.8998,400,58,36,422,GOOD FIT (OPTIMAL),17,-1.06,15.0,TCN_Tip_Vel_Ratios_cfg01.pth
