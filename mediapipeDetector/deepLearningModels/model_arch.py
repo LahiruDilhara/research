@@ -12,6 +12,7 @@ Models:
 """
 
 import argparse
+import copy
 import csv
 import json
 import math
@@ -752,14 +753,16 @@ def _run_epoch(model, loader, loss_fn, optimizer, device, train: bool):
 
 def train_config(model, train_loader, test_loader, epochs: int, lr: float, device,
                  patience: int = 8, verbose: bool = True):
-    """Full training loop with early stopping."""
+    """Full training loop with early stopping and best-epoch weights preservation."""
     loss_fn   = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=4, factor=0.5, min_lr=1e-6)
 
-    best_acc   = 0.0
-    no_improve = 0
-    history    = {"train_acc": [], "test_acc": [], "train_loss": [], "test_loss": []}
+    best_acc        = 0.0
+    best_loss       = float("inf")
+    best_state_dict = None
+    no_improve      = 0
+    history         = {"train_acc": [], "test_acc": [], "train_loss": [], "test_loss": []}
 
     for epoch in range(1, epochs + 1):
         tr_loss, tr_acc = _run_epoch(model, train_loader, loss_fn, optimizer, device, train=True)
@@ -771,9 +774,11 @@ def train_config(model, train_loader, test_loader, epochs: int, lr: float, devic
         history["train_loss"].append(tr_loss)
         history["test_loss"].append(te_loss)
 
-        if te_acc > best_acc:
-            best_acc   = te_acc
-            no_improve = 0
+        if te_acc > best_acc or (math.isclose(te_acc, best_acc, abs_tol=1e-4) and te_loss < best_loss):
+            best_acc        = te_acc
+            best_loss       = te_loss
+            best_state_dict = copy.deepcopy(model.state_dict())
+            no_improve      = 0
         else:
             no_improve += 1
             if no_improve >= patience:
@@ -783,6 +788,9 @@ def train_config(model, train_loader, test_loader, epochs: int, lr: float, devic
 
         if verbose:
             print(f"Epoch: {epoch:02d} | Train Loss: {tr_loss:.4f} | Train Acc: {tr_acc:.2f}% | Test Loss: {te_loss:.4f} | Test Acc: {te_acc:.2f}%", flush=True)
+
+    if best_state_dict is not None:
+        model.load_state_dict(best_state_dict)
 
     return best_acc, history["test_acc"][-1], history
 
