@@ -10,9 +10,10 @@ mkdir -p dataprocessing/5_windowed_dataset
 mkdir -p dataprocessing/6_merged_windowed_dataset
 mkdir -p dataprocessing/7_dataset_with_velocities
 mkdir -p dataprocessing/8_cleaned_dataset
-mkdir -p dataprocessing/9_per_finger_dataset
-mkdir -p dataprocessing/10_split_touch_dataset
-mkdir -p dataprocessing/11_train_test_split
+mkdir -p dataprocessing/9_quality_filtered_dataset
+mkdir -p dataprocessing/10_per_finger_dataset
+mkdir -p dataprocessing/11_split_touch_dataset
+mkdir -p dataprocessing/12_train_test_split
 mkdir -p dataprocessing/summaries
 
 # Copy CSV files to data processing directory
