@@ -23,7 +23,7 @@ cp -f -r ./dataset/*.window_annotations.* dataprocessing/1_rawCSVFiles/
 python3 datacreator/normalize_landmarks.py -i ./dataprocessing/1_rawCSVFiles/*.raw_landmarks.* -o ./dataprocessing/2_normalized_coordinates/
 
 # Filter landmarks using 1Euro Filter
-python3 datacreator/filter_landmarks.py -min 3.8 -beta 2.6 -d 1.0 -i ./dataprocessing/2_normalized_coordinates/*.normalize_landmarks.* -o ./dataprocessing/3_euroFilter_coordinates/
+python3 datacreator/filter_landmarks.py -min 4.0 -beta 1.4 -d 1.0 -i ./dataprocessing/2_normalized_coordinates/*.normalize_landmarks.* -o ./dataprocessing/3_euroFilter_coordinates/
 
 cp -f -r ./dataprocessing/1_rawCSVFiles/*.window_annotations.* ./dataprocessing/4_filtered_coordinates_and_annotations/
 cp -f -r ./dataprocessing/3_euroFilter_coordinates/*.filtered_landmarks.* ./dataprocessing/4_filtered_coordinates_and_annotations/
@@ -50,7 +50,7 @@ python3 datacreator/split_fingers.py -i ./dataprocessing/9_quality_filtered_data
 python3 datacreator/split_touch.py -i ./dataprocessing/10_per_finger_dataset/per_finger_dataset.csv -o ./dataprocessing/11_split_touch_dataset/
 
 # Create balanced training and testing datasets
-python3 datacreator/create_train_test_split.py --touch-in ./dataprocessing/11_split_touch_dataset/touch_dataset.csv --untouch-in ./dataprocessing/11_split_touch_dataset/untouch_dataset.csv --train-out ./dataprocessing/12_train_test_split/training_dataset.csv --test-out ./dataprocessing/12_train_test_split/testing_dataset.csv --touch-test-pct 20 --untouch-train-ratio-pct 100 --untouch-test-ratio-pct 400 --seed 50 --no-video-leak
+python3 datacreator/create_train_test_split.py --touch-in ./dataprocessing/11_split_touch_dataset/touch_dataset.csv --untouch-in ./dataprocessing/11_split_touch_dataset/untouch_dataset.csv --train-out ./dataprocessing/12_train_test_split/training_dataset.csv --test-out ./dataprocessing/12_train_test_split/testing_dataset.csv --touch-test-pct 20 --untouch-train-ratio-pct 100 --untouch-test-ratio-pct 100 --seed 50 --no-video-leak
 
 # Copy training and testing data to root
 mkdir -p training_testing_data

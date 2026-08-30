@@ -1,2 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-LSTM_Vel_Speed_3D,1,32,2,0.2,0.001,32,90.393,89.738,0.884,0.9148,0.8991,403,55,39,419,GOOD FIT (OPTIMAL),23,-1.07,10.4,LSTM_Vel_Speed_3D_cfg01.pth
+ResNet1D_Wrist_Rel_3D,1,32,2,0.2,0.001,32,92.0306,91.5939,0.9132,0.9192,0.9162,418,40,37,421,GOOD FIT (OPTIMAL),14,1.74,19.4,ResNet1D_Wrist_Rel_3D_cfg01.pth
