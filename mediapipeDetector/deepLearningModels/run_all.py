@@ -33,62 +33,40 @@ import sys
 import time
 from pathlib import Path
 
-# Complete Expanded Model Pool (44 distinct architecture & feature variants)
+# Complete Pure 2D Model Pool (22 distinct architecture & feature variants - 0% Z dependence)
 ALL_SCRIPTS = [
-    # LSTM variants (15)
+    # LSTM variants (7)
     ("arch_lstm_velocities.py",        "LSTM_Velocities (2D Vels 4×8)",               "vel_2d"),
     ("arch_lstm_coords.py",            "LSTM_Coords (2D Coords 5×8)",                 "coords_2d"),
     ("arch_lstm_combined.py",          "LSTM_Combined (2D Coords+Vels 4×16)",         "combined_2d"),
     ("arch_lstm_vel_speed.py",         "LSTM_Vel_Speed (2D Vels+Speeds 4×12)",        "vel_speed_2d"),
     ("arch_lstm_all_joints_vel.py",    "LSTM_All_Joints_Vel (All 9 Joints Vels 4×18)","all_joints_vel"),
     ("arch_lstm_all_combined.py",      "LSTM_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
-    ("arch_lstm_coords_3d.py",         "LSTM_Coords_3D (3D Coords 5×12)",             "coords_3d"),
-    ("arch_lstm_vel_3d.py",            "LSTM_Vel_3D (3D Vels 4×12)",                  "vel_3d"),
-    ("arch_lstm_vel_speed_3d.py",      "LSTM_Vel_Speed_3D (3D Vels+Speeds 4×16)",    "vel_speed_3d"),
-    ("arch_lstm_combined_3d.py",       "LSTM_Combined_3D (3D Coords+Vels 4×24)",     "combined_3d"),
-    ("arch_lstm_z_kinematics.py",      "LSTM_Z_Kinematics (Z-Depth+Vels 4×8)",        "z_kinematics"),
-    ("arch_lstm_super_combined.py",    "LSTM_Super_Combined (3D Coords+Vels+Speeds 4×28)", "super_combined"),
-    ("arch_lstm_wrist_rel_3d.py",      "LSTM_Wrist_Rel_3D (Wrist-Rel 3D Coords+Vels 4×21)", "wrist_relative_3d"),
     ("arch_lstm_tip_vel_ratios.py",    "LSTM_Tip_Vel_Ratios (Tip Vel Ratios 4×16)",    "fingertip_velocity_ratios"),
 
-    # BiLSTM variants (6)
+    # BiLSTM variants (3)
     ("arch_bilstm.py",                 "BiLSTM (2D Coords+Vels 4×16)",                "combined_2d"),
     ("arch_bilstm_all_combined.py",     "BiLSTM_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
-    ("arch_bilstm_vel_3d.py",          "BiLSTM_Vel_3D (3D Vels+Speeds 4×16)",         "vel_speed_3d"),
-    ("arch_bilstm_super_combined.py",  "BiLSTM_Super_Combined (Super Combined 4×28)", "super_combined"),
-    ("arch_bilstm_wrist_rel_3d.py",    "BiLSTM_Wrist_Rel_3D (Wrist-Rel 3D Coords+Vels 4×21)", "wrist_relative_3d"),
     ("arch_bilstm_tip_vel_ratios.py",  "BiLSTM_Tip_Vel_Ratios (Tip Vel Ratios 4×16)", "fingertip_velocity_ratios"),
 
-    # 1D CNN variants (6)
+    # 1D CNN variants (3)
     ("arch_cnn1d.py",                  "CNN1D (2D Coords+Vels 4×16)",                 "combined_2d"),
     ("arch_cnn1d_all_combined.py",      "CNN1D_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
-    ("arch_cnn1d_vel_3d.py",           "CNN1D_Vel_3D (3D Vels+Speeds 4×16)",          "vel_speed_3d"),
-    ("arch_cnn1d_super_combined.py",   "CNN1D_Super_Combined (Super Combined 4×28)",  "super_combined"),
-    ("arch_cnn1d_wrist_rel_3d.py",     "CNN1D_Wrist_Rel_3D (Wrist-Rel 3D Coords+Vels 4×21)", "wrist_relative_3d"),
     ("arch_cnn1d_tip_vel_ratios.py",   "CNN1D_Tip_Vel_Ratios (Tip Vel Ratios 4×16)", "fingertip_velocity_ratios"),
 
-    # 1D ResNet variants (6)
+    # 1D ResNet variants (3)
     ("arch_resnet1d.py",               "ResNet1D (2D Coords+Vels 4×16)",              "combined_2d"),
     ("arch_resnet1d_all_combined.py",   "ResNet1D_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
-    ("arch_resnet1d_vel_3d.py",        "ResNet1D_Vel_3D (3D Vels+Speeds 4×16)",       "vel_speed_3d"),
-    ("arch_resnet1d_super_combined.py","ResNet1D_Super_Combined (Super Combined 4×28)", "super_combined"),
-    ("arch_resnet1d_wrist_rel_3d.py",  "ResNet1D_Wrist_Rel_3D (Wrist-Rel 3D Coords+Vels 4×21)", "wrist_relative_3d"),
     ("arch_resnet1d_tip_vel_ratios.py","ResNet1D_Tip_Vel_Ratios (Tip Vel Ratios 4×16)", "fingertip_velocity_ratios"),
 
-    # Transformer Attention variants (6)
+    # Transformer Attention variants (3)
     ("arch_attention.py",              "Attention (2D Coords+Vels 4×16)",             "combined_2d"),
     ("arch_attention_all_combined.py",  "Attention_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
-    ("arch_attention_vel_3d.py",       "Attention_Vel_3D (3D Vels+Speeds 4×16)",      "vel_speed_3d"),
-    ("arch_attention_super_combined.py","Attention_Super_Combined (Super Combined 4×28)", "super_combined"),
-    ("arch_attention_wrist_rel_3d.py", "Attention_Wrist_Rel_3D (Wrist-Rel 3D Coords+Vels 4×21)", "wrist_relative_3d"),
     ("arch_attention_tip_vel_ratios.py","Attention_Tip_Vel_Ratios (Tip Vel Ratios 4×16)", "fingertip_velocity_ratios"),
 
-    # TCN variants (6)
+    # TCN variants (3)
     ("arch_tcn.py",                    "TCN (2D Coords+Vels 4×16)",                   "combined_2d"),
     ("arch_tcn_all_combined.py",        "TCN_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
-    ("arch_tcn_vel_3d.py",             "TCN_Vel_3D (3D Vels+Speeds 4×16)",            "vel_speed_3d"),
-    ("arch_tcn_super_combined.py",     "TCN_Super_Combined (Super Combined 4×28)",    "super_combined"),
-    ("arch_tcn_wrist_rel_3d.py",       "TCN_Wrist_Rel_3D (Wrist-Rel 3D Coords+Vels 4×21)", "wrist_relative_3d"),
     ("arch_tcn_tip_vel_ratios.py",     "TCN_Tip_Vel_Ratios (Tip Vel Ratios 4×16)",   "fingertip_velocity_ratios"),
 ]
 

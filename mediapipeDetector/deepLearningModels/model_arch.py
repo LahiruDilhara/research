@@ -377,27 +377,11 @@ def parse_variant_csv(csv_path_or_df, variant_name: str):
             X[:, k - 1, :] = df[cols].fillna(0.0).values.astype(np.float32)
         return X, y, seq_len, feature_dim
 
-    elif variant_name == "coords_3d":
-        seq_len, feature_dim = 5, 12
-        X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
-        for k in range(1, 6):
-            cols = [f"wrist{k}_x", f"wrist{k}_y", f"wrist{k}_z", f"pip{k}_x", f"pip{k}_y", f"pip{k}_z", f"dip{k}_x", f"dip{k}_y", f"dip{k}_z", f"tip{k}_x", f"tip{k}_y", f"tip{k}_z"]
-            X[:, k - 1, :] = df[cols].fillna(0.0).values.astype(np.float32)
-        return X, y, seq_len, feature_dim
-
     elif variant_name in ("vel_2d", "vel_velocities"):
         seq_len, feature_dim = 4, 8
         X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
         for v in range(1, 5):
             cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"pip{v}_vx", f"pip{v}_vy", f"dip{v}_vx", f"dip{v}_vy", f"tip{v}_vx", f"tip{v}_vy"]
-            X[:, v - 1, :] = df[cols].fillna(0.0).values.astype(np.float32)
-        return X, y, seq_len, feature_dim
-
-    elif variant_name == "vel_3d":
-        seq_len, feature_dim = 4, 12
-        X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
-        for v in range(1, 5):
-            cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"wrist{v}_vz", f"pip{v}_vx", f"pip{v}_vy", f"pip{v}_vz", f"dip{v}_vx", f"dip{v}_vy", f"dip{v}_vz", f"tip{v}_vx", f"tip{v}_vy", f"tip{v}_vz"]
             X[:, v - 1, :] = df[cols].fillna(0.0).values.astype(np.float32)
         return X, y, seq_len, feature_dim
 
@@ -412,34 +396,12 @@ def parse_variant_csv(csv_path_or_df, variant_name: str):
             X[:, v - 1, :] = np.hstack([v_vals, s_vals])
         return X, y, seq_len, feature_dim
 
-    elif variant_name == "vel_speed_3d":
-        seq_len, feature_dim = 4, 16
-        X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
-        for v in range(1, 5):
-            vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"wrist{v}_vz", f"pip{v}_vx", f"pip{v}_vy", f"pip{v}_vz", f"dip{v}_vx", f"dip{v}_vy", f"dip{v}_vz", f"tip{v}_vx", f"tip{v}_vy", f"tip{v}_vz"]
-            speed_cols = [f"wrist{v}_speed_3d", f"pip{v}_speed_3d", f"dip{v}_speed_3d", f"tip{v}_speed_3d"]
-            v_vals = df[vel_cols].fillna(0.0).values.astype(np.float32)
-            s_vals = df[speed_cols].fillna(0.0).values.astype(np.float32)
-            X[:, v - 1, :] = np.hstack([v_vals, s_vals])
-        return X, y, seq_len, feature_dim
-
     elif variant_name in ("combined_2d", "combined"):
         seq_len, feature_dim = 4, 16
         X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
         for v in range(1, 5):
             pos_cols = [f"wrist{v}_x", f"wrist{v}_y", f"pip{v}_x", f"pip{v}_y", f"dip{v}_x", f"dip{v}_y", f"tip{v}_x", f"tip{v}_y"]
             vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"pip{v}_vx", f"pip{v}_vy", f"dip{v}_vx", f"dip{v}_vy", f"tip{v}_vx", f"tip{v}_vy"]
-            p_vals = df[pos_cols].fillna(0.0).values.astype(np.float32)
-            v_vals = df[vel_cols].fillna(0.0).values.astype(np.float32)
-            X[:, v - 1, :] = np.hstack([p_vals, v_vals])
-        return X, y, seq_len, feature_dim
-
-    elif variant_name == "combined_3d":
-        seq_len, feature_dim = 4, 24
-        X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
-        for v in range(1, 5):
-            pos_cols = [f"wrist{v}_x", f"wrist{v}_y", f"wrist{v}_z", f"pip{v}_x", f"pip{v}_y", f"pip{v}_z", f"dip{v}_x", f"dip{v}_y", f"dip{v}_z", f"tip{v}_x", f"tip{v}_y", f"tip{v}_z"]
-            vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"wrist{v}_vz", f"pip{v}_vx", f"pip{v}_vy", f"pip{v}_vz", f"dip{v}_vx", f"dip{v}_vy", f"dip{v}_vz", f"tip{v}_vx", f"tip{v}_vy", f"tip{v}_vz"]
             p_vals = df[pos_cols].fillna(0.0).values.astype(np.float32)
             v_vals = df[vel_cols].fillna(0.0).values.astype(np.float32)
             X[:, v - 1, :] = np.hstack([p_vals, v_vals])
@@ -464,59 +426,31 @@ def parse_variant_csv(csv_path_or_df, variant_name: str):
             X[:, v - 1, :] = np.hstack([p_vals, v_vals])
         return X, y, seq_len, feature_dim
 
-    elif variant_name == "z_kinematics":
-        seq_len, feature_dim = 4, 8
-        X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
-        for v in range(1, 5):
-            z_pos = [f"wrist{v}_z", f"pip{v}_z", f"dip{v}_z", f"tip{v}_z"]
-            z_vel = [f"wrist{v}_vz", f"pip{v}_vz", f"dip{v}_vz", f"tip{v}_vz"]
-            zp = df[z_pos].fillna(0.0).values.astype(np.float32)
-            zv = df[z_vel].fillna(0.0).values.astype(np.float32)
-            X[:, v - 1, :] = np.hstack([zp, zv])
-        return X, y, seq_len, feature_dim
-
-    elif variant_name in ("super_combined", "super"):
-        seq_len, feature_dim = 4, 28
-        X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
-        for v in range(1, 5):
-            pos_cols = [f"wrist{v}_x", f"wrist{v}_y", f"wrist{v}_z", f"pip{v}_x", f"pip{v}_y", f"pip{v}_z", f"dip{v}_x", f"dip{v}_y", f"dip{v}_z", f"tip{v}_x", f"tip{v}_y", f"tip{v}_z"]
-            vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"wrist{v}_vz", f"pip{v}_vx", f"pip{v}_vy", f"pip{v}_vz", f"dip{v}_vx", f"dip{v}_vy", f"dip{v}_vz", f"tip{v}_vx", f"tip{v}_vy", f"tip{v}_vz"]
-            speed_cols = [f"wrist{v}_speed_3d", f"pip{v}_speed_3d", f"dip{v}_speed_3d", f"tip{v}_speed_3d"]
-            p_vals = df[pos_cols].fillna(0.0).values.astype(np.float32)
-            v_vals = df[vel_cols].fillna(0.0).values.astype(np.float32)
-            s_vals = df[speed_cols].fillna(0.0).values.astype(np.float32)
-            X[:, v - 1, :] = np.hstack([p_vals, v_vals, s_vals])
-        return X, y, seq_len, feature_dim
-
-    elif variant_name in ("wrist_relative_3d", "wrist_rel_3d"):
-        seq_len, feature_dim = 4, 21
-        X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
-        for v in range(1, 5):
-            wx, wy, wz = df[f"wrist{v}_x"].fillna(0.0).values, df[f"wrist{v}_y"].fillna(0.0).values, df[f"wrist{v}_z"].fillna(0.0).values
-            px, py, pz = df[f"pip{v}_x"].fillna(0.0).values - wx, df[f"pip{v}_y"].fillna(0.0).values - wy, df[f"pip{v}_z"].fillna(0.0).values - wz
-            dx, dy, dz = df[f"dip{v}_x"].fillna(0.0).values - wx, df[f"dip{v}_y"].fillna(0.0).values - wy, df[f"dip{v}_z"].fillna(0.0).values - wz
-            tx, ty, tz = df[f"tip{v}_x"].fillna(0.0).values - wx, df[f"tip{v}_y"].fillna(0.0).values - wy, df[f"tip{v}_z"].fillna(0.0).values - wz
-            vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"wrist{v}_vz", f"pip{v}_vx", f"pip{v}_vy", f"pip{v}_vz", f"dip{v}_vx", f"dip{v}_vy", f"dip{v}_vz", f"tip{v}_vx", f"tip{v}_vy", f"tip{v}_vz"]
-            v_vals = df[vel_cols].fillna(0.0).values.astype(np.float32)
-            rel_coords = np.column_stack([px, py, pz, dx, dy, dz, tx, ty, tz])
-            X[:, v - 1, :] = np.hstack([rel_coords, v_vals])
-        return X, y, seq_len, feature_dim
-
     elif variant_name in ("fingertip_velocity_ratios", "tip_vel_ratios"):
         seq_len, feature_dim = 4, 16
         X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
         for v in range(1, 5):
-            w_vx, w_vy, w_vz = df[f"wrist{v}_vx"].fillna(0.0).values, df[f"wrist{v}_vy"].fillna(0.0).values, df[f"wrist{v}_vz"].fillna(0.0).values
-            t_vx, t_vy, t_vz = df[f"tip{v}_vx"].fillna(0.0).values, df[f"tip{v}_vy"].fillna(0.0).values, df[f"tip{v}_vz"].fillna(0.0).values
-            rel_vx, rel_vy, rel_vz = t_vx - w_vx, t_vy - w_vy, t_vz - w_vz
-            tip_speed = df[f"tip{v}_speed_3d"].fillna(0.0).values
-            wrist_speed = df[f"wrist{v}_speed_3d"].fillna(0.0).values
+            w_vx, w_vy = df[f"wrist{v}_vx"].fillna(0.0).values, df[f"wrist{v}_vy"].fillna(0.0).values
+            t_vx, t_vy = df[f"tip{v}_vx"].fillna(0.0).values, df[f"tip{v}_vy"].fillna(0.0).values
+            rel_vx, rel_vy = t_vx - w_vx, t_vy - w_vy
+            tip_speed = df[f"tip{v}_speed_2d"].fillna(0.0).values
+            wrist_speed = df[f"wrist{v}_speed_2d"].fillna(0.0).values
+            pip_speed = df[f"pip{v}_speed_2d"].fillna(0.0).values
+            dip_speed = df[f"dip{v}_speed_2d"].fillna(0.0).values
             speed_ratio = (tip_speed + 1e-5) / (wrist_speed + 1e-5)
-            vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"wrist{v}_vz", f"pip{v}_vx", f"pip{v}_vy", f"pip{v}_vz", f"dip{v}_vx", f"dip{v}_vy", f"dip{v}_vz", f"tip{v}_vx", f"tip{v}_vy", f"tip{v}_vz"]
+            vel_cols = [
+                f"wrist{v}_vx", f"wrist{v}_vy",
+                f"pip{v}_vx", f"pip{v}_vy",
+                f"dip{v}_vx", f"dip{v}_vy",
+                f"tip{v}_vx", f"tip{v}_vy"
+            ]
             v_vals = df[vel_cols].fillna(0.0).values.astype(np.float32)
-            rel_kinematics = np.column_stack([rel_vx, rel_vy, rel_vz, speed_ratio])
+            rel_kinematics = np.column_stack([rel_vx, rel_vy, wrist_speed, tip_speed, pip_speed, dip_speed, speed_ratio, speed_ratio * 0.0])
             X[:, v - 1, :] = np.hstack([v_vals, rel_kinematics])
         return X, y, seq_len, feature_dim
+
+    elif variant_name in ("coords_3d", "vel_3d", "vel_speed_3d", "combined_3d", "z_kinematics", "super_combined", "super", "wrist_relative_3d", "wrist_rel_3d"):
+        raise ValueError(f"Feature variant '{variant_name}' uses Z-axis coordinates/velocities. Usage of Z coordinate is strictly disabled across all training pipelines. Please use 2D feature representations (coords_2d, vel_2d, vel_speed_2d, combined_2d, all_joints_vel, all_joints_coords_vel, fingertip_velocity_ratios).")
 
     else:
         raise ValueError(f"Unknown data variant: '{variant_name}'")

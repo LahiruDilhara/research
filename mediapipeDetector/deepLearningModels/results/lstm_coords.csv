@@ -1,2 +1,3 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-LSTM_Coords,1,32,2,0.2,0.001,32,87.3362,87.2271,0.8851,0.8581,0.8714,407,51,65,393,GOOD FIT (OPTIMAL),49,-0.19,26.7,LSTM_Coords_cfg01.pth
+LSTM_Coords,1,32,2,0.2,0.001,32,87.3362,87.2271,0.8851,0.8581,0.8714,407,51,65,393,GOOD FIT (OPTIMAL),49,-0.19,26.8,LSTM_Coords_cfg01.pth
+LSTM_Coords,1,32,2,0.2,0.001,32,87.3362,87.2271,0.8851,0.8581,0.8714,407,51,65,393,GOOD FIT (OPTIMAL),49,-0.19,26.3,LSTM_Coords_cfg01.pth
