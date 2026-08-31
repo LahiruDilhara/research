@@ -19,7 +19,7 @@ PAPER_HEIGHT_MM = 210.0
 # =============================================================
 # MARKER & MARGIN CONSTANTS
 # =============================================================
-PAPER_MARGIN_MM = 8.0        # gap from paper edge to the outer boundary of the marker ring (8mm)
+PAPER_MARGIN_MM = 10.0        # gap from paper edge to the outer boundary of the marker ring (8mm)
 MARKER_SIZE_MM = 15.0        # physical size of the printed AprilTag square (15mm)
 MARKER_MARGIN_MM = PAPER_MARGIN_MM  # gap from paper edge to marker outer edge
 MARKER_SPACING_MM = 40.0     # target center-to-center spacing of markers along each side
@@ -38,7 +38,7 @@ BUTTON_MIN_GAP_MM = 10.0
 # =============================================================
 # DERIVED LAYOUT ZONES:
 # Zone 1: Paper Outer Margin (0 to PAPER_MARGIN_MM)
-# Zone 2: Marker Ring Zone (PAPER_MARGIN_MM to PAPER_MARGIN_MM + MARKER_SIZE_MM)
+# Zone 2: Marker Ringi Zone (PAPER_MARGIN_MM to PAPER_MARGIN_MM + MARKER_SIZE_MM)
 # Zone 3: Interior Safety Buffer (_INTERIOR_BUFFER_MM)
 # Zone 4: Interior Printable Layout Area (INTERIOR_X_MIN..MAX, INTERIOR_Y_MIN..MAX)
 # =============================================================
