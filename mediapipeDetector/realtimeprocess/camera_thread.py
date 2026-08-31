@@ -90,11 +90,9 @@ class CameraThread(threading.Thread):
 
         from realtimeprocess.realtime_pipeline import (
             HandScaleNormalizer,
-            OneEuroFilterBank,
             process_streaming_frame,
         )
         normalizer = HandScaleNormalizer()
-        euro_filter_bank = OneEuroFilterBank(min_cutoff=3.0, beta=1.4, d_cutoff=1.0)
         score_buffer = deque(maxlen=5)
 
         last_capture_time = time.perf_counter()
@@ -144,18 +142,18 @@ class CameraThread(threading.Thread):
                 else:
                     hand_score = 0.85
 
-                # Exact process.sh pipeline: Scale normalization & 1€ filtering on normalized coordinates
+                # Exact process.sh pipeline: Scale normalization on raw normalized coordinates
                 norm_f_dict, smooth_pts_px = process_streaming_frame(
-                    raw_pts, w, h, now, normalizer, euro_filter_bank
+                    raw_pts, w, h, now, normalizer
                 )
 
-                # Draw 1€ FILTERED smooth skeleton connections directly on mirrored GUI preview canvas
+                # Draw raw skeleton connections directly on mirrored GUI preview canvas
                 for s_idx, e_idx in HAND_CONNECTIONS:
                     x1, y1 = int(smooth_pts_px[s_idx][0]), int(smooth_pts_px[s_idx][1])
                     x2, y2 = int(smooth_pts_px[e_idx][0]), int(smooth_pts_px[e_idx][1])
                     cv2.line(annotated, (x1, y1), (x2, y2), (255, 200, 0), 2)
 
-                # Draw 1€ FILTERED smooth joint circles directly on mirrored GUI preview canvas
+                # Draw joint circles directly on mirrored GUI preview canvas
                 for idx, (sx, sy) in enumerate(smooth_pts_px):
                     px, py = int(sx), int(sy)
                     if idx in [4, 8, 12, 16, 20]:
@@ -195,12 +193,11 @@ class CameraThread(threading.Thread):
                             except Exception as e:
                                 print(f"[CameraThread] Callback error: {e}")
                 else:
-                    # Hand lost or tracking interrupted: Clear ring buffers & reset 1€ filter to prevent velocity jump spikes
+                    # Hand lost or tracking interrupted: Clear ring buffers
                     self.landmark_buffer.clear()
                     self.timestamp_buffer.clear()
                     score_buffer.clear()
                     self.shift_counter = 0
-                    euro_filter_bank.reset()
 
         cap.release()
         try:

@@ -2,6 +2,7 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #     "numpy>=2.5.2",
+#     "scipy>=1.18.1",
 # ]
 # ///
 
@@ -9,12 +10,16 @@
 datacreator/filter_landmarks.py
 
 Landmark noise filtering script for 12 FPS raw MediaPipe landmark CSVs.
-Applies temporal One Euro (1€) filtering across all 21 hand joint 3D coordinates (x, y, z)
-over the entire video stream to remove jitter while preserving fast motion.
+Supports multiple temporal noise filtering strategies across 21 hand joint 3D coordinates (x, y, z):
+- 1Euro (1€) Adaptive Low-Pass Filter (Casiez et al., 2012)
+- 1D Temporal Median Filter (glitch/impulse spike removal)
+- Median + 1Euro Combined Multi-Stage Filtering
+- Savitzky-Golay Polynomial Curve Fitting Filter
+- Hampel Outlier Rejection Filter
+- Velocity Cutoff / Max Step Displacement Clamping
 
-Supports processing single CSV files, glob wildcard patterns (e.g. '*', '*.raw_landmarks.*', 'videos/*.csv'),
-or directory paths. Saves filtered CSV files to a specified output directory or beside the source CSV.
-Overrides/prunes target file if it already exists.
+Supports processing single CSV files, glob wildcard patterns (e.g. '*', '*.raw_landmarks.*'),
+or directory paths. Overwrites target file if it already exists.
 
 Preserves all metadata & extra landmark columns (hand_score, visibility, presence) untouched.
 """
@@ -26,25 +31,17 @@ import math
 import os
 import sys
 from pathlib import Path
+import numpy as np
+from scipy.signal import medfilt, savgol_filter
 
 # Add project root to sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-# ── 1€ Filter Root Level Parameters ──────────────────────────────────────────
-# FILTER_MIN_CUTOFF (Hz): Minimum cutoff frequency when the hand is stationary / still.
-# Lower values (e.g., 0.5 - 1.5 Hz) aggressively smooth out jitter and trembling when resting or hovering.
-FILTER_MIN_CUTOFF = 1.5
-
-# FILTER_BETA: Speed coefficient (slope) that dynamically increases cutoff frequency
-# during fast motion to eliminate latency. Higher values (e.g., 1.0 - 2.0) ensure zero lag
-# during quick taps and rapid hand gestures.
-FILTER_BETA = 1.0
-
-# FILTER_D_CUTOFF (Hz): Cutoff frequency for filtering signal velocity (derivative).
-# This is a STANDARD parameter in the original 1€ Filter paper (Casiez et al., 2012),
-# typically fixed at 1.0 Hz to smooth out noisy velocity estimates before computing adaptive cutoff.
+# ── Defaults ──────────────────────────────────────────────────────────────────
+FILTER_MIN_CUTOFF = 3.0
+FILTER_BETA = 1.4
 FILTER_D_CUTOFF = 1.0
 
 ALL_21_LANDMARK_NAMES = [
@@ -116,7 +113,6 @@ class LandmarkEuroFilter:
         self.filters: dict[str, OneEuroFilter1D] = {}
 
     def reset(self):
-        """Resets filter states when hand tracking is lost or hand label changes."""
         self.filters.clear()
 
     def filter_coordinate(self, key: str, t: float, val: float) -> float:
@@ -131,8 +127,52 @@ class LandmarkEuroFilter:
         return self.filters[key].filter(t, val)
 
 
+def apply_hampel_filter(arr: np.ndarray, window_size: int = 5, n_sigmas: float = 3.0) -> np.ndarray:
+    """Hampel filter for temporal outlier rejection."""
+    n = len(arr)
+    if n < window_size:
+        return arr
+    out = arr.copy()
+    half_w = window_size // 2
+    for i in range(n):
+        sub = arr[max(0, i - half_w): min(n, i + half_w + 1)]
+        med = np.median(sub)
+        mad = np.median(np.abs(sub - med))
+        threshold = n_sigmas * 1.4826 * mad
+        if np.abs(arr[i] - med) > threshold and threshold > 1e-6:
+            out[i] = med
+    return out
+
+
+def apply_savgol_filter(arr: np.ndarray, window_length: int = 5, polyorder: int = 2) -> np.ndarray:
+    """Savitzky-Golay polynomial curve fitting filter."""
+    n = len(arr)
+    if n < 3:
+        return arr
+    w = window_length if window_length % 2 != 0 else window_length + 1
+    if n < w:
+        w = n if n % 2 != 0 else n - 1
+    if w <= polyorder:
+        polyorder = max(1, w - 1)
+    if w < 3:
+        return arr
+    return savgol_filter(arr, window_length=w, polyorder=polyorder)
+
+
+def apply_median_filter(arr: np.ndarray, kernel_size: int = 3) -> np.ndarray:
+    """1D Median filter for impulse spike/glitch removal."""
+    n = len(arr)
+    if n < 3:
+        return arr
+    k = kernel_size if kernel_size % 2 != 0 else kernel_size + 1
+    if n < k:
+        k = n if n % 2 != 0 else n - 1
+    if k < 3:
+        return arr
+    return medfilt(arr, kernel_size=k)
+
+
 def get_default_output_path(input_csv_path: str) -> str:
-    """Derives default output path <video_name>.filtered_landmarks.<hash>.csv in the same location."""
     dir_name = os.path.dirname(os.path.abspath(input_csv_path))
     base_name = os.path.basename(input_csv_path)
 
@@ -150,21 +190,26 @@ def get_default_output_path(input_csv_path: str) -> str:
 def filter_landmarks_csv(
     input_csv: str,
     output_csv: str = None,
+    filter_mode: str = "euro",
     min_cutoff: float = FILTER_MIN_CUTOFF,
     beta: float = FILTER_BETA,
-    d_cutoff: float = FILTER_D_CUTOFF
+    d_cutoff: float = FILTER_D_CUTOFF,
+    median_kernel: int = 3,
+    savgol_window: int = 5,
+    savgol_poly: int = 2,
+    hampel_window: int = 5,
+    hampel_n_sigmas: float = 3.0,
+    max_step_vel: float | None = None,
 ) -> str:
     """
-    Reads raw landmarks CSV, applies One Euro filter to (x, y, z) coordinates continuously across video frame timestamps,
-    and writes filtered CSV while keeping metadata, visibility, presence, and hand_score intact.
-    Overwrites existing destination files.
+    Reads landmark CSV, partitions into hand tracking segments, applies target filter pipeline to (x, y, z)
+    joint trajectories, and writes output CSV.
     """
     if not os.path.exists(input_csv):
         raise FileNotFoundError(f"Input CSV file not found: {input_csv}")
 
     output_csv = output_csv or get_default_output_path(input_csv)
 
-    print(f"[1/3] Reading raw landmarks from: {input_csv}")
     with open(input_csv, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         headers = reader.fieldnames or []
@@ -173,66 +218,109 @@ def filter_landmarks_csv(
     if not raw_rows:
         raise ValueError(f"Input CSV '{input_csv}' is empty!")
 
-    print(f"[2/3] Filtering {len(raw_rows)} frames with 1€ Filter on (x, y, z) (min_cutoff={min_cutoff}, beta={beta}, d_cutoff={d_cutoff})...")
+    # Partition rows into contiguous segments by hand presence
+    segments = []
+    curr_seg = []
+    prev_hand = None
 
-    hand_filter = LandmarkEuroFilter(min_cutoff=min_cutoff, beta=beta, d_cutoff=d_cutoff)
+    for row in raw_rows:
+        h_type = row.get("hand", "None")
+        if h_type == "None" or (prev_hand is not None and h_type != prev_hand):
+            if curr_seg:
+                segments.append(curr_seg)
+                curr_seg = []
+        if h_type != "None":
+            curr_seg.append(row)
+        else:
+            segments.append([row])
+        prev_hand = h_type
+    if curr_seg:
+        segments.append(curr_seg)
+
     filtered_rows = []
-    prev_hand_type = None
 
-    for row_idx, row in enumerate(raw_rows):
-        out_row = dict(row)
-        t_ms = float(row.get("timestamp_ms", "0"))
-        t_sec = t_ms / 1000.0
-        hand_type = row.get("hand", "None")
+    for seg in segments:
+        if len(seg) == 0:
+            continue
+        h_type = seg[0].get("hand", "None")
+        if h_type == "None" or len(seg) == 1:
+            for r in seg:
+                filtered_rows.append(dict(r))
+            continue
 
-        if hand_type == "None" or (prev_hand_type is not None and hand_type != prev_hand_type):
-            hand_filter.reset()
+        timestamps = [float(r.get("timestamp_ms", "0")) / 1000.0 for r in seg]
+        lm_coords = {}
 
-        if hand_type != "None":
+        for lm_name in ALL_21_LANDMARK_NAMES:
+            for axis in ["x", "y", "z"]:
+                col = f"{lm_name}_{axis}"
+                if col in seg[0]:
+                    vals = [float(r.get(col, 0.0)) for r in seg]
+                    lm_coords[col] = np.array(vals, dtype=np.float64)
+
+        # Stage 1: Pre-smoothing (Median / Hampel)
+        if "median" in filter_mode:
+            for col in lm_coords:
+                lm_coords[col] = apply_median_filter(lm_coords[col], kernel_size=median_kernel)
+
+        if "hampel" in filter_mode:
+            for col in lm_coords:
+                lm_coords[col] = apply_hampel_filter(lm_coords[col], window_size=hampel_window, n_sigmas=hampel_n_sigmas)
+
+        # Stage 2: Main Smoothing (1Euro / Savitzky-Golay)
+        if "euro" in filter_mode or filter_mode == "default":
+            euro_filt = LandmarkEuroFilter(min_cutoff=min_cutoff, beta=beta, d_cutoff=d_cutoff)
+            for idx in range(len(seg)):
+                t_sec = timestamps[idx]
+                for col, arr in lm_coords.items():
+                    if arr[idx] == 0.0:
+                        continue
+                    arr[idx] = euro_filt.filter_coordinate(col, t_sec, arr[idx])
+
+        elif "savgol" in filter_mode:
+            for col in lm_coords:
+                lm_coords[col] = apply_savgol_filter(lm_coords[col], window_length=savgol_window, polyorder=savgol_poly)
+
+        # Stage 3: Velocity Cutoff / Displacement Clamping
+        if max_step_vel is not None and max_step_vel > 0:
             for lm_name in ALL_21_LANDMARK_NAMES:
-                x_col = f"{lm_name}_x"
-                y_col = f"{lm_name}_y"
-                z_col = f"{lm_name}_z"
+                x_col, y_col, z_col = f"{lm_name}_x", f"{lm_name}_y", f"{lm_name}_z"
+                if x_col in lm_coords and y_col in lm_coords:
+                    xs, ys = lm_coords[x_col], lm_coords[y_col]
+                    zs = lm_coords.get(z_col, np.zeros_like(xs))
+                    for i in range(1, len(xs)):
+                        dx, dy, dz = xs[i] - xs[i-1], ys[i] - ys[i-1], zs[i] - zs[i-1]
+                        dist = math.sqrt(dx*dx + dy*dy + dz*dz)
+                        if dist > max_step_vel and dist > 1e-6:
+                            scale = max_step_vel / dist
+                            xs[i] = xs[i-1] + dx * scale
+                            ys[i] = ys[i-1] + dy * scale
+                            if z_col in lm_coords:
+                                zs[i] = zs[i-1] + dz * scale
 
-                raw_x = float(row.get(x_col, 0.0))
-                raw_y = float(row.get(y_col, 0.0))
+        # Reconstruct rows
+        for idx, r in enumerate(seg):
+            out_r = dict(r)
+            for col, arr in lm_coords.items():
+                out_r[col] = f"{arr[idx]:.6f}"
+            filtered_rows.append(out_r)
 
-                if raw_x == 0.0 and raw_y == 0.0:
-                    continue
-
-                fx = hand_filter.filter_coordinate(x_col, t_sec, raw_x)
-                fy = hand_filter.filter_coordinate(y_col, t_sec, raw_y)
-                out_row[x_col] = f"{fx:.6f}"
-                out_row[y_col] = f"{fy:.6f}"
-
-                if z_col in row:
-                    raw_z = float(row.get(z_col, 0.0))
-                    fz = hand_filter.filter_coordinate(z_col, t_sec, raw_z)
-                    out_row[z_col] = f"{fz:.6f}"
-
-        prev_hand_type = hand_type
-        filtered_rows.append(out_row)
-
-    print(f"[3/3] Saving filtered landmarks to: {output_csv}")
     os.makedirs(os.path.dirname(os.path.abspath(output_csv)), exist_ok=True)
-
     if os.path.exists(output_csv):
         try:
             os.remove(output_csv)
-        except OSError as e:
-            print(f"[Warning] Could not remove existing file '{output_csv}': {e}")
+        except OSError:
+            pass
 
     with open(output_csv, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=headers)
         writer.writeheader()
         writer.writerows(filtered_rows)
 
-    print(f"[Success] Filtered landmark data saved to: {output_csv}")
     return output_csv
 
 
 def collect_input_files(input_patterns: list[str]) -> list[str]:
-    """Expands glob patterns, directory paths, or file lists into a list of landmark CSV file paths."""
     matched_files = []
     for pattern in input_patterns:
         search_pattern = os.path.join(pattern, "*.csv") if os.path.isdir(pattern) else pattern
@@ -254,42 +342,21 @@ def collect_input_files(input_patterns: list[str]) -> list[str]:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Applies One Euro (1€) filtering to 3D (x, y, z) coordinates of MediaPipe hand landmark CSV(s)"
+        description="Applies multi-strategy noise filtering to 3D (x, y, z) coordinates of MediaPipe hand landmark CSV(s)"
     )
-    parser.add_argument(
-        "pos_args",
-        nargs="*",
-        help="Input CSV file(s), glob pattern(s), or output directory"
-    )
-    parser.add_argument(
-        "-i", "--input",
-        nargs="+",
-        default=None,
-        help="Input CSV file path(s) or glob pattern(s)"
-    )
-    parser.add_argument(
-        "-o", "--output",
-        default=None,
-        help="Output directory path"
-    )
-    parser.add_argument(
-        "-min", "--min-cutoff",
-        type=float,
-        default=FILTER_MIN_CUTOFF,
-        help=f"Minimum cutoff frequency in Hz (default: {FILTER_MIN_CUTOFF})"
-    )
-    parser.add_argument(
-        "-beta", "--beta",
-        type=float,
-        default=FILTER_BETA,
-        help=f"Speed coefficient beta (default: {FILTER_BETA})"
-    )
-    parser.add_argument(
-        "-d", "--d-cutoff",
-        type=float,
-        default=FILTER_D_CUTOFF,
-        help=f"Derivative cutoff frequency in Hz (default: {FILTER_D_CUTOFF})"
-    )
+    parser.add_argument("pos_args", nargs="*", help="Input CSV file(s), glob pattern(s), or output directory")
+    parser.add_argument("-i", "--input", nargs="+", default=None, help="Input CSV file path(s) or glob pattern(s)")
+    parser.add_argument("-o", "--output", default=None, help="Output directory path")
+    parser.add_argument("--mode", default="euro", choices=["euro", "median", "median_euro", "hampel_euro", "savgol", "median_savgol", "none"], help="Filter mode")
+    parser.add_argument("-min", "--min-cutoff", type=float, default=FILTER_MIN_CUTOFF, help=f"1Euro min cutoff Hz (default: {FILTER_MIN_CUTOFF})")
+    parser.add_argument("-beta", "--beta", type=float, default=FILTER_BETA, help=f"1Euro beta speed slope (default: {FILTER_BETA})")
+    parser.add_argument("-d", "--d-cutoff", type=float, default=FILTER_D_CUTOFF, help=f"1Euro d_cutoff Hz (default: {FILTER_D_CUTOFF})")
+    parser.add_argument("--median-kernel", type=int, default=3, help="Median filter kernel size (default: 3)")
+    parser.add_argument("--savgol-window", type=int, default=5, help="Savitzky-Golay window length (default: 5)")
+    parser.add_argument("--savgol-poly", type=int, default=2, help="Savitzky-Golay polynomial order (default: 2)")
+    parser.add_argument("--hampel-window", type=int, default=5, help="Hampel window size (default: 5)")
+    parser.add_argument("--hampel-n-sigmas", type=float, default=3.0, help="Hampel n_sigmas threshold (default: 3.0)")
+    parser.add_argument("--max-step-vel", type=float, default=None, help="Velocity cutoff / max displacement per frame step")
 
     args = parser.parse_args()
 
@@ -325,16 +392,12 @@ def main():
         sys.exit(1)
 
     print(f"Found {len(input_files)} CSV file(s) to process:")
-    for f in input_files:
-        print(f"  - {f}")
-
-    print(f"1€ Filter Parameters on (x, y, z): min_cutoff={args.min_cutoff} Hz, beta={args.beta}, d_cutoff={args.d_cutoff} Hz\n")
+    print(f"Filter Mode: '{args.mode}', min_cutoff={args.min_cutoff}, beta={args.beta}, median_kernel={args.median_kernel}")
 
     success_count = 0
     fail_count = 0
 
     for idx, input_file in enumerate(input_files, start=1):
-        print(f"[{idx}/{len(input_files)}] Filtering (x, y, z) landmarks: {input_file}")
         try:
             out_file_path = None
             if output_target:
@@ -360,42 +423,23 @@ def main():
             filter_landmarks_csv(
                 input_csv=input_file,
                 output_csv=out_file_path,
+                filter_mode=args.mode,
                 min_cutoff=args.min_cutoff,
                 beta=args.beta,
-                d_cutoff=args.d_cutoff
+                d_cutoff=args.d_cutoff,
+                median_kernel=args.median_kernel,
+                savgol_window=args.savgol_window,
+                savgol_poly=args.savgol_poly,
+                hampel_window=args.hampel_window,
+                hampel_n_sigmas=args.hampel_n_sigmas,
+                max_step_vel=args.max_step_vel,
             )
             success_count += 1
         except Exception as e:
             print(f"[Failed] Could not process '{input_file}': {e}")
             fail_count += 1
-        print()
 
-    print("==========================================")
-    print("Batch Landmark Filtering Finished:")
-    print(f"  Success: {success_count}/{len(input_files)}")
-    print(f"  Failed : {fail_count}/{len(input_files)}")
-    print("==========================================")
-
-    # Save comprehensive summary JSON for pipeline audit
-    try:
-        from summary_utils import save_step_summary
-        save_step_summary("step_3_filter_landmarks.json", {
-            "step": 3,
-            "name": "filter_landmarks",
-            "total_files": len(input_files),
-            "success_count": success_count,
-            "fail_count": fail_count,
-            "min_cutoff": args.min_cutoff,
-            "beta": args.beta,
-            "d_cutoff": args.d_cutoff,
-            "filtered_coordinates": ["x", "y", "z"],
-            "unfiltered_metadata": ["hand_score", "visibility", "presence"]
-        })
-    except Exception as e:
-        pass
-
-    if success_count == 0 and fail_count > 0:
-        sys.exit(1)
+    print(f"Batch Filtering Complete: {success_count}/{len(input_files)} successful.")
 
 
 if __name__ == "__main__":

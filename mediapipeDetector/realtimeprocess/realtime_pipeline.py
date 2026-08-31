@@ -48,28 +48,26 @@ def process_streaming_frame(
     frame_w: float,
     frame_h: float,
     t_sec: float,
-    normalizer: HandScaleNormalizer,
-    euro_filter_bank: OneEuroFilterBank
+    normalizer: HandScaleNormalizer
 ) -> tuple[dict[str, float], list[tuple[float, float]]]:
     """
     Executes exact process.sh per-frame sequence:
     1. Converts raw MediaPipe [0,1] 3D coordinates to pixel space: x_px = raw_x*w, y_px = raw_y*h, z_px = raw_z*w.
     2. Applies HandScaleNormalizer (8-distance palm RMS scale L_hand and wrist translation centering).
-    3. Applies continuous 1€ Filter (min=3.0, beta=1.4, d=1.0) ON THE NORMALIZED COORDINATES (process.sh Step 3).
-    Returns (f_dict, smooth_pts_px) where smooth_pts_px contains filtered 2D pixel coordinates for silk-smooth GUI rendering.
+    3. Uses RAW normalized coordinates for feature extraction (matching process.sh --mode none).
+    Returns (f_dict, smooth_pts_px) matching process.sh pipeline steps 100%.
     """
     pts_px = [(x * frame_w, y * frame_h, z * frame_w) for (x, y, z) in raw_pts]
     norm_pts = normalizer.normalize(pts_px, center_wrist=True)
-    filtered_norm_pts = euro_filter_bank.filter_frame(t_sec, norm_pts)
 
     f_dict = {}
     for lm_idx, lm_name in enumerate(ALL_21_LANDMARK_NAMES):
-        nx, ny, nz = filtered_norm_pts[lm_idx]
+        nx, ny, nz = norm_pts[lm_idx]
         f_dict[f"{lm_name}_x"] = nx
         f_dict[f"{lm_name}_y"] = ny
         f_dict[f"{lm_name}_z"] = nz
 
-    # Reconstruct 1€ filtered smooth pixel coordinates for zero-jitter screen rendering
+    # Reconstruct raw pixel coordinates for screen rendering
     w_x, w_y, _ = pts_px[WRIST_INDEX]
     i_x, i_y, _ = pts_px[INDEX_MCP_INDEX]
     m_x, m_y, _ = pts_px[MIDDLE_MCP_INDEX]
@@ -92,7 +90,7 @@ def process_streaming_frame(
 
     smooth_pts_px = [
         (w_x + nx * l_hand, w_y + ny * l_hand)
-        for (nx, ny, _) in filtered_norm_pts
+        for (nx, ny, _) in norm_pts
     ]
 
     return f_dict, smooth_pts_px

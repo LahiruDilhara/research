@@ -113,11 +113,10 @@ def run_model_manager_test():
     w_px, h_px = 640.0, 480.0
     norm_window_5 = []
     normalizer = HandScaleNormalizer()
-    filter_bank = OneEuroFilterBank(min_cutoff=3.0, beta=1.4, d_cutoff=1.0)
 
     for t in range(5):
         raw_pts = generate_synthetic_landmarks(t)
-        f_dict, _ = process_streaming_frame(raw_pts, w_px, h_px, float(t) * 0.083, normalizer, filter_bank)
+        f_dict, _ = process_streaming_frame(raw_pts, w_px, h_px, float(t) * 0.083, normalizer)
         norm_window_5.append(f_dict)
 
     scores_5 = [0.95] * 5
