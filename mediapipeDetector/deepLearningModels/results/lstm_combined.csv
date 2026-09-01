@@ -1,2 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-LSTM_Combined,1,32,2,0.2,0.001,32,92.0306,91.4847,0.8986,0.9476,0.9224,409,49,24,434,GOOD FIT (OPTIMAL),26,-1.12,11.1,LSTM_Combined_cfg01.pth
+LSTM_Combined,1,32,2,0.2,0.001,32,92.1397,91.7031,0.9089,0.9367,0.9226,415,43,29,429,GOOD FIT (OPTIMAL),30,-0.8,16.1,LSTM_Combined_cfg01.pth

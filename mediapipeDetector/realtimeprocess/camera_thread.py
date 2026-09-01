@@ -69,8 +69,11 @@ class CameraThread(threading.Thread):
 
         options = HandLandmarkerOptions(
             base_options=BaseOptions(model_asset_path=model_path),
-            running_mode=RunningMode.IMAGE,
-            num_hands=1
+            running_mode=RunningMode.VIDEO,
+            num_hands=1,
+            min_hand_detection_confidence=0.5,
+            min_hand_presence_confidence=0.5,
+            min_tracking_confidence=0.5,
         )
         landmarker = HandLandmarker.create_from_options(options)
 
@@ -96,6 +99,7 @@ class CameraThread(threading.Thread):
         score_buffer = deque(maxlen=5)
 
         last_capture_time = time.perf_counter()
+        frame_timestamp_ms = 0
 
         while self.running:
             now = time.perf_counter()
@@ -117,11 +121,14 @@ class CameraThread(threading.Thread):
             self.frame_width = w
             self.frame_height = h
 
+            # Increment video timestamp monotonically for VIDEO mode tracking
+            frame_timestamp_ms += int(self.frame_interval * 1000)
+
             # Flip horizontal for natural user mirror view
             frame_mirror = cv2.flip(frame, 1)
             frame_rgb = cv2.cvtColor(frame_mirror, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
-            result = landmarker.detect(mp_image)
+            result = landmarker.detect_for_video(mp_image, frame_timestamp_ms)
 
             annotated = frame_mirror.copy()
 

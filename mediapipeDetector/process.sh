@@ -51,7 +51,7 @@ python3 datacreator/split_fingers.py -i ./dataprocessing/9_quality_filtered_data
 python3 datacreator/split_touch.py -i ./dataprocessing/10_per_finger_dataset/per_finger_dataset.csv -o ./dataprocessing/11_split_touch_dataset/
 
 # Create balanced training and testing datasets
-python3 datacreator/create_train_test_split.py --touch-in ./dataprocessing/11_split_touch_dataset/touch_dataset.csv --untouch-in ./dataprocessing/11_split_touch_dataset/untouch_dataset.csv --train-out ./dataprocessing/12_train_test_split/training_dataset.csv --test-out ./dataprocessing/12_train_test_split/testing_dataset.csv --touch-test-pct 20 --untouch-train-ratio-pct 100 --untouch-test-ratio-pct 100 --seed 50 --no-video-leak
+python3 datacreator/create_train_test_split.py --touch-in ./dataprocessing/11_split_touch_dataset/touch_dataset.csv --untouch-in ./dataprocessing/11_split_touch_dataset/untouch_dataset.csv --train-out ./dataprocessing/12_train_test_split/training_dataset.csv --test-out ./dataprocessing/12_train_test_split/testing_dataset.csv --touch-test-pct 20 --untouch-train-ratio-pct 120 --untouch-test-ratio-pct 100 --seed 50 --no-video-leak
 
 # Copy training and testing data to root
 mkdir -p training_testing_data
@@ -152,3 +152,68 @@ python3 datacreator/analyze_pipeline.py
   #8  LSTM_All_Joints_Vel      88.99%  █████████████
   #9  Attention                88.65%  █████████████
   #10  LSTM_Coords              87.75%  █████████████
+
+# 0.44
+  #1  LSTM_All_Joints_Vel      91.05%  █████████████
+  #2  LSTM_Combined            90.94%  █████████████
+  #3  LSTM_Vel_Speed           90.17%  █████████████
+  #4  LSTM_Velocities          90.17%  █████████████
+  #5  LSTM_Coords              88.97%  █████████████
+
+# 0.65
+  #1  LSTM_Combined            92.03%  █████████████
+  #2  LSTM_All_Joints_Vel      91.05%  █████████████
+  #3  LSTM_Vel_Speed           90.39%  █████████████
+  #4  LSTM_Velocities          89.85%  █████████████
+  #5  LSTM_Coords              87.23%  █████████████
+
+# 0.68
+  #1  LSTM_Combined            91.67%  █████████████
+  #2  LSTM_All_Joints_Vel      90.71%  █████████████
+  #3  LSTM_Vel_Speed           90.16%  █████████████
+  #4  LSTM_Velocities          90.16%  █████████████
+  #5  LSTM_Coords              89.07%  █████████████
+
+# 0.78
+  #1  LSTM_Combined            91.85%  █████████████
+  #2  LSTM_All_Joints_Vel      91.08%  █████████████
+  #3  LSTM_Velocities          90.09%  █████████████
+  #4  LSTM_Vel_Speed           89.54%  █████████████
+  #5  LSTM_Coords              89.10%  █████████████
+
+# 0.80
+  #1  LSTM_Combined            91.67%  █████████████
+  #2  LSTM_All_Joints_Vel      90.71%  █████████████
+  #3  LSTM_Vel_Speed           90.16%  █████████████
+  #4  LSTM_Velocities          90.16%  █████████████
+  #5  LSTM_Coords              89.07%  █████████████
+
+# 0.84
+  #1  LSTM_Combined            90.03%  █████████████
+  #2  LSTM_All_Joints_Vel      89.89%  █████████████
+  #3  LSTM_Vel_Speed           89.33%  █████████████
+  #4  LSTM_Velocities          88.76%  █████████████
+  #5  LSTM_Coords              87.78%  █████████████
+
+
+
+
+
+
+
+
+
+
+# 0.65, and training data 140
+  #1  LSTM_Combined            92.14%  █████████████
+  #2  LSTM_All_Joints_Vel      91.38%  █████████████
+  #3  LSTM_Velocities          91.16%  █████████████
+  #4  LSTM_Vel_Speed           90.83%  █████████████
+  #5  LSTM_Coords              90.07%  █████████████
+
+# 0.65 and training data 120
+  #1  LSTM_Combined            92.14%  █████████████
+  #2  LSTM_All_Joints_Vel      90.94%  █████████████
+  #3  LSTM_Vel_Speed           90.72%  █████████████
+  #4  LSTM_Velocities          90.39%  █████████████
+  #5  LSTM_Coords              89.96%  █████████████
