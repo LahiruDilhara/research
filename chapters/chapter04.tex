@@ -562,7 +562,7 @@ Figure~\ref{fig:activity_diagram} presents the System Activity Diagram illustrat
 \draw [arrow] (join) -- (d_touch);
 \draw [arrow] (d_touch) -- node[right, font=\sffamily\tiny]{Yes} (a_map);
 \draw [arrow] (a_map) -- (a_exec);
-\draw [arrow] (d_touch.east) -- ++(1.8,0) node[above, font=\sffamily\tiny]{No (Hover)} |- (fork.east);
+\draw [arrow] (d_touch.east) -- ++(3.5,0) -- node[right, font=\sffamily\tiny]{\textbf{No (Hover)}} ++(0, 8.0) -| (fork.east);
 
 \end{tikzpicture}%
 }
@@ -753,49 +753,54 @@ Figure~\ref{fig:system_architecture_framework} presents the end-to-end System Ar
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
     appbox/.style = {rectangle, draw=blue!80!black, fill=blue!5!white, thick, rounded corners=5pt, align=center, font=\sffamily\bfseries\small, inner sep=8pt, text width=14cm},
-    compbox/.style = {rectangle, draw=blue!70!black, fill=blue!10!white, thick, rounded corners=3pt, align=left, font=\sffamily\tiny, inner sep=5pt, text width=5.5cm},
-    artbox/.style = {rectangle, draw=orange!80!black, fill=orange!10!white, thick, rounded corners=3pt, align=center, font=\sffamily\bfseries\tiny, text width=5.5cm},
+    compbox/.style = {rectangle, draw=blue!70!black, fill=blue!10!white, thick, rounded corners=3pt, align=left, font=\sffamily\tiny, inner sep=6pt, text width=6.0cm, minimum height=2.2cm},
+    artbox/.style = {rectangle, draw=orange!80!black, fill=orange!10!white, thick, rounded corners=3pt, align=center, font=\sffamily\bfseries\tiny, text width=6.0cm, minimum height=1.0cm},
     arrow/.style = {draw=blue!80!black, ->, >=Stealth, ultra thick}
 ]
 
-% Tier 1
+% Tier 1: Application 1
 \node (app1) [appbox] at (0, 0) {
 \textbf{APPLICATION 1: LAYOUT DESIGNER SUITE (\texttt{designer/designer\_app.py})}\\
 {\normalfont\sffamily\tiny PySide6 GUI Canvas: Drag-and-drop keys, automated AprilTag borders, and action binding}
 };
 
-% Tier 2
-\node (pdf_art) [artbox] at (-3.5, -2.5) {Printable Layout PDF\\(Embedded AprilTag Anchors)};
-\node (xml_art) [artbox] at (3.5, -2.5) {Layout XML File\\(Bounding Boxes \& Command Schemas)};
+% Tier 2: Synchronized Artifacts (x = -4.0 and x = +4.0)
+\node (pdf_art) [artbox] at (-4.0, -2.4) {Printable Layout PDF\\(Embedded AprilTag Anchors)};
+\node (xml_art) [artbox] at (4.0, -2.4) {Layout XML Specification File\\(Bounding Boxes \& Action Schemas)};
 
-% Tier 3
-\node (app2) [appbox] at (0, -5.0) {\textbf{APPLICATION 2: RUNTIME VIRTUAL KEYBOARD ENGINE}};
-
-% Tier 4
-\node (comp_a) [compbox] at (-3.5, -7.5) {
-\textbf{Component A: Setup \& Mapper GUI}\\
-- Select Camera Feed Input\\
-- Load Layout XML Specification\\
-- Interactive Action Mapping Table\\
-- Save/Load Action Config File
+% Tier 3: Application 2 Container
+\node (app2) [appbox] at (0, -4.8) {
+\textbf{APPLICATION 2: RUNTIME VIRTUAL KEYBOARD ENGINE}\\
+{\normalfont\sffamily\tiny Setup GUI Configuration $\&$ Multi-Threaded Background Vision Watch Engine}
 };
 
-\node (comp_b) [compbox] at (3.5, -7.5) {
+% Tier 4: Application 2 Subcomponents (x = -4.0 and x = +4.0)
+\node (comp_a) [compbox] at (-4.0, -7.6) {
+\textbf{Component A: Setup \& Mapper GUI}\\
+- Select Active Monocular Camera Feed\\
+- Load Layout XML Specification\\
+- Interactive Action Mapping Table\\
+- Save/Load JSON Action Configuration Profile
+};
+
+\node (comp_b) [compbox] at (4.0, -7.6) {
 \textbf{Component B: Background Runtime Engine}\\
 - AprilTag Tracker $\to$ Homography Matrix $H$\\
 - MediaPipe Pose $\to$ Scale Norm (No 1€ Filter)\\
 - 5-Frame Window $\to$ PyTorch LSTM Classifier\\
 - Planar Mapping: $P_{\text{XML}} = H \cdot P_{\text{pixel}}$\\
-- XML Key Lookup $\to$ Dispatch Command
+- XML Key Lookup $\to$ Dispatch OS Action
 };
 
-% Connections
-\draw [arrow] (app1.south) -- (pdf_art.north);
-\draw [arrow] (app1.south) -- (xml_art.north);
-\draw [arrow] (pdf_art.south) -- (app2.north -| pdf_art.south);
-\draw [arrow] (xml_art.south) -- (app2.north -| xml_art.south);
-\draw [arrow] (app2.south) -- (comp_a.north -| app2.south);
-\draw [arrow] (app2.south) -- (comp_b.north -| app2.south);
+% Perfectly vertical, aligned connections (no diagonal crossing, no piercing boxes)
+\draw [arrow] (app1.south -| pdf_art.north) -- (pdf_art.north);
+\draw [arrow] (app1.south -| xml_art.north) -- (xml_art.north);
+
+\draw [arrow] (pdf_art.south) -- node[left, font=\sffamily\tiny, align=right]{Physical Print\\on Paper Surface\ } (app2.north -| pdf_art.south);
+\draw [arrow] (xml_art.south) -- node[right, font=\sffamily\tiny, align=left]{\ Loaded into\\App 2 Engine} (app2.north -| xml_art.south);
+
+\draw [arrow] (app2.south -| comp_a.north) -- (comp_a.north);
+\draw [arrow] (app2.south -| comp_b.north) -- (comp_b.north);
 
 \end{tikzpicture}%
 }
