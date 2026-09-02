@@ -70,17 +70,6 @@ This document maintains structured technical summaries of research papers stored
   - Provides full backward compatibility with standard ArUco dictionary formats and marker sizes.
   - Achieves state-of-the-art throughput on ultra-high-resolution imagery (up to 16 Megapixels).
 
-### 7. Automatic diffracted order detection in spectral domain of digital multiplexed off-axis holograms: Application to spatial filtering
-- **Authors & Year**: Omar Chaab, Nedjoua Refis, Aicha Mehidi, Larbi Bouamama, and Serge Simoëns (2021)
-- **Citation Key**: `Chaab2021Automatic`
-- **DOI / URL**: [10.1109/ICISAT52097.2021.9698394](https://doi.org/10.1109/ICISAT52097.2021.9698394)
-- **Technical Summary & Methodology**:
-  - Proposes an automated algorithm for detecting diffracted orders in the spectral domain of digital off-axis holograms.
-  - Applies 2D Fast Fourier Transforms (FFT) to convert spatial interference patterns into frequency spectra.
-  - Identifies diffracted order spectral peaks automatically using thresholding and local maxima search.
-  - Constructs adaptive spatial bandpass filters around identified spectral peaks to isolate phase and amplitude.
-  - Demonstrates accurate object reconstruction quality with eliminated cross-talk in multiplexed holography.
-
 ### 8. Blind Recognition of Touched Keys: Attack and Countermeasures
 - **Authors & Year**: Qinggang Yue, Zhen Ling, Benyuan Liu, Xinwen Fu, and Wei Zhao (2014)
 - **Citation Key**: `Yue2014Blind`
@@ -168,17 +157,6 @@ This document maintains structured technical summaries of research papers stored
   - Applies Linear Discriminant Analysis (LDA) to extract force-dependent blood volume change features.
   - Classifies 4 shear force directions and normal contact force without mounting physical force sensors on fingers.
   - Achieves 90% uncalibrated and 94% individually calibrated force direction recognition accuracy.
-
-### 16. FPGA Implementation of Complex-Valued Neural Network for Polar-Represented Image Classification
-- **Authors & Year**: Maruf Ahmad, Lei Zhang, and Muhammad E. H. Chowdhury (2024)
-- **Citation Key**: `Ahmad2024FPGA`
-- **DOI / URL**: [10.3390/s24030897](https://doi.org/10.3390/s24030897)
-- **Technical Summary & Methodology**:
-  - Explores FPGA hardware acceleration of Complex-Valued Neural Networks (CVNN) for image classification.
-  - Converts 2D Cartesian spatial image inputs into polar coordinate representations to reduce input dimensions.
-  - Implements complex-valued arithmetic units (magnitude and phase operations) on FPGA logic blocks.
-  - Reduces memory bandwidth requirement and energy consumption compared to real-valued CNN architectures.
-  - Demonstrates high throughput classification efficiency on embedded hardware accelerators.
 
 ### 17. Finger-Gesture Recognition for Visible Light Communication Systems Using Machine Learning
 - **Authors & Year**: Julian Webber, Abolfazl Mehbodniya, Rui Teng, Ahmed Arafa, and Ahmed Alwakeel (2021)
@@ -509,4 +487,105 @@ This document maintains structured technical summaries of research papers stored
   - Introduces a two-stage training strategy: initial CNN spatial optimization followed by joint end-to-end tuning.
   - Evaluates performance on 3D full-body and hand skeleton datasets, demonstrating high classification accuracy.
   - Achieves real-time inference throughput for continuous skeletal activity recognition.
+
+### 47. MediaPipe Hands: On-device Real-time Hand Tracking
+- **Authors & Year**: Fan Zhang, Valentin Bazarevsky, Andrey Vakunov, Andrei Tkachenka, George Sung, Chuo-Ling Chang, and Matthias Grundmann (2020)
+- **Citation Key**: `Zhang2020MediaPipe`
+- **DOI / URL**: [Link](https://arxiv.org/abs/2006.10214)
+- **Technical Summary & Methodology**:
+  - Presents Google's real-time on-device hand tracking solution predicting a 21 3D/2D hand skeleton from a single RGB camera.
+  - Architecture consists of a single-shot detector (palm detector) and a subsequent 21-hand-landmark keypoint regression model.
+  - Achieves high real-time inference throughput on mobile GPUs and desktop CPUs without specialized depth sensors.
+  - Open-sourced through MediaPipe framework, enabling ubiquitous vision-based gesture and hand interaction.
+
+### 48. Long Short-Term Memory
+- **Authors & Year**: Sepp Hochreiter and Jürgen Schmidhuber (1997)
+- **Citation Key**: `Hochreiter1997LSTM`
+- **DOI / URL**: [10.1162/neco.1997.9.8.1735](https://doi.org/10.1162/neco.1997.9.8.1735)
+- **Technical Summary & Methodology**:
+  - Introduces the seminal Long Short-Term Memory (LSTM) recurrent neural network architecture.
+  - Solves the vanishing/exploding gradient problem in traditional RNNs using constant error carousels and multiplicative gate units.
+  - Enforces constant error flow across extended temporal discrete time steps.
+  - Provides the mathematical foundation for temporal sequential gesture classification and time-series feature modeling.
+
+### 49. AprilTag 2: Efficient and robust fiducial detection
+- **Authors & Year**: John Wang and Edwin Olson (2016)
+- **Citation Key**: `Wang2016AprilTag2`
+- **DOI / URL**: [10.1109/IROS.2016.7759617](https://doi.org/10.1109/IROS.2016.7759617)
+- **Technical Summary & Methodology**:
+  - Redesigns the AprilTag visual fiducial marker detector for superior efficiency, higher detection rates, and lower false positive rates.
+  - Introduces adaptive thresholding, sub-pixel quad boundary fitting, and accelerated decimation for high-resolution images.
+  - Demonstrates high localization precision under severe perspective tilt, low resolution, and partial occlusion.
+
+### 50. Determining and Improving the Localization Accuracy of AprilTag Detection
+- **Authors & Year**: Jan Kallwies, Bianca Forkel, and Hans-Joachim Wuensche (2020)
+- **Citation Key**: `Kallwies2020Determining`
+- **DOI / URL**: [10.1109/ICRA40945.2020.9197314](https://doi.org/10.1109/ICRA40945.2020.9197314)
+- **Technical Summary & Methodology**:
+  - Evaluates localization accuracy across AprilTag 3, AprilTags C++, ArUco, and OpenCV fiducial marker libraries.
+  - Proposes novel post-processing edge refinement and partial border occlusion filtering algorithms.
+  - Achieves median sub-pixel corner localization error of 0.017 px under extreme perspective inclination.
+
+### 51. ARTag, AprilTag and CALTag Fiducial Systems Comparison in a Presence of Partial Rotation
+- **Authors & Year**: Ksenia Shabalina, Artur Sagitov, Leysan Sabirova, Hongbing Li, and Evgeni Magid (2018)
+- **Citation Key**: `Shabalina2018ARTag`
+- **DOI / URL**: [10.1007/978-3-319-93818-9_16](https://doi.org/10.1007/978-3-319-93818-9_16)
+- **Technical Summary & Methodology**:
+  - Conducts a comparative experimental evaluation of ARTag, AprilTag, and CALTag marker systems under partial rotation.
+  - Measures detection rates, corner extraction stability, and homography error under varying camera angles.
+  - Demonstrates that AprilTag yields superior robustness against rotational drift and partial marker tilt.
+
+### 52. Fiducial Markers for Pose Estimation: Overview, Applications and Experimental Comparison
+- **Authors & Year**: Michail Kalaitzakis, Brennan Cain, Sabrina Carroll, Anand Ambrosi, Camden Whitehead, and Nikolaos Vitzilaios (2021)
+- **Citation Key**: `Kalaitzakis2021Fiducial`
+- **DOI / URL**: [10.1007/s10846-020-01307-9](https://doi.org/10.1007/s10846-020-01307-9)
+- **Technical Summary & Methodology**:
+  - Provides a comprehensive survey and benchmark of ARTag, AprilTag, ArUco, and STag marker families.
+  - Evaluates pose estimation accuracy, computational latency, and noise resistance across single tags and multi-tag bundles.
+  - Analyzes planar homography mapping accuracy under optical noise, shadows, and motion blur.
+
+### 53. Hand Gesture Recognition Using MediaPipe Landmarks and Deep Learning Networks
+- **Authors & Year**: Manuel Gil-Martín, Marco Raoul Marini, Iván Martín-Fernández, Sergio Esteban-Romero, and Luigi Cinque (2023)
+- **Citation Key**: `GilMartin2023Hand`
+- **DOI / URL**: [10.5220/0011689200003417](https://doi.org/10.5220/0011689200003417)
+- **Technical Summary & Methodology**:
+  - Develops a hand gesture classification framework using 21 MediaPipe hand landmark coordinates.
+  - Evaluates coordinate normalization strategies, gesture representation lengths, and deep learning network architectures.
+  - Demonstrates high classification accuracy on benchmark gesture datasets using skeletal joint features.
+
+### 54. Lightweight real-time hand segmentation leveraging MediaPipe landmark detection
+- **Authors & Year**: Guillermo Sánchez-Brizuela, Ana Cisnal, Eusebio de la Fuente-López, Juan-Carlos Fraile, and Javier Pérez-Turiel (2023)
+- **Citation Key**: `SanchezBrizuela2023Lightweight`
+- **DOI / URL**: [10.1007/s10055-023-00858-0](https://doi.org/10.1007/s10055-023-00858-0)
+- **Technical Summary & Methodology**:
+  - Presents a real-time algorithm leveraging MediaPipe hand landmarks for skin-tone and lighting invariant processing.
+  - Processes MediaPipe joint coordinates using morphological and logical operators to generate dynamic skin masks.
+  - Achieves robust real-time performance at 90 FPS on standard CPUs without specialized hardware acceleration.
+
+### 55. Monocular Tracking of Human Hand on a Smart Phone Camera using MediaPipe and its Application in Robotics
+- **Authors & Year**: Sreehari Sreenath, D. Ivan Daniels, Apparaju S. D. Ganesh, Yashaswi S. Kuruganti, and Rajeevlochana G. Chittawadigi (2021)
+- **Citation Key**: `Sreenath2021Monocular`
+- **DOI / URL**: [10.1109/R10-HTC53172.2021.9641542](https://doi.org/10.1109/R10-HTC53172.2021.9641542)
+- **Technical Summary & Methodology**:
+  - Demonstrates real-time monocular hand tracking on commodity smartphone RGB cameras using MediaPipe.
+  - Maps 21 joint landmark coordinates to 2D spatial workspace coordinates with low latency.
+  - Validates low-cost camera accessibility for touchless interface control without specialized hardware.
+
+### 56. Unsupervised Gesture Segmentation by Motion Detection of a Real-Time Data Stream
+- **Authors & Year**: Miguel A. Simão, Pedro Neto, and Olivier Gibaru (2016)
+- **Citation Key**: `Simao2016Unsupervised`
+- **DOI / URL**: [10.1109/TII.2016.2613683](https://doi.org/10.1109/TII.2016.2613683)
+- **Technical Summary & Methodology**:
+  - Proposes an unsupervised threshold-based gesture segmentation algorithm for real-time continuous data streams.
+  - Derives velocity and acceleration vectors numerically from keypoint positions to detect movement direction inversions.
+  - Segment continuous motion streams into dynamic active gestures and static idle pauses using sliding windows.
+
+### 57. TMMF: Temporal Multi-Modal Fusion for Single-Stage Continuous Gesture Recognition
+- **Authors & Year**: Harshala Gammulle, Simon Denman, Sridha Sridharan, and Clinton Fookes (2021)
+- **Citation Key**: `Gammulle2021TMMF`
+- **DOI / URL**: [10.1109/TIP.2021.3108420](https://doi.org/10.1109/TIP.2021.3108420)
+- **Technical Summary & Methodology**:
+  - Introduces a single-stage continuous gesture recognition framework (TMMF) learning gesture transitions without pre-segmentation.
+  - Fuses temporal feature maps across variable-length gesture streams to detect and classify gestures concurrently.
+
 

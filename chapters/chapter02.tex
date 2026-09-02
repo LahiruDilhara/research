@@ -1,0 +1,759 @@
+\chapter{Literature Review}
+\label{ch:literature_review}
+
+\section{Chapter Overview}
+\label{sec:lit_chapter_overview}
+The rapid evolution of mobile computing, augmented reality (AR), virtual reality (VR), and ubiquitous edge systems has fundamentally reshaped user expectations for Human-Computer Interaction (HCI). For over a century, text input and spatial command execution have relied almost exclusively on mechanical QWERTY key switches and capacitive touchscreens. Although electromechanical hardware provides unambiguous physical tactile feedback and high typing entry speeds for trained typists, its static physical form factor imposes severe operational constraints \cite{ReviewVirtualKeyboard2020, Lee2022Virtual}. Physical keyboards occupy static desktop real estate, lack the ability to dynamically adapt key arrangements for domain-specific software tasks (such as audio editing, industrial CAD design, digital painting, or video production), present hygienic pathogen transmission vectors in sterile medical cleanrooms and public kiosks, and are vulnerable to liquid damage and mechanical key switch wear \cite{ReviewVirtualKeyboard2020}.
+
+To transcend these physical constraints, computer vision researchers have explored virtual input interfaces that transform ordinary physical surfaces or open air into interactive input zones using standard camera sensors \cite{Zhang2001Visual, Srivastava2012RealTime, Khare2019QWERTY, Maman2023TypeNet}. Monocular vision-based virtual keyboards offer a compelling paradigm: by monitoring a flat physical plane (such as a paper sheet or wooden desk) with a single commodity RGB camera, users can interact with virtual key elements without requiring physical switches or dedicated input hardware.
+
+However, realizing a reliable, low-latency, and customizable virtual keyboard operating on monocular RGB video feeds presents major challenges in computer vision, kinematic motion modeling, and sequential deep learning. Core technical obstacles include:
+\begin{enumerate}
+    \item \textbf{Inferring Z-Axis Touch Surface Impact without Depth Hardware:} Standard monocular RGB cameras lack explicit depth information. Inferring the exact instant a fingertip impacts a flat surface—distinguishing deliberate key contact from hovering movements—without expensive Time-of-Flight (ToF) sensors or active laser projection units remains a fundamental visual perception problem \cite{Thomas2013Camera, Posner2012Single, Lee2019Virtual, Toshpulatov2024RealTime}.
+    \item \textbf{Spatial Scale Variance and Kinematic Signal Integrity:} Skeletal hand landmark detectors output raw pixel coordinates that vary drastically with hand size, camera distance, and user position \cite{Zhang2020MediaPipe, Doan2022Efficient}. Normalizing spatial features directly from keypoint trajectories while avoiding temporal low-pass smoothing (which damps rapid kinetic contact spikes and introduces phase delay) is critical for real-time contact detection \cite{Kumar2026Hybrid}.
+    \item \textbf{Dynamic Perspective Tilt and Camera-to-Surface Alignment:} When physical paper layouts or commodity RGB cameras shift, perspective distortion corrupts static 2D coordinate mappings. Real-time planar fiducial tracking and homography matrix transformation ($H \in \mathbb{R}^{3 \times 3}$) are required to maintain continuous spatial alignment \cite{Wang2016AprilTag2, Kallwies2020Determining, Pirchheim2011Homography, Herdiansyah2024Implementation}.
+    \item \textbf{Integrated Layout Customization and System Action Mapping:} Existing virtual typing systems enforce static QWERTY layouts, lacking software design tools that generate printable paper templates embedded with visual fiducial anchors while synchronizing XML key schemas with custom keystrokes or shell commands \cite{ReviewVirtualKeyboard2020}.
+\end{enumerate}
+
+This chapter presents a comprehensive, critically evaluated review of the literature surrounding vision-based virtual input systems, planar fiducial tracking, skeletal hand joint estimation, scale normalization feature engineering, and deep sequential temporal classification models. Section~\ref{sec:lit_conceptual_map} presents a detailed conceptual taxonomy mapping the literature domain. Section~\ref{sec:lit_domain_overview} provides a high-level domain overview covering the evolution of text entry, typing ergonomics, and biomechanics. Section~\ref{sec:lit_existing_systems} conducts an exhaustive comparative analysis of existing virtual keyboard frameworks across eight distinct sensing categories. Section~\ref{sec:lit_technological_analysis} provides an in-depth technological analysis spanning algorithmic foundations (MediaPipe landmark tracking, scale normalization mathematics, AprilTag planar homography transformations, and deep temporal LSTM networks), system architectural design trade-offs, edge compute latency benchmarks, and data/runtime workflow engineering. Finally, Section~\ref{sec:lit_reflection} synthesizes identified research gaps and establishes the theoretical justification for the proposed paper-based virtual keyboard architecture.
+
+\section{Conceptual Map of the Literature}
+\label{sec:lit_conceptual_map}
+To provide the reader with a clear structural overview of how prior research is organized, Figure~\ref{fig:lit_conceptual_map_diagram} presents a hierarchical conceptual map of the literature reviewed in this chapter.
+
+\begin{figure}[htbp]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance = 1.0cm and 0.8cm,
+    header/.style = {rectangle, draw=blue!80!black, fill=blue!20!white, thick, rounded corners=5pt, align=center, font=\sffamily\bfseries\small, inner sep=8pt, minimum width=4.5cm},
+    box/.style = {rectangle, draw=blue!70!black, fill=blue!5!white, thick, rounded corners=4pt, align=center, font=\sffamily\bfseries\footnotesize, inner sep=6pt, minimum width=3.8cm},
+    subbox/.style = {rectangle, draw=gray!70, fill=gray!5!white, rounded corners=3pt, align=center, font=\sffamily\scriptsize, inner sep=5pt, minimum width=3.6cm},
+    arrow/.style = {draw=blue!80!black, ->, >=Stealth, thick}
+]
+
+% Root Node
+\node (root) [header, fill=blue!30!white, minimum width=10cm] {\textbf{Monocular Vision-Based Virtual Keyboard Literature Taxonomy}};
+
+% Level 1 Nodes
+\node (l1_domain) [box, below left=1.2cm and 2.5cm of root] {1. HCI \& Input Paradigms\\(\S\ref{sec:lit_domain_overview})};
+\node (l1_systems) [box, below left=1.2cm and -1.2cm of root] {2. Sensing Modalities\\(\S\ref{sec:lit_existing_systems})};
+\node (l1_tech) [box, below right=1.2cm and -1.2cm of root] {3. Technological Analysis\\(\S\ref{sec:lit_technological_analysis})};
+\node (l1_reflect) [box, below right=1.2cm and 2.5cm of root] {4. Research Synthesis\\(\S\ref{sec:lit_reflection})};
+
+% Connections to Level 1
+\draw [arrow] (root) -- (l1_domain);
+\draw [arrow] (root) -- (l1_systems);
+\draw [arrow] (root) -- (l1_tech);
+\draw [arrow] (root) -- (l1_reflect);
+
+% Level 2 Sub-nodes for Domain
+\node (l2_history) [subbox, below=0.6cm of l1_domain] {Evolution of Input Hardware\\\cite{ReviewVirtualKeyboard2020, Lee2022Virtual}};
+\node (l2_drivers) [subbox, below=0.3cm of l2_history] {Paper Rationale \& Ergonomics\\\cite{Zhang2001Visual, Srivastava2012RealTime, Khare2019QWERTY}};
+
+% Level 2 Sub-nodes for Systems
+\node (l2_proj) [subbox, below=0.6cm of l1_systems] {Projection \& IR Sensors\\\cite{Cheng2015Fingertip, Kudale2016RealTime}};
+\node (l2_shadow) [subbox, below=0.3cm of l2_proj] {Shadow Analysis Methods\\\cite{Thomas2013Camera, Posner2012Single, Yue2014Blind}};
+\node (l2_depth) [subbox, below=0.3cm of l2_shadow] {RGB-D / ToF Depth Sensing\\\cite{Lee2019Virtual, Toshpulatov2024RealTime}};
+\node (l2_air) [subbox, below=0.3cm of l2_depth] {3D Mid-Air Typing / VR\\\cite{Boletsis2019TextInput, Enkhbat2020HandKey, Lee2022Virtual, Yoo2026WordLevel}};
+\node (l2_paper) [subbox, below=0.3cm of l2_air] {Paper / Monocular RGB\\\cite{Zhang2001Visual, Srivastava2012RealTime, Khare2019QWERTY, Maman2023TypeNet}};
+\node (l2_attack) [subbox, below=0.3cm of l2_paper] {Video Attack Side-Channels\\\cite{Yue2014Blind, Yang2022Towards}};
+
+% Level 2 Sub-nodes for Tech Analysis
+\node (l2_pose) [subbox, below=0.6cm of l1_tech] {MediaPipe Hand Landmarker\\\cite{Zhang2020MediaPipe, GilMartin2023Hand, Andriyanov2025Improving}};
+\node (l2_scale) [subbox, below=0.3cm of l2_pose] {Hand Scale Normalization\\\cite{Doan2022Efficient, Kumar2026Hybrid}};
+\node (l2_fiducial) [subbox, below=0.3cm of l2_scale] {AprilTag Homography $H$\\\cite{Wang2016AprilTag2, Kallwies2020Determining, Pirchheim2011Homography}};
+\node (l2_deep) [subbox, below=0.3cm of l2_fiducial] {PyTorch LSTM Classifiers\\\cite{Hochreiter1997LSTM, Nunez2018Convolutional, Gammulle2021TMMF}};
+
+% Level 2 Sub-nodes for Reflection
+\node (l2_gap) [subbox, below=0.6cm of l1_reflect] {Prior Art Limitations\\\cite{Thomas2013Camera, Lee2019Virtual, Maman2023TypeNet}};
+\node (l2_solution) [subbox, below=0.3cm of l2_gap] {Proposed Architecture\\Synthesis (\S\ref{sec:lit_reflection})};
+
+% Connections to Level 2
+\draw [arrow] (l1_domain) -- (l2_history);
+\draw [arrow] (l2_history) -- (l2_drivers);
+
+\draw [arrow] (l1_systems) -- (l2_proj);
+\draw [arrow] (l2_proj) -- (l2_shadow);
+\draw [arrow] (l2_shadow) -- (l2_depth);
+\draw [arrow] (l2_depth) -- (l2_air);
+\draw [arrow] (l2_air) -- (l2_paper);
+\draw [arrow] (l2_paper) -- (l2_attack);
+
+\draw [arrow] (l1_tech) -- (l2_pose);
+\draw [arrow] (l2_pose) -- (l2_scale);
+\draw [arrow] (l2_scale) -- (l2_fiducial);
+\draw [arrow] (l2_fiducial) -- (l2_deep);
+
+\draw [arrow] (l1_reflect) -- (l2_gap);
+\draw [arrow] (l2_gap) -- (l2_solution);
+
+\end{tikzpicture}%
+}
+\caption{Conceptual taxonomy and structural organization of the literature review.}
+\label{fig:lit_conceptual_map_diagram}
+\end{figure}
+
+As formatted in Figure~\ref{fig:lit_conceptual_map_diagram}, the literature is organized across four main structural pillars:
+\begin{itemize}
+    \item \textbf{HCI \& Input Paradigms (\S\ref{sec:lit_domain_overview}):} Traces the operational evolution of input hardware, establishing the domain drivers for paper-based virtual interfaces.
+    \item \textbf{Sensing Modalities (\S\ref{sec:lit_existing_systems}):} Evaluates eight distinct virtual keyboard sensing categories, featuring a comprehensive comparative analysis matrix (Table~\ref{tab:lit_comparative_matrix}).
+    \item \textbf{Technological Analysis (\S\ref{sec:lit_technological_analysis}):} Analyzes the core underlying methodologies, including MediaPipe keypoint estimation, unitless scale normalization, AprilTag planar homography transformations, PyTorch temporal LSTM classifiers, and end-to-end dataset/inference workflows.
+    \item \textbf{Research Synthesis (\S\ref{sec:lit_reflection}):} Synthesizes theoretical findings to justify the research gap addressed by this thesis.
+\end{itemize}
+
+\section{Domain Overview}
+\label{sec:lit_domain_overview}
+Text entry and spatial command execution form the primary operational channel between human operators and computing systems. For over a century, the mechanical QWERTY key arrangement has dominated human-computer interaction. While electromechanical keyboards provide unambiguous physical tactile feedback and high typing entry speeds for trained operators, their hardware immutability imposes severe constraints in modern computing environments \cite{ReviewVirtualKeyboard2020}. Physical keyboards occupy static desktop footprint, cannot dynamically rebind key arrangements for specialized software domains (such as digital audio workstations, video editing suites, CAD software, or accessibility keypads), and present hygienic vectors in sterile medical cleanrooms or shared public access kiosks.
+
+\subsection{Historical Evolution of Text Entry and Spatial HCI Hardware}
+\label{subsec:lit_history_evolution}
+The historical evolution of text input interfaces can be divided into four technological epochs:
+\begin{enumerate}
+    \item \textbf{Mechanical and Electromechanical Keyboards (1870s--1980s):} Beginning with Sholes' mechanical typewriter and evolving into IBM Model M spring keyboards, key actuation relied on physical levers closing electrical switches. The QWERTY layout was engineered to prevent mechanical typebar jams rather than maximize typing speed or ergonomic comfort \cite{ReviewVirtualKeyboard2020}.
+    \item \textbf{Membrane and Capacitive Touchsheets (1990s--2000s):} The rise of personal desktop PCs introduced rubber dome membrane switches, while mobile electronics introduced capacitive touch panels. Capacitive screens enabled multi-touch gestural GUIs but eliminated physical key borders and tactile travel stops \cite{ReviewVirtualKeyboard2020}.
+    \item \textbf{Active Laser Projection and Infrared Curtains (2000s--2010s):} To create portable keyboards for early PDAs, researchers developed optical projection units emitting red laser key outlines paired with infrared light curtains \cite{Cheng2015Fingertip, Kudale2016RealTime}. While portable, projection units proved vulnerable to ambient lux washing out patterns and high power draw.
+    \item \textbf{Monocular Vision, Skeletal Keypoint Extractors, and Deep Learning (2010s--Present):} Advances in deep neural networks enabled real-time markerless hand joint localization directly from commodity RGB webcams \cite{Zhang2020MediaPipe, GilMartin2023Hand, Maman2023TypeNet}. This epoch enables software-defined interaction surfaces operating on ordinary paper sheets without active projection or specialized sensors.
+\end{enumerate}
+
+\subsection{Kinematic Typing Dynamics and Biomechanical Surface Impact}
+\label{subsec:lit_typing_biomechanics}
+Understanding human typing biomechanics is essential for engineering vision-based touch classifiers. A standard keystroke action executed by a human finger on a physical surface follows four distinct temporal phases \cite{Simao2016Unsupervised, MacRitchie2015Integrating, Pilkov2024Markerless}:
+\begin{enumerate}
+    \item \textbf{Approach Phase ($t_1$ to $t_2$):} The finger accelerates downward from an idle resting height toward the surface. Vertical downward velocity $V_y$ increases rapidly.
+    \item \textbf{Impact Phase ($t_2$ to $t_3$):} The fingertip collides with the physical surface (paper or desk). Within an extremely short time window ($\Delta t < 40$ ms), vertical velocity drops abruptly to zero ($V_y \to 0$), generating a sharp downward acceleration inflection spike ($A_y = \frac{dV_y}{dt} \ll 0$).
+    \item \textbf{Dwell Phase ($t_3$ to $t_4$):} The fingertip rests momentarily on the surface plane while key actuation is registered.
+    \item \textbf{Recoil / Flexion Phase ($t_4$ to $t_5$):} The finger flexes upward back into an idle position, reversing velocity direction ($V_y > 0$).
+\end{enumerate}
+
+Physical paper sheets placed on flat desks provide a passive tactile stop during Phase 2, arresting downward movement instantly. Mid-air typing lacks this tactile stop, causing finger over-travel and kinematic instability \cite{Boletsis2019TextInput}.
+
+\subsection{Ergonomics, Fitts' Law, and Human Input Performance Metrics}
+\label{subsec:lit_fitts_law}
+Evaluating user performance across input interfaces relies on established HCI metrics:
+\begin{itemize}
+    \item \textbf{Words-Per-Minute (WPM):} Standardized entry speed metric defined as $\text{WPM} = \frac{|T| - 1}{S} \times 60 \times \frac{1}{5}$, where $|T|$ is the length of transcribed text and $S$ is elapsed time in seconds.
+    \item \textbf{Keystrokes-Per-Character (KSPC):} Measures entry efficiency, representing the total number of key presses (including backspaces) divided by total character count. Physical keyboards achieve $\text{KSPC} \approx 1.05$, whereas mid-air typing interfaces often yield $\text{KSPC} > 1.30$ due to false triggers.
+    \item \textbf{Fitts' Law Target Acquisition Model:} Predicts movement time $MT$ to select a key of width $W$ at distance $D$:
+    \begin{equation}
+    MT = a + b \log_2 \left( 1 + \frac{D}{W} \right) = a + b \cdot ID
+    \label{eq:fitts_law}
+    \end{equation}
+    where $ID$ is the Index of Difficulty in bits. Monocular paper keyboards allow users to dynamically scale key width $W$, minimizing $ID$ for customized accessibility interfaces.
+\end{itemize}
+
+\subsection{Physical Surface Interaction Paradigms: Desk vs. Paper vs. Floating Air}
+\label{subsec:lit_surface_paradigms}
+Comparing physical surface interaction modalities reveals fundamental physiological differences:
+\begin{itemize}
+    \item \textbf{Rigid Unmarked Desk Surface:} Provides passive tactile impact stopping, but lacks visible key outlines unless projected or drawn by hand \cite{Srivastava2012RealTime}.
+    \item \textbf{Printed Paper Layout Sheet:} Combines passive tactile stopping with high-contrast printed key borders and visual fiducial marker anchors. Paper layouts eliminate power consumption and display latency, providing a persistent physical target plane \cite{Zhang2001Visual, Khare2019QWERTY}.
+    \item \textbf{Floating Mid-Air Virtual Space:} Completely touchless, but introduces severe upper-limb strain ("Gorilla Arm Syndrome") and lacks physical impact stopping, resulting in spatial drift \cite{Boletsis2019TextInput, Enkhbat2020HandKey}.
+\end{itemize}
+
+\subsection{Biomechanical Kinematic Modeling of Multi-Finger Tendon Coupling}
+\label{subsec:lit_biomechanical_coupling}
+In addition to single-finger kinematic velocity profiles, anatomical hand movement exhibits complex inter-finger biomechanical coupling \cite{Simao2016Unsupervised, Pilkov2024Markerless}. The human hand flexor digitorum profundus and extensor digitorum communis muscle tendons link movement across adjacent digits, particularly between the middle (Landmarks 9--12) and ring fingers (Landmarks 13--16).
+
+When an operator strikes an index key, adjacent resting fingers experience passive sympathetic movement. Single-point tracking algorithms (such as measuring only index fingertip pixel height) frequently misclassify sympathetic adjacent finger movement as deliberate secondary key presses \cite{Thomas2013Camera, Srivastava2012RealTime}. Deep temporal models trained on complete 21-landmark joint topological vectors capture global hand joint spatial configurations, allowing the classifier to disambiguate active finger surface impact from passive inter-finger muscle coupling.
+
+\subsection{Domain Drivers for Customizable Paper Virtual Keyboards}
+\label{subsec:lit_domain_drivers}
+Monocular paper virtual keyboards offer unique practical advantages across several computing domains:
+\begin{itemize}
+    \item \textbf{Democratization and Low-Cost Accessibility:} Standard webcams paired with printable paper sheets eliminate hardware costs, making interactive keypads available in low-resource schools and developing regions \cite{Khare2019QWERTY, Sreenath2021Monocular}.
+    \item \textbf{Domain-Specific Macro \& Control Pads:} Industrial operators, digital audio engineers, and programmers can print custom key sizes, non-standard layouts, or macro trigger pads tailored to specialized software tools \cite{ReviewVirtualKeyboard2020}.
+    \item \textbf{Hygienic Cleanroom and Medical Operations:} In surgical suites, ICU wards, or sterile laboratories, physical keyboards accumulate dangerous bacterial pathogens. Disposable paper layout sheets can be sanitized or discarded after single-use cycles \cite{ReviewVirtualKeyboard2020}.
+\end{itemize}
+
+\section{Existing Systems, Frameworks, and Sensing Modalities}
+\label{sec:lit_existing_systems}
+To establish a complete baseline of existing research, virtual keyboard frameworks and spatial interaction systems are evaluated across eight distinct sensing paradigms.
+
+\subsection{Projection-Based and Infrared Sensor Systems}
+\label{subsec:lit_proj_systems}
+Projection-based virtual keyboards rely on active optical projection modules paired with infrared (IR) light curtains or IR camera sensors \cite{Kudale2016RealTime, Cheng2015Fingertip}. Standard laser projection keyboards project a visible red QWERTY layout onto a table while emitting an invisible infrared light plane millimeters above the surface. When a finger strikes downward, it breaks the IR plane, casting an IR reflection detected by a CMOS sensor \cite{Cheng2015Fingertip}.
+
+Kudale and Wanjale \cite{Kudale2016RealTime} developed an IR webcam tracking system using an IR-filtered camera and reflective pens, employing 4-point planar homography to map projected displays to physical surfaces. Cheng et al. \cite{Cheng2015Fingertip} introduced an interactive projector-camera system that isolates hands by subtracting predicted background images using geometric calibration, inferring touch by measuring finger-to-surface shadow distance.
+
+While projection systems provide clear visual feedback by rendering keys directly onto empty tables, they suffer from major hardware drawbacks:
+\begin{enumerate}
+    \item \textbf{Illumination Vulnerability:} Bright ambient sunlight or high lux indoor lighting washes out projected laser patterns and saturates IR CMOS sensors, leading to complete optical breakdown.
+    \item \textbf{Hardware Cost and Power Overhead:} Projector units require active power sources and precise optical alignment, precluding low-power mobile or passive deployment.
+    \item \textbf{Lack of Layout Customizability:} Projected laser patterns are hardcoded into optical diffractive elements, preventing users from dynamically restructuring key sizes, spatial arrangements, or command bindings.
+\end{enumerate}
+
+\subsection{Shadow-Based Monocular RGB Keyboards}
+\label{subsec:lit_shadow_systems}
+To eliminate active projectors and specialized IR hardware, early monocular RGB virtual keyboard researchers investigated shadow analysis to infer Z-axis depth from 2D camera feeds \cite{Thomas2013Camera, Posner2012Single, Yue2014Blind}.
+
+Thomas \cite{Thomas2013Camera} proposed a single-camera virtual keyboard that tracked user fingertips and measured the spatial distance between a fingertip contour and its cast shadow. As a finger moves downward toward a desk, the pixel separation distance between the fingertip boundary and shadow centroid decreases to zero at surface contact. Posner et al. \cite{Posner2012Single} expanded this concept by introducing dynamic adaptive thresholding to detect fingertip-shadow contact under floating paper layouts.
+
+While shadow analysis theoretically enables touch detection on monocular RGB feeds without depth sensors, empirical evaluations highlight severe failure modes in real-world deployment \cite{Yue2014Blind}:
+\begin{itemize}
+    \item \textbf{Dependence on Point Light Sources:} Shadow convergence requires strong, directional overhead lighting. Under diffuse, ambient, or multi-source indoor lighting (e.g., dual fluorescent tube ceiling fixtures), cast shadows split, soften, or disappear entirely.
+    \item \textbf{Dynamic Self-Occlusion:} Hand palm positioning and adjacent fingers frequently block ambient light paths, casting broad self-occlusions that invalidate shadow tracking.
+    \item \textbf{Surface Texture Sensitivity:} Dark, textured, or non-uniform physical surface backgrounds disrupt intensity gradient segmentation, causing catastrophic false-positive keystroke triggers \cite{Yue2014Blind}.
+\end{itemize}
+
+\subsection{Hardware-Assisted and Depth Sensor Systems (RGB-D / ToF)}
+\label{subsec:lit_depth_systems}
+With the advent of low-cost RGB-D depth sensors (such as Microsoft Kinect, Intel RealSense, and Time-of-Flight sensors), researchers developed virtual touch interfaces that measure explicit 3D surface coordinates \cite{Lee2019Virtual, Toshpulatov2024RealTime}.
+
+Lee and Kwon \cite{Lee2019Virtual} introduced a virtual touch sensor using a ToF depth camera. By calibrating a reference depth plane representing a physical table, the system detects touch candidates by identifying fingertip point clusters whose Z-axis depth values fall within a strict millimeter tolerance above the surface plane. Toshpulatov et al. \cite{Toshpulatov2024RealTime} advanced depth-based contact detection by fusing 3D depth geometry with 2D optical flow velocity vector fields, effectively filtering out hovering fingers and false taps.
+
+Depth-based sensing overcomes the optical shadow limitations of RGB cameras by providing true 3D spatial points. However, RGB-D systems introduce substantial drawbacks:
+\begin{enumerate}
+    \item \textbf{High Hardware Overhead:} Depth sensors remain significantly more expensive and less ubiquitous than standard monocular RGB webcams, preventing deployment on standard commodity PCs, budget laptops, or smartphones.
+    \item \textbf{Close-Range Depth Noise and Blind Spots:} Consumer ToF and structured-light depth cameras suffer from minimum sensing range limits (typically 20--40 cm) and severe depth noise near reflective desktop surfaces, causing depth edge quantization errors around thin fingertips.
+    \item \textbf{High Computational Power Demand:} Processing dense 3D point clouds in real time demands dedicated GPU compute resources, consuming high power on mobile devices.
+\end{enumerate}
+
+\subsection{3D Mid-Air Typing and AR/VR Floating Keyboards}
+\label{subsec:lit_air_systems}
+Driven by headset growth (such as Meta Quest and Apple Vision Pro), researchers have explored markerless 3D air-typing, where users type on floating virtual keyboards rendered in mid-air without any physical surface contact \cite{Boletsis2019TextInput, Enkhbat2020HandKey, Lee2022Virtual, Yoo2026WordLevel}.
+
+Enkhbat et al. \cite{Enkhbat2020HandKey} introduced HandKey, a 3D two-hand typing recognition system using a single camera. HandKey tracks 3D finger skeletal joints in air and trains Convolutional Neural Networks (CNN) to classify keypress gestures when fingertips enter pre-defined virtual 3D volumes. Lee et al. \cite{Lee2022Virtual} designed ambidextrous virtual keyboards for AR/VR HMDs using deep learning keypoint detection, while Yoo and Lee \cite{Yoo2026WordLevel} proposed word-level motion learning to classify continuous spatial trajectories during contactless QWERTY typing.
+
+While mid-air typing eliminates physical surface requirements, human factors and HCI studies reveal substantial operational drawbacks:
+\begin{itemize}
+    \item \textbf{Gorilla Arm Syndrome and Physical Fatigue:} Suspending hands and arms in mid-air without passive physical surface support causes rapid muscular fatigue during continuous typing tasks \cite{Boletsis2019TextInput}.
+    \item \textbf{Absence of Passive Tactile Stop:} When typing on physical paper or desk surfaces, finger downward motion stops instantaneously upon impact. In mid-air typing, the lack of a physical surface causes finger over-travel and spatial drift, leading to high typing error rates and reduced Words-Per-Minute (WPM) entry speeds \cite{Boletsis2019TextInput, Maman2023TypeNet}.
+\end{itemize}
+
+\subsection{Paper-Anchored and Monocular RGB Keyboards}
+\label{subsec:lit_paper_systems}
+Paper-anchored virtual keyboards represent the specific sub-domain addressed by this research: combining passive printed paper key layouts with monocular RGB video processing to achieve touch entry on flat physical surfaces \cite{Zhang2001Visual, Srivastava2012RealTime, Khare2019QWERTY, Maman2023TypeNet}.
+
+Pioneering work by Zhang et al. \cite{Zhang2001Visual} introduced "Visual Panel," which tracked paper quadrilateral boundaries using monocular vision to calculate planar homography matrix $H$ and map fingertip tip locations to paper coordinates. Srivastava and Tripathi \cite{Srivastava2012RealTime} developed a monocular paper keyboard using relative fingertip velocity analysis: the typing finger accelerates downward and decelerates sharply at paper contact. Khare \cite{Khare2019QWERTY} used color skin segmentation and static key boundary masks to detect keypresses when fingertip centroids paused over key regions.
+
+Recently, Maman and Bermano \cite{Maman2023TypeNet} presented TypeNet, a deep learning framework enabling touch typing on uncalibrated flat surfaces using a front-facing monocular camera. TypeNet applies self-refinement and language model decoding to map raw finger joint trajectories directly to character sequences.
+
+Despite these advancements, existing monocular paper virtual keyboard frameworks exhibit key technical vulnerabilities:
+\begin{enumerate}
+    \item \textbf{Fragile Markerless Surface Tracking:} Early systems relied on manual paper boundary selection or color thresholding \cite{Zhang2001Visual, Khare2019QWERTY}. When paper sheets shift or lighting fluctuates, coordinate registration fails.
+    \item \textbf{Heuristic Touch Rules vs. Unnormalized Features:} Speed analysis methods \cite{Srivastava2012RealTime} rely on fixed pixel velocity thresholds. Because pixel displacement varies with camera distance and hand scale, fixed thresholds yield high error rates across different users.
+    \item \textbf{Rigid Layout Schemes:} TypeNet \cite{Maman2023TypeNet} and HandKey \cite{Enkhbat2020HandKey} enforce fixed QWERTY layouts and lack custom graphical design tools to export printable layouts and synchronized XML control bindings.
+\end{enumerate}
+
+\subsection{Video Keystroke Inference and Attack Side-Channels}
+\label{subsec:lit_attack_systems}
+An intriguing domain related to visual touch classification is video-based keystroke inference attacks \cite{Yue2014Blind, Yang2022Towards}.
+
+Yue et al. \cite{Yue2014Blind} demonstrated that side-view video recordings of smartphone typing interactions can reconstruct confidential typed text. The attack utilizes optical flow to detect finger downward deceleration, computes a surface homography $H$ mapping screen edges to a keyboard template, and applies shadow analysis to confirm contact points. Yang et al. \cite{Yang2022Towards} generalized video keystroke inference to uncalibrated cameras, employing self-supervised motion trajectories to extract typed characters directly from video frames without target layout calibration.
+
+While these security studies aim to compromise input privacy, their underlying computer vision formulations—specifically planar homography estimation, kinetic motion deceleration extraction, and spatial coordinate mapping—provide crucial algorithmic insights that inform the design of vision-based virtual keyboards.
+
+\subsection{Specialized Optical, Acoustic, and Sensor-Fusion Modalities}
+\label{subsec:lit_specialized_systems}
+Beyond camera vision, researchers have explored specialized physical interaction modalities, including Visible Light Communication (VLC) shadow sensing \cite{Webber2021Finger}, fingernail blood volume deformation imaging \cite{Sun2009Estimation}, and synchronized optical-tactile motion capture for musical performance analysis \cite{MacRitchie2015Integrating, Pilkov2024Markerless}.
+
+Webber et al. \cite{Webber2021Finger} used indoor VLC luminaires and photodiode arrays to infer finger gestures by measuring optical intensity disruptions caused by hand movement. Sun et al. \cite{Sun2009Estimation} presented a computer vision method to infer fingertip force magnitude and 3D force direction by analyzing fingernail coloration patterns under Linear Discriminant Analysis (LDA), demonstrating that optical surface press dynamics alter blood tissue volume. MacRitchie and McPherson \cite{MacRitchie2015Integrating} and Pilkov \cite{Pilkov2024Markerless} integrated multi-camera markerless motion capture with piano key touch sensors, demonstrating that finger joint velocity profiles experience distinct deceleration inflections upon physical key impact.
+
+These specialized studies establish that physical surface impact generates distinct optical and kinetic signatures, reinforcing the feasibility of detecting paper touch contact directly from scale-normalized hand joint trajectory sequences.
+
+\subsection{Gaze-Based and Assistive Visual Interfaces}
+\label{subsec:lit_gaze_interfaces}
+For users with severe motor impairments, eye-gaze tracking virtual keyboards offer an alternative touchless text entry modality \cite{Chen2024Gaze}. Chen \cite{Chen2024Gaze} developed a gaze-based text entry system using commodity RGB webcams without dedicated eye trackers. The system extracts facial landmarks and pupil positions using deep neural networks to estimate 2D gaze vectors on virtual keypads, employing dwell-time triggers to select keys.
+
+While gaze-based interfaces provide essential accessibility benefits, dwell-time triggers suffer from the "Midas Touch" problem (unintended key selections caused by natural eye pauses) and yield typing speeds significantly lower than multi-finger hand interaction. Integrating hand landmark tracking with physical paper surface contact provides a faster, more natural interaction modality for users capable of hand movement.
+
+\subsection{Robotic Vision Servo Control and Fiducial Calibration Systems}
+\label{subsec:lit_robotics_systems}
+Visual fiducial markers are widely used in robotics for pose estimation and visual servoing \cite{Ivacko2024Edge, Herdiansyah2024Implementation, Schenck2024Utilizing, Isaksson2020Camera, Oscadal2020Improved, GarridoJurado2026ArUco}.
+
+Ivacko et al. \cite{Ivacko2024Edge} combined wrist-mounted cameras with ArUco markers to compute coordinate transformations for robot manipulator gesture control. Herdiansyah et al. \cite{Herdiansyah2024Implementation} applied Zhang's calibration algorithm to optimize ArUco pose accuracy, achieving 95\% localization accuracy. Schenck et al. \cite{Schenck2024Utilizing} proposed an inpainting-assisted dataset pipeline that removes ArUco markers synthetically to train markerless keypoint detectors for visual servoing. Garrido-Jurado et al. \cite{GarridoJurado2026ArUco} introduced ArUco Nano, a high-throughput header-only detector achieving 6.5x speedups via Visited-Aware contour algorithm.
+
+These robotics studies confirm that fiducial marker tracking provides stable, sub-pixel accurate planar pose estimation, supporting its application for paper keyboard homography calibration.
+
+\subsection{Comparative Analysis of Machine Learning Models in Virtual Input}
+\label{subsec:lit_ml_comparative}
+Prior research has explored diverse machine learning classifiers to map vision features to key actions:
+\begin{itemize}
+    \item \textbf{Heuristic Thresholding \& Rule-Based Methods \cite{Srivastava2012RealTime, Posner2012Single}:} Require zero training time but fail when user speed or lighting varies.
+    \item \textbf{Support Vector Machines (SVM) \& Random Forests \cite{Webber2021Finger}:} Fast training on handcrafted spatial features, but lack sequential temporal memory.
+    \item \textbf{1D Convolutional Neural Networks (1D CNN) \cite{Lai2018CNN, Ikram2020Skeleton}:} Extract local motion patterns rapidly across short frame sliding windows, but lack recurrent state propagation.
+    \item \textbf{Long Short-Term Memory (LSTM) Recurrent Neural Networks \cite{Hochreiter1997LSTM, Doan2022Efficient, GilMartin2023Hand}:} Maintain internal cell state carousels across sequence windows, allowing the network to learn approach-impact-recoil motion trajectories.
+\end{itemize}
+
+\subsection{Noise Modeling and Lighting Robustness in Passive Vision Systems}
+\label{subsec:lit_noise_modeling}
+Deploying monocular RGB computer vision systems in unconstrained indoor environments requires addressing dynamic illumination variance and image sensor noise:
+\begin{itemize}
+    \item \textbf{Illuminance Range Invariance:} Indoor lux levels range from dark ambient settings ($100$ lux) to bright fluorescent office lighting ($1,000$ lux) and direct sunlight ($50,000+$ lux). Classical skin segmentation and shadow detection algorithms break when illuminance fluctuates \cite{Yue2014Blind}.
+    \item \textbf{Deep Landmark Detector Noise Resilience:} Deep learning keypoint detectors (such as MediaPipe Hands \cite{Zhang2020MediaPipe}) are trained on diverse image datasets with aggressive data augmentation (random contrast, brightness, chromatic aberration, and synthetic noise). Consequently, regressed keypoint coordinates remain stable across varying illumination levels.
+\end{itemize}
+
+\subsection{Comparative Analysis Matrix of Existing Literature}
+\label{subsec:lit_comparative_matrix}
+To synthesize the literature landscape, Table~\ref{tab:lit_comparative_matrix} presents a detailed comparative analysis evaluating prior research frameworks across sensing modality, hardware requirements, spatial surface tracking, scale normalization, temporal filtering, touch detection methodology, operational latency, and layout customizability.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparative analysis of existing virtual keyboard frameworks and sensing methodologies.}
+\label{tab:lit_comparative_matrix}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l l l l l l l l l}
+\toprule
+\textbf{Study \& Year} & \textbf{Sensing Modality} & \textbf{Hardware Req.} & \textbf{Surface Tracking} & \textbf{Scale Normalization} & \textbf{Temporal Filter} & \textbf{Touch Classifier} & \textbf{Latency / FPS} & \textbf{Layout Customization} \\
+\midrule
+Zhang et al. (2001) \cite{Zhang2001Visual} & Monocular RGB & Standard Webcam & Quad Paper Bounds & None (Pixel Coords) & Moving Avg. & Spatial Proximity & High ($\sim 15$ FPS) & Rigid Paper Quad \\
+Sun et al. (2009) \cite{Sun2009Estimation} & Monocular RGB & High-Res Camera & None (Fixed Finger) & None & None & LDA Nail Coloration & Offline ($< 5$ FPS) & None \\
+Pirchheim \& Reitmayr (2011) \cite{Pirchheim2011Homography} & Monocular RGB & Mobile Camera & Keyframe Homography & Feature Scale & Particle Filter & Spatial Tracking & Real-Time ($30$ FPS) & None (SLAM Map) \\
+Srivastava \& Tripathi (2012) \cite{Srivastava2012RealTime} & Monocular RGB & Standard Webcam & Manual Quad Contour & None (Raw Pixels) & Static Smoothing & Speed Deceleration & Real-Time ($25$ FPS) & Manual Paper Drawing \\
+Posner et al. (2012) \cite{Posner2012Single} & Monocular RGB & Standard Webcam & Fixed Desk Layout & None & Dynamic Threshold & Fingertip-Shadow Dist. & Real-Time ($30$ FPS) & Fixed Paper Template \\
+Thomas (2013) \cite{Thomas2013Camera} & Monocular RGB & Standard Webcam & Fixed Area & None & None & Shadow Gradient Vector & Real-Time ($30$ FPS) & Fixed Layout \\
+Yue et al. (2014) \cite{Yue2014Blind} & Monocular RGB & Smartphone RGB & Screen Border H & None & Optical Flow & Shadow + k-Means & Offline Analysis & Fixed Smartphone Screen \\
+Cheng et al. (2015) \cite{Cheng2015Fingertip} & Proj. + Camera & Projector + Camera & Photometric Calib. & None & Background Sub. & 3D Shadow Distance & Real-Time ($20$ FPS) & Fixed Projected GUI \\
+MacRitchie \& McPherson (2015) \cite{MacRitchie2015Integrating} & Optical MoCap & MoCap + Touch & Surface Calibration & 3D Skeleton mm & Moving Average & Velocity Inversion & Real-Time ($100$ FPS) & Fixed Piano Keys \\
+Kudale \& Wanjale (2016) \cite{Kudale2016RealTime} & IR Webcam & IR Filtered Camera & 4-Point Homography & None & Thresholding & IR Pen Tap Contact & Real-Time ($30$ FPS) & Projected Display \\
+Simao et al. (2017) \cite{Simao2016Unsupervised} & Motion Capture & Leap Motion Sensor & None & Bone Lengths & Sliding Window & Velocity Inversion & Real-Time ($60$ FPS) & None \\
+Ji et al. (2018) \cite{Ji2018Local} & Monocular RGB & Standard Webcam & Skin Color Mask & None & Moving Avg. & k-Means Clustering & Real-Time ($25$ FPS) & Dynamic Key Clusters \\
+Nunez et al. (2018) \cite{Nunez2018Convolutional} & 3D Skeleton & Depth Sensor & None & Normalized Skeleton & Sequence Window & CNN + LSTM Network & Real-Time ($30$ FPS) & None \\
+Lai \& Yanushkevich (2018) \cite{Lai2018CNN} & Multimodal RGB-D & Depth Sensor & None & Skeleton Joint Map & Temporal Buffer & CNN + RNN Fusion & Real-Time ($30$ FPS) & Gesture Set \\
+Khare (2019) \cite{Khare2019QWERTY} & Monocular RGB & Standard Webcam & Static Bounds & None & Color Threshold & Pause Over Bounds & Real-Time ($20$ FPS) & Fixed QWERTY Paper \\
+Lee \& Kwon (2019) \cite{Lee2019Virtual} & RGB-D Depth & ToF Depth Camera & Depth Plane Calib. & 3D Metric mm & Weight Filtering & Z-Depth Threshold & Real-Time ($30$ FPS) & Fixed Virtual Touch \\
+Boletsis \& Kongsvik (2019) \cite{Boletsis2019TextInput} & VR Controller & VR Headset & Virtual 3D Grid & VR World Scale & None & Striking Velocity & Real-Time ($90$ FPS) & Fixed VR Layout \\
+Enkhbat et al. (2020) \cite{Enkhbat2020HandKey} & Monocular RGB & Standard Webcam & Air Typing Zone & Hand Size Scaling & None & CNN Spatial Classifier & Real-Time ($30$ FPS) & Fixed Air QWERTY \\
+Cui et al. (2020) \cite{Cui2020Deep} & Vision Review & Various Sensors & Various & Various & Various & Deep Learning Survey & N/A & N/A \\
+Zhang et al. (2020) \cite{Zhang2020MediaPipe} & Monocular RGB & Commodity Camera & Palm Detector & Normalized 21 Keypoints & Single-frame Regress & Skeletal Keypoint Reg. & High Speed ($> 60$ FPS) & General Hand Tracking \\
+Ikram \& Liu (2020) \cite{Ikram2020Skeleton} & 3D Skeleton & Leap Motion Sensor & None & Hand Scale & Sliding Window & 1D CNN + LSTM & Real-Time ($50$ FPS) & Mid-air Gestures \\
+Wang et al. (2020) \cite{Wang2020Relative} & Monocular RGB & Stereo Pair & Superpixel Homography & Superpixel Scale & Bundle Adjust & Multi-Model RANSAC & Real-Time ($25$ FPS) & Planar Maps \\
+Li et al. (2021) \cite{Li2021CNN} & Monocular RGB & Embedded Camera & Grid Mask & None & CNN Feature Map & Lightweight CNN & Edge Real-Time ($30$ FPS) & Fixed Key Grid \\
+Webber et al. (2021) \cite{Webber2021Finger} & Visible Light & VLC Photodiodes & Optical Intensity Mask & None & Intensity Features & SVM / Random Forest & Real-Time ($30$ FPS) & Light Grid Keys \\
+Gammulle et al. (2021) \cite{Gammulle2021TMMF} & Multimodal RGB & Single Camera & None & Sequence Normalization & Multi-Modal Fusion & Single-Stage TMMF Net & Real-Time ($30$ FPS) & Continuous Gestures \\
+Zhang et al. (2022) \cite{Zhang2022DynaKey} & Head-Mounted RGB & Smart Glasses & Gyro + Homography & None & Motion Compensation & Downward Trajectory & Real-Time ($30$ FPS) & Drawn Keyboard Bounds \\
+Lee et al. (2022) \cite{Lee2022Virtual} & RGB-D / HMD & AR/VR Headset & HMD Frame & 3D Joint Scaling & Temporal Buffer & 7-Class Deep Network & Real-Time ($60$ FPS) & Ambidextrous Layouts \\
+Doan (2022) \cite{Doan2022Efficient} & Monocular RGB & Commodity RGB & None & Scale Normalized & Coordinate Smooth & Multi-layer LSTM & Real-Time ($30$ FPS) & Body Activity \\
+Yang et al. (2022) \cite{Yang2022Towards} & Smartphone RGB & Commodity Phone & Uncalibrated Video & Self-Supervised Scale & Motion Trajectory & Deep Inference Model & Offline Analysis & Uncalibrated Keyboards \\
+Maman \& Bermano (2023) \cite{Maman2023TypeNet} & Monocular RGB & Front Camera & Uncalibrated Plane & Hand Skeleton Scale & Self-Refinement & Deep Net + LM Decoding & Real-Time ($30$ FPS) & Fixed QWERTY Flat \\
+Gil-Martin et al. (2023) \cite{GilMartin2023Hand} & Monocular RGB & Commodity Camera & None & MediaPipe Scale & Sequence Buffer & Deep Recurrent Net & Real-Time ($60$ FPS) & General Gestures \\
+Sanchez-Brizuela et al. (2023) \cite{SanchezBrizuela2023Lightweight} & Monocular RGB & Commodity Camera & None & Landmark Distance & Morphological Mask & Landmark Rule Classifier & Ultra High ($90$ FPS) & Skin Segmentation \\
+Ivacko et al. (2024) \cite{Ivacko2024Edge} & Monocular RGB & Wrist Camera & ArUco Calibration & Metric Scaling & Low-Pass Alpha & Rule-Based Kinematics & Edge Real-Time ($30$ FPS) & Robot Control Pad \\
+Herdiansyah et al. (2024) \cite{Herdiansyah2024Implementation} & Monocular RGB & Single RGB Camera & ArUco PnP & Metric Tag Size & Zhang Calibration & Geometric Pose Engine & Real-Time ($30$ FPS) & Navigation Targets \\
+Pilkov (2024) \cite{Pilkov2024Markerless} & Multi-Camera RGB & 3 RGB Cameras & None & 3D Skeleton mm & Temporal Alignment & Deep Keypoint Trajectory & Real-Time ($30$ FPS) & Piano Keyboard \\
+Toshpulatov et al. (2024) \cite{Toshpulatov2024RealTime} & Multimodal RGB-D & Depth + RGB & Surface Calib. & 3D Spatial mm & Fusion Filter & Temporal Depth-Motion Net & Real-Time ($30$ FPS) & VR/AR GUI Objects \\
+Chen (2024) \cite{Chen2024Gaze} & Monocular RGB & Commodity Webcam & Screen Grid & Pupil Vector Scale & Dwell Time Filter & Eye-Gaze Deep Model & Real-Time ($30$ FPS) & Gaze Keypad \\
+Schenck et al. (2024) \cite{Schenck2024Utilizing} & Monocular RGB & Single RGB Camera & ArUco Inpainting & Metric Scale & Inpainting Mask & Deep Keypoint Detector & Real-Time ($30$ FPS) & Robotic Links \\
+Andriyanov et al. (2025) \cite{Andriyanov2025Improving} & Monocular RGB & Commodity RGB & Bounding Box & Normalized Bounds & Temporal Window & MediaPipe + YOLO-Pose & Real-Time ($45$ FPS) & Gesture Set \\
+Yoo \& Lee (2026) \cite{Yoo2026WordLevel} & Monocular RGB & Single RGB Camera & None & Trajectory Scaling & Displacement Accum. & Word Motion Network & Real-Time ($30$ FPS) & Contactless QWERTY \\
+Kumar (2026) \cite{Kumar2026Hybrid} & Monocular RGB & Commodity Camera & Canvas Plane & Landmark Ratio & 1€ + Exp. Moving Avg & Motion Threshold & Real-Time ($60$ FPS) & Air Canvas Drawing \\
+Garrido-Jurado et al. (2026) \cite{GarridoJurado2026ArUco} & Monocular RGB & Commodity Camera & ArUco Nano Tags & Metric Tag Scale & Sub-pixel Sampling & Visited-Aware Contours & Edge High ($> 100$ FPS) & Robotics Targets \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+The comparative evaluation in Table~\ref{tab:lit_comparative_matrix} illustrates the evolutionary progression of virtual input technology: moving from early classical image segmentation \cite{Zhang2001Visual, Srivastava2012RealTime} and fragile shadow analysis \cite{Thomas2013Camera, Posner2012Single} toward modern deep learning models utilizing normalized skeletal keypoints \cite{Zhang2020MediaPipe, GilMartin2023Hand, Maman2023TypeNet} and visual fiducial tracking \cite{Wang2016AprilTag2, GarridoJurado2026ArUco}.
+
+\section{Technological Analysis}
+\label{sec:lit_technological_analysis}
+This section provides an in-depth technical analysis covering the three core algorithmic and engineering pillars of the thesis: hand pose landmark extraction and scale normalization, planar homography tracking using visual fiducial markers, and deep sequential touch classification architectures.
+
+\subsection{Algorithmic Analysis}
+\label{subsec:lit_algorithmic_analysis}
+
+\subsubsection{Hand Pose Estimation \& Skeletal Joint Tracking}
+Fundamental to vision-based interaction is the real-time extraction of 2D and 3D hand skeletal joint locations from RGB video streams without physical gloves or markers \cite{Cui2020Deep, Zhang2020MediaPipe}.
+
+Historically, hand tracking relied on skin-color thresholding in HSV/YCbCr color spaces \cite{Ji2018Local, Khare2019QWERTY}. However, skin-color segmentation suffers from severe instability under fluctuating illumination, dynamic background clutter, ambient color temperature shifts, and diverse skin complexions. The emergence of deep learning keypoint detection networks, such as OpenPose, YOLO-Pose \cite{Andriyanov2025Improving}, and Google MediaPipe Hand Landmarker \cite{Zhang2020MediaPipe}, transformed hand gesture analysis by regressing anatomical skeletal joints directly from raw pixels.
+
+Google MediaPipe Hands \cite{Zhang2020MediaPipe} employs a lightweight two-stage detector-tracker pipeline optimized for real-time edge execution:
+\begin{enumerate}
+    \item \textbf{Single-Shot Palm Detector:} A single-shot detector scans the full camera frame to localize bounding boxes for hands. Instead of detecting complex, articulated fingers directly (which exhibit severe self-occlusion and shape variation), the detector locates rigid palm regions and wrist anchors. The detector optimizes anchor box overlap using focal loss $\mathcal{L}_{\text{focal}} = -\alpha_t (1 - p_t)^\gamma \log(p_t)$ to isolate hands across diverse scales.
+    \item \textbf{21-Landmark Keypoint Regression Network:} Once the palm ROI is cropped, a 3D hand landmark regression network predicts the 2D pixel coordinates $(x_i, y_i)$ and relative depth values $z_i$ for 21 standardized anatomical hand joint keypoints, as illustrated in Figure~\ref{fig:mediapipe_hand_topology}.
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    joint/.style = {circle, draw=red!80!black, fill=red!60!white, inner sep=0pt, minimum size=5pt},
+    tip/.style = {circle, draw=blue!80!black, fill=blue!60!white, inner sep=0pt, minimum size=6pt},
+    wrist/.style = {circle, draw=black, fill=gray!80, inner sep=0pt, minimum size=7pt},
+    bone/.style = {draw=black!70, thick}
+]
+
+% Wrist
+\node (J0) [wrist, label=below:{\scriptsize 0: Wrist}] at (0, 0) {};
+
+% Thumb
+\node (J1) [joint] at (-0.8, 0.6) {};
+\node (J2) [joint] at (-1.4, 1.2) {};
+\node (J3) [joint] at (-1.8, 1.8) {};
+\node (J4) [tip, label=left:{\scriptsize 4: Thumb Tip}] at (-2.1, 2.4) {};
+
+% Index Finger
+\node (J5) [joint] at (-0.6, 2.0) {};
+\node (J6) [joint] at (-0.7, 2.9) {};
+\node (J7) [joint] at (-0.8, 3.6) {};
+\node (J8) [tip, label=above:{\scriptsize 8: Index Tip}] at (-0.85, 4.3) {};
+
+% Middle Finger
+\node (J9) [joint] at (0.0, 2.2) {};
+\node (J10) [joint] at (0.0, 3.2) {};
+\node (J11) [joint] at (0.0, 4.0) {};
+\node (J12) [tip, label=above:{\scriptsize 12: Middle Tip}] at (0.0, 4.8) {};
+
+% Ring Finger
+\node (J13) [joint] at (0.6, 2.0) {};
+\node (J14) [joint] at (0.7, 2.9) {};
+\node (J15) [joint] at (0.8, 3.7) {};
+\node (J16) [tip, label=above:{\scriptsize 16: Ring Tip}] at (0.85, 4.4) {};
+
+% Pinky Finger
+\node (J17) [joint] at (1.1, 1.6) {};
+\node (J18) [joint] at (1.3, 2.3) {};
+\node (J19) [joint] at (1.4, 2.9) {};
+\node (J20) [tip, label=right:{\scriptsize 20: Pinky Tip}] at (1.5, 3.5) {};
+
+% Bones Connections
+\draw [bone] (J0) -- (J1) -- (J2) -- (J3) -- (J4);
+\draw [bone] (J0) -- (J5) -- (J6) -- (J7) -- (J8);
+\draw [bone] (J0) -- (J9) -- (J10) -- (J11) -- (J12);
+\draw [bone] (J0) -- (J13) -- (J14) -- (J15) -- (J16);
+\draw [bone] (J0) -- (J17) -- (J18) -- (J19) -- (J20);
+\draw [bone] (J5) -- (J9) -- (J13) -- (J17);
+
+\end{tikzpicture}
+\caption{MediaPipe 21 hand landmark anatomical topology.}
+\label{fig:mediapipe_hand_topology}
+\end{figure}
+
+The 21 keypoint representation provides high spatial fidelity, tracking individual fingertip tips (Landmarks 4, 8, 12, 16, 20) alongside knuckle joints (MCP, PIP, DIP). Recent studies by Gil-Martín et al. \cite{GilMartin2023Hand} and Sánchez-Brizuela et al. \cite{SanchezBrizuela2023Lightweight} confirm that MediaPipe Hands achieves real-time execution speeds exceeding 60 FPS on standard desktop CPUs while maintaining spatial keypoint accuracy under ambient lighting shifts.
+
+\subsubsection{Spatial Kinematic Scale Normalization vs. Temporal Smoothing}
+Raw pixel coordinates $(x_i, y_i)$ emitted by keypoint detectors vary with camera distance, image resolution, and user hand size \cite{Doan2022Efficient, Kumar2026Hybrid}. If raw coordinates are fed directly into a machine learning classifier, a downward finger tap performed by a large hand near the camera generates vastly larger coordinate displacements than the exact same tap performed by a small hand further away.
+
+\paragraph{Mathematical Proof of Perspective Scale Invariance:}
+Under pinhole camera perspective projection, 3D world coordinates $(X, Y, Z)$ map to 2D image plane coordinates $(x_{\text{pixel}}, y_{\text{pixel}})$ via focal length $f$:
+\begin{equation}
+x_{\text{pixel}} = f \frac{X}{Z}, \quad y_{\text{pixel}} = f \frac{Y}{Z}
+\label{eq:pinhole_projection}
+\end{equation}
+
+When camera distance $Z$ changes by factor $k$ ($Z' = k Z$), raw pixel coordinates scale inversely by $k$:
+\begin{equation}
+x'_{\text{pixel}} = \frac{x_{\text{pixel}}}{k}, \quad y'_{\text{pixel}} = \frac{y_{\text{pixel}}}{k}
+\label{eq:pixel_scaling}
+\end{equation}
+
+Similarly, measured hand length $L_{\text{hand}}$ scales by the exact same factor $k$:
+\begin{equation}
+L'_{\text{hand}} = \frac{L_{\text{hand}}}{k}
+\label{eq:hand_length_scaling}
+\end{equation}
+
+By dividing normalized relative landmark coordinates by $L_{\text{hand}}$, scaling factor $k$ cancels out completely:
+\begin{equation}
+\mathbf{P}_i^{\text{norm}\prime} = \frac{\mathbf{P}_i' - \mathbf{P}_0'}{L'_{\text{hand}}} = \frac{\frac{\mathbf{P}_i - \mathbf{P}_0}{k}}{\frac{L_{\text{hand}}}{k}} = \frac{\mathbf{P}_i - \mathbf{P}_0}{L_{\text{hand}}} = \mathbf{P}_i^{\text{norm}}
+\label{eq:scale_invariance_proof}
+\end{equation}
+
+Equation~(\ref{eq:scale_invariance_proof}) proves that unitless hand-length scale normalization produces features that are invariant to camera distance $Z$ and user hand dimensions.
+
+Let $\mathbf{P}_0 = (x_0, y_0)$ represent wrist landmark 0 and $\mathbf{P}_9 = (x_9, y_9)$ represent middle MCP joint 9. Hand length scale factor $L_{\text{hand}}$ is:
+\begin{equation}
+L_{\text{hand}} = \sqrt{(x_9 - x_0)^2 + (y_9 - y_0)^2}
+\label{eq:hand_length_scale_def}
+\end{equation}
+
+Each landmark coordinate $\mathbf{P}_i = (x_i, y_i)$ is normalized relative to wrist origin $\mathbf{P}_0$ and scaled by $L_{\text{hand}}$:
+\begin{equation}
+\mathbf{P}_i^{\text{norm}} = \left( \frac{x_i - x_0}{L_{\text{hand}}}, \frac{y_i - y_0}{L_{\text{hand}}} \right)
+\label{eq:normalized_landmark_def}
+\end{equation}
+
+Numerical velocity vectors $\mathbf{V}_i(t)$ across sequential frames are calculated from scale-normalized coordinates:
+\begin{equation}
+\mathbf{V}_i(t) = \frac{\mathbf{P}_i^{\text{norm}}(t) - \mathbf{P}_i^{\text{norm}}(t - \Delta t)}{\Delta t}
+\label{eq:joint_velocity_def}
+\end{equation}
+
+\paragraph{Critical Analysis of Temporal Smoothing (1€ Filter vs. Direct Raw Propagation):}
+In touchless interaction literature (e.g., air-canvas drawing or gesture tracking), temporal low-pass filtering algorithms—such as the 1€ Filter \cite{Kumar2026Hybrid} or exponential moving averages—are commonly applied to smooth landmark trajectories and eliminate micro-tremors.
+
+However, a critical system technical override in our research pipeline explicitly dictates: \textbf{DO NOT use 1€ filtering or temporal smoothing}. Scale-normalized hand landmark coordinates must be propagated directly without low-pass filtering.
+
+The theoretical justification for avoiding temporal smoothing in surface touch detection is crucial:
+\begin{itemize}
+    \item \textbf{Damping of Touch Impact Transients:} Surface keystrokes are characterized by sharp, sudden kinetic deceleration impacts occurring within extremely short time windows ($< 40$ ms). Low-pass filters (such as the 1€ Filter) smooth out sharp velocity spikes, dampening the rapid inflection signal that distinguishes physical surface contact from hovering finger movement.
+    \item \textbf{Phase Lag and Latency Overhead:} A standard first-order low-pass filter exhibits transfer function $H(s) = \frac{1}{\tau s + 1}$, introducing phase delay $\Delta \phi(\omega) = -\arctan(\omega \tau)$ and group delay $\tau_g = \frac{\tau}{1 + \omega^2 \tau^2}$. In real-time interaction, this adds a temporal phase lag of 1--3 frames (30--90 ms), directly degrading typing responsiveness.
+\end{itemize}
+
+By relying strictly on unitless hand-length scale normalization ($\mathbf{P}_i^{\text{norm}}$) without temporal smoothing, the feature pipeline preserves raw kinetic velocity transients, allowing deep temporal models to detect surface contact instantly.
+
+\subsubsection{Planar Homography Mathematics \& AprilTag Fiducial Tracking}
+Mapping 2D camera pixel coordinates $(x_{\text{pixel}}, y_{\text{pixel}})$ onto a custom paper key layout $(x_{\text{XML}}, y_{\text{XML}})$ requires correcting for 3D camera tilt, perspective distortion, and paper movement \cite{LonguetHiggins1985Machine, Pirchheim2011Homography, Wang2020Relative}.
+
+When both the physical paper layout and the virtual coordinate space lie on planar surfaces, their spatial relationship is governed by a $3 \times 3$ Planar Homography Matrix $H \in \mathbb{R}^{3 \times 3}$ under projective geometry \cite{LonguetHiggins1985Machine, Pirchheim2011Homography}:
+\begin{equation}
+\begin{bmatrix}
+x_{\text{XML}} w \\
+y_{\text{XML}} w \\
+w
+\end{bmatrix}
+=
+H \mathbf{P}_{\text{pixel}}
+=
+\begin{bmatrix}
+h_{11} & h_{12} & h_{13} \\
+h_{21} & h_{22} & h_{23} \\
+h_{31} & h_{32} & h_{33}
+\end{bmatrix}
+\begin{bmatrix}
+x_{\text{pixel}} \\
+y_{\text{pixel}} \\
+1
+\end{bmatrix}
+\label{eq:homography_equation_def}
+\end{equation}
+
+Dividing by homogeneous scale factor $w = h_{31} x_{\text{pixel}} + h_{32} y_{\text{pixel}} + h_{33}$ yields target XML coordinates:
+\begin{equation}
+x_{\text{XML}} = \frac{h_{11} x_{\text{pixel}} + h_{12} y_{\text{pixel}} + h_{13}}{h_{31} x_{\text{pixel}} + h_{32} y_{\text{pixel}} + h_{33}}, \quad
+y_{\text{XML}} = \frac{h_{21} x_{\text{pixel}} + h_{22} y_{\text{pixel}} + h_{23}}{h_{31} x_{\text{pixel}} + h_{32} y_{\text{pixel}} + h_{33}}
+\label{eq:homography_cartesian_def}
+\end{equation}
+
+\paragraph{Direct Linear Transform (DLT) Matrix Formulation:}
+Given $N \ge 4$ point correspondences $(x_k, y_k) \leftrightarrow (x'_k, y'_k)$, each point pair yields two linear equations:
+\begin{align}
+-x_k h_{11} - y_k h_{12} - h_{13} + 0 + 0 + 0 + x_k x'_k h_{31} + y_k x'_k h_{32} + x'_k h_{33} &= 0 \label{eq:dlt_row1} \\
+0 + 0 + 0 - x_k h_{21} - y_k h_{22} - h_{23} + x_k y'_k h_{31} + y_k y'_k h_{32} + y'_k h_{33} &= 0 \label{eq:dlt_row2}
+\end{align}
+
+Stacking equations yields matrix system $\mathbf{A}_{2N \times 9} \mathbf{h} = \mathbf{0}$. Solving $\mathbf{A} \mathbf{h} = \mathbf{0}$ via Singular Value Decomposition (SVD $\mathbf{A} = \mathbf{U} \mathbf{\Sigma} \mathbf{V}^T$) isolates vector $\mathbf{h}$ as the singular vector corresponding to the smallest singular value in $\mathbf{V}^T$.
+
+\paragraph{Comparative Analysis of Visual Fiducial Marker Systems:}
+To supply stable point correspondences for homography calculation, researchers employ planar visual fiducial marker systems embedded at layout corners \cite{Wang2016AprilTag2, Kallwies2020Determining, Shabalina2018ARTag, Kalaitzakis2021Fiducial, GarridoJurado2026ArUco}. Major fiducial marker families include ARTag, ArUco \cite{GarridoJurado2026ArUco, Herdiansyah2024Implementation}, CALTag, and AprilTag (AprilTag 2/3) \cite{Wang2016AprilTag2, Kallwies2020Determining}.
+
+Extensive comparative studies by Shabalina et al. \cite{Shabalina2018ARTag}, Kallwies et al. \cite{Kallwies2020Determining}, and Kalaitzakis et al. \cite{Kalaitzakis2021Fiducial} benchmarked tag families under severe perspective tilt, low camera resolution, dynamic illumination changes, and partial corner occlusion. Key findings confirm:
+\begin{itemize}
+    \item \textbf{AprilTag (AprilTag 2/3) Superiority:} AprilTag 2/3 \cite{Wang2016AprilTag2} utilizes adaptive thresholding, sub-pixel quad boundary fitting, and gradient-based line clustering. Kallwies et al. \cite{Kallwies2020Determining} demonstrated that AprilTag achieves a median sub-pixel corner localization error of 0.017 pixels under extreme perspective inclination angles up to $75^\circ$, significantly outperforming standard OpenCV ArUco tags \cite{Shabalina2018ARTag, Kalaitzakis2021Fiducial}.
+    \item \textbf{Rotational Drift and Occlusion Resistance:} AprilTag's payload decoding employs lexicographic codebooks with high Hamming distance thresholds ($d_H \ge 11$), preventing false-positive tag ID identification even when paper corners are partially shadowed by typing hands \cite{Wang2016AprilTag2, Shabalina2018ARTag}.
+\end{itemize}
+
+Consequently, embedding AprilTag visual markers along paper layout borders provides stable point correspondences for real-time homography estimation $H$.
+
+\subsubsection{Deep Sequential Temporal Touch Detection Models}
+Detecting finger surface touch events from continuous scale-normalized landmark trajectories requires modeling temporal dependencies across frame sequences \cite{Hochreiter1997LSTM, Nunez2018Convolutional, Gammulle2021TMMF}.
+
+Traditional thresholding methods (e.g., triggering touch whenever vertical velocity $V_y > \theta$) fail because non-touch hovering movements, lateral hand shifts, and inter-finger biomechanical coupling generate velocity fluctuations that break static thresholds \cite{Simao2016Unsupervised, Toshpulatov2024RealTime}.
+
+Deep Recurrent Neural Networks (RNNs), specifically Long Short-Term Memory (LSTM) networks \cite{Hochreiter1997LSTM}, are ideally suited for temporal sequential gesture classification \cite{Doan2022Efficient, GilMartin2023Hand, Nunez2018Convolutional, Ikram2020Skeleton}. The standard LSTM memory cell mitigates vanishing gradient problems using Constant Error Carousels (CEC) and multiplicative gate mechanisms:
+\begin{align}
+\mathbf{f}_t &= \sigma(\mathbf{W}_f [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_f) \quad &&\text{(Forget Gate)} \label{eq:lstm_forget_def} \\
+\mathbf{i}_t &= \sigma(\mathbf{W}_i [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_i) \quad &&\text{(Input Gate)} \label{eq:lstm_input_def} \\
+\tilde{\mathbf{C}}_t &= \tanh(\mathbf{W}_c [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_c) \quad &&\text{(Candidate Cell State)} \label{eq:lstm_candidate_def} \\
+\mathbf{C}_t &= \mathbf{f}_t \odot \mathbf{C}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{C}}_t \quad &&\text{(Cell State Update)} \label{eq:lstm_cell_def} \\
+\mathbf{o}_t &= \sigma(\mathbf{W}_o [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_o) \quad &&\text{(Output Gate)} \label{eq:lstm_output_def} \\
+\mathbf{h}_t &= \mathbf{o}_t \odot \tanh(\mathbf{C}_t) \quad &&\text{(Hidden State Output)} \label{eq:lstm_hidden_def}
+\end{align}
+
+\paragraph{Comparative Deep Neural Architecture Evaluation:}
+When modeling 1D sequential skeletal joint sequences, researchers evaluate four primary deep learning paradigms \cite{Lai2018CNN, Ikram2020Skeleton, Nunez2018Convolutional, Doan2022Efficient}:
+\begin{enumerate}
+    \item \textbf{Uni-directional LSTM Networks:} Process sequence $\mathbf{X} = (\mathbf{x}_1, \dots, \mathbf{x}_T)$ forward in time. Uni-directional LSTMs are strictly causal ($h_t$ depends only on past frames $x_{1:t}$), making them computationally optimal for online real-time stream classification where future frames are unavailable.
+    \item \textbf{Bidirectional LSTMs (BiLSTM):} Concatenate forward hidden state $\overrightarrow{\mathbf{h}}_t$ and backward hidden state $\overleftarrow{\mathbf{h}}_t$. While BiLSTMs achieve high offline classification accuracy, backward recurrence requires observing future frames, introducing anti-causal buffering latency that precludes zero-lag real-time execution.
+    \item \textbf{1D Convolutional Neural Networks (1D CNN):} Apply temporal 1D convolution kernels across landmark channels. 1D CNNs extract local motion features rapidly but lack long-term temporal memory carousels.
+    \item \textbf{1D Residual Networks (1D ResNet):} Add residual skip-connections $\mathbf{y} = \mathcal{F}(\mathbf{x}) + \mathbf{x}$ to prevent gradient vanishing in deep temporal stacks.
+\end{enumerate}
+
+Driven by \texttt{run\_all.py}, our empirical benchmark across 22 model combinations confirms that a uni-directional multi-layer PyTorch LSTM model trained on 5-frame scale-normalized sequences achieves the optimal trade-off of high classification F1-score and low online causal latency.
+
+\paragraph{Temporal Windowing Architecture:}
+To evaluate continuous landmark streams, input feature sequences are structured into sliding temporal windows \cite{Simao2016Unsupervised, Doan2022Efficient, Gammulle2021TMMF}. Evaluated sliding window configurations balance temporal classification accuracy against inference latency:
+\begin{itemize}
+    \item \textbf{5-Frame Window with 2-Frame Overlap (Stride of 3 Frames):} Operating at a video frame rate of 12 FPS sub-sampled stream, a 5-frame temporal window spans an observation duration of $T = 416.6$ ms. A 2-frame overlap (stride of 3 frames) causes the PyTorch LSTM classifier to evaluate touch events every 250 ms. Empirical benchmarks demonstrate that a 5-frame window provides sufficient temporal context to capture the downward approach, paper impact, and recoil phases of a keystroke while maintaining low computational latency.
+\end{itemize}
+
+Deep architecture benchmarks across pure 2D models (LSTM, BiLSTM, 1D CNN, 1D ResNet) confirm that a multi-layer PyTorch LSTM model trained on 5-frame scale-normalized landmark sequences yields optimal classification F1-score for multi-finger surface touch detection.
+
+\subsection{Design Analysis}
+\label{subsec:lit_design_analysis}
+Designing a virtual input architecture involves balancing key hardware, software, and usability trade-offs across sensing modalities, layout designs, and compute constraints.
+
+\subsubsection{Architectural Sensing Trade-Offs}
+Table~\ref{tab:lit_sensing_tradeoffs} synthesizes the fundamental engineering trade-offs governing monocular RGB vision systems versus alternative virtual input sensing paradigms.
+
+\begin{table}[htbp]
+\centering
+\caption{System architecture design trade-offs across sensing modalities.}
+\label{tab:lit_sensing_tradeoffs}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l l l l l}
+\toprule
+\textbf{Architectural Dimension} & \textbf{Monocular RGB + AprilTag (Proposed)} & \textbf{RGB-D / ToF Depth Sensing} & \textbf{Laser Projection + IR} & \textbf{3D Mid-Air Typing (VR)} \\
+\midrule
+\textbf{Hardware Sensor Cost} & Low (Commodity Webcam) & High (\$150--\$400 Depth Camera) & Medium (\$80--\$150 Projector) & High (\$400--\$3500 Headset) \\
+\textbf{Ambient Light Sensitivity} & Moderate (Robust to indoor lux) & High (Sunlight IR interference) & Extreme (Sunlight washes pattern) & Low (Built-in HMD sensors) \\
+\textbf{Surface Alignment} & Dynamic (AprilTag Homography) & Fixed Depth Plane Calibration & Fixed Desktop Projection & None (Mid-air tracking) \\
+\textbf{Tactile Feedback} & Passive Surface Tactile Stop & Passive Surface Tactile Stop & Passive Surface Tactile Stop & Complete Absence (Fatigue) \\
+\textbf{Layout Customization} & High (Printable XML Layouts) & Moderate (Fixed Spatial GUI) & Low (Hardcoded Laser Pattern) & High (Software VR Grids) \\
+\textbf{Edge Compute Latency} & Low ($> 60$ FPS on CPU) & Medium (Point Cloud Compute) & Low (Hardware IR Processing) & High (Heavy HMD Pipeline) \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+As detailed in Table~\ref{tab:lit_sensing_tradeoffs}, the monocular RGB architecture paired with AprilTag fiducial anchors offers the optimal balance of low hardware cost, robust surface alignment via homography $H$, passive tactile surface impact support, and high layout customizability.
+
+\subsubsection{Layout Customization \& Synchronized XML Artifacts}
+A major architectural gap identified in existing literature \cite{ReviewVirtualKeyboard2020, Maman2023TypeNet} is the lack of seamless integration between layout design interfaces and runtime action engines. Most prior virtual keyboards hardcode fixed QWERTY button coordinate bounding boxes into application code.
+
+To achieve complete operational flexibility, the system architecture separates layout creation into a dedicated Layout Designer Suite (\texttt{designer/designer\_app.py}). The designer allows users to create arbitrary button geometries, bind keys to system keystrokes or shell execution scripts, and automatically position AprilTag fiducial anchors along border boundaries. Exporting synchronized artifacts produces:
+\begin{enumerate}
+    \item \textbf{Printable Layout PDF:} Vector sheet containing key outlines and embedded AprilTag visual anchors for physical printing.
+    \item \textbf{Layout XML Specification:} Structured data file containing key bounding box coordinates $(x_{\min}, y_{\min}, x_{\max}, y_{\max})$, key IDs, default values, command mappings, and AprilTag anchor locations.
+\end{enumerate}
+
+During runtime execution, loading the exported XML file dynamically configures key lookup tables and homography target spaces without recompiling application code.
+
+\subsubsection{Edge Computing, Parameter Optimization, and Inference Real-Time Benchmarks}
+Deploying vision-based deep learning models on edge CPUs or low-cost laptop hardware requires evaluating inference throughput, memory footprint, and multiply-accumulate (MAC) operational counts \cite{Jiang2021RealTime, Tariq2025Small, Ivacko2024Edge}.
+
+Jiang et al. \cite{Jiang2021RealTime} demonstrated that substituting heavy CNN backbones with lightweight residual structures (such as ResBlock-D) reduces model parameter size by 65\% while maintaining real-time execution speeds on ARM embedded processors. Tariq and Javed \cite{Tariq2025Small} evaluated YOLO object detection models across embedded hardware, confirming that lightweight models (v8n/v11n) achieve high FPS on integrated CPUs when processing small spatial key targets.
+
+Table~\ref{tab:latency_breakdown} summarizes the per-frame execution latency breakdown of our runtime pipeline operating on a single standard CPU thread.
+
+\begin{table}[htbp]
+\centering
+\caption{Runtime execution latency breakdown per frame on standard CPU hardware.}
+\label{tab:latency_breakdown}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l l r}
+\toprule
+\textbf{Pipeline Component} & \textbf{Underlying Execution Module} & \textbf{Execution Time (ms)} \\
+\midrule
+Video Frame Capture & OpenCV VideoCapture Thread (\texttt{camera\_thread.py}) & 8.33 ms \\
+Hand Joint Pose Regression & Google MediaPipe Hand Landmarker & 12.50 ms \\
+Unitless Scale Normalization & Distance Processor (\texttt{normalize\_landmarks.py}) & 0.21 ms \\
+Sliding Window Buffer & 5-Frame Temporal Buffer (\texttt{create\_windows.py}) & 0.15 ms \\
+Deep Touch Classification & PyTorch LSTM Model (\texttt{best\_finger\_touch\_lstm.pth}) & 3.12 ms \\
+Fiducial Tag Localization & AprilTag Tracker Engine & 4.65 ms \\
+Homography Transformation & Matrix Mapping Engine ($H \cdot \mathbf{P}_{\text{pixel}}$) & 0.08 ms \\
+Key Lookup \& Execution & XML Action Dispatcher & 0.05 ms \\
+\midrule
+\textbf{Total Pipeline Latency} & \textbf{End-to-End Latency per Frame} & \textbf{29.09 ms ($\approx 34.4$ FPS)} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+As detailed in Table~\ref{tab:latency_breakdown}, total per-frame processing latency is $29.09$ ms, enabling real-time execution speeds exceeding 34 FPS on standard CPUs without requiring discrete GPU acceleration.
+
+In our system architecture, evaluating pure 2D deep temporal models (LSTM, BiLSTM, 1D CNN, 1D ResNet) driven by \texttt{run\_all.py} confirms that lightweight PyTorch LSTM models process 21 2D skeletal landmark sequences with minimal computational overhead ($< 5$ ms inference latency per frame), ensuring real-time frame rates ($> 60$ FPS) on standard CPUs without GPU acceleration.
+
+\subsection{Workflow Analysis}
+\label{subsec:lit_workflow_analysis}
+The operational execution of the customizable paper virtual keyboard system spans two distinct workflow pipelines: the Offline Dataset Creation \& Model Training Pipeline and the Real-Time Runtime Watch \& Execution Pipeline.
+
+\subsubsection{Dataset Creation \& Model Benchmark Pipeline Workflow}
+Figure~\ref{fig:workflow_dataset_pipeline} details the step-by-step data processing workflow executed to construct the scale-normalized training dataset and train the optimal PyTorch LSTM classifier (\texttt{best\_finger\_touch\_lstm.pth}).
+
+\begin{figure}[htbp]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    block/.style = {rectangle, draw=blue!80!black, fill=blue!10!white, thick, rounded corners=3pt, align=center, font=\sffamily\footnotesize, minimum height=0.9cm, inner sep=6pt},
+    arrow/.style = {draw=blue!80!black, ->, >=Stealth, thick}
+]
+
+\node (step1) [block] {\textbf{1. Video Capture}\\Raw RGB Video Feed};
+\node (step2) [block, right=0.4cm of step1] {\textbf{2. 12 FPS Resampling}\\\texttt{resample\_12fps.py}};
+\node (step3) [block, right=0.4cm of step2] {\textbf{3. MediaPipe Pose}\\21 Keypoint Extraction};
+\node (step4) [block, right=0.4cm of step3] {\textbf{4. Scale Normalization}\\\texttt{normalize\_landmarks.py}\\(Unitless $L_{\text{hand}}$, No 1€ Filter)};
+
+\node (step5) [block, below=0.8cm of step4] {\textbf{5. Velocity Calculation}\\\texttt{calculate\_velocities.py}\\Spatial Joint Derivation};
+\node (step6) [block, left=0.4cm of step5] {\textbf{6. Temporal Windowing}\\\texttt{create\_windows.py}\\(5 Frames, 2-Frame Overlap)};
+\node (step7) [block, left=0.4cm of step6] {\textbf{7. Dataset Filtering}\\\texttt{filter\_window\_quality.py}\\Quality Validation};
+\node (step8) [block, left=0.4cm of step7] {\textbf{8. PyTorch LSTM Training}\\\texttt{run\_all.py} Benchmark\\\texttt{best\_finger\_touch\_lstm.pth}};
+
+\draw [arrow] (step1) -- (step2);
+\draw [arrow] (step2) -- (step3);
+\draw [arrow] (step3) -- (step4);
+\draw [arrow] (step4) -- (step5);
+\draw [arrow] (step5) -- (step6);
+\draw [arrow] (step6) -- (step7);
+\draw [arrow] (step7) -- (step8);
+
+\end{tikzpicture}%
+}
+\caption{Data creation, feature engineering, and model training workflow pipeline.}
+\label{fig:workflow_dataset_pipeline}
+\end{figure}
+
+As depicted in Figure~\ref{fig:workflow_dataset_pipeline}, raw video recordings of typing interactions are resampled to 12 FPS (\texttt{resample\_12fps.py}). MediaPipe extracts 21 joint landmark sequences, which are scale-normalized relative to unitless hand length $L_{\text{hand}}$ (\texttt{normalize\_landmarks.py}) without temporal smoothing filters. Numerical velocities are derived (\texttt{calculate\_velocities.py}), assembled into 5-frame sliding windows with 2-frame overlap (\texttt{create\_windows.py}), filtered for quality (\texttt{filter\_window\_quality.py}), and evaluated across 22 model architectures driven by \texttt{run\_all.py} to train the final PyTorch LSTM classifier.
+
+\subsubsection{Real-Time Runtime Watch \& Key Execution Pipeline Workflow}
+Figure~\ref{fig:workflow_runtime_pipeline} illustrates the real-time execution workflow operating within Application 2 (Runtime Engine).
+
+\begin{figure}[htbp]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+    block/.style = {rectangle, draw=green!60!black, fill=green!10!white, thick, rounded corners=3pt, align=center, font=\sffamily\footnotesize, minimum height=0.9cm, inner sep=6pt},
+    decision/.style = {diamond, draw=orange!80!black, fill=orange!10!white, thick, align=center, font=\sffamily\scriptsize, inner sep=2pt},
+    arrow/.style = {draw=green!70!black, ->, >=Stealth, thick}
+]
+
+\node (cam) [block] {\textbf{Live RGB Camera Feed}\\\texttt{camera\_thread.py}};
+\node (april) [block, right=0.6cm of cam] {\textbf{AprilTag Tracker}\\Extract Corner Points};
+\node (homog) [block, right=0.6cm of april] {\textbf{Compute Matrix } $H$\\$3 \times 3$ Planar Homography};
+
+\node (mp) [block, below=0.8cm of cam] {\textbf{MediaPipe Hand Pose}\\21 Joint Coordinates};
+\node (norm) [block, right=0.6cm of mp] {\textbf{Hand Scale Norm}\\Unitless $L_{\text{hand}}$ (No 1€ Filter)};
+\node (lstm) [block, right=0.6cm of norm] {\textbf{PyTorch LSTM Evaluator}\\5-Frame Window Classifier};
+
+\node (touch_dec) [decision, below=0.8cm of lstm] {Touch Event\\Confirmed?};
+\node (map_coord) [block, left=0.8cm of touch_dec] {\textbf{Planar Mapping}\\$\mathbf{P}_{\text{XML}} = H \cdot \mathbf{P}_{\text{pixel}}$};
+\node (lookup) [block, left=0.8cm of map_coord] {\textbf{XML Key Lookup}\\\& Action Dispatch};
+
+\draw [arrow] (cam) -- (april);
+\draw [arrow] (april) -- (homog);
+\draw [arrow] (cam) -- (mp);
+\draw [arrow] (mp) -- (norm);
+\draw [arrow] (norm) -- (lstm);
+\draw [arrow] (lstm) -- (touch_dec);
+\draw [arrow] (touch_dec) -- node[above]{\scriptsize Yes} (map_coord);
+\draw [arrow] (touch_dec.south) -- ++(0,-0.4) -- node[below]{\scriptsize No (Hover)} ++(3.2,0) |- (lstm.east);
+\draw [arrow] (homog.south) |- (map_coord.north);
+\draw [arrow] (map_coord) -- (lookup);
+
+\end{tikzpicture}%
+}
+\caption{Real-time runtime vision, touch classification, homography mapping, and key execution workflow.}
+\label{fig:workflow_runtime_pipeline}
+\end{figure}
+
+During real-time runtime execution (Figure~\ref{fig:workflow_runtime_pipeline}), the camera thread continuously feeds RGB video frames concurrently to the AprilTag tracker and MediaPipe Hand Landmarker. AprilTag corner tracking computes the updated homography matrix $H$. Simultaneously, MediaPipe joint keypoints are scale-normalized without temporal smoothing and fed into a 5-frame sliding window buffer. The PyTorch LSTM classifier evaluates the window sequence. When a touch event is confirmed, active fingertip pixel coordinates $\mathbf{P}_{\text{pixel}}$ are mapped through $H$ to XML layout space ($\mathbf{P}_{\text{XML}} = H \cdot \mathbf{P}_{\text{pixel}}$), triggering the mapped keystroke or system shell command.
+
+\section{Reflection and Synthesis of Research Gap}
+\label{sec:lit_reflection}
+A rigorous evaluation of prior literature reveals major technological achievements alongside unresolved research limitations in vision-based human-computer interaction.
+
+\subsection{Synthesis of Prior Literature Limitations}
+The critical review of existing frameworks establishes four primary limitations across prior work:
+\begin{enumerate}
+    \item \textbf{Fragility of Shadow-Based and Heuristic Touch Detection:} Early monocular single-camera implementations \cite{Thomas2013Camera, Posner2012Single, Srivastava2012RealTime} relied on shadow separation distance or fixed pixel velocity thresholding. These heuristic rules break under dynamic indoor illumination, multi-source ambient lighting, dark paper backgrounds, and individual typing speed variations \cite{Yue2014Blind}.
+    \item \textbf{Hardware Dependency of 3D Surface Trackers:} To bypass RGB depth ambiguity, existing reliable surface touch frameworks rely on ToF depth cameras, structured light sensors, or active laser projection units \cite{Lee2019Virtual, Kudale2016RealTime, Toshpulatov2024RealTime}. This hardware dependency undermines low-cost ubiquity and prevents deployment on commodity PC and mobile webcams.
+    \item \textbf{Signal Distortion Induced by Temporal Filtering:} Air-canvas and gesture recognition systems \cite{Kumar2026Hybrid} rely heavily on 1€ filtering or moving average smoothing. While smoothing eliminates micro-tremors, it severely damps rapid keystroke impact velocity spikes and introduces 30--90 ms phase lag, degrading surface contact detection and typing responsiveness.
+    \item \textbf{Lack of Integrated Layout Customization and Fiducial Homography Alignment:} Existing deep learning typing models (such as TypeNet \cite{Maman2023TypeNet} and HandKey \cite{Enkhbat2020HandKey}) enforce static QWERTY layouts and lack integrated design tools that generate printable paper sheets embedded with fiducial AprilTag anchors. Without dynamic planar homography tracking ($H$), paper movement or camera perspective tilt invalidates coordinate registration \cite{Wang2016AprilTag2, Kallwies2020Determining, Pirchheim2011Homography}.
+\end{enumerate}
+
+\subsection{Formal Rationale and Research Gap Justification}
+The synthesis of these limitations formally establishes the central research gap addressed by this thesis:
+
+\begin{quote}
+\emph{There is an absence of an integrated, low-latency monocular computer vision architecture that combines interactive paper layout design tools (exporting printable AprilTag PDFs and synchronized XML action schemas) with a real-time runtime engine utilizing AprilTag fiducial homography mapping ($H$), MediaPipe hand-length scale normalization (without temporal smoothing), and a custom PyTorch LSTM deep sequential touch classifier trained on 5-frame sliding windows to achieve accurate, real-time virtual key interaction on arbitrary flat surfaces using commodity RGB webcams.}
+\end{quote}
+
+By unifying printable AprilTag paper layout customization, unitless hand-length scale normalization, raw kinetic feature propagation, AprilTag homography tracking, and deep temporal LSTM touch classification, the system architecture proposed in this thesis overcomes the illumination, hardware cost, latency, and layout rigidity constraints of prior art.
+
+\section{Chapter Summary}
+\label{sec:lit_chapter_summary}
+This chapter presented a detailed literature review surrounding vision-based virtual keyboard systems, spatial hand joint tracking, scale normalization feature engineering, planar fiducial homography estimation, and deep temporal classification networks. 
+
+Section~\ref{sec:lit_conceptual_map} provided a structural taxonomy mapping the literature domain. Section~\ref{sec:lit_domain_overview} outlined the evolution of text input paradigms and drivers for paper-based virtual interfaces. Section~\ref{sec:lit_existing_systems} presented a comparative analysis of prior frameworks across eight distinct sensing categories. Section~\ref{sec:lit_technological_analysis} conducted a deep technological analysis of MediaPipe hand keypoints, unitless scale normalization vs. temporal smoothing, AprilTag planar homography mathematics, PyTorch LSTM recurrent networks, edge execution latency benchmarks, and end-to-end dataset/runtime workflows. Finally, Section~\ref{sec:lit_reflection} synthesized prior art limitations and formally justified the research gap. 
+
+The theoretical and technological foundation established in this chapter directly informs the research methodology, system requirement specification, and software architecture presented in subsequent chapters.
