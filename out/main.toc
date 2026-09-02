@@ -1,0 +1,23 @@
+\contentsline {chapter}{\numberline {1}Introduction}{2}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Chapter Overview}{2}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Problem Background}{2}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Problem Statement}{3}{section.1.3}%
+\contentsline {subsection}{\numberline {1.3.1}General Problem}{3}{subsection.1.3.1}%
+\contentsline {subsection}{\numberline {1.3.2}Specific Problem}{4}{subsection.1.3.2}%
+\contentsline {paragraph}{Research Gap:}{4}{section*.2}%
+\contentsline {section}{\numberline {1.4}Research Question}{4}{section.1.4}%
+\contentsline {section}{\numberline {1.5}Research Motivation}{5}{section.1.5}%
+\contentsline {section}{\numberline {1.6}Research Aim}{5}{section.1.6}%
+\contentsline {section}{\numberline {1.7}Research Objectives}{5}{section.1.7}%
+\contentsline {subsection}{\numberline {1.7.1}1.7.1 To Identify...}{6}{subsection.1.7.1}%
+\contentsline {subsection}{\numberline {1.7.2}1.7.2 To Analyze...}{6}{subsection.1.7.2}%
+\contentsline {subsection}{\numberline {1.7.3}1.7.3 To Design and Develop...}{6}{subsection.1.7.3}%
+\contentsline {subsection}{\numberline {1.7.4}1.7.4 To Evaluate...}{6}{subsection.1.7.4}%
+\contentsline {section}{\numberline {1.8}Rich Picture of the Proposed Solution}{6}{section.1.8}%
+\contentsline {subsection}{\numberline {1.8.1}Detailed Operational Architecture Steps}{7}{subsection.1.8.1}%
+\contentsline {section}{\numberline {1.9}Resource Requirements}{8}{section.1.9}%
+\contentsline {subsection}{\numberline {1.9.1}Hardware Requirements}{8}{subsection.1.9.1}%
+\contentsline {subsection}{\numberline {1.9.2}Software Requirements}{8}{subsection.1.9.2}%
+\contentsline {section}{\numberline {1.10}Project Scope}{9}{section.1.10}%
+\contentsline {subsection}{\numberline {1.10.1}Elaboration of Scope Boundaries}{9}{subsection.1.10.1}%
+\contentsline {section}{\numberline {1.11}Chapter Summary}{9}{section.1.11}%

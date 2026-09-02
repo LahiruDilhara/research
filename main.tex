@@ -1,0 +1,47 @@
+\documentclass[12pt,a4paper]{report}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, shadows, calc}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{microtype}
+\usepackage{hyperref}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=blue
+}
+
+% BibLaTeX configuration
+\usepackage[backend=biber,style=ieee,sorting=nyt]{biblatex}
+\addbibresource{research-db/references.bib}
+
+\title{\textbf{Customizable Paper-Based Virtual Keyboard System Using Computer Vision and Deep Learning}}
+\author{Lahiru Kasun Dilhara}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+% Include Chapters
+\input{chapters/chapter01.tex}
+
+\newpage
+\printbibliography[title={References}]
+
+\end{document}
