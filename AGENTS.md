@@ -1,5 +1,8 @@
 # AGENTS.md - University Research Project & Agent Guidelines
 
+> [!IMPORTANT]
+> **MANDATORY INSTRUCTION:** Whenever reviewing project details, writing code, or drafting LaTeX thesis chapters, you **MUST ALWAYS READ [`IMPORTANT.MD`](file:///home/lahirukasunidilhara/Documents/university/research/IMPORTANT.MD)** for critical, up-to-date system technical specifications and feature overrides (e.g. scale normalization without 1€ filtering).
+
 ## 1. Project Overview & Research Goals
 
 This project focuses on the development and evaluation of a **customizable paper-based virtual keyboard system** powered by computer vision and deep learning.
@@ -12,8 +15,8 @@ This project focuses on the development and evaluation of a **customizable paper
 2. **Printing & Physical Setup**: The user prints the paper virtual keyboard containing AprilTag fiducial anchors on any surface.
 3. **Camera & Pose Estimation**: A video feed captures the physical surface. [MediaPipe Hand Landmarker](file:///home/lahirukasunidilhara/Documents/university/research/mediapipeDetector) extracts 3D/2D hand joint coordinates.
 4. **Temporal Windowing & Feature Processing**:
-   - Data is sub-sampled and scale-normalized (unitless hand-length).
-   - Applied **1€ Filter** for denoising and joint velocity calculation.
+   - Data is sub-sampled and scale-normalized (unitless hand-length distance normalization).
+   - **No 1€ Filter / No Temporal Smoothing:** Raw coordinates are scale-normalized directly without temporal low-pass or 1€ filter smoothing (see [`IMPORTANT.MD`](file:///home/lahirukasunidilhara/Documents/university/research/IMPORTANT.MD)).
    - Assembled into sliding windows of **5 frames with 2-frame overlap** (stride of 3 frames).
 5. **Touch Detection (Custom Model)**: A custom PyTorch Deep Learning model ([best_finger_touch_lstm.pth](file:///home/lahirukasunidilhara/Documents/university/research/mediapipeDetector/best_finger_touch_lstm.pth)) evaluates each 5-frame window to classify per-finger touch events.
 6. **Homography Mapping & Key Execution**:
@@ -29,9 +32,10 @@ Below is the layout of the project workspace:
 
 | Directory / File                                                                                                                      | Description                                                                                                                                                                                                                                                                    | Status / Notes                                   |
 | :------------------------------------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------- |
+| [`IMPORTANT.MD`](file:///home/lahirukasunidilhara/Documents/university/research/IMPORTANT.MD)                                         | **Mandatory** specification file containing critical system overrides (e.g., scale normalization without 1€ smoothing).                                                                                                                                                      | **Active System Overrides**                      |
 | [`designer/`](file:///home/lahirukasunidilhara/Documents/university/research/designer)                                                | PySide6 desktop GUI tool for designing custom keyboard layouts, key properties, and AprilTag anchors. Exports PDF & XML.                                                                                                                                                       | **Partially Complete**                           |
 | [`designer/analyzer/main.py`](file:///home/lahirukasunidilhara/Documents/university/research/designer/analyzer/main.py)               | Verification module for homography-based coordinate transformation using simulated finger touches.                                                                                                                                                                             | Active testing                                   |
-| [`mediapipeDetector/`](file:///home/lahirukasunidilhara/Documents/university/research/mediapipeDetector)                              | Hand tracking pipeline (12 FPS, 1€ filter, velocity derivation, 5-frame 2-overlap windowing) + PyTorch custom LSTM touch classifier.                                                                                                                                           | Model trained & core pipeline built              |
+| [`mediapipeDetector/`](file:///home/lahirukasunidilhara/Documents/university/research/mediapipeDetector)                              | Hand tracking pipeline (12 FPS, scale normalization, velocity derivation, 5-frame 2-overlap windowing) + PyTorch custom LSTM touch classifier.                                                                                                                                | Model trained & core pipeline built              |
 | [`aprilTag/`](file:///home/lahirukasunidilhara/Documents/university/research/aprilTag)                                                | Calibration and tracking scripts for AprilTag fiducial markers (chosen marker system).                                                                                                                                                                                         | Active marker system                             |
 | [`opencvAruco/`](file:///home/lahirukasunidilhara/Documents/university/research/opencvAruco)                                          | Legacy ArUco marker testing scripts used during marker evaluation.                                                                                                                                                                                                             | Testing / Legacy                                 |
 | [`sources/chapter-breakdown.md`](file:///home/lahirukasunidilhara/Documents/university/research/sources/chapter-breakdown.md)        | Detailed thesis chapter breakdown & section outline to follow when writing thesis chapters.                                                                                                                                                                                     | Active thesis guideline                          |
@@ -59,7 +63,8 @@ When instructed to draft, research, or revise thesis chapters:
    - When drafting Chapters 1, 2, and 3, refer to [`sources/old_breakdown_of_chapter1_chapter2_chapter3.pdf`](file:///home/lahirukasunidilhara/Documents/university/research/sources/old_breakdown_of_chapter1_chapter2_chapter3.pdf) to inspect previous writing and contextual background.
    - *Note:* Internal system mechanisms have evolved since that document was written, so prioritize the current pipeline architecture outlined in Section 1 of this document.
    - **Crucial Rule:** Do NOT use or cite `old_breakdown_of_chapter1_chapter2_chapter3.pdf` as a literature citation or bibliographic reference in the thesis.
-4. **Strict Citation Protocol**:
+4. **Strict Citation Protocol & IEEE Citation Style**:
+   - The thesis **MUST strictly use the IEEE citation style** (`style=ieee` with BibLaTeX/biber).
    - Citations in LaTeX chapters (`\cite{CitationKey}`) must **ONLY** use BibTeX keys defined in [`references.bib`](file:///home/lahirukasunidilhara/Documents/university/research/research-db/references.bib).
    - Consult [`summary-matrix.md`](file:///home/lahirukasunidilhara/Documents/university/research/research-db/summary-matrix.md) first to map paper methodologies and findings to BibTeX keys in [`references.bib`](file:///home/lahirukasunidilhara/Documents/university/research/research-db/references.bib).
 5. **Targeted PDF Inspection in [`pdf-sources/`](file:///home/lahirukasunidilhara/Documents/university/research/pdf-sources)**:

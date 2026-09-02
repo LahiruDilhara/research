@@ -134,6 +134,46 @@
       \verb 10.1109/SMC42975.2020.9283182
       \endverb
     \endentry
+    \entry{GarridoJurado2026ArUco}{article}{}{}
+      \name{author}{3}{}{%
+        {{hash=f564498c51cf1f10087d9696669a2d64}{%
+           family={Garrido-Jurado},
+           familyi={G\bibinithyphendelim J\bibinitperiod},
+           given={Sergio},
+           giveni={S\bibinitperiod}}}%
+        {{hash=799a7b39235e1a8ae9be28e038231ba4}{%
+           family={Romero-Ramirez},
+           familyi={R\bibinithyphendelim R\bibinitperiod},
+           given={Francisco\bibnamedelima J.},
+           giveni={F\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+        {{hash=b328616f1d120f57ec8a03604fe66d35}{%
+           family={Muñoz-Salinas},
+           familyi={M\bibinithyphendelim S\bibinitperiod},
+           given={Rafael},
+           giveni={R\bibinitperiod}}}%
+      }
+      \strng{namehash}{5a89a96207ec699cbc72a7ca3b508ee8}
+      \strng{fullhash}{822882ef110f96eeec0571f55b2f2835}
+      \strng{fullhashraw}{822882ef110f96eeec0571f55b2f2835}
+      \strng{bibnamehash}{822882ef110f96eeec0571f55b2f2835}
+      \strng{authorbibnamehash}{822882ef110f96eeec0571f55b2f2835}
+      \strng{authornamehash}{5a89a96207ec699cbc72a7ca3b508ee8}
+      \strng{authorfullhash}{822882ef110f96eeec0571f55b2f2835}
+      \strng{authorfullhashraw}{822882ef110f96eeec0571f55b2f2835}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{SoftwareX}
+      \field{title}{ArUco Nano: a simpler, faster, and more reliable fiducial marker detector}
+      \field{volume}{34}
+      \field{year}{2026}
+      \field{pages}{102690}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1016/j.softx.2026.102690
+      \endverb
+    \endentry
     \entry{Herdiansyah2024Implementation}{article}{}{}
       \name{author}{3}{}{%
         {{hash=b4702488d7d67031c94eb593e775430b}{%
@@ -175,6 +215,40 @@
       \verb 10.59247/jfsc.v2i3.256
       \endverb
     \endentry
+    \entry{Ikram2020Skeleton}{inproceedings}{}{}
+      \name{author}{2}{}{%
+        {{hash=ee600dc6ad04f0aa07f89bbe9bace0fe}{%
+           family={Ikram},
+           familyi={I\bibinitperiod},
+           given={Aaahm},
+           giveni={A\bibinitperiod}}}%
+        {{hash=4ea6157adaa214ea9a0734bb53dd8492}{%
+           family={Liu},
+           familyi={L\bibinitperiod},
+           given={Yue},
+           giveni={Y\bibinitperiod}}}%
+      }
+      \strng{namehash}{3349bf015d73c6e27d3b835880e853c6}
+      \strng{fullhash}{3349bf015d73c6e27d3b835880e853c6}
+      \strng{fullhashraw}{3349bf015d73c6e27d3b835880e853c6}
+      \strng{bibnamehash}{3349bf015d73c6e27d3b835880e853c6}
+      \strng{authorbibnamehash}{3349bf015d73c6e27d3b835880e853c6}
+      \strng{authornamehash}{3349bf015d73c6e27d3b835880e853c6}
+      \strng{authorfullhash}{3349bf015d73c6e27d3b835880e853c6}
+      \strng{authorfullhashraw}{3349bf015d73c6e27d3b835880e853c6}
+      \field{sortinit}{I}
+      \field{sortinithash}{8d291c51ee89b6cd86bf5379f0b151d8}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the 2020 International Conference on Artificial Intelligence and Computer Engineering}
+      \field{title}{Skeleton Based Dynamic Hand Gesture Recognition using LSTM and CNN}
+      \field{year}{2020}
+      \field{pages}{248\bibrangedash 253}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.1145/3421558.3421568
+      \endverb
+    \endentry
     \entry{Ivacko2024Edge}{article}{}{}
       \name{author}{3}{}{%
         {{hash=2b0339cf88e0422f57e7f362cfe34d0b}{%
@@ -214,6 +288,50 @@
       \range{pages}{18}
       \verb{doi}
       \verb 10.3390/computers15040241
+      \endverb
+    \endentry
+    \entry{Ji2018Local}{inproceedings}{}{}
+      \name{author}{4}{}{%
+        {{hash=8ac5357044bf740bd52da026488e9011}{%
+           family={Ji},
+           familyi={J\bibinitperiod},
+           given={Hui},
+           giveni={H\bibinitperiod}}}%
+        {{hash=cbe2e63eb161a901e3594baed076cbe5}{%
+           family={Chen},
+           familyi={C\bibinitperiod},
+           given={Jianxin},
+           giveni={J\bibinitperiod}}}%
+        {{hash=5173eab876cf9da4b4624ff9463afa88}{%
+           family={Lin},
+           familyi={L\bibinitperiod},
+           given={Qingyu},
+           giveni={Q\bibinitperiod}}}%
+        {{hash=67f3a673d1b5d096250c6b53c122ceb4}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Ang},
+           giveni={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{7558521b8173e1af7b728f441525d29a}
+      \strng{fullhash}{b25c8f4fcff4a9895c76387b334f89fa}
+      \strng{fullhashraw}{b25c8f4fcff4a9895c76387b334f89fa}
+      \strng{bibnamehash}{b25c8f4fcff4a9895c76387b334f89fa}
+      \strng{authorbibnamehash}{b25c8f4fcff4a9895c76387b334f89fa}
+      \strng{authornamehash}{7558521b8173e1af7b728f441525d29a}
+      \strng{authorfullhash}{b25c8f4fcff4a9895c76387b334f89fa}
+      \strng{authorfullhashraw}{b25c8f4fcff4a9895c76387b334f89fa}
+      \field{sortinit}{J}
+      \field{sortinithash}{b2f54a9081ace9966a7cb9413811edb4}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the 2nd International Conference on Computer Science and Artificial Intelligence (CSAI)}
+      \field{title}{A Local Fingertips Movement and Fingertips Clustering Based Virtual Keyboard Adopting a Camera}
+      \field{year}{2018}
+      \field{pages}{253\bibrangedash 257}
+      \range{pages}{5}
+      \verb{doi}
+      \verb 10.1145/3232829.3232840
       \endverb
     \endentry
     \entry{Khare2019QWERTY}{inproceedings}{}{}
@@ -309,6 +427,40 @@
       \field{pages}{1\bibrangedash 8}
       \range{pages}{8}
     \endentry
+    \entry{Lai2018CNN}{inproceedings}{}{}
+      \name{author}{2}{}{%
+        {{hash=a1ba097826334ceff5ea3328a5f49322}{%
+           family={Lai},
+           familyi={L\bibinitperiod},
+           given={Kenneth},
+           giveni={K\bibinitperiod}}}%
+        {{hash=fbcca45e2a88f18e3f2e93e2951ce51a}{%
+           family={Yanushkevich},
+           familyi={Y\bibinitperiod},
+           given={Svetlana\bibnamedelima N.},
+           giveni={S\bibinitperiod\bibinitdelim N\bibinitperiod}}}%
+      }
+      \strng{namehash}{9d3823428606f1546eb3df071bd6f460}
+      \strng{fullhash}{9d3823428606f1546eb3df071bd6f460}
+      \strng{fullhashraw}{9d3823428606f1546eb3df071bd6f460}
+      \strng{bibnamehash}{9d3823428606f1546eb3df071bd6f460}
+      \strng{authorbibnamehash}{9d3823428606f1546eb3df071bd6f460}
+      \strng{authornamehash}{9d3823428606f1546eb3df071bd6f460}
+      \strng{authorfullhash}{9d3823428606f1546eb3df071bd6f460}
+      \strng{authorfullhashraw}{9d3823428606f1546eb3df071bd6f460}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{2018 24th International Conference on Pattern Recognition (ICPR)}
+      \field{title}{CNN+RNN Depth and Skeleton based Dynamic Hand Gesture Recognition}
+      \field{year}{2018}
+      \field{pages}{3649\bibrangedash 3654}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.1109/ICPR.2018.8545718
+      \endverb
+    \endentry
     \entry{Lee2019Virtual}{article}{}{}
       \name{author}{2}{}{%
         {{hash=3c6fa026d455960d2964f0683855b9b8}{%
@@ -343,6 +495,101 @@
       \range{pages}{1}
       \verb{doi}
       \verb 10.3390/s19040885
+      \endverb
+    \endentry
+    \entry{Lee2022Virtual}{article}{}{}
+      \name{author}{5}{}{%
+        {{hash=4aca5ffe0be331bbd50757976ed6bc6f}{%
+           family={Lee},
+           familyi={L\bibinitperiod},
+           given={Tae-Ho},
+           giveni={T\bibinithyphendelim H\bibinitperiod}}}%
+        {{hash=b345bde26b506f27f4c99ddbc1d5ed96}{%
+           family={Kim},
+           familyi={K\bibinitperiod},
+           given={Sunwoong},
+           giveni={S\bibinitperiod}}}%
+        {{hash=8ea1885d8d113e241c4237f8886908dd}{%
+           family={Kim},
+           familyi={K\bibinitperiod},
+           given={Taehyun},
+           giveni={T\bibinitperiod}}}%
+        {{hash=094324b49f45be2217ddbdd965976e2a}{%
+           family={Kim},
+           familyi={K\bibinitperiod},
+           given={Jin-Sung},
+           giveni={J\bibinithyphendelim S\bibinitperiod}}}%
+        {{hash=1b01e33c1cf1d34d05321d2debfda4c6}{%
+           family={Lee},
+           familyi={L\bibinitperiod},
+           given={Hyuk-Jae},
+           giveni={H\bibinithyphendelim J\bibinitperiod}}}%
+      }
+      \strng{namehash}{874cf53043936aa9f6ca3f3c20357dd9}
+      \strng{fullhash}{306a76d644cc844d046eba3debb6f189}
+      \strng{fullhashraw}{306a76d644cc844d046eba3debb6f189}
+      \strng{bibnamehash}{306a76d644cc844d046eba3debb6f189}
+      \strng{authorbibnamehash}{306a76d644cc844d046eba3debb6f189}
+      \strng{authornamehash}{874cf53043936aa9f6ca3f3c20357dd9}
+      \strng{authorfullhash}{306a76d644cc844d046eba3debb6f189}
+      \strng{authorfullhashraw}{306a76d644cc844d046eba3debb6f189}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Human-Machine Systems}
+      \field{number}{4}
+      \field{title}{Virtual Keyboards With Real-Time and Robust Deep Learning-Based Gesture Recognition}
+      \field{volume}{52}
+      \field{year}{2022}
+      \field{pages}{725\bibrangedash 736}
+      \range{pages}{12}
+      \verb{doi}
+      \verb 10.1109/THMS.2022.3165165
+      \endverb
+    \endentry
+    \entry{Li2021CNN}{inproceedings}{}{}
+      \name{author}{4}{}{%
+        {{hash=24300ee2973d23ebaf386a5a328d1844}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Yan-Mei},
+           giveni={Y\bibinithyphendelim M\bibinitperiod}}}%
+        {{hash=4aca5ffe0be331bbd50757976ed6bc6f}{%
+           family={Lee},
+           familyi={L\bibinitperiod},
+           given={Tae-Ho},
+           giveni={T\bibinithyphendelim H\bibinitperiod}}}%
+        {{hash=094324b49f45be2217ddbdd965976e2a}{%
+           family={Kim},
+           familyi={K\bibinitperiod},
+           given={Jin-Sung},
+           giveni={J\bibinithyphendelim S\bibinitperiod}}}%
+        {{hash=1b01e33c1cf1d34d05321d2debfda4c6}{%
+           family={Lee},
+           familyi={L\bibinitperiod},
+           given={Hyuk-Jae},
+           giveni={H\bibinithyphendelim J\bibinitperiod}}}%
+      }
+      \strng{namehash}{9a27466740ee9ad072984b5cd3b74d84}
+      \strng{fullhash}{55232d1491b791401eec132a2ef193db}
+      \strng{fullhashraw}{55232d1491b791401eec132a2ef193db}
+      \strng{bibnamehash}{55232d1491b791401eec132a2ef193db}
+      \strng{authorbibnamehash}{55232d1491b791401eec132a2ef193db}
+      \strng{authornamehash}{9a27466740ee9ad072984b5cd3b74d84}
+      \strng{authorfullhash}{55232d1491b791401eec132a2ef193db}
+      \strng{authorfullhashraw}{55232d1491b791401eec132a2ef193db}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{2021 36th International Technical Conference on Circuits/Systems, Computers and Communications (ITC-CSCC)}
+      \field{title}{CNN-Based Real-time Hand and Fingertip Recognition for the Design of a Virtual Keyboard}
+      \field{year}{2021}
+      \field{pages}{1\bibrangedash 4}
+      \range{pages}{4}
+      \verb{doi}
+      \verb 10.1109/ITC-CSCC52171.2021.9501471
       \endverb
     \endentry
     \entry{Maman2023TypeNet}{inproceedings}{}{}
@@ -424,6 +671,72 @@
       \range{pages}{15}
       \verb{doi}
       \verb 10.1016/j.patcog.2017.10.033
+      \endverb
+    \endentry
+    \entry{Oscadal2020Improved}{article}{}{}
+      \name{author}{8}{}{%
+        {{hash=bf02adb59a343d3aa4bed37a829bb046}{%
+           family={Ošcádal},
+           familyi={O\bibinitperiod},
+           given={Petr},
+           giveni={P\bibinitperiod}}}%
+        {{hash=4084daf810f2f7bc807fdc9859a41835}{%
+           family={Heczko},
+           familyi={H\bibinitperiod},
+           given={Dominik},
+           giveni={D\bibinitperiod}}}%
+        {{hash=274df3bbdb942c7bd78ca48ca7ef20c6}{%
+           family={Vysocký},
+           familyi={V\bibinitperiod},
+           given={Aleš},
+           giveni={A\bibinitperiod}}}%
+        {{hash=ca951843c5820095e44250d0536781c9}{%
+           family={Mlotek},
+           familyi={M\bibinitperiod},
+           given={Jakub},
+           giveni={J\bibinitperiod}}}%
+        {{hash=61e7711c7a8ca085ed5b1753971d8cb3}{%
+           family={Novák},
+           familyi={N\bibinitperiod},
+           given={Petr},
+           giveni={P\bibinitperiod}}}%
+        {{hash=1839739f54289a9eca15721f8a2b8ffb}{%
+           family={Virgala},
+           familyi={V\bibinitperiod},
+           given={Ivan},
+           giveni={I\bibinitperiod}}}%
+        {{hash=2ac4a90376f60eec4381e3e01fc8dda3}{%
+           family={Sukop},
+           familyi={S\bibinitperiod},
+           given={Marek},
+           giveni={M\bibinitperiod}}}%
+        {{hash=dee0771db2f2e1a90734944595eda6e1}{%
+           family={Bobovský},
+           familyi={B\bibinitperiod},
+           given={Zdenko},
+           giveni={Z\bibinitperiod}}}%
+      }
+      \strng{namehash}{f0ca25fd152607cf8d70ba843e7fd8bb}
+      \strng{fullhash}{a0a860e617fbced5df96c6bac29deb96}
+      \strng{fullhashraw}{a0a860e617fbced5df96c6bac29deb96}
+      \strng{bibnamehash}{f0ca25fd152607cf8d70ba843e7fd8bb}
+      \strng{authorbibnamehash}{f0ca25fd152607cf8d70ba843e7fd8bb}
+      \strng{authornamehash}{f0ca25fd152607cf8d70ba843e7fd8bb}
+      \strng{authorfullhash}{a0a860e617fbced5df96c6bac29deb96}
+      \strng{authorfullhashraw}{a0a860e617fbced5df96c6bac29deb96}
+      \field{sortinit}{O}
+      \field{sortinithash}{2cd7140a07aea5341f9e2771efe90aae}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Sensors}
+      \field{number}{17}
+      \field{title}{Improved Pose Estimation of Aruco Tags Using a Novel 3D Placement Strategy}
+      \field{volume}{20}
+      \field{year}{2020}
+      \field{pages}{4825}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.3390/s20174825
       \endverb
     \endentry
     \entry{Pilkov2024Markerless}{thesis}{}{}
@@ -612,6 +925,42 @@
       \field{year}{2020}
       \field{pages}{112\bibrangedash 117}
       \range{pages}{6}
+    \endentry
+    \entry{Yoo2026WordLevel}{article}{}{}
+      \name{author}{2}{}{%
+        {{hash=0f8b978b87bd106ad057f5ca6e25f642}{%
+           family={Yoo},
+           familyi={Y\bibinitperiod},
+           given={Sung-Sic},
+           giveni={S\bibinithyphendelim S\bibinitperiod}}}%
+        {{hash=f96f07a67c7f9c1543b590beefbc3840}{%
+           family={Lee},
+           familyi={L\bibinitperiod},
+           given={Heung-Shik},
+           giveni={H\bibinithyphendelim S\bibinitperiod}}}%
+      }
+      \strng{namehash}{82a738b9c4421339a01b88ff690b8e7e}
+      \strng{fullhash}{82a738b9c4421339a01b88ff690b8e7e}
+      \strng{fullhashraw}{82a738b9c4421339a01b88ff690b8e7e}
+      \strng{bibnamehash}{82a738b9c4421339a01b88ff690b8e7e}
+      \strng{authorbibnamehash}{82a738b9c4421339a01b88ff690b8e7e}
+      \strng{authornamehash}{82a738b9c4421339a01b88ff690b8e7e}
+      \strng{authorfullhash}{82a738b9c4421339a01b88ff690b8e7e}
+      \strng{authorfullhashraw}{82a738b9c4421339a01b88ff690b8e7e}
+      \field{sortinit}{Y}
+      \field{sortinithash}{fd67ad5a9ef0f7456bdd9aab10fe1495}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Sensors}
+      \field{number}{4}
+      \field{title}{Word-Level Motion Learning for Contactless QWERTY Typing with a Single Camera}
+      \field{volume}{26}
+      \field{year}{2026}
+      \field{pages}{1087}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.3390/s26041087
+      \endverb
     \endentry
     \entry{Yue2014Blind}{article}{}{}
       \name{author}{5}{}{%
