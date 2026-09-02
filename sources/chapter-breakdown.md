@@ -2,6 +2,14 @@
 
 ---
 
+## Preliminary Sections / Front Matter
+
+- **Table of Contents**
+- **List of Abbreviations**
+  - Comprehensive, alphabetical reference table defining all domain acronyms, sensing modalities (e.g., RGB, RGB-D, ToF), neural architectures (1D CNN, BiLSTM, LSTM), hardware/framework terms (GIL, OpenCV, PyTorch, PySide6), and mathematical notations (DLT, SVD, $L_{\text{hand}}$) used throughout the thesis.
+
+---
+
 ## Chapter 01: Introduction
 
 - **1.1 Chapter Overview**

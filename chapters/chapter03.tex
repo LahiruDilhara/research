@@ -101,15 +101,15 @@ Figure~\ref{fig:dsrm_process_flow} illustrates the six iterative phases of the D
 
 The detailed operationalization of the six DSRM phases in this study is expanded below:
 \begin{enumerate}
-    \item \textbf{Phase 1: Problem Identification and Motivation:} Formulated the research gap surrounding monocular paper virtual keyboards by synthesizing literature limitations across 57 studies \cite{ReviewVirtualKeyboard2020, Thomas2013Camera, Maman2023TypeNet}. Highlighted the lack of dynamic layout design tools, depth ambiguity in single-camera feeds, phase lag introduced by low-pass filters, and spatial misregistration under camera tilt.
-    \item \textbf{Phase 2: Define Objectives of Solution:} Quantitative objectives were defined: achieving real-time execution speeds exceeding 30 FPS on desktop CPUs, touch classification F1-scores exceeding 0.95 across all five fingers, sub-pixel fiducial corner localization error under 0.05 pixels, and dynamic export of synchronized PDF/XML layout schemas.
+    \item \textbf{Phase 1: Problem Identification and Motivation:} Formulated the research gap surrounding monocular paper virtual keyboards by synthesizing literature limitations across 57 studies \cite{ReviewVirtualKeyboard2020, Thomas2013Camera, Maman2023TypeNet}. Highlighted the reliance of prior art on expensive specialized hardware (depth sensors, ToF cameras, active laser projectors, or stereo rigs), heavy GPU compute dependencies, depth ambiguity in single-camera feeds, spatial misregistration under perspective tilt, and the absence of interactive plain-paper layout tools.
+    \item \textbf{Phase 2: Define Objectives of Solution:} Defined core quantitative and architectural objectives: (1) operating strictly with a single regular monocular RGB camera without specialized hardware, (2) using standard plain printed paper layouts, (3) achieving real-time execution throughput matching the 12~FPS processing standard on standard commodity CPUs without requiring a GPU (while remaining GPU-accelerable), (4) maintaining touch detection accuracy ($F1 \ge 0.95$) across regular and low camera resolutions (360p, 480p, 720p, 1080p), (5) achieving sub-pixel fiducial corner localization ($< 0.05$ pixels), and (6) exporting synchronized vector PDF/XML layout schemas.
     \item \textbf{Phase 3: Design and Development:} Engineered two core synchronized software application artifacts:
     \begin{itemize}
-        \item \emph{Application 1 (Layout Designer Suite):} A PySide6 desktop GUI tool (\texttt{designer/designer\_app.py}) enabling drag-and-drop key creation, automated AprilTag anchor positioning along layout borders, vector PDF printing engine, and XML structural schema exporter.
-        \item \emph{Application 2 (Runtime Virtual Keyboard Engine):} A multi-threaded background watch engine integrating real-time AprilTag homography estimation ($H \in \mathbb{R}^{3 \times 3}$), MediaPipe 21 landmark pose tracking, unitless scale normalization ($L_{\text{hand}}$), 5-frame sliding window PyTorch LSTM evaluation (\texttt{best\_finger\_touch\_lstm.pth}), planar coordinate transformation ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), and XML keystroke/command dispatching.
+        \item \emph{Application 1 (Layout Designer Suite):} A PySide6 desktop GUI tool (\texttt{designer/designer\_app.py}) enabling drag-and-drop key creation, automated AprilTag anchor positioning along layout borders, vector PDF printing engine for standard plain paper, and XML structural schema exporter.
+        \item \emph{Application 2 (Runtime Virtual Keyboard Engine):} A multi-threaded background watch engine integrating real-time AprilTag homography estimation ($H \in \mathbb{R}^{3 \times 3}$), MediaPipe 21 landmark pose tracking, unitless hand-length scale normalization ($L_{\text{hand}}$), 12~FPS 5-frame sliding window PyTorch LSTM evaluation (\texttt{best\_finger\_touch\_lstm.pth}) on CPU, planar coordinate transformation ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), and XML keystroke/command dispatching.
     \end{itemize}
-    \item \textbf{Phase 4: Demonstration:} Deployed the integrated two-application suite in a realistic desktop computing environment using standard paper sheets printed on commodity office printers, executing both single-key triggers and complex multi-key system shell scripts.
-    \item \textbf{Phase 5: Quantitative Evaluation:} Executed comprehensive empirical benchmarks: automated 22-architecture model evaluation (\texttt{run\_all.py}), multi-threaded latency profiling (\texttt{camera\_thread.py}), and simulated planar homography spatial verification (\texttt{designer/analyzer/main.py}).
+    \item \textbf{Phase 4: Demonstration:} Deployed the integrated two-application suite in a realistic desktop computing environment using standard plain paper sheets printed on commodity office printers, paired with an ordinary webcam, executing both single-key triggers and complex multi-key system shell scripts on a standard CPU.
+    \item \textbf{Phase 5: Quantitative Evaluation:} Executed comprehensive empirical benchmarks: automated 22-architecture model evaluation (\texttt{run\_all.py}), multi-threaded CPU latency profiling across multiple camera resolutions (\texttt{camera\_thread.py}), and simulated planar homography spatial verification (\texttt{designer/analyzer/main.py}).
     \item \textbf{Phase 6: Communication:} Documented theoretical foundations, mathematical formulations, system software designs, and quantitative empirical findings in LaTeX thesis chapters.
 \end{enumerate}
 
@@ -172,9 +172,9 @@ Operating in \texttt{designer/} and \texttt{designer/analyzer/}, this partition 
 \subsubsection{Partition 2: Dataset Creation, Resampling, Landmark Extraction \& Scale Normalization}
 Operating in \texttt{mediapipeDetector/datacreator/}, this partition engineered the sequential data processing pipeline:
 \begin{itemize}
-    \item \textbf{Video Sub-Sampling (\texttt{resample\_12fps.py}):} Down-samples raw 30/60 FPS video recordings to a uniform 12 FPS frame rate. This sub-sampling rate optimizes temporal observation density while reducing redundant compute frames.
+    \item \textbf{Video Sub-Sampling (\texttt{resample\_12fps.py}):} Down-samples raw video recordings to a uniform 12~FPS frame rate. This sub-sampling rate was deliberately chosen to optimize temporal observation density while ensuring the entire vision and deep inference pipeline executes in near real-time on standard commodity CPUs without a GPU, across any camera resolution.
     \item \textbf{MediaPipe 21 Joint Pose Extraction:} Extracts 2D pixel coordinates $(x_i, y_i)$ for 21 anatomical joint keypoints per frame.
-    \item \textbf{Unitless Scale Normalization Engine (\texttt{normalize\_landmarks.py}):} Translates keypoints to wrist origin $\mathbf{P}_0$ and divides coordinate displacements by middle MCP hand length $L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$, producing scale-invariant ratios $\mathbf{P}_i^{\text{norm}}$. In accordance with system technical rules, low-pass 1€ filtering and temporal smoothing were strictly excluded to preserve raw kinetic surface impact deceleration spikes.
+    \item \textbf{Unitless Scale Normalization Engine (\texttt{normalize\_landmarks.py}):} Translates keypoints to wrist origin $\mathbf{P}_0$ and divides coordinate displacements by middle MCP hand length $L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$, producing scale-invariant ratios $\mathbf{P}_i^{\text{norm}}$. Raw scale-normalized coordinates are propagated directly to preserve sharp kinetic surface impact deceleration spikes.
     \item \textbf{Numerical Velocity Derivation (\texttt{calculate\_velocities.py}):} Computes first-order spatial velocity vectors $\mathbf{V}_i(t)$ across consecutive frames.
     \item \textbf{Sliding Window Generation (\texttt{create\_windows.py}):} Constructs sliding temporal windows of 5 frames with 2-frame overlap (stride of 3 frames), producing input matrices $\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$.
     \item \textbf{Quality Filtering (\texttt{filter\_window\_quality.py}):} Filters out corrupted sequence windows containing missing keypoint detections or low landmark confidence scores.
@@ -313,7 +313,7 @@ Managing a multi-disciplinary research project spanning computer vision, deep le
 \subsection{Agile Scrum Research Adaptation}
 This project adopted an adapted **Agile Scrum Methodology** optimized for academic research partitions. Development was structured into 2-week Sprint cycles:
 \begin{itemize}
-    \item \textbf{Sprint Backlog Management:} Technical tasks were broken down into modular user stories and logged in a sprint backlog (e.g., "Implement scale normalization without 1€ filtering", "Benchmark 1D CNN vs LSTM architectures", "Integrate AprilTag homography matrix").
+    \item \textbf{Sprint Backlog Management:} Technical tasks were broken down into modular user stories and logged in a sprint backlog (e.g., "Implement scale normalization and direct feature propagation", "Benchmark 1D CNN vs LSTM architectures", "Optimize 12 FPS pipeline for CPU execution", "Integrate AprilTag homography matrix").
     \item \textbf{Sprint Reviews \& Incremental Demos:} At the end of each 2-week sprint, engineered artifacts were compiled, benchmarked, and reviewed against quantitative success criteria.
     \item \textbf{Iterative Refinement Loops:} If model accuracy fell below target thresholds during a sprint evaluation, the pipeline looped back to feature normalization tuning or hyperparameter grid search.
 \end{itemize}
@@ -389,8 +389,8 @@ From Hovering Fingers & & & - Train classifier on scale-normalized velocity vect
 \textbf{R4: Scale Distortion Across} & High & Medium & - Normalize landmark coordinates relative to unitless hand length $L_{\text{hand}}$. \\
 Diverse Hand Sizes \& Distances & & & - Eliminate static pixel thresholds in favor of unitless ratio features. \\
 \midrule
-\textbf{R5: Phase Lag from Temporal} & High & High & - Enforce critical rule: \textbf{DO NOT use 1€ filter or temporal smoothing}. \\
-Low-Pass Filters & & & - Propagate raw scale-normalized landmark features directly to LSTM. \\
+\textbf{R5: Hardware Dependency on} & Medium & High & - Engineer lightweight LSTM architecture ($< 1$~MB) for standard CPUs. \\
+High-End GPUs or Fast Sensors & & & - Standardize pipeline on 12~FPS for universal CPU-only execution on any webcam. \\
 \bottomrule
 \end{tabular}%
 }

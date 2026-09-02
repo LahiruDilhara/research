@@ -1,8 +1,13 @@
 # AGENTS.md - University Research Project & Agent Guidelines
 
 > [!IMPORTANT]
-> **CRITICAL SYSTEM TECHNICAL OVERRIDES & GUIDELINES:** Whenever reviewing project details, writing code, or drafting LaTeX thesis chapters, you **MUST ALWAYS FOLLOW** these up-to-date system technical specifications:
-> - **Scale Normalization without 1€ Filtering:** Hand landmark coordinates are scale-normalized relative to unitless hand length. **DO NOT use 1€ filtering** or temporal smoothing.
+> **CRITICAL SYSTEM TECHNICAL OVERRIDES & CORE RESEARCH VISION:** Whenever reviewing project details, writing code, or drafting LaTeX thesis chapters, you **MUST ALWAYS FOLLOW** these up-to-date system technical specifications:
+> - **Single Regular RGB Camera Only (No Specialized Hardware):** The entire interaction pipeline operates strictly with a single ordinary monocular RGB camera (e.g., commodity USB webcam or low-cost integrated laptop sensor). The system **DOES NOT REQUIRE ANY SPECIALIZED HARDWARE**—no depth sensors (RGB-D), no Time-of-Flight (ToF) cameras, no infrared sensors, no stereo camera pairs, no wearable data gloves or markers, and no laser projectors.
+> - **Low-End / Regular Resolutions (No High-Resolution / High-Quality Sensors Needed):** The system is deliberately engineered to work with regular, low-to-medium resolution cameras without requiring high resolutions (e.g., works robustly on 360p, 480p, 720p, etc.) or studio-quality optics.
+> - **Standard Plain Printed Paper Surface:** The virtual keyboard interface consists entirely of a physical sheet of standard plain paper printed via ordinary desktop printers (A4/Letter), embedded with border AprilTag fiducial anchors. There are no embedded electronics, capacitive traces, wires, or active components on the paper.
+> - **Real-Time CPU-Based Execution (Standard Commodity CPU, No GPU Required):** The system is fundamentally engineered to execute in real-time on standard commodity CPUs alone without requiring a high-end workstation processor or dedicated GPU. While GPU acceleration is feasible and can accelerate execution, achieving real-time responsiveness on a standard consumer CPU is a mandatory core requirement.
+> - **12 FPS Pipeline Standard:** The 12~FPS sub-sampling rate was deliberately selected to provide sufficient temporal resolution to capture touch deceleration inflections while keeping computational overhead minimal, ensuring near real-time performance on standard CPUs across low-end cameras.
+> - **Scale Normalization & Direct Feature Propagation (DO NOT Mention 1€ Filter):** Hand landmark coordinates are scale-normalized relative to unitless hand length ($L_{\text{hand}}$) and propagated directly to the network without temporal smoothing. **DO NOT mention the 1€ (One Euro) filter anywhere in the thesis**, as it was never used in the system.
 > - **IEEE Citation Style:** All thesis chapters **MUST strictly use IEEE citation style** (`style=ieee` via BibLaTeX/biber).
 > - **Thesis Assumption Context:** The major components (`designer/`, `mediapipeDetector/`, `aprilTag/`) have been built and tested separately, proving complete technical feasibility. **When writing thesis chapters, assume the entire assembled system (App 1 Designer + App 2 Runtime Engine) is fully created and operational as specified in Section 6 of this document.**
 
@@ -10,7 +15,7 @@
 
 ## 1. Research Rationale & Partitioned Development Strategy
 
-This project focuses on the development and evaluation of a **customizable paper-based virtual keyboard system** powered by monocular computer vision, AprilTag fiducial homography tracking, and PyTorch deep learning.
+This project focuses on the development and evaluation of a **customizable paper-based virtual keyboard system** powered by a single regular monocular RGB camera, AprilTag fiducial homography tracking, and PyTorch deep learning, specifically architected to run in near real-time on standard commodity CPUs without a GPU, using regular plain printed paper and low-end/standard cameras without requiring specialized hardware.
 
 ### Partitioned Research Strategy
 Because monocular paper touch detection is an experimental computer vision concept, component modules were built and tested in **isolated experimental partitions** to validate feasibility before assembling the final end-to-end application suite:
@@ -25,7 +30,7 @@ Because monocular paper touch detection is an experimental computer vision conce
    - Trained and selected the optimal PyTorch LSTM touch detection model (`best_finger_touch_lstm.pth`).
    - *Note:* Jupyter notebooks in this directory are legacy artifacts; `run_all.py` is the primary benchmark engine.
 4. **Real-Time Responsiveness Evaluation (`mediapipeDetector/realtimeprocess/`)**:
-   - Live testing scripts (`main_realtime_ui.py`, `camera_thread.py`, `model_manager.py`) to evaluate real-time inference latency, windowing responsiveness, and touch trigger stability.
+   - Live testing scripts (`main_realtime_ui.py`, `camera_thread.py`, `model_manager.py`) to evaluate real-time inference latency, windowing responsiveness, and touch trigger stability under CPU execution.
 5. **AprilTag Fiducial Tracking (`aprilTag/`)**:
    - Calibration and tracking scripts (`main.py`, `homography.py`, `estimater.py`) to localize AprilTag corner points and compute $H$ under planar tilt.
 
@@ -37,12 +42,12 @@ Because monocular paper touch detection is an experimental computer vision conce
    - An **XML file** containing key boundaries, button positions, command/key-press assignments, and fiducial marker anchor locations.
    - A **printable PDF** of the keyboard layout embedded with AprilTag fiducial markers.
 2. **Printing & Physical Setup**: The user prints the paper virtual keyboard containing AprilTag fiducial anchors on any surface.
-3. **Camera & Pose Estimation**: A monocular RGB video feed captures the physical surface. [MediaPipe Hand Landmarker](file:///home/lahirukasunidilhara/Documents/university/research/mediapipeDetector) extracts 3D/2D hand joint coordinates.
+3. **Camera & Pose Estimation**: A monocular RGB video feed from any commodity or low-end camera captures the physical surface. [MediaPipe Hand Landmarker](file:///home/lahirukasunidilhara/Documents/university/research/mediapipeDetector) extracts 3D/2D hand joint coordinates.
 4. **Temporal Windowing & Feature Processing**:
-   - Data is sub-sampled and scale-normalized (unitless hand-length distance normalization).
-   - **No 1€ Filter / No Temporal Smoothing:** Raw coordinates are scale-normalized directly without temporal low-pass or 1€ filter smoothing.
+   - Data is sub-sampled at 12 FPS and scale-normalized (unitless hand-length distance normalization).
+   - **Direct Feature Propagation:** Raw coordinates are scale-normalized directly without temporal low-pass smoothing.
    - Assembled into sliding windows of **5 frames with 2-frame overlap** (stride of 3 frames).
-5. **Touch Detection (Custom Model)**: A custom PyTorch Deep Learning model ([best_finger_touch_lstm.pth](file:///home/lahirukasunidilhara/Documents/university/research/mediapipeDetector/best_finger_touch_lstm.pth)) evaluates each 5-frame window to classify per-finger touch events.
+5. **Touch Detection (Custom Model)**: A lightweight PyTorch Deep Learning model ([best_finger_touch_lstm.pth](file:///home/lahirukasunidilhara/Documents/university/research/mediapipeDetector/best_finger_touch_lstm.pth)) evaluates each 5-frame window to classify per-finger touch events on standard CPU.
 6. **Homography Mapping & Key Execution**:
    - [AprilTag](file:///home/lahirukasunidilhara/Documents/university/research/aprilTag) markers on the printed paper are tracked to compute a $3 \times 3$ **Homography matrix ($H$)**.
    - When a finger touch event is confirmed, fingertip pixel coordinates ($P_{\text{pixel}}$) are mapped through $H$ into the XML layout coordinate space ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$).
@@ -148,7 +153,7 @@ The system has **`texlive-full`** and system development utilities installed. Th
   │ 2. Background Live Vision & Touch Execution Engine          │
   │    - Live Monocular Camera Watch                            │
   │    - AprilTag Tracker -> Homography Matrix (H)              │
-  │    - MediaPipe Pose -> Scale Normalization (No 1€ filter)   │
+  │    - MediaPipe Pose -> Scale Normalization                  │
   │    - 5-Frame Window -> PyTorch LSTM Touch Detection Model  │
   │    - Identify Active Finger & Fingertip Pixel Location      │
   │    - Planar Coordinate Mapping: P_XML = H * P_pixel          │
@@ -170,7 +175,7 @@ The system has **`texlive-full`** and system development utilities installed. Th
 #### Application 2: Virtual Keyboard Runtime Engine & Command Mapper
 * **Role:** Interactive setup GUI and background vision runtime engine.
 * **Component A: Setup & Action Command Mapper GUI:**
-  * **Camera Selector:** Allows the user to choose the active monocular RGB camera input stream.
+  * **Camera Selector:** Allows the user to choose any active monocular RGB camera input stream (low-end webcams, legacy cameras, or high-res feeds).
   * **Layout Loader:** Loads any exported layout XML file.
   * **Interactive Action Mapping Table:** User maps each layout button ID to a specific action:
     * *Keystroke Action:* Single keys or key combinations (e.g., `'A'`, `'Space'`, `'Ctrl+C'`).
@@ -179,8 +184,8 @@ The system has **`texlive-full`** and system development utilities installed. Th
 * **Component B: Background Live Watch & Execution Engine:**
   * Once configured, the engine launches into the background, actively watching the live camera feed.
   * **AprilTag Tracking & Homography:** Continuously tracks paper AprilTag anchors to compute and update the $3 \times 3$ Homography matrix ($H$).
-  * **Pose Extraction & Normalization:** MediaPipe Hand Landmarker extracts 21 hand landmarks, scale-normalizes joint coordinates relative to unitless hand length (without 1€ smoothing), and constructs 5-frame sliding windows (stride of 3 frames).
-  * **PyTorch LSTM Classifier:** The optimal trained PyTorch LSTM model (`best_finger_touch_lstm.pth`) evaluates 5-frame window sequences to detect finger surface contact and identify the active finger.
+  * **Pose Extraction & Normalization:** MediaPipe Hand Landmarker extracts 21 hand landmarks, scale-normalizes joint coordinates relative to unitless hand length ($L_{\text{hand}}$), and constructs 5-frame sliding windows (stride of 3 frames).
+  * **PyTorch LSTM Classifier:** The lightweight PyTorch LSTM model (`best_finger_touch_lstm.pth`) evaluates 5-frame window sequences on CPU to detect finger surface contact and identify the active finger.
   * **Fingertip Planar Mapping:** Translates the active fingertip pixel location ($P_{\text{pixel}}$) through $H$ into XML coordinate space ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$).
   * **Key Lookup & Action Dispatch:** Locates the hit key in the layout XML and executes the user's mapped keystroke or system shell command.
 
@@ -199,6 +204,7 @@ The system has **`texlive-full`** and system development utilities installed. Th
    - **Skin Tone & Hand Morphology Invariance:** Hand keypoint extraction relies on 3D/2D structural skeletal joint geometry rather than skin-color thresholding, ensuring unbiased performance across diverse skin tones, finger shapes, and hand sizes.
    - **Camera Distance Invariance:** Unitless hand-length scale normalization ensures spatial kinematic features remain invariant regardless of how close or far the user's hand is from the camera.
 
-4. **Universal Hardware Accessibility (12 FPS & Resolution Independence)**:
-   - **12 FPS Low-Resource Standard:** The vision and touch classification pipeline operates smoothly at 12 FPS sub-sampling, allowing real-time execution on low-cost commodity RGB webcams, legacy cameras, or budget embedded hardware without requiring high-speed camera sensors.
-   - **Resolution Independence:** Because joint coordinates are normalized relative to hand length and mapped through planar homography, the system operates identically across 480p, 720p, 1080p, or 4K camera streams.
+4. **Universal Hardware Accessibility (CPU-Only Real-Time, 12 FPS, Any Camera & Resolution)**:
+   - **CPU-Only Near Real-Time Execution:** The architecture is intentionally optimized for standard commodity CPUs. No dedicated GPU or high-end processor is required. If a GPU is available, it provides additional acceleration, but CPU-only real-time performance is a baseline guarantee.
+   - **Low-End Camera & Resolution Independence:** The system operates seamlessly on low-cost, low-end webcams, legacy USB cameras, or budget mobile sensors across arbitrary resolutions (360p, 480p, 720p, 1080p, 4K). Hand-length scale normalization and planar homography make the pipeline inherently invariant to image resolution.
+   - **12 FPS Pipeline Standard:** 12 FPS sub-sampling was chosen as the deliberate design target to balance temporal fidelity with minimal computational overhead, ensuring smooth, low-latency execution under the constraints of commodity CPUs and low-end camera feeds.

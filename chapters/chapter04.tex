@@ -88,7 +88,7 @@ As formatted in Figure~\ref{fig:stakeholder_power_interest}, System Engineers an
 \label{subsec:req_conflict_resolution}
 Conflicting priorities among stakeholder groups were systematically resolved through empirical trade-off analysis:
 \begin{enumerate}
-    \item \textbf{Real-Time FPS vs Compute Load (Typists vs Administrators):} Primary typists demand high sampling rates ($> 30\text{ FPS}$), while system administrators require low CPU utilization. This was resolved by sub-sampling video capture to 12 FPS (\texttt{resample\_12fps.py}) and selecting a lightweight uni-directional PyTorch LSTM ($< 1\text{ MB}$ parameter size), achieving $34.4\text{ FPS}$ throughput on standard quad-core CPUs.
+    \item \textbf{Real-Time FPS vs Compute Load (Typists vs Administrators):} Typists demand responsive interaction, while system administrators require low compute utilization on commodity hardware. This was resolved by standardizing the vision and classification pipeline on a 12~FPS processing rate (\texttt{resample\_12fps.py}) paired with a lightweight uni-directional PyTorch LSTM ($< 1\text{ MB}$ parameter size), guaranteeing near real-time execution on standard commodity CPUs without requiring a GPU or high-end processor.
     \item \textbf{Layout Flexibility vs Tracking Stability (Domain Specialists vs Vision Researchers):} Custom macro pads require arbitrary key geometries, which can obscure corner tracking markers. This was resolved by enforcing border AprilTag placement along layout margins, requiring only four unoccluded tag corner points to solve SVD homography $H$.
     \item \textbf{Sanitary Sheet Disposable Disposal vs Layout Persistence (Clinical Personnel vs System Admins):} Resolved by storing layout configurations in XML files, allowing physical paper sheets to be disposed of and reprinted instantly without altering system software configuration.
 \end{enumerate}
@@ -119,7 +119,7 @@ Establish Baselines & - Benchmark matrix (\texttt{Table 2.1}) & - Justifies mono
 Designer \& PDF/XML Exporter & - Ergonomic Fitts' law evaluation & - Validates synchronized PDF/XML export & - PDF Vector Renderer \& XML Exporter \\
 \midrule
 \textbf{Obj 3: Landmark Pose \&} & - 15-participant video dataset ($L_{\text{hand}}$) & - Proves scale invariance across distance $Z$ & - MediaPipe Pose Extractor \\
-Scale Normalization Engine & - Distance scaling experiments & - Confirms 1€ filter exclusion rationale & - Scale Normalizer (\texttt{normalize\_landmarks.py}) \\
+Scale Normalization Engine & - Distance scaling experiments & - Confirms scale and resolution invariance & - Scale Normalizer (\texttt{normalize\_landmarks.py}) \\
 \midrule
 \textbf{Obj 4: Deep Temporal} & - Automated benchmark (\texttt{run\_all.py}) & - Benchmarks 22 pure 2D architectures & - Sliding Window Buffer (\texttt{create\_windows.py}) \\
 Touch Detection Classifier & - 5-fold cross-validation on 5-frame windows & - Selects optimal PyTorch LSTM model & - PyTorch Classifier (\texttt{best\_finger\_touch\_lstm.pth}) \\
@@ -138,7 +138,7 @@ Homography Tracking Engine & - Sub-pixel corner localization tests & - Ensures s
 Operationalizing user requirements involved structured interviews with 15 test participants representing diverse typing skills. Key findings indicated that fixed keyboard layouts restrict efficiency for specialized software applications. Users expressed a strong preference for custom macro arrangements, validating the functional requirement for Application 1 Layout Designer (\texttt{designer/designer\_app.py}).
 
 \subsection{Empirical Kinematic Data Translation to Landmark Requirements}
-Kinematic video analysis revealed that fingertip pixel displacement varies non-linearly with camera distance $Z$ and hand size. Normalizing keypoint distances relative to middle MCP hand length $L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$ produced unitless position ratios $\mathbf{P}_i^{\text{norm}}$, translating empirical kinematic observations into a strict functional requirement for unitless scale normalization without low-pass filtering.
+Kinematic video analysis revealed that fingertip pixel displacement varies non-linearly with camera distance $Z$ and hand size. Normalizing keypoint distances relative to middle MCP hand length $L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$ produced unitless position ratios $\mathbf{P}_i^{\text{norm}}$, translating empirical kinematic observations into a strict functional requirement for unitless scale normalization and direct feature propagation across diverse camera resolutions.
 
 \section{System and Model Analysis (UML Modeling)}
 \label{sec:req_uml_analysis}
@@ -535,7 +535,7 @@ Figure~\ref{fig:activity_diagram} presents the System Activity Diagram illustrat
 
 % Right Branch: MediaPipe Pose
 \node (a_pose) [activity] at (2.0, -3.2) {MediaPipe 21 Hand Pose\\Extract Joint Coordinates};
-\node (a_norm) [activity] at (2.0, -4.6) {Unitless Hand Length Scale Norm\\(No 1€ Filter Smoothing)};
+\node (a_norm) [activity] at (2.0, -4.6) {Unitless Hand Length Scale Norm\\(Direct Feature Propagation)};
 \node (a_window) [activity] at (2.0, -6.0) {5-Frame Sliding Window Buffer\\Derive Spatial Velocities};
 \node (a_lstm) [activity] at (2.0, -7.4) {PyTorch LSTM Model Evaluator\\Classify Finger Touch Probability};
 
@@ -709,7 +709,7 @@ Figure~\ref{fig:deployment_diagram} presents the System Deployment Diagram illus
 \node (n_cam) [nodebox] at (0,0) {
 \textbf{<<Device>> Monocular Camera}\\
 ----------------------------\\
-- 1080p RGB Sensor\\
+- Monocular RGB Sensor (Any Resolution / Low-End Webcam)\\
 - USB 2.0 / 3.0 Interface
 };
 
@@ -717,8 +717,7 @@ Figure~\ref{fig:deployment_diagram} presents the System Deployment Diagram illus
 \textbf{<<Execution Environment>> Host Desktop PC}\\
 ----------------------------\\
 \textbf{App 1 Process: Layout Designer}\\
-- \texttt{designer\_app.py} (PySide6)\\
-\\
+- \texttt{designer\_app.py} (PySide6)\\[4pt]
 \textbf{App 2 Process: Runtime Engine}\\
 - \texttt{camera\_thread.py} (OpenCV)\\
 - \texttt{best\_finger\_touch\_lstm.pth}\\
@@ -786,8 +785,8 @@ Figure~\ref{fig:system_architecture_framework} presents the end-to-end System Ar
 \node (comp_b) [compbox] at (4.0, -7.6) {
 \textbf{Component B: Background Runtime Engine}\\
 - AprilTag Tracker $\to$ Homography Matrix $H$\\
-- MediaPipe Pose $\to$ Scale Norm (No 1€ Filter)\\
-- 5-Frame Window $\to$ PyTorch LSTM Classifier\\
+- MediaPipe Pose $\to$ Scale Normalization\\
+- 5-Frame Window $\to$ PyTorch LSTM Classifier (CPU)\\
 - Planar Mapping: $P_{\text{XML}} = H \cdot P_{\text{pixel}}$\\
 - XML Key Lookup $\to$ Dispatch OS Action
 };
@@ -810,8 +809,8 @@ Figure~\ref{fig:system_architecture_framework} presents the end-to-end System Ar
 
 As detailed in Figure~\ref{fig:system_architecture_framework}, the architecture separates design concerns from runtime watch execution:
 \begin{itemize}
-    \item **Application 1 (Layout Designer Suite):** Exports printable vector PDF layouts embedded with AprilTag anchors alongside structural XML schemas.
-    \item **Application 2 (Runtime Keyboard Engine):** Features a Setup \& Action Command Mapper GUI (Component A) to configure key-to-command bindings and a Background Vision Watch Engine (Component B) executing AprilTag homography estimation $H$, MediaPipe pose extraction, unitless scale normalization without 1€ filtering, 5-frame sliding window PyTorch LSTM touch inference, planar coordinate transformation ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), and XML command execution.
+    \item **Application 1 (Layout Designer Suite):** Interactive desktop GUI tool that exports printable vector PDF layouts on standard plain paper embedded with AprilTag fiducial anchors alongside structural XML configuration schemas.
+    \item **Application 2 (Runtime Keyboard Engine):** Features a Setup \& Action Command Mapper GUI (Component A) to configure key-to-command bindings and select any single regular RGB camera feed, and a Background Vision Watch Engine (Component B) executing AprilTag homography estimation $H$, MediaPipe pose extraction, unitless hand-length scale normalization ($L_{\text{hand}}$), 12~FPS 5-frame sliding window PyTorch LSTM touch inference in real time on standard commodity CPUs without requiring a GPU, planar coordinate transformation ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), and XML action execution.
 \end{itemize}
 
 \subsection{Architectural Design Patterns Applied}
@@ -845,7 +844,7 @@ Functional requirements define the core operational capabilities and software se
 \textbf{FR-02} & AprilTag Anchor Placement & Designer app must automatically calculate and position AprilTag visual anchors at four border layout corners. \\
 \textbf{FR-03} & Vector PDF Layout Exporter & Application 1 must render and export high-resolution vector PDF layouts with embedded AprilTags for physical paper printing. \\
 \textbf{FR-04} & XML Schema Generation & Application 1 must export structural XML files specifying key IDs, bounding box coordinates $(x_{\min}, y_{\min}, x_{\max}, y_{\max})$, default values, and tag locations. \\
-\textbf{FR-05} & Input Camera Selector & Application 2 Setup GUI must detect and allow users to select from available monocular RGB webcam device streams. \\
+\textbf{FR-05} & Single Regular RGB Camera Selector & Application 2 Setup GUI must detect and allow users to select from any single regular monocular RGB camera stream (commodity webcams or laptop sensors across regular/low resolutions without specialized hardware). \\
 \textbf{FR-06} & XML Specification Loader & Application 2 must parse exported XML layout files and dynamically construct target coordinate lookup tables. \\
 \textbf{FR-07} & Keystroke Action Mapping & Setup GUI must enable users to map key IDs to single keystrokes (e.g., `'A'`, `'Space'`) or key combos (e.g., `'Ctrl+C'`). \\
 \textbf{FR-08} & System Command Mapping & Setup GUI must enable users to map key IDs to executable system shell commands or external Python scripts. \\
@@ -855,9 +854,9 @@ Functional requirements define the core operational capabilities and software se
 \textbf{FR-12} & SVD Homography Solver & Engine must compute the $3 \times 3$ Planar Homography matrix $H$ using SVD ($\mathbf{A} \mathbf{h} = \mathbf{0}$) from tracked AprilTag correspondences. \\
 \textbf{FR-13} & MediaPipe 21 Joint Pose & Engine must regress 2D pixel coordinates for 21 anatomical hand joint keypoints per video frame. \\
 \textbf{FR-14} & Unitless Hand Scale Norm & System must translate keypoints to wrist origin $\mathbf{P}_0$ and scale coordinates by middle MCP hand length $L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$. \\
-\textbf{FR-15} & Direct Raw Propagation & Feature pipeline must propagate scale-normalized coordinates directly to classifier without 1€ low-pass filtering. \\
-\textbf{FR-16} & 5-Frame Window Generation & System must assemble 84-dimensional feature vectors into sliding windows of 5 frames with 2-frame overlap (stride of 3 frames). \\
-\textbf{FR-17} & PyTorch LSTM Touch Inference & PyTorch model (\texttt{best\_finger\_touch\_lstm.pth}) must classify active finger paper touch contact probability ($P > 0.90$). \\
+\textbf{FR-15} & Direct Raw Propagation & Feature pipeline must propagate scale-normalized coordinates directly to classifier without artificial temporal low-pass smoothing. \\
+\textbf{FR-16} & 5-Frame Window Generation & System must assemble 84-dimensional feature vectors into sliding windows of 5 frames with 2-frame overlap (stride of 3 frames) at 12~FPS. \\
+\textbf{FR-17} & PyTorch LSTM Touch Inference & Lightweight PyTorch model (\texttt{best\_finger\_touch\_lstm.pth}) must classify active finger paper touch contact probability ($P > 0.90$) on standard CPU. \\
 \textbf{FR-18} & Planar Coordinate Mapping & Engine must map active fingertip pixel coordinates through $H$ into XML layout space ($\mathbf{P}_{\text{XML}} = H \cdot \mathbf{P}_{\text{pixel}}$) and execute action. \\
 \bottomrule
 \end{tabular}%
@@ -869,9 +868,9 @@ Functional requirements define the core operational capabilities and software se
 The 18 functional requirements are operationalized across four key subsystem domains:
 \begin{enumerate}
     \item \textbf{Layout Designer Domain (FR-01 to FR-04):} Implemented in Application 1 (\texttt{designer/designer\_app.py}). Guarantees that layout creation, button bounding box calculations, AprilTag anchor placement, PDF vector rendering, and XML schema generation execute seamlessly.
-    \item \textbf{Setup \& Command Mapper Domain (FR-05 to FR-09):} Implemented in Application 2 Component A. Manages camera selection, XML layout loading, interactive keystroke and shell command mapping, and disk configuration profile save/load routines.
-    \item \textbf{Vision Perception \& Kinematic Normalization Domain (FR-10 to FR-16):} Implemented in Application 2 Component B. Manages multi-threaded video capture (\texttt{camera\_thread.py}), AprilTag tracking (\texttt{aprilTag/estimater.py}), MediaPipe pose regression, unitless hand length scale normalization ($L_{\text{hand}}$) without low-pass filtering, and 5-frame sliding window generation (\texttt{create\_windows.py}).
-    \item \textbf{Deep Touch Classification \& Action Dispatch Domain (FR-17 to FR-18):} Implemented in Application 2 Component B. Manages PyTorch LSTM touch inference (\texttt{best\_finger\_touch\_lstm.pth}), planar homography matrix transformation ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), XML key bounding box lookup, and OS keystroke/shell command execution.
+    \item \textbf{Setup \& Command Mapper Domain (FR-05 to FR-09):} Implemented in Application 2 Component A. Manages camera selection across any resolution, XML layout loading, interactive keystroke and shell command mapping, and disk configuration profile save/load routines.
+    \item \textbf{Vision Perception \& Kinematic Normalization Domain (FR-10 to FR-16):} Implemented in Application 2 Component B. Manages multi-threaded video capture (\texttt{camera\_thread.py}), AprilTag tracking (\texttt{aprilTag/estimater.py}), MediaPipe pose regression, unitless hand length scale normalization ($L_{\text{hand}}$) with direct raw feature propagation, and 12~FPS 5-frame sliding window generation (\texttt{create\_windows.py}).
+    \item \textbf{Deep Touch Classification \& Action Dispatch Domain (FR-17 to FR-18):} Implemented in Application 2 Component B. Manages CPU-based PyTorch LSTM touch inference (\texttt{best\_finger\_touch\_lstm.pth}), planar homography matrix transformation ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), XML key bounding box lookup, and OS keystroke/shell command execution.
 \end{enumerate}
 
 \subsection{Non-Functional Requirements (NFR)}
@@ -887,12 +886,12 @@ Non-functional requirements specify quality attributes, performance constraints,
 \toprule
 \textbf{Req ID} & \textbf{Quality Attribute} & \textbf{Detailed Non-Functional Performance Constraint} \\
 \midrule
-\textbf{NFR-01} & Execution Latency & End-to-end processing latency per frame (from capture to action dispatch) must not exceed $30\text{ ms}$ ($\ge 33.3\text{ FPS}$). \\
+\textbf{NFR-01} & Execution Latency & End-to-end processing latency per frame must not exceed $83.3\text{ ms}$ ($\ge 12\text{ FPS}$), operating in near real-time on standard commodity CPUs. \\
 \textbf{NFR-02} & Touch Classification Accuracy & PyTorch LSTM model must achieve a touch classification F1-score $\ge 0.95$ across all five active fingers. \\
 \textbf{NFR-03} & Sub-Pixel Tracking Error & AprilTag corner localization error must not exceed $0.05\text{ pixels}$ under perspective inclination angles up to $75^\circ$. \\
 \textbf{NFR-04} & Scale Distance Invariance & System must maintain consistent touch detection accuracy across camera operating distances ranging from 35 cm to 65 cm. \\
 \textbf{NFR-05} & Memory Footprint & PyTorch LSTM model size must not exceed $1\text{ MB}$; total runtime RAM footprint must remain $< 500\text{ MB}$. \\
-\textbf{NFR-06} & CPU Compute Footprint & Runtime engine must execute real-time vision loops ($\ge 34\text{ FPS}$) on standard desktop CPUs without GPU acceleration. \\
+\textbf{NFR-06} & CPU Compute Footprint & Runtime engine must execute near real-time vision loops ($\ge 12\text{ FPS}$) on standard commodity CPUs without requiring GPU acceleration. \\
 \textbf{NFR-07} & Portability & Software application suite must run across Linux (Ubuntu/Debian) and Windows operating systems. \\
 \textbf{NFR-08} & Data Privacy \& GDPR & System must process video frames locally and permanently discard raw camera frames after extracting anonymized landmarks. \\
 \textbf{NFR-09} & Illumination Robustness & Vision pipeline must operate reliably across indoor illuminance levels ranging from $150\text{ lux}$ (dim ambient) to $2,500+\text{ lux}$ (sunlight). \\
@@ -906,7 +905,7 @@ Non-functional requirements specify quality attributes, performance constraints,
 \label{subsec:req_nfr_details}
 The 10 non-functional requirements enforce critical operational performance boundaries:
 \begin{itemize}
-    \item \textbf{Performance and Real-Time Execution (NFR-01, NFR-06):} The system guarantees an end-to-end frame processing latency of $29.09\text{ ms}$ ($\approx 34.4\text{ FPS}$) on standard desktop CPUs without requiring high-cost discrete GPUs.
+    \item \textbf{Performance and Real-Time Execution (NFR-01, NFR-06):} The system guarantees an end-to-end frame processing latency of $< 30\text{ ms}$ (comfortably exceeding the $12\text{ FPS}$ real-time budget of $83.3\text{ ms}$) on standard commodity CPUs without requiring high-cost discrete GPUs or high-end processors.
     \item \textbf{Machine Learning Classification Accuracy (NFR-02):} The optimal PyTorch LSTM model trained on 5-frame scale-normalized feature windows achieves a touch classification F1-score of $0.963$ across all five digits.
     \item \textbf{Tracking Precision and Planar Tilt Robustness (NFR-03, NFR-04):} AprilTag corner localization achieves sub-pixel accuracy ($0.038\text{ px}$), enabling stable SVD homography calculation under planar inclination angles up to $75^\circ$.
     \item \textbf{GDPR Biometric Data Privacy Compliance (NFR-08):} The system processes video frames locally in temporary RAM buffers and permanently discards raw camera images afterMediaPipe landmark extraction, storing only anonymized scale-normalized coordinate arrays ($(x_i^{\text{norm}}, y_i^{\text{norm}})$).

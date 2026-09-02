@@ -336,7 +336,7 @@ Chen (2024) \cite{Chen2024Gaze} & Monocular RGB & Commodity Webcam & Screen Grid
 Schenck et al. (2024) \cite{Schenck2024Utilizing} & Monocular RGB & Single RGB Camera & ArUco Inpainting & Metric Scale & Inpainting Mask & Deep Keypoint Detector & Real-Time ($30$ FPS) & Robotic Links \\
 Andriyanov et al. (2025) \cite{Andriyanov2025Improving} & Monocular RGB & Commodity RGB & Bounding Box & Normalized Bounds & Temporal Window & MediaPipe + YOLO-Pose & Real-Time ($45$ FPS) & Gesture Set \\
 Yoo \& Lee (2026) \cite{Yoo2026WordLevel} & Monocular RGB & Single RGB Camera & None & Trajectory Scaling & Displacement Accum. & Word Motion Network & Real-Time ($30$ FPS) & Contactless QWERTY \\
-Kumar (2026) \cite{Kumar2026Hybrid} & Monocular RGB & Commodity Camera & Canvas Plane & Landmark Ratio & 1€ + Exp. Moving Avg & Motion Threshold & Real-Time ($60$ FPS) & Air Canvas Drawing \\
+Kumar (2026) \cite{Kumar2026Hybrid} & Monocular RGB & Commodity Camera & Canvas Plane & Landmark Ratio & Adaptive Low-Pass & Motion Threshold & Real-Time ($60$ FPS) & Air Canvas Drawing \\
 Garrido-Jurado et al. (2026) \cite{GarridoJurado2026ArUco} & Monocular RGB & Commodity Camera & ArUco Nano Tags & Metric Tag Scale & Sub-pixel Sampling & Visited-Aware Contours & Edge High ($> 100$ FPS) & Robotics Targets \\
 \bottomrule
 \end{tabular}%
@@ -468,18 +468,16 @@ Numerical velocity vectors $\mathbf{V}_i(t)$ across sequential frames are calcul
 \label{eq:joint_velocity_def}
 \end{equation}
 
-\paragraph{Critical Analysis of Temporal Smoothing (1€ Filter vs. Direct Raw Propagation):}
-In touchless interaction literature (e.g., air-canvas drawing or gesture tracking), temporal low-pass filtering algorithms—such as the 1€ Filter \cite{Kumar2026Hybrid} or exponential moving averages—are commonly applied to smooth landmark trajectories and eliminate micro-tremors.
+\paragraph{Direct Raw Kinematic Feature Propagation:}
+In touchless interaction literature (e.g., air-canvas drawing or gesture tracking), temporal low-pass filtering or moving average algorithms are often applied to smooth landmark trajectories and eliminate micro-tremors \cite{Kumar2026Hybrid}.
 
-However, a critical system technical override in our research pipeline explicitly dictates: \textbf{DO NOT use 1€ filtering or temporal smoothing}. Scale-normalized hand landmark coordinates must be propagated directly without low-pass filtering.
-
-The theoretical justification for avoiding temporal smoothing in surface touch detection is crucial:
+However, in physical surface typing, hand landmark coordinates and calculated velocities must be propagated directly without artificial temporal low-pass smoothing. The physical and theoretical justification for direct raw feature propagation in surface touch detection is fundamental:
 \begin{itemize}
-    \item \textbf{Damping of Touch Impact Transients:} Surface keystrokes are characterized by sharp, sudden kinetic deceleration impacts occurring within extremely short time windows ($< 40$ ms). Low-pass filters (such as the 1€ Filter) smooth out sharp velocity spikes, dampening the rapid inflection signal that distinguishes physical surface contact from hovering finger movement.
-    \item \textbf{Phase Lag and Latency Overhead:} A standard first-order low-pass filter exhibits transfer function $H(s) = \frac{1}{\tau s + 1}$, introducing phase delay $\Delta \phi(\omega) = -\arctan(\omega \tau)$ and group delay $\tau_g = \frac{\tau}{1 + \omega^2 \tau^2}$. In real-time interaction, this adds a temporal phase lag of 1--3 frames (30--90 ms), directly degrading typing responsiveness.
+    \item \textbf{Preservation of Touch Impact Transients:} Deliberate surface keystrokes are characterized by sharp, sudden kinetic deceleration impacts occurring within extremely brief time intervals ($< 40$~ms). Applying low-pass smoothing filters damps these sharp velocity spikes, attenuating the rapid inflection signal that distinguishes physical surface contact from hovering finger movement.
+    \item \textbf{Elimination of Processing Phase Lag:} Applying moving-average or low-pass smoothing algorithms inherently introduces mathematical phase delay and group delay across sequential frames. In real-time typing interaction, this adds temporal phase lag of several frames ($30$--$90$~ms), directly degrading typing responsiveness and user feedback synchronization.
 \end{itemize}
 
-By relying strictly on unitless hand-length scale normalization ($\mathbf{P}_i^{\text{norm}}$) without temporal smoothing, the feature pipeline preserves raw kinetic velocity transients, allowing deep temporal models to detect surface contact instantly.
+By relying strictly on unitless hand-length scale normalization ($\mathbf{P}_i^{\text{norm}}$) with direct raw feature propagation, the feature pipeline preserves raw kinetic velocity transients, allowing deep temporal recurrent models to detect surface contact decisively and instantaneously.
 
 \subsubsection{Planar Homography Mathematics \& AprilTag Fiducial Tracking}
 Mapping 2D camera pixel coordinates $(x_{\text{pixel}}, y_{\text{pixel}})$ onto a custom paper key layout $(x_{\text{XML}}, y_{\text{XML}})$ requires correcting for 3D camera tilt, perspective distortion, and paper movement \cite{LonguetHiggins1985Machine, Pirchheim2011Homography, Wang2020Relative}.
@@ -662,7 +660,7 @@ Figure~\ref{fig:workflow_dataset_pipeline} details the step-by-step data process
 \node (step1) [block] at (0, 0) {\textbf{1. Video Capture}\\[2pt]Raw RGB Video Feed};
 \node (step2) [block] at (4.2, 0) {\textbf{2. 12 FPS Resampling}\\[2pt]{\tiny\texttt{resample\_12fps.py}}};
 \node (step3) [block] at (8.4, 0) {\textbf{3. MediaPipe Pose}\\[2pt]21 Keypoint Extraction};
-\node (step4) [block] at (12.6, 0) {\textbf{4. Scale Normalization}\\[2pt]{\tiny\texttt{normalize\_landmarks.py}}\\[1pt]{\scriptsize Unitless $L_{\text{hand}}$ (No 1€ Filter)}};
+\node (step4) [block] at (12.6, 0) {\textbf{4. Scale Normalization}\\[2pt]{\tiny\texttt{normalize\_landmarks.py}}\\[1pt]{\scriptsize Unitless $L_{\text{hand}}$}};
 
 % Row 2: Steps 5 to 8 (Generous 3.0cm row spacing, 1.6cm clear gap between boxes)
 \node (step5) [block] at (12.6, -3.0) {\textbf{5. Velocity Derivation}\\[2pt]{\tiny\texttt{calculate\_velocities.py}}\\[1pt]{\scriptsize Spatial Joint Kinematics}};
@@ -689,7 +687,7 @@ Figure~\ref{fig:workflow_dataset_pipeline} details the step-by-step data process
 \label{fig:workflow_dataset_pipeline}
 \end{figure}
 
-As depicted in Figure~\ref{fig:workflow_dataset_pipeline}, raw video recordings are resampled to 12~FPS (\texttt{resample\allowbreak\_12fps.py}). MediaPipe extracts 21 joint landmark sequences, scale-normalized to unitless hand length $L_{\text{hand}}$ (\texttt{normalize\allowbreak\_landmarks.py}) without smoothing. Velocities are derived (\texttt{calculate\allowbreak\_velocities.py}), assembled into 5-frame windows with 2-frame overlap (\texttt{create\allowbreak\_windows.py}), quality-filtered (\texttt{filter\allowbreak\_window\allowbreak\_quality.py}), and evaluated across 22 architectures via \texttt{run\_all.py} to train the final PyTorch LSTM classifier.
+As depicted in Figure~\ref{fig:workflow_dataset_pipeline}, raw video recordings are resampled to a standardized 12~FPS processing rate (\texttt{resample\allowbreak\_12fps.py}) to ensure real-time feasibility on standard commodity CPUs without requiring GPUs. MediaPipe extracts 21 joint landmark sequences, scale-normalized to unitless hand length $L_{\text{hand}}$ (\texttt{normalize\allowbreak\_landmarks.py}) to achieve resolution and camera distance invariance. Velocities are derived (\texttt{calculate\allowbreak\_velocities.py}), assembled into 5-frame windows with 2-frame overlap (\texttt{create\allowbreak\_windows.py}), quality-filtered (\texttt{filter\allowbreak\_window\allowbreak\_quality.py}), and evaluated across 22 architectures via \texttt{run\_all.py} to train the final PyTorch LSTM classifier.
 
 \subsubsection{Real-Time Runtime Watch \& Key Execution Pipeline Workflow}
 Figure~\ref{fig:workflow_runtime_pipeline} illustrates the real-time execution workflow operating within Application 2 (Runtime Engine).
@@ -710,7 +708,7 @@ Figure~\ref{fig:workflow_runtime_pipeline} illustrates the real-time execution w
 
 % Row 2 (y = -2.6): Left = Homography, Right = Scale Normalization (Center is open)
 \node (homog) [block] at (0, -2.6) {\textbf{SVD Homography}\\[2pt]Compute Matrix $H \in \mathbb{R}^{3 \times 3}$};
-\node (norm) [block] at (10.0, -2.6) {\textbf{Scale Normalization}\\[2pt]{\scriptsize Unitless $L_{\text{hand}}$ (No 1€ Filter)}};
+\node (norm) [block] at (10.0, -2.6) {\textbf{Scale Normalization}\\[2pt]{\scriptsize Unitless $L_{\text{hand}}$}};
 
 % Row 3 (y = -5.2): Right = PyTorch LSTM Evaluator
 \node (lstm) [block] at (10.0, -5.2) {\textbf{PyTorch LSTM Evaluator}\\[2pt]5-Frame Window Classifier};
@@ -752,7 +750,7 @@ Figure~\ref{fig:workflow_runtime_pipeline} illustrates the real-time execution w
 \label{fig:workflow_runtime_pipeline}
 \end{figure}
 
-During real-time runtime execution (Figure~\ref{fig:workflow_runtime_pipeline}), the camera thread continuously feeds RGB video frames concurrently to the AprilTag tracker and MediaPipe Hand Landmarker. AprilTag corner tracking computes the updated homography matrix $H$. Simultaneously, MediaPipe joint keypoints are scale-normalized without temporal smoothing and fed into a 5-frame sliding window buffer. The PyTorch LSTM classifier evaluates the window sequence. When a touch event is confirmed, active fingertip pixel coordinates $\mathbf{P}_{\text{pixel}}$ are mapped through $H$ to XML layout space ($\mathbf{P}_{\text{XML}} = H \cdot \mathbf{P}_{\text{pixel}}$), triggering the mapped keystroke or system shell command.
+During real-time runtime execution (Figure~\ref{fig:workflow_runtime_pipeline}), the camera thread continuously captures video frames from a single regular monocular RGB camera (such as a commodity webcam across arbitrary resolutions) and feeds them concurrently to the AprilTag tracker and MediaPipe Hand Landmarker. AprilTag corner tracking computes the updated homography matrix $H$ on the plain printed paper surface. Simultaneously, MediaPipe joint keypoints are scale-normalized directly relative to unitless hand length $L_{\text{hand}}$ and fed into a 12~FPS 5-frame sliding window buffer. The lightweight PyTorch LSTM classifier evaluates the window sequence in real time entirely on a standard commodity CPU without requiring a GPU. When a touch event is confirmed, active fingertip pixel coordinates $\mathbf{P}_{\text{pixel}}$ are mapped through $H$ to XML layout space ($\mathbf{P}_{\text{XML}} = H \cdot \mathbf{P}_{\text{pixel}}$), triggering the mapped keystroke or system shell command.
 
 \section{Reflection and Synthesis of Research Gap}
 \label{sec:lit_reflection}
@@ -762,8 +760,8 @@ A rigorous evaluation of prior literature reveals major technological achievemen
 The critical review of existing frameworks establishes four primary limitations across prior work:
 \begin{enumerate}
     \item \textbf{Fragility of Shadow-Based and Heuristic Touch Detection:} Early monocular single-camera implementations \cite{Thomas2013Camera, Posner2012Single, Srivastava2012RealTime} relied on shadow separation distance or fixed pixel velocity thresholding. These heuristic rules break under dynamic indoor illumination, multi-source ambient lighting, dark paper backgrounds, and individual typing speed variations \cite{Yue2014Blind}.
-    \item \textbf{Hardware Dependency of 3D Surface Trackers:} To bypass RGB depth ambiguity, existing reliable surface touch frameworks rely on ToF depth cameras, structured light sensors, or active laser projection units \cite{Lee2019Virtual, Kudale2016RealTime, Toshpulatov2024RealTime}. This hardware dependency undermines low-cost ubiquity and prevents deployment on commodity PC and mobile webcams.
-    \item \textbf{Signal Distortion Induced by Temporal Filtering:} Air-canvas and gesture recognition systems \cite{Kumar2026Hybrid} rely heavily on 1€ filtering or moving average smoothing. While smoothing eliminates micro-tremors, it severely damps rapid keystroke impact velocity spikes and introduces 30--90 ms phase lag, degrading surface contact detection and typing responsiveness.
+    \item \textbf{Heavy Dependency on Specialized Hardware:} To bypass RGB depth ambiguity, existing reliable surface touch frameworks rely on specialized hardware such as ToF depth cameras, structured light sensors, active laser projection units, or wearable sensor gloves \cite{Lee2019Virtual, Kudale2016RealTime, Toshpulatov2024RealTime}. This hardware dependency destroys low-cost ubiquity and prevents deployment on ordinary computing setups equipped with only a single regular webcam.
+    \item \textbf{High Computational Overhead, High-Resolution Demand, and GPU Exclusivity:} Many existing deep vision and pose tracking architectures mandate high-end dedicated GPUs and high-resolution camera feeds ($\ge 1080$p, $60$ FPS) to achieve real-time frame rates, failing to execute smoothly on standard commodity CPUs and budget, low-resolution cameras.
     \item \textbf{Lack of Integrated Layout Customization and Fiducial Homography Alignment:} Existing deep learning typing models (such as TypeNet \cite{Maman2023TypeNet} and HandKey \cite{Enkhbat2020HandKey}) enforce static QWERTY layouts and lack integrated design tools that generate printable paper sheets embedded with fiducial AprilTag anchors. Without dynamic planar homography tracking ($H$), paper movement or camera perspective tilt invalidates coordinate registration \cite{Wang2016AprilTag2, Kallwies2020Determining, Pirchheim2011Homography}.
 \end{enumerate}
 
@@ -771,10 +769,10 @@ The critical review of existing frameworks establishes four primary limitations 
 The synthesis of these limitations formally establishes the central research gap addressed by this thesis:
 
 \begin{quote}
-\emph{There is an absence of an integrated, low-latency monocular computer vision architecture that combines interactive paper layout design tools (exporting printable AprilTag PDFs and synchronized XML action schemas) with a real-time runtime engine utilizing AprilTag fiducial homography mapping ($H$), MediaPipe hand-length scale normalization (without temporal smoothing), and a custom PyTorch LSTM deep sequential touch classifier trained on 5-frame sliding windows to achieve accurate, real-time virtual key interaction on arbitrary flat surfaces using commodity RGB webcams.}
+\emph{There is an absence of an integrated, real-time virtual keyboard architecture that operates using strictly a single regular monocular RGB camera on standard plain printed paper layouts without specialized hardware (no depth sensors, no lasers, no stereo pairs), executing in real time entirely on standard commodity CPUs without requiring a dedicated GPU (while remaining GPU-accelerable), and maintaining robust touch detection and homography mapping across regular and low camera resolutions at a 12~FPS operational standard.}
 \end{quote}
 
-By unifying printable AprilTag paper layout customization, unitless hand-length scale normalization, raw kinetic feature propagation, AprilTag homography tracking, and deep temporal LSTM touch classification, the system architecture proposed in this thesis overcomes the illumination, hardware cost, latency, and layout rigidity constraints of prior art.
+By unifying printable plain paper layout customization, AprilTag homography tracking, unitless hand-length scale normalization, direct feature propagation, and a lightweight deep temporal LSTM touch classifier, the system architecture proposed in this thesis overcomes the illumination, specialized hardware dependency, computational cost, and layout rigidity constraints of prior art.
 
 \section{Chapter Summary}
 \label{sec:lit_chapter_summary}
