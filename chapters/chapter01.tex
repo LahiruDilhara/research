@@ -98,54 +98,62 @@ To evaluate the integrated system's touch detection classification accuracy (pre
 \label{sec:rich_picture}
 The overall operational workflow of the proposed customizable paper-based virtual keyboard system is depicted in Figure~\ref{fig:rich_picture_diagram}. The system architecture spans two primary phases: \emph{Layout Design \& Export Phase} (offline design) and \emph{Real-Time Camera Pipeline \& Key Execution Phase} (online runtime).
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
-\resizebox{0.95\textwidth}{!}{%
+\resizebox{0.65\textwidth}{!}{%
 \begin{tikzpicture}[
-    node distance=1.2cm and 1.0cm,
-    box/.style={draw, rectangle, rounded corners=3pt, minimum width=3.2cm, minimum height=1.0cm, align=center, fill=blue!5, font=\small\sffamily, draw=blue!60, thick},
-    process/.style={draw, rectangle, rounded corners=3pt, minimum width=3.2cm, minimum height=1.0cm, align=center, fill=green!5, font=\small\sffamily, draw=green!60!black, thick},
-    model/.style={draw, rectangle, rounded corners=3pt, minimum width=3.2cm, minimum height=1.0cm, align=center, fill=orange!10, font=\small\sffamily, draw=orange!80!black, thick},
-    output/.style={draw, rectangle, rounded corners=3pt, minimum width=3.2cm, minimum height=1.0cm, align=center, fill=purple!5, font=\small\sffamily, draw=purple!60, thick},
-    arrow/.style={-Stealth, thick, draw=gray!80}
+    box/.style={draw=blue!70!black, rectangle, rounded corners=3pt,
+                text width=3.0cm, minimum height=0.9cm, align=center,
+                fill=blue!8!white, font=\sffamily\tiny, thick},
+    process/.style={draw=teal!70!black, rectangle, rounded corners=3pt,
+                text width=3.0cm, minimum height=0.9cm, align=center,
+                fill=teal!8!white, font=\sffamily\tiny, thick},
+    model/.style={draw=orange!80!black, rectangle, rounded corners=3pt,
+                text width=3.0cm, minimum height=0.9cm, align=center,
+                fill=orange!10!white, font=\sffamily\tiny, thick},
+    artifact/.style={draw=purple!70!black, rectangle, rounded corners=3pt,
+                text width=3.0cm, minimum height=0.9cm, align=center,
+                fill=purple!8!white, font=\sffamily\tiny, thick},
+    arrow/.style={-Stealth, thick, draw=gray!70}
 ]
 
-% Phase 1: Designer
-\node [box] (designer) {\textbf{PySide6 GUI Designer}\\Layout Definition \& Anchor Placement};
-\node [output, right=1.2cm of designer] (xml) {\textbf{XML Layout File}\\Key Coordinates \& Commands};
-\node [output, below=0.6cm of xml] (pdf) {\textbf{Printable Layout PDF}\\AprilTag Anchors Embedded};
-\node [process, below=0.6cm of pdf] (paper) {\textbf{Physical Paper Setup}\\Printed Sheet on Flat Surface};
+%% ---- LEFT COLUMN: Offline Design Pipeline (x=0) ----
+\node [box]      (designer)   at (0,  0)    {\textbf{PySide6 Layout GUI}\\Layout \& Anchor Design};
+\node [artifact] (xml)        at (0, -1.5)  {\textbf{Layout XML File}\\Key Bounds \& Action Map};
+\node [artifact] (pdf)        at (0, -3.0)  {\textbf{Printable PDF Sheet}\\Embedded AprilTag Anchors};
 
-% Phase 2: Runtime Tracking
-\node [process, left=1.2cm of paper] (camera) {\textbf{Monocular RGB Camera}\\Live Video Stream Capture};
-\node [box, below=1.2cm of camera] (apriltag) {\textbf{AprilTag Marker Tracking}\\Pose \& Corner Detection};
-\node [model, right=1.0cm of apriltag] (homography) {\textbf{Homography Matrix ($H$)}\\$3\times3$ Planar Transformation};
+%% ---- RIGHT COLUMN: Online Runtime Pipeline (x=4.4) ----
+\node [process]  (paper)      at (4.4, -3.0)  {\textbf{Physical Paper Setup}\\Printed Sheet on Surface};
+\node [process]  (camera)     at (4.4, -4.5)  {\textbf{Monocular RGB Camera}\\Live Video Stream};
+\node [box]      (apriltag)   at (4.4, -6.0)  {\textbf{AprilTag Tracker}\\Sub-Pixel Quad Detection};
+\node [model]    (homography) at (4.4, -7.5)  {\textbf{Homography Matrix $H$}\\$3\times3$ Planar Warp};
+\node [box]      (mediapipe)  at (4.4, -9.0)  {\textbf{MediaPipe Landmarker}\\21 Hand Joint Keypoints};
+\node [process]  (norm)       at (4.4,-10.5)  {\textbf{Scale Normalisation}\\Unitless $L_{\text{hand}}$, No Filter};
+\node [process]  (window)     at (4.4,-12.0)  {\textbf{Temporal Windowing}\\5-Frame Sliding Window};
+\node [model]    (lstm)       at (4.4,-13.5)  {\textbf{PyTorch LSTM Classifier}\\Touch Event Detection};
+\node [process]  (mapping)    at (4.4,-15.0)  {\textbf{Planar Coordinate Mapping}\\$P_{\text{XML}}=H\cdot P_{\text{pixel}}$};
+\node [artifact] (execution)  at (4.4,-16.5)  {\textbf{Key / Command Execution}\\OS Keystroke or Shell Script};
 
-% Hand Tracking & Filtering
-\node [box, below=1.2cm of apriltag] (mediapipe) {\textbf{MediaPipe Hand Landmarker}\\21 3D/2D Skeletal Landmarks};
-\node [process, right=1.0cm of mediapipe] (filter) {\textbf{Scale Normalization}\\Unitless Hand-Length (No Smoothing)};
-\node [process, right=1.0cm of filter] (window) {\textbf{Sliding Windowing}\\5 Frames, 2 Overlap (Stride 3)};
-
-% Model & Execution
-\node [model, below=1.2cm of window] (lstm) {\textbf{PyTorch LSTM Model}\\Touch Event Classifier};
-\node [process, left=1.0cm of lstm] (mapping) {\textbf{Planar Point Mapping}\\$P_{\text{XML}} = H \cdot P_{\text{pixel}}$};
-\node [output, left=1.0cm of mapping] (execution) {\textbf{Key Execution}\\Virtual Key Press / Command};
-
-% Connections
+%% ---- LEFT COLUMN ARROWS (strictly top-to-bottom) ----
 \draw [arrow] (designer) -- (xml);
-\draw [arrow] (designer) |- (pdf);
-\draw [arrow] (pdf) -- (paper);
-\draw [arrow] (camera) -- (apriltag);
-\draw [arrow] (paper) -- (camera);
-\draw [arrow] (apriltag) -- (homography);
-\draw [arrow] (camera) -- (mediapipe);
-\draw [arrow] (mediapipe) -- (filter);
-\draw [arrow] (filter) -- (window);
-\draw [arrow] (window) -- (lstm);
-\draw [arrow] (lstm) -- (mapping);
-\draw [arrow] (homography) |- (mapping);
-\draw [arrow] (xml) |- (execution);
-\draw [arrow] (mapping) -- (execution);
+\draw [arrow] (xml)      -- (pdf);
+
+%% ---- BRIDGE: PDF to physical paper (horizontal, same y level) ----
+\draw [arrow] (pdf.east) -- (paper.west);
+
+%% ---- RIGHT COLUMN ARROWS (strictly top-to-bottom) ----
+\draw [arrow] (paper)      -- (camera);
+\draw [arrow] (camera)     -- (apriltag);
+\draw [arrow] (apriltag)   -- (homography);
+\draw [arrow] (homography) -- (mediapipe);
+\draw [arrow] (mediapipe)  -- (norm);
+\draw [arrow] (norm)       -- (window);
+\draw [arrow] (window)     -- (lstm);
+\draw [arrow] (lstm)       -- (mapping);
+\draw [arrow] (mapping)    -- (execution);
+
+%% ---- XML load feed (routes along far-left margin, no box crossings) ----
+\draw [arrow] (xml.west) -- ++(-0.7,0) |- (execution.west);
 
 \end{tikzpicture}%
 }

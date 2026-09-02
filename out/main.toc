@@ -15,12 +15,12 @@
 \contentsline {subsection}{\numberline {1.7.4}1.7.4 To Evaluate...}{9}{subsection.1.7.4}%
 \contentsline {section}{\numberline {1.8}Rich Picture of the Proposed Solution}{10}{section.1.8}%
 \contentsline {subsection}{\numberline {1.8.1}Detailed Operational Architecture Steps}{10}{subsection.1.8.1}%
-\contentsline {section}{\numberline {1.9}Resource Requirements}{11}{section.1.9}%
-\contentsline {subsection}{\numberline {1.9.1}Hardware Requirements}{11}{subsection.1.9.1}%
-\contentsline {subsection}{\numberline {1.9.2}Software Requirements}{11}{subsection.1.9.2}%
+\contentsline {section}{\numberline {1.9}Resource Requirements}{10}{section.1.9}%
+\contentsline {subsection}{\numberline {1.9.1}Hardware Requirements}{12}{subsection.1.9.1}%
+\contentsline {subsection}{\numberline {1.9.2}Software Requirements}{12}{subsection.1.9.2}%
 \contentsline {section}{\numberline {1.10}Project Scope}{12}{section.1.10}%
-\contentsline {subsection}{\numberline {1.10.1}Elaboration of Scope Boundaries}{12}{subsection.1.10.1}%
-\contentsline {section}{\numberline {1.11}Chapter Summary}{12}{section.1.11}%
+\contentsline {subsection}{\numberline {1.10.1}Elaboration of Scope Boundaries}{13}{subsection.1.10.1}%
+\contentsline {section}{\numberline {1.11}Chapter Summary}{13}{section.1.11}%
 \contentsline {chapter}{\numberline {2}Literature Review}{14}{chapter.2}%
 \contentsline {section}{\numberline {2.1}Chapter Overview}{14}{section.2.1}%
 \contentsline {section}{\numberline {2.2}Conceptual Map of the Literature}{15}{section.2.2}%
@@ -30,7 +30,7 @@
 \contentsline {subsection}{\numberline {2.3.3}Ergonomics, Fitts' Law, and Human Input Performance Metrics}{17}{subsection.2.3.3}%
 \contentsline {subsection}{\numberline {2.3.4}Physical Surface Interaction Paradigms: Desk vs. Paper vs. Floating Air}{18}{subsection.2.3.4}%
 \contentsline {subsection}{\numberline {2.3.5}Biomechanical Kinematic Modeling of Multi-Finger Tendon Coupling}{18}{subsection.2.3.5}%
-\contentsline {subsection}{\numberline {2.3.6}Domain Drivers for Customizable Paper Virtual Keyboards}{18}{subsection.2.3.6}%
+\contentsline {subsection}{\numberline {2.3.6}Domain Drivers for Customizable Paper Virtual Keyboards}{19}{subsection.2.3.6}%
 \contentsline {section}{\numberline {2.4}Existing Systems, Frameworks, and Sensing Modalities}{19}{section.2.4}%
 \contentsline {subsection}{\numberline {2.4.1}Projection-Based and Infrared Sensor Systems}{19}{subsection.2.4.1}%
 \contentsline {subsection}{\numberline {2.4.2}Shadow-Based Monocular RGB Keyboards}{20}{subsection.2.4.2}%
@@ -112,74 +112,74 @@
 \contentsline {subsection}{\numberline {4.4.3}System Activity Diagram}{57}{subsection.4.4.3}%
 \contentsline {subsection}{\numberline {4.4.4}Sequence Diagrams Mapped to Key Use Cases}{57}{subsection.4.4.4}%
 \contentsline {subsection}{\numberline {4.4.5}System Statechart Diagram}{57}{subsection.4.4.5}%
-\contentsline {subsection}{\numberline {4.4.6}System Deployment Diagram}{59}{subsection.4.4.6}%
-\contentsline {section}{\numberline {4.5}Proposed System Architecture Framework}{59}{section.4.5}%
-\contentsline {subsection}{\numberline {4.5.1}Architectural Design Patterns Applied}{60}{subsection.4.5.1}%
-\contentsline {section}{\numberline {4.6}Functional and Non-Functional Requirements}{60}{section.4.6}%
-\contentsline {subsection}{\numberline {4.6.1}Functional Requirements (FR)}{60}{subsection.4.6.1}%
-\contentsline {subsection}{\numberline {4.6.2}Detailed Functional Requirements Subsection Breakdown}{60}{subsection.4.6.2}%
-\contentsline {subsection}{\numberline {4.6.3}Non-Functional Requirements (NFR)}{62}{subsection.4.6.3}%
-\contentsline {subsection}{\numberline {4.6.4}Detailed Non-Functional Quality Constraints}{62}{subsection.4.6.4}%
-\contentsline {section}{\numberline {4.7}Chapter Summary}{62}{section.4.7}%
+\contentsline {subsection}{\numberline {4.4.6}System Deployment Diagram}{57}{subsection.4.4.6}%
+\contentsline {section}{\numberline {4.5}Proposed System Architecture Framework}{57}{section.4.5}%
+\contentsline {subsection}{\numberline {4.5.1}Architectural Design Patterns Applied}{61}{subsection.4.5.1}%
+\contentsline {section}{\numberline {4.6}Functional and Non-Functional Requirements}{61}{section.4.6}%
+\contentsline {subsection}{\numberline {4.6.1}Functional Requirements (FR)}{61}{subsection.4.6.1}%
+\contentsline {subsection}{\numberline {4.6.2}Detailed Functional Requirements Subsection Breakdown}{61}{subsection.4.6.2}%
+\contentsline {subsection}{\numberline {4.6.3}Non-Functional Requirements (NFR)}{63}{subsection.4.6.3}%
+\contentsline {subsection}{\numberline {4.6.4}Detailed Non-Functional Quality Constraints}{64}{subsection.4.6.4}%
+\contentsline {section}{\numberline {4.7}Chapter Summary}{64}{section.4.7}%
 \contentsline {chapter}{\numberline {5}Implementation and Software Design}{65}{chapter.5}%
 \contentsline {section}{\numberline {5.1}Chapter Overview}{65}{section.5.1}%
 \contentsline {section}{\numberline {5.2}Algorithmic Design and Software Engineering Steps}{66}{section.5.2}%
 \contentsline {subsection}{\numberline {5.2.1}Framework Engineering Workflow Breakdown}{66}{subsection.5.2.1}%
 \contentsline {subsection}{\numberline {5.2.2}Mathematical Algorithm Formulations and Formal Pseudocode}{67}{subsection.5.2.2}%
-\contentsline {subsubsection}{Algorithm 1: AprilTag Corner Localization \& SVD Planar Homography Engine}{68}{section*.59}%
+\contentsline {subsubsection}{Algorithm 1: AprilTag Corner Localization \& SVD Planar Homography Engine}{67}{section*.59}%
 \contentsline {subsubsection}{Algorithm 2: Unitless Hand Landmark Scale Normalization Engine}{68}{section*.61}%
 \contentsline {subsubsection}{Algorithm 3: 5-Frame Sliding Window Assembly \& PyTorch LSTM Touch Inference}{69}{section*.63}%
-\contentsline {subsubsection}{Algorithm 4: Planar Coordinate Mapping \& Action Execution Engine}{70}{section*.65}%
+\contentsline {subsubsection}{Algorithm 4: Planar Coordinate Mapping \& Action Execution Engine}{71}{section*.65}%
 \contentsline {subsubsection}{Algorithm 5: PySide6 Interactive Canvas Viewport Drag-and-Drop Math}{71}{section*.67}%
-\contentsline {subsubsection}{Algorithm 6: Multi-Threaded Consumer-Producer Queue Synchronization}{71}{section*.69}%
-\contentsline {subsubsection}{Algorithm 7: OpenCV Video Downsampling and Quality Filtering Engine}{71}{section*.71}%
-\contentsline {subsubsection}{Algorithm 8: Intrinsic Camera Matrix Calibration Engine}{73}{section*.73}%
-\contentsline {subsubsection}{Transfer Function Phase Lag Derivation for 1€ Low-Pass Filter Exclusion}{73}{section*.75}%
-\contentsline {subsection}{\numberline {5.2.3}Technology Selection Justification and Comparative Reflection}{74}{subsection.5.2.3}%
+\contentsline {subsubsection}{Algorithm 6: Multi-Threaded Consumer-Producer Queue Synchronization}{72}{section*.69}%
+\contentsline {subsubsection}{Algorithm 7: OpenCV Video Downsampling and Quality Filtering Engine}{72}{section*.71}%
+\contentsline {subsubsection}{Algorithm 8: Intrinsic Camera Matrix Calibration Engine}{72}{section*.73}%
+\contentsline {subsubsection}{Transfer Function Phase Lag Derivation for 1€ Low-Pass Filter Exclusion}{74}{section*.75}%
+\contentsline {subsection}{\numberline {5.2.3}Technology Selection Justification and Comparative Reflection}{75}{subsection.5.2.3}%
 \contentsline {subsubsection}{Programming Language Selection (Python 3.10 vs C++17 vs Java)}{75}{section*.77}%
 \contentsline {subsubsection}{Deep Learning Frameworks (PyTorch 2.1 vs TensorFlow 2.x vs ONNX)}{75}{section*.78}%
-\contentsline {subsubsection}{Pose Landmarker Engine (MediaPipe Hands vs OpenPose vs HRNet)}{75}{section*.79}%
-\contentsline {subsubsection}{Visual Fiducial System (AprilTag tag36h11 vs ArUco vs QR Codes)}{75}{section*.80}%
-\contentsline {subsubsection}{Desktop GUI Framework (PySide6 / Qt6 vs Tkinter vs Electron.js)}{75}{section*.81}%
+\contentsline {subsubsection}{Pose Landmarker Engine (MediaPipe Hands vs OpenPose vs HRNet)}{76}{section*.79}%
+\contentsline {subsubsection}{Visual Fiducial System (AprilTag tag36h11 vs ArUco vs QR Codes)}{76}{section*.80}%
+\contentsline {subsubsection}{Desktop GUI Framework (PySide6 / Qt6 vs Tkinter vs Electron.js)}{76}{section*.81}%
 \contentsline {section}{\numberline {5.3}Significantly Important System Implementation Attempts}{76}{section.5.3}%
 \contentsline {subsection}{\numberline {5.3.1}Application 1 Layout Designer Suite Implementation}{76}{subsection.5.3.1}%
 \contentsline {subsubsection}{PySide6 Graphics View Canvas Workspace}{76}{section*.82}%
-\contentsline {subsubsection}{Automated AprilTag Border Anchoring Engine}{76}{section*.83}%
+\contentsline {subsubsection}{Automated AprilTag Border Anchoring Engine}{77}{section*.83}%
 \contentsline {subsubsection}{Dual Exporter Engine (Printable PDF \& XML Specification)}{77}{section*.84}%
-\contentsline {subsection}{\numberline {5.3.2}Partition 1 Homography Simulation Suite}{77}{subsection.5.3.2}%
-\contentsline {subsubsection}{XML Serialization Schema Specification}{77}{section*.85}%
+\contentsline {subsection}{\numberline {5.3.2}Partition 1 Homography Simulation Suite}{78}{subsection.5.3.2}%
+\contentsline {subsubsection}{XML Serialization Schema Specification}{78}{section*.85}%
 \contentsline {subsection}{\numberline {5.3.3}Partition 2 Data Pipeline, Landmark Extraction \& Scale Normalization}{78}{subsection.5.3.3}%
-\contentsline {subsubsection}{Video Resampling to Uniform 12 FPS (\texttt {resample\_12fps.py})}{78}{section*.86}%
-\contentsline {subsubsection}{MediaPipe Pose Keypoint Extraction \& Scale Normalization (\texttt {normalize\_landmarks.py})}{78}{section*.87}%
-\contentsline {subsubsection}{First-Order Spatial Velocity Derivation (\texttt {calculate\_velocities.py})}{79}{section*.88}%
-\contentsline {subsubsection}{5-Frame Sliding Temporal Windowing (\texttt {create\_windows.py})}{79}{section*.89}%
-\contentsline {subsubsection}{Data Quality Filtering (\texttt {filter\_window\_quality.py})}{79}{section*.90}%
-\contentsline {subsection}{\numberline {5.3.4}Partition 3 Deep Learning Multi-Model Benchmark Engine}{79}{subsection.5.3.4}%
-\contentsline {subsubsection}{Evaluated Model Architectures \& Feature Representations}{79}{section*.91}%
+\contentsline {subsubsection}{Video Resampling to Uniform 12 FPS (\texttt {resample\allowbreak \_12fps.py})}{78}{section*.86}%
+\contentsline {subsubsection}{MediaPipe Pose Keypoint Extraction \& Scale Normalization (\texttt {normalize\allowbreak \_land\allowbreak marks.py})}{79}{section*.87}%
+\contentsline {subsubsection}{First-Order Spatial Velocity Derivation (\texttt {calculate\allowbreak \_velocities.py})}{79}{section*.88}%
+\contentsline {subsubsection}{5-Frame Sliding Temporal Windowing (\texttt {create\allowbreak \_windows.py})}{79}{section*.89}%
+\contentsline {subsubsection}{Data Quality Filtering (\texttt {filter\allowbreak \_window\allowbreak \_quality.py})}{80}{section*.90}%
+\contentsline {subsection}{\numberline {5.3.4}Partition 3 Deep Learning Multi-Model Benchmark Engine}{80}{subsection.5.3.4}%
+\contentsline {subsubsection}{Evaluated Model Architectures \& Feature Representations}{80}{section*.91}%
 \contentsline {subsubsection}{Training Methodology \& Loss Optimization}{80}{section*.92}%
-\contentsline {subsubsection}{Optimal Model Selection (\texttt {best\_finger\_touch\_lstm.pth})}{80}{section*.93}%
-\contentsline {subsubsection}{PyTorch LSTM Layer Architecture \& Parameter Specification}{80}{section*.94}%
+\contentsline {subsubsection}{Optimal Model Selection (\texttt {best\allowbreak \_finger\allowbreak \_touch\allowbreak \_lstm.pth})}{81}{section*.93}%
+\contentsline {subsubsection}{PyTorch LSTM Layer Architecture \& Parameter Specification}{81}{section*.94}%
 \contentsline {subsection}{\numberline {5.3.5}Partition 4 Real-Time Execution \& Multi-Threaded Engine}{81}{subsection.5.3.5}%
 \contentsline {subsubsection}{Multi-Threaded Video Acquisition (\texttt {camera\_thread.py})}{81}{section*.95}%
-\contentsline {subsubsection}{Model Memory Manager (\texttt {model\_manager.py})}{81}{section*.96}%
-\contentsline {subsubsection}{Real-Time Evaluation UI (\texttt {main\_realtime\_ui.py})}{81}{section*.97}%
-\contentsline {subsubsection}{Thread Concurrency \& Mutex Synchronization Metrics}{81}{section*.98}%
+\contentsline {subsubsection}{Model Memory Manager (\texttt {model\_manager.py})}{82}{section*.96}%
+\contentsline {subsubsection}{Real-Time Evaluation UI (\texttt {main\_realtime\_ui.py})}{82}{section*.97}%
+\contentsline {subsubsection}{Thread Concurrency \& Mutex Synchronization Metrics}{82}{section*.98}%
 \contentsline {subsection}{\numberline {5.3.6}Partition 5 AprilTag Fiducial Tracking Engine}{82}{subsection.5.3.6}%
 \contentsline {subsubsection}{Camera Calibration \& Lens Distortion Correction (\texttt {main.py})}{82}{section*.99}%
-\contentsline {subsubsection}{Sub-Pixel AprilTag Quad Localizer (\texttt {estimater.py})}{82}{section*.100}%
-\contentsline {subsubsection}{Real-Time SVD Homography Solver (\texttt {homography.py})}{82}{section*.101}%
-\contentsline {subsubsection}{Homography Matrix Reprojection Accuracy \& SVD Numerical Stability}{82}{section*.102}%
+\contentsline {subsubsection}{Sub-Pixel AprilTag Quad Localizer (\texttt {estimater.py})}{83}{section*.100}%
+\contentsline {subsubsection}{Real-Time SVD Homography Solver (\texttt {homography.py})}{83}{section*.101}%
+\contentsline {subsubsection}{Homography Matrix Reprojection Accuracy \& SVD Numerical Stability}{83}{section*.102}%
 \contentsline {subsection}{\numberline {5.3.7}Application 2 Runtime Engine Setup GUI \& Action Command Mapper}{83}{subsection.5.3.7}%
 \contentsline {subsubsection}{Component A: Interactive Setup \& Action Command Mapper GUI}{83}{section*.103}%
-\contentsline {subsubsection}{Component B: Background Live Watch \& Action Execution Engine}{83}{section*.104}%
+\contentsline {subsubsection}{Component B: Background Live Watch \& Action Execution Engine}{84}{section*.104}%
 \contentsline {section}{\numberline {5.4}Empirical Implementation Challenges and Technical Solutions}{84}{section.5.4}%
 \contentsline {subsection}{\numberline {5.4.1}Deep Technical Challenge Analysis}{84}{subsection.5.4.1}%
 \contentsline {subsubsection}{Challenge 1: Resolving Monocular Z-Axis Depth Ambiguity}{84}{section*.106}%
 \contentsline {subsubsection}{Challenge 2: Achieving Distance and Hand-Size Scale Invariance}{85}{section*.107}%
-\contentsline {subsubsection}{Challenge 3: Eliminating Low-Pass Filter Phase Lag (1€ Filter Exclusion)}{85}{section*.108}%
+\contentsline {subsubsection}{Challenge 3: Eliminating Low-Pass Filter Phase Lag (1€ Filter Exclusion)}{86}{section*.108}%
 \contentsline {subsubsection}{Challenge 4: Robust AprilTag Fiducial Tracking under Hand Occlusion}{86}{section*.109}%
-\contentsline {subsubsection}{Challenge 5: Multi-Threaded Queue Buffer Architecture}{86}{section*.110}%
-\contentsline {section}{\numberline {5.5}Chapter Summary}{86}{section.5.5}%
+\contentsline {subsubsection}{Challenge 5: Multi-Threaded Queue Buffer Architecture}{87}{section*.110}%
+\contentsline {section}{\numberline {5.5}Chapter Summary}{87}{section.5.5}%
 \contentsline {chapter}{\numberline {6}Testing and Evaluation}{88}{chapter.6}%
 \contentsline {section}{\numberline {6.1}Chapter Overview}{88}{section.6.1}%
 \contentsline {section}{\numberline {6.2}Test Plan and Structured Test Cases}{88}{section.6.2}%
