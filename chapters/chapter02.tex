@@ -654,29 +654,34 @@ Figure~\ref{fig:workflow_dataset_pipeline} details the step-by-step data process
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-    block/.style = {rectangle, draw=blue!80!black, fill=blue!10!white, thick, rounded corners=3pt, align=center, font=\sffamily\footnotesize, text width=3.0cm, minimum height=1.0cm, inner sep=6pt},
+    block/.style = {rectangle, draw=blue!80!black, fill=blue!10!white, thick, rounded corners=4pt, align=center, font=\sffamily\footnotesize, text width=3.3cm, minimum height=1.35cm, inner sep=5pt},
     arrow/.style = {draw=blue!80!black, ->, >=Stealth, thick}
 ]
 
-% Row 1
-\node (step1) [block] at (0, 0) {\textbf{1. Video Capture}\\Raw RGB Video Feed};
-\node (step2) [block] at (3.8, 0) {\textbf{2. 12 FPS Resampling}\\\texttt{resample\allowbreak\_12fps.py}};
-\node (step3) [block] at (7.6, 0) {\textbf{3. MediaPipe Pose}\\21 Keypoint Extraction};
-\node (step4) [block] at (11.4, 0) {\textbf{4. Scale Normalization}\\\texttt{normalize\allowbreak\_landmarks.py}\\(Unitless $L_{\text{hand}}$, No 1€ Filter)};
+% Row 1: Steps 1 to 4 (Generous 4.2cm column spacing)
+\node (step1) [block] at (0, 0) {\textbf{1. Video Capture}\\[2pt]Raw RGB Video Feed};
+\node (step2) [block] at (4.2, 0) {\textbf{2. 12 FPS Resampling}\\[2pt]{\tiny\texttt{resample\_12fps.py}}};
+\node (step3) [block] at (8.4, 0) {\textbf{3. MediaPipe Pose}\\[2pt]21 Keypoint Extraction};
+\node (step4) [block] at (12.6, 0) {\textbf{4. Scale Normalization}\\[2pt]{\tiny\texttt{normalize\_landmarks.py}}\\[1pt]{\scriptsize Unitless $L_{\text{hand}}$ (No 1€ Filter)}};
 
-% Row 2
-\node (step5) [block] at (11.4, -2.2) {\textbf{5. Velocity Calculation}\\\texttt{calculate\allowbreak\_velocities.py}\\Spatial Joint Derivation};
-\node (step6) [block] at (7.6, -2.2) {\textbf{6. Temporal Windowing}\\\texttt{create\allowbreak\_windows.py}\\(5 Frames, 2-Frame Overlap)};
-\node (step7) [block] at (3.8, -2.2) {\textbf{7. Dataset Filtering}\\\texttt{filter\allowbreak\_window\allowbreak\_quality.py}\\Quality Validation};
-\node (step8) [block] at (0, -2.2) {\textbf{8. PyTorch LSTM Training}\\\texttt{run\_all.py} Benchmark\\\texttt{best\allowbreak\_finger\allowbreak\_touch\allowbreak\_lstm.pth}};
+% Row 2: Steps 5 to 8 (Generous 3.0cm row spacing, 1.6cm clear gap between boxes)
+\node (step5) [block] at (12.6, -3.0) {\textbf{5. Velocity Derivation}\\[2pt]{\tiny\texttt{calculate\_velocities.py}}\\[1pt]{\scriptsize Spatial Joint Kinematics}};
+\node (step6) [block] at (8.4, -3.0) {\textbf{6. Temporal Windowing}\\[2pt]{\tiny\texttt{create\_windows.py}}\\[1pt]{\scriptsize 5 Frames, 2-Frame Overlap}};
+\node (step7) [block] at (4.2, -3.0) {\textbf{7. Quality Filtering}\\[2pt]{\tiny\texttt{filter\_window\_quality.py}}\\[1pt]{\scriptsize Quality Validation}};
+\node (step8) [block] at (0, -3.0) {\textbf{8. PyTorch LSTM}\\[2pt]\texttt{run\_all.py} Benchmark\\[1pt]{\tiny\texttt{best\_finger\_touch\_lstm.pth}}};
 
-\draw [arrow] (step1) -- (step2);
-\draw [arrow] (step2) -- (step3);
-\draw [arrow] (step3) -- (step4);
-\draw [arrow] (step4) -- (step5);
-\draw [arrow] (step5) -- (step6);
-\draw [arrow] (step6) -- (step7);
-\draw [arrow] (step7) -- (step8);
+% Row 1 Forward Flow
+\draw [arrow] (step1.east) -- (step2.west);
+\draw [arrow] (step2.east) -- (step3.west);
+\draw [arrow] (step3.east) -- (step4.west);
+
+% Transition Down to Row 2 (Clear 1.6cm vertical arrow, zero overlap)
+\draw [arrow] (step4.south) -- (step5.north);
+
+% Row 2 Reverse Flow
+\draw [arrow] (step5.west) -- (step6.east);
+\draw [arrow] (step6.west) -- (step7.east);
+\draw [arrow] (step7.west) -- (step8.east);
 
 \end{tikzpicture}%
 }
@@ -691,38 +696,55 @@ Figure~\ref{fig:workflow_runtime_pipeline} illustrates the real-time execution w
 
 \begin{figure}[htbp]
 \centering
-\resizebox{0.95\textwidth}{!}{%
+\resizebox{0.90\textwidth}{!}{%
 \begin{tikzpicture}[
-    block/.style = {rectangle, draw=green!60!black, fill=green!10!white, thick, rounded corners=3pt, align=center, font=\sffamily\footnotesize, text width=3.1cm, minimum height=1.0cm, inner sep=6pt},
-    decision/.style = {diamond, draw=orange!80!black, fill=orange!10!white, thick, align=center, font=\sffamily\scriptsize, inner sep=2pt},
+    block/.style = {rectangle, draw=green!60!black, fill=green!10!white, thick, rounded corners=4pt, align=center, font=\sffamily\footnotesize, text width=3.4cm, minimum height=1.3cm, inner sep=5pt},
+    decision/.style = {diamond, draw=orange!80!black, fill=orange!10!white, thick, align=center, font=\sffamily\scriptsize, inner sep=3pt, aspect=1.7},
     arrow/.style = {draw=green!70!black, ->, >=Stealth, thick}
 ]
 
-% Row 1
-\node (cam) [block] at (0, 0) {\textbf{Live RGB Camera Feed}\\\texttt{camera\_thread.py}};
-\node (april) [block] at (4, 0) {\textbf{AprilTag Tracker}\\Extract Corner Points};
-\node (homog) [block] at (8, 0) {\textbf{Compute Matrix } $H$\\$3 \times 3$ Planar Homography};
+% Row 1 (y = 0): Camera Feed in Center (x = 5.0), branching Left (x = 0) and Right (x = 10.0)
+\node (cam) [block] at (5.0, 0) {\textbf{Live RGB Camera Feed}\\[2pt]\texttt{camera\_thread.py}};
+\node (april) [block] at (0, 0) {\textbf{AprilTag Tracker}\\[2pt]Sub-Pixel Corner Points};
+\node (mp) [block] at (10.0, 0) {\textbf{MediaPipe Hand Pose}\\[2pt]21 Joint Coordinates};
 
-% Row 2
-\node (mp) [block] at (0, -2.0) {\textbf{MediaPipe Hand Pose}\\21 Joint Coordinates};
-\node (norm) [block] at (4, -2.0) {\textbf{Hand Scale Norm}\\Unitless $L_{\text{hand}}$ (No 1€ Filter)};
-\node (lstm) [block] at (8, -2.0) {\textbf{PyTorch LSTM Evaluator}\\5-Frame Window Classifier};
+% Row 2 (y = -2.6): Left = Homography, Right = Scale Normalization (Center is open)
+\node (homog) [block] at (0, -2.6) {\textbf{SVD Homography}\\[2pt]Compute Matrix $H \in \mathbb{R}^{3 \times 3}$};
+\node (norm) [block] at (10.0, -2.6) {\textbf{Scale Normalization}\\[2pt]{\scriptsize Unitless $L_{\text{hand}}$ (No 1€ Filter)}};
 
-% Row 3
-\node (touch_dec) [decision] at (8, -4.2) {Touch Event\\Confirmed?};
-\node (map_coord) [block] at (4, -4.2) {\textbf{Planar Mapping}\\$\mathbf{P}_{\text{XML}} = H \cdot \mathbf{P}_{\text{pixel}}$};
-\node (lookup) [block] at (0, -4.2) {\textbf{XML Key Lookup}\\\& Action Dispatch};
+% Row 3 (y = -5.2): Right = PyTorch LSTM Evaluator
+\node (lstm) [block] at (10.0, -5.2) {\textbf{PyTorch LSTM Evaluator}\\[2pt]5-Frame Window Classifier};
 
-\draw [arrow] (cam) -- (april);
-\draw [arrow] (april) -- (homog);
-\draw [arrow] (cam) -- (mp);
-\draw [arrow] (mp) -- (norm);
-\draw [arrow] (norm) -- (lstm);
-\draw [arrow] (lstm) -- (touch_dec);
-\draw [arrow] (touch_dec) -- node[above,font=\sffamily\scriptsize]{Yes} (map_coord);
-\draw [arrow] (touch_dec.east) -- ++(0.7,0) |- node[near start,right,font=\sffamily\scriptsize]{No} (lstm.east);
-\draw [arrow] (homog.south) -- (8, -1.0) -| (map_coord.north);
-\draw [arrow] (map_coord) -- (lookup);
+% Row 4 (y = -7.8): Left/Center = Coordinate Mapping, Right = Touch Decision Diamond
+\node (map_coord) [block] at (5.0, -7.8) {\textbf{Planar Point Mapping}\\[2pt]$\mathbf{P}_{\text{XML}} = H \cdot \mathbf{P}_{\text{pixel}}$};
+\node (touch_dec) [decision] at (10.0, -7.8) {\textbf{Touch Event?}\\[1pt]{\scriptsize $p_k > 0.90$}};
+
+% Row 5 (y = -10.2): Center = XML Key Lookup & Dispatch
+\node (lookup) [block] at (5.0, -10.2) {\textbf{XML Key Lookup}\\[2pt]\& Action Dispatch};
+
+% Connections: Camera Distribution
+\draw [arrow] (cam.west) -- (april.east);
+\draw [arrow] (cam.east) -- (mp.west);
+
+% Left Track: AprilTag to Homography
+\draw [arrow] (april.south) -- (homog.north);
+
+% Right Track: MediaPipe to Normalization to LSTM to Decision
+\draw [arrow] (mp.south) -- (norm.north);
+\draw [arrow] (norm.south) -- (lstm.north);
+\draw [arrow] (lstm.south) -- (touch_dec.north);
+
+% Hover Loop (routes cleanly around right side of LSTM)
+\draw [arrow] (touch_dec.east) -- ++(1.0, 0) |- node[near start,right,font=\sffamily\scriptsize]{\textbf{No (Hover)}} (lstm.east);
+
+% Touch Confirmed (generous 1.8cm clearance between boxes)
+\draw [arrow] (touch_dec.west) -- node[above,font=\sffamily\scriptsize]{\textbf{Yes}} (map_coord.east);
+
+% Homography Matrix Feed (drops vertically through open space, then turns into map_coord)
+\draw [arrow] (homog.south) |- node[near start,left,font=\sffamily\scriptsize]{Matrix $H$} (map_coord.west);
+
+% Dispatch Execution (straight vertical arrow down)
+\draw [arrow] (map_coord.south) -- (lookup.north);
 
 \end{tikzpicture}%
 }
