@@ -1,0 +1,13 @@
+[project]
+name = "converter"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pillow>=11.0.0",
+    "pymupdf>=1.25.0",
+]
+
+[project.scripts]
+pdf-converter = "pdf_processor.cli:main"

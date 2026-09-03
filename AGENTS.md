@@ -49,6 +49,36 @@ Because monocular paper touch detection is an experimental computer vision conce
 
 ---
 
+## 1.1 Literature-Grounded Research Gaps Solved by This Research
+
+The research directly solves six concrete, well-documented research gaps identified across existing published virtual keyboard and vision-based input literature:
+
+1. **Simultaneous Multi-Finger Touch Detection on Monocular RGB Video:**
+   - *Literature Gap:* Existing monocular camera keyboards are restricted to single-finger tracking (tracking only the index finger or the single fastest moving finger; e.g. Thomas 2013, Posner et al. 2012, Ji et al. 2018, Srivastava & Tripathi 2012, Khare 2019). Shadow-based systems fail when multiple fingers approach the surface together because their shadows merge and occlude each other. They cannot detect simultaneous multi-key presses, chords, or modifier combinations (`Ctrl + C`, `Shift + A`).
+   - *Our Solution:* MediaPipe simultaneously tracks all 21 hand landmarks, and the PyTorch neural network evaluates touch probabilities independently across all five fingers (`thumb`, `index`, `middle`, `ring`, `pinky`) in parallel, enabling simultaneous multi-finger touch detection at the exact same moment.
+
+2. **High Latency & CPU Real-Time Performance on Commodity Hardware:**
+   - *Literature Gap:* Previous deep learning vision models drop below 15 FPS on standard CPUs (e.g. Enkhbat et al. 2020, Ji et al. 2018), or require expensive specialized hardware such as 3D Time-of-Flight depth cameras or infrared laser projectors to achieve real-time response (Lee & Kwon 2019, Toshpulatov et al. 2024, Kudale & Wanjale 2016).
+   - *Our Solution:* Standardized 12 FPS sliding temporal windowing (5 frames with 2-frame overlap) combined with coordinate-level skeletal features and a compact PyTorch LSTM model achieves real-time execution directly on commodity CPUs with an end-to-end latency of $29.09\text{ ms}$ without needing a GPU or depth sensor.
+
+3. **Elimination of Artificial Dwell-Time Delays:**
+   - *Literature Gap:* Because standard 2D webcams lack depth perception, classical vision keyboards forced users to hover and freeze their finger over a key for 500 ms to 1000 ms (dwell time) to register a press (Khare 2019, Chen 2024), destroying natural typing speed.
+   - *Our Solution:* Kinematic motion modeling evaluates deceleration and impact dynamics across temporal windows, detecting physical surface impact instantaneously without forcing the user to pause.
+
+4. **Environmental Brittleness Under Varying Lighting and Shadows:**
+   - *Literature Gap:* Shadow-based touch detection breaks under diffuse light, multiple light sources, weak ambient lighting, or ambient hand shadows (Thomas 2013, Posner et al. 2012, Yue et al. 2014), and skin-color thresholding fails across diverse skin tones and backgrounds.
+   - *Our Solution:* Eliminates shadow analysis and color thresholding entirely by using MediaPipe skeletal landmarks and scale-normalized kinematics ($L_{\text{hand}}$), ensuring robust operation across diverse lighting and skin tones.
+
+5. **Rigid Camera Mounts and Sensitivity to Paper/Camera Movement:**
+   - *Literature Gap:* Traditional paper and projected keyboards require static, fixed camera calibrations with rigid perpendicular overhead mounts (Zhang et al. 2001, Khare 2019). Any camera shake or paper displacement causes complete coordinate misalignment.
+   - *Our Solution:* Continuous AprilTag fiducial tracking dynamically updates the $3 \times 3$ Planar Homography matrix ($H$) in real time, automatically compensating for paper movement, camera tilt, and partial tag occlusions.
+
+6. **Fixed Hard-Coded Layouts and Lack of Action Multiplexing:**
+   - *Literature Gap:* Prior virtual keyboards use static, hard-coded QWERTY layouts with fixed actions (Shaikh et al. 2015, Habib et al. 2011). Changing key mappings requires reprogramming or recreating physical setups.
+   - *Our Solution:* Complete decoupling of physical geometry (via the PySide6 Layout Designer) from digital action semantics. A single physical printed paper sheet can be dynamically multiplexed across multiple software profiles (typing, IDE shortcuts, DAW controls, gaming keypads, shell commands) simply by loading different XML configurations without reprinting the paper.
+
+---
+
 ## 2. System Workflow & Pipeline Architecture
 
 1. **Layout Design & Export**: The user creates a custom key layout using the GUI designer ([`designer/designer_app.py`](file:///home/lahirukasunidilhara/Documents/university/research/designer/designer_app.py)). The design is exported as:
@@ -119,9 +149,10 @@ When instructed to draft, research, or revise thesis chapters:
 7. **Strict Citation Protocol & IEEE Citation Style**:
    - The thesis **MUST strictly use the IEEE citation style** (`style=ieee` with BibLaTeX/biber).
    - Citations in LaTeX chapters (`\cite{CitationKey}`) must **ONLY** use BibTeX keys defined in [`references.bib`](file:///home/lahirukasunidilhara/Documents/university/research/research-db/references.bib).
-   - Consult [`summary-matrix.md`](file:///home/lahirukasunidilhara/Documents/university/research/research-db/summary-matrix.md) first to map paper methodologies and findings to BibTeX keys in [`references.bib`](file:///home/lahirukasunidilhara/Documents/university/research/research-db/references.bib).
-8. **Targeted PDF Inspection in [`pdf-sources/`](file:///home/lahirukasunidilhara/Documents/university/research/pdf-sources)**:
-   - Read specific target PDFs in [`pdf-sources/`](file:///home/lahirukasunidilhara/Documents/university/research/pdf-sources) to extract fine-grained technical details, mathematical formulations, or empirical data needed for chapter text.
+   - **Indexing Role Only:** [`summary-matrix.md`](file:///home/lahirukasunidilhara/Documents/university/research/research-db/summary-matrix.md) and [`references.bib`](file:///home/lahirukasunidilhara/Documents/university/research/research-db/references.bib) are strictly indexing tools used only to identify relevant candidate papers and their citation keys.
+8. **Mandatory PDF Source Reading in [`pdf-sources/`](file:///home/lahirukasunidilhara/Documents/university/research/pdf-sources)**:
+   - **DO NOT rely solely on `summary-matrix.md` or `references.bib` when writing or citing.**
+   - Once a relevant paper is identified, the agent **MUST locate and read the actual research paper PDF in `./pdf-sources/`** to extract and verify the true methodology, empirical findings, and technical context before writing about it or citing it in any thesis chapter.
 9. **Figures and Visual Assets**:
    - Save all diagrams, charts, plots, and figures into [`figures/`](file:///home/lahirukasunidilhara/Documents/university/research/figures) and include them using standard LaTeX `\includegraphics` syntax.
 
