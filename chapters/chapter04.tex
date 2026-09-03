@@ -3,25 +3,25 @@
 
 \section{Chapter Overview}
 \label{sec:req_chapter_overview}
-The engineering of a reliable, high-performance, and customizable monocular paper virtual keyboard system requires a formal, comprehensive System Requirement Specification (SRS). Building markerless vision-based human-computer interaction (HCI) software demands rigorous systems analysis to ensure that real-time computer vision algorithms, kinematic scale normalization models, planar homography tracking engines, and deep neural classifiers satisfy operational requirements across diverse user groups \cite{ReviewVirtualKeyboard2020, Maman2023TypeNet}.
+Building a reliable, fast, and customizable paper-based virtual keyboard requires a clear System Requirement Specification (SRS). Developing vision-based human-computer interaction software without physical switches requires careful systems analysis. This ensures that camera tracking, hand joint normalization, homography calculation, and deep learning touch detection satisfy practical user needs \cite{ReviewVirtualKeyboard2020, Maman2023TypeNet}.
 
-This chapter details the formal requirement specifications and unified modeling architecture governing the two-application suite: Application 1 (Layout Designer Suite \texttt{designer/designer\_app.py}) and Application 2 (Runtime Virtual Keyboard Engine \& Command Mapper). Section~\ref{sec:req_stakeholder} presents a structured stakeholder analysis, defining primary, secondary, and system stakeholders alongside an Interest-Power matrix and requirement trade-off resolution protocols. Section~\ref{sec:req_operationalization} details the operationalization process, mapping research objectives and empirical data gathering to system requirements. Section~\ref{sec:req_uml_analysis} provides an exhaustive Unified Modeling Language (UML) analysis containing Use Case diagrams with formal specifications for all core use cases, Class diagrams with Class Responsibility Collaboration (CRC) breakdowns, Activity diagrams, Sequence diagrams, Statechart diagrams, and Deployment diagrams. Section~\ref{sec:req_architecture} presents the proposed end-to-end system architecture framework and architectural design patterns. Section~\ref{sec:req_fn_nfn} defines the complete set of Functional and Non-Functional requirements with detailed subsection breakdowns. Finally, Section~\ref{sec:req_summary} summarizes the chapter.
+This chapter presents the requirements and UML models for the two-application system: Application 1 (Layout Designer Suite \texttt{designer/designer\_app.py}) and Application 2 (Runtime Virtual Keyboard Engine and Command Mapper). Section~\ref{sec:req_stakeholder} provides a stakeholder analysis, identifying user groups along with a Power-Interest matrix and design trade-offs. Section~\ref{sec:req_operationalization} explains the operationalization process, showing how research objectives and test data map to software requirements. Section~\ref{sec:req_uml_analysis} presents a full UML analysis, including Use Case diagrams with formal specifications, Class diagrams with Class Responsibility Collaboration (CRC) descriptions, Activity diagrams, Sequence diagrams, Statechart diagrams, and Deployment diagrams. Section~\ref{sec:req_architecture} explains the overall system architecture framework and design patterns. Section~\ref{sec:req_fn_nfn} details the Functional and Non-Functional requirements. Finally, Section~\ref{sec:req_summary} summarizes the chapter.
 
 \section{Stakeholder Analysis}
 \label{sec:req_stakeholder}
-Stakeholder analysis identifies the individuals, groups, and system entities affected by or interacting with the virtual keyboard system. Establishing clear stakeholder profiles ensures that software capabilities address real-world operational needs \cite{ReviewVirtualKeyboard2020}.
+Stakeholder analysis identifies the people, groups, and systems that use or are affected by the virtual keyboard. Understanding stakeholder expectations ensures the system addresses real user needs \cite{ReviewVirtualKeyboard2020}.
 
 \subsection{Stakeholder Identification and Classification}
 \label{subsec:req_stakeholder_classification}
-Stakeholders associated with the customizable paper virtual keyboard system are categorized into four primary groups:
+Stakeholders for the paper virtual keyboard system are divided into four main groups:
 \begin{enumerate}
-    \item \textbf{Primary End-Users:} Operators who directly interact with the physical paper keyboard layouts to perform text entry, navigation, or computer control. This includes general desktop users, touch typists, and motor-impaired individuals requiring custom accessibility keypads \cite{Chen2024Gaze}.
-    \item \textbf{Domain-Specific Specialists:} Professional users in specialized fields—such as digital audio workstation (DAW) sound engineers, industrial automation operators, CAD designers, and video editors—who require customizable macro trigger pads tailored to complex software workflows \cite{ReviewVirtualKeyboard2020}.
-    \item \textbf{Clinical \& Healthcare Personnel:} Surgeons, ICU nurses, and cleanroom laboratory technicians operating in sterile medical environments where physical mechanical keyboards present severe bacterial pathogen transmission vectors \cite{ReviewVirtualKeyboard2020}.
-    \item \textbf{System Engineers \& Researchers:} Computer vision researchers, software developers, and system administrators responsible for designing layouts, configuring XML schemas, training deep learning touch models (\texttt{run\_all.py}), and deploying the runtime engine across host environments.
+    \item \textbf{Primary End-Users:} People who directly type on the printed paper sheets to enter text or control computers. This group includes everyday computer users, regular typists, and users with motor difficulties who need custom large-key layouts \cite{Chen2024Gaze}.
+    \item \textbf{Domain-Specific Specialists:} Professional users in specialized fields (such as digital audio editors, video editors, industrial machine operators, and CAD designers) who need custom macro pads for specific software shortcuts \cite{ReviewVirtualKeyboard2020}.
+    \item \textbf{Healthcare and Clinical Staff:} Doctors, nurses, and laboratory technicians working in sterile environments where regular plastic keyboards can collect dirt and spread bacteria \cite{ReviewVirtualKeyboard2020}.
+    \item \textbf{System Engineers and Researchers:} Computer vision researchers, software developers, and system administrators who design layouts, configure XML files, train neural touch models (\texttt{run\_all.py}), and maintain the runtime software.
 \end{enumerate}
 
-Table~\ref{tab:stakeholder_matrix} summarizes the stakeholder classification, operational roles, key requirements, and system interaction channels.
+Table~\ref{tab:stakeholder_matrix} outlines the stakeholder groups, their roles, and their key requirements.
 
 \begin{table}[htbp]
 \centering
@@ -52,7 +52,7 @@ Table~\ref{tab:stakeholder_matrix} summarizes the stakeholder classification, op
 
 \subsection{Stakeholder Power-Interest Matrix}
 \label{subsec:req_stakeholder_matrix}
-To guide requirement prioritization and governance, Figure~\ref{fig:stakeholder_power_interest} maps stakeholder groups onto a 2D Power-Interest matrix.
+To help prioritize requirements, Figure~\ref{fig:stakeholder_power_interest} maps stakeholder groups on a Power-Interest matrix.
 
 \begin{figure}[htbp]
 \centering
@@ -82,26 +82,26 @@ To guide requirement prioritization and governance, Figure~\ref{fig:stakeholder_
 \label{fig:stakeholder_power_interest}
 \end{figure}
 
-As formatted in Figure~\ref{fig:stakeholder_power_interest}, System Engineers and Domain Macro Specialists represent Key Players (High Power, High Interest), requiring close engagement to ensure architectural flexibility. Primary Typists and Accessibility Users represent High Interest stakeholders, driving usability and low-latency requirements.
+As shown in Figure~\ref{fig:stakeholder_power_interest}, System Engineers and Domain Specialists are Key Players (High Power, High Interest), requiring close attention to ensure architectural flexibility. Primary Typists and Accessibility Users have High Interest, guiding responsiveness and usability needs.
 
 \subsection{Stakeholder Conflict Resolution and Requirement Trade-offs}
 \label{subsec:req_conflict_resolution}
-Conflicting priorities among stakeholder groups were systematically resolved through empirical trade-off analysis:
+Differences in stakeholder priorities were resolved through practical engineering trade-offs:
 \begin{enumerate}
-    \item \textbf{Real-Time FPS vs Compute Load (Typists vs Administrators):} Typists demand responsive interaction, while system administrators require low compute utilization on commodity hardware. This was resolved by standardizing the vision and classification pipeline on a 12~FPS processing rate (\texttt{resample\_12fps.py}) paired with a lightweight uni-directional PyTorch LSTM ($< 1\text{ MB}$ parameter size), guaranteeing near real-time execution on standard commodity CPUs without requiring a GPU or high-end processor.
-    \item \textbf{Layout Flexibility vs Tracking Stability (Domain Specialists vs Vision Researchers):} Custom macro pads require arbitrary key geometries, which can obscure corner tracking markers. This was resolved by enforcing border AprilTag placement along layout margins, requiring only four unoccluded tag corner points to solve SVD homography $H$.
-    \item \textbf{Sanitary Sheet Disposable Disposal vs Layout Persistence (Clinical Personnel vs System Admins):} Resolved by storing layout configurations in XML files, allowing physical paper sheets to be disposed of and reprinted instantly without altering system software configuration.
+    \item \textbf{Typing Speed vs Computing Load (Typists vs Administrators):} Typists need low delay, while administrators want the software to run on standard computers without high CPU load. This was resolved by using a 12~FPS video standard (\texttt{resample\_12fps.py}) and a compact PyTorch LSTM model ($< 1$~MB), ensuring real-time response on standard CPUs without requiring a GPU.
+    \item \textbf{Custom Layouts vs Tracking Stability (Domain Specialists vs Vision Researchers):} Custom macro layouts can have keys placed near corners, which might cover tracking markers. This was solved by placing AprilTag markers along the outer margins, requiring only four visible corners to calculate homography matrix $H$.
+    \item \textbf{Paper Disposal vs Profile Persistence (Medical Staff vs System Admins):} Resolved by storing layout geometries in XML files, allowing paper sheets to be thrown away or reprinted at any time without having to reconfigure the computer.
 \end{enumerate}
 
 \section{Operationalization Process}
 \label{sec:req_operationalization}
-The operationalization process bridges high-level research objectives (defined in Chapter 1) and empirical data gathering (detailed in Chapter 3) with concrete software requirements and functional specifications.
+The operationalization process connects high-level research objectives and experimental data gathering with concrete software requirements.
 
 \subsection{Mapping Research Data Gathering to System Requirements}
 \label{subsec:req_data_mapping}
-System requirements were operationalized through a systematic mapping process combining literature analysis, 15-participant empirical video dataset gathering, and multi-threaded execution profiling.
+System requirements were developed by combining findings from 57 literature papers, video data recorded from 15 participants, and CPU performance measurements.
 
-Table~\ref{tab:operationalization_mapping} presents the operationalization matrix linking research objectives, empirical data gathering techniques, validity justification, and resulting functional requirement modules.
+Table~\ref{tab:operationalization_mapping} shows the operationalization matrix connecting research objectives, empirical data gathering, validation reasons, and resulting software modules.
 
 \begin{table}[htbp]
 \centering
@@ -135,20 +135,20 @@ Homography Tracking Engine & - Sub-pixel corner localization tests & - Ensures s
 \end{table}
 
 \subsection{Qualitative Data Gathering from User Interactivity Studies}
-Operationalizing user requirements involved structured interviews with 15 test participants representing diverse typing skills. Key findings indicated that fixed keyboard layouts restrict efficiency for specialized software applications. Users expressed a strong preference for custom macro arrangements, validating the functional requirement for Application 1 Layout Designer (\texttt{designer/designer\_app.py}).
+Understanding user requirements involved gathering feedback from 15 test participants with varying typing styles. Participants noted that fixed keyboard layouts limit efficiency when working with specialized desktop applications. Users requested customizable macro pads, validating the need for the Layout Designer tool (\texttt{designer/designer\_app.py}).
 
 \subsection{Empirical Kinematic Data Translation to Landmark Requirements}
-Kinematic video analysis revealed that fingertip pixel displacement varies non-linearly with camera distance $Z$ and hand size. Normalizing keypoint distances relative to middle MCP hand length $L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$ produced unitless position ratios $\mathbf{P}_i^{\text{norm}}$, translating empirical kinematic observations into a strict functional requirement for unitless scale normalization and direct feature propagation across diverse camera resolutions.
+Video analysis showed that fingertip pixel displacement changes when hands move closer to or further from the camera. Normalizing joint coordinates using the hand length $L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$ produced unitless ratios $\mathbf{P}_i^{\text{norm}}$, creating a clear requirement for distance-invariant scale normalization with direct feature propagation across all camera resolutions.
 
 \section{System and Model Analysis (UML Modeling)}
 \label{sec:req_uml_analysis}
-Unified Modeling Language (UML) diagrams provide formal structural and behavioral representations of the system architecture.
+Unified Modeling Language (UML) diagrams provide visual structural and behavioral models of the software system.
 
 \subsection{Use Case Analysis and Formal Specifications}
 \label{subsec:req_use_cases}
-The system architecture supports two primary actors: the \textbf{Layout Designer User} (interacting with Application 1) and the \textbf{System Runtime Operator} (interacting with Application 2). Secondary hardware and OS actors include the \textbf{Monocular RGB Camera} and the \textbf{OS Command Execution Engine}.
+The system architecture includes two human actors: the \textbf{Layout Designer User} (using Application 1) and the \textbf{Runtime Operator User} (using Application 2). Secondary system actors include the \textbf{Monocular RGB Camera} and the \textbf{Operating System Shell}.
 
-Figure~\ref{fig:use_case_diagram} presents the comprehensive Use Case Diagram illustrating the system boundary, actors, and use case interactions.
+Figure~\ref{fig:use_case_diagram} shows the Use Case Diagram covering system boundaries, actors, and use case interactions.
 
 \begin{figure}[htbp]
 \centering
@@ -324,7 +324,7 @@ Detailed formal Use Case Specifications for core system operations are provided 
 
 \begin{table}[htbp]
 \centering
-\caption{Formal Use Case Specification: UC-06 Save/Load Action Configuration Profile.}
+\caption{Formal Use Case Specification: UC-06 Save and Load Action Configuration Profiles.}
 \label{tab:uc_spec_06}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{l p{11cm}}
@@ -333,12 +333,12 @@ Detailed formal Use Case Specifications for core system operations are provided 
 \midrule
 \textbf{Use Case ID \& Title} & \textbf{UC-06: Save and Load Action Configuration Profiles} \\
 \textbf{Primary Actor} & Runtime Operator User \\
-\textbf{Description} & Operator saves custom button-to-command mappings to disk as reusable configuration profiles and re-imports them anytime. \\
+\textbf{Description} & Operator saves custom button-to-command mappings to disk as reusable JSON configuration profiles and switches between multiple action combination profiles for the exact same physical printed layout sheet without reprinting the paper. \\
 \textbf{Preconditions} & Action mapping table populated in UC-05. \\
 \textbf{Postconditions} & Profile JSON file saved to disk or loaded into active mapping table. \\
 \textbf{Main Success Scenario} & 1. Operator clicks 'Save Profile' in Application 2 GUI.\\
- & 2. System serializes action mapping table to JSON configuration file.\\
- & 3. Operator reloads configuration profile during subsequent sessions.\\
+ & 2. System serializes action mapping table to JSON configuration file (e.g., 'Work\_Mode.json').\\
+ & 3. Operator reloads or switches between configuration profiles (e.g., 'DAW\_Mode.json', 'Gaming\_Mode.json') for the exact same physical paper layout without reprinting.\\
 \textbf{Alternative Flows} & 3a. Profile file version mismatch: System performs automatic migration. \\
 \bottomrule
 \end{tabular}%
@@ -347,23 +347,23 @@ Detailed formal Use Case Specifications for core system operations are provided 
 
 \begin{table}[htbp]
 \centering
-\caption{Formal Use Case Specification: UC-07 AprilTag Tracking \& Planar Homography Estimation.}
+\caption{Formal Use Case Specification: UC-07 AprilTag Tracking and Planar Homography Estimation.}
 \label{tab:uc_spec_07}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{l p{11cm}}
 \toprule
 \textbf{Use Case Attribute} & \textbf{Specification Detail} \\
 \midrule
-\textbf{Use Case ID \& Title} & \textbf{UC-07: Track AprilTag Anchors \& Compute Planar Homography Matrix $H$} \\
+\textbf{Use Case ID \& Title} & \textbf{UC-07: Track AprilTag Anchors and Compute Planar Homography Matrix $H$} \\
 \textbf{Primary Actor} & Monocular RGB Camera (Hardware) / Background Runtime Engine \\
-\textbf{Description} & System continuously localizes sub-pixel AprilTag corner points in camera frames and solves the $3 \times 3$ Planar Homography matrix $H$ using SVD. \\
-\textbf{Preconditions} & Camera feed active; printed paper layout sheet placed within camera field of view. \\
-\textbf{Postconditions} & Homography matrix $H \in \mathbb{R}^{3 \times 3}$ is updated in shared runtime memory buffer. \\
-\textbf{Main Success Scenario} & 1. Camera thread captures video frame and passes to AprilTag estimator.\\
- & 2. Estimator detects tag quads and extracts sub-pixel corner coordinates.\\
- & 3. System matches image corners with target XML anchor points.\\
+\textbf{Description} & The system finds sub-pixel AprilTag corner points in camera frames and calculates the $3 \times 3$ Planar Homography matrix $H$ using SVD. \\
+\textbf{Preconditions} & Camera feed is running; printed paper layout is placed within the camera view. \\
+\textbf{Postconditions} & Homography matrix $H \in \mathbb{R}^{3 \times 3}$ is updated in shared runtime memory. \\
+\textbf{Main Success Scenario} & 1. Camera thread captures video frame and passes it to the AprilTag module.\\
+ & 2. AprilTag detector finds tag corners with sub-pixel precision.\\
+ & 3. System matches image corners with the XML anchor coordinates.\\
  & 4. SVD algorithm solves $\mathbf{A} \mathbf{h} = \mathbf{0}$, updating $H$ for spatial mapping.\\
-\textbf{Alternative Flows} & 3a. Tags occluded by hands ($< 4$ tags visible): System uses previous valid $H$ frame. \\
+\textbf{Alternative Flows} & 3a. Tags blocked by hands (fewer than 4 tags visible): System uses previous valid $H$ matrix. \\
 \bottomrule
 \end{tabular}%
 }
@@ -371,21 +371,21 @@ Detailed formal Use Case Specifications for core system operations are provided 
 
 \begin{table}[htbp]
 \centering
-\caption{Formal Use Case Specification: UC-08 Hand Landmark Scale Normalization \& LSTM Touch Classification.}
+\caption{Formal Use Case Specification: UC-08 Hand Landmark Scale Normalization and LSTM Touch Classification.}
 \label{tab:uc_spec_08}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{l p{11cm}}
 \toprule
 \textbf{Use Case Attribute} & \textbf{Specification Detail} \\
 \midrule
-\textbf{Use Case ID \& Title} & \textbf{UC-08: Scale-Normalize Keypoints, Classify Touch via PyTorch LSTM, \& Dispatch Action} \\
+\textbf{Use Case ID \& Title} & \textbf{UC-08: Scale-Normalize Keypoints, Classify Touch via PyTorch LSTM, and Dispatch Action} \\
 \textbf{Primary Actor} & Background Runtime Engine / OS Shell Execution Engine \\
-\textbf{Description} & System extracts 21 MediaPipe hand keypoints, normalizes features relative to $L_{\text{hand}}$, evaluates 5-frame sliding window with PyTorch LSTM, maps fingertip to XML key region via $H$, and dispatches keystroke/command. \\
+\textbf{Description} & System extracts 21 MediaPipe hand keypoints, normalizes coordinates using hand length $L_{\text{hand}}$, evaluates a 5-frame sliding window with PyTorch LSTM, maps the fingertip to the XML key region via $H$, and triggers the mapped keypress or command. \\
 \textbf{Preconditions} & Layout XML loaded; PyTorch model (\texttt{best\_finger\_touch\_lstm.pth}) loaded into memory. \\
 \textbf{Postconditions} & Keystroke or system shell command executed; active touch status updated on GUI. \\
 \textbf{Main Success Scenario} & 1. MediaPipe extracts 21 2D joint coordinates from RGB camera frame.\\
  & 2. System normalizes keypoints relative to wrist and middle MCP hand length $L_{\text{hand}}$.\\
- & 3. System populates 5-frame sliding window and feeds matrix to PyTorch LSTM.\\
+ & 3. System fills 5-frame sliding window and feeds matrix to PyTorch LSTM.\\
  & 4. PyTorch LSTM classifies active finger surface contact event ($P > 0.90$).\\
  & 5. System transforms active fingertip pixel $\mathbf{P}_{\text{pixel}}$ to XML space ($\mathbf{P}_{\text{XML}} = H \cdot \mathbf{P}_{\text{pixel}}$).\\
  & 6. XML key lookup locates hit key ID and dispatches mapped OS shell command.\\
@@ -397,9 +397,9 @@ Detailed formal Use Case Specifications for core system operations are provided 
 
 \subsection{System Class Diagram and Class Responsibility Breakdown}
 \label{subsec:req_class_diagram}
-The system architecture follows object-oriented design principles, encapsulating layout creation, camera streaming, feature processing, deep learning inference, homography mapping, and command dispatching into decoupled class structures.
+The system architecture follows object-oriented design principles, dividing layout creation, camera capture, feature processing, deep learning inference, homography mapping, and command execution into separate classes.
 
-Figure~\ref{fig:class_diagram} presents the System Class Diagram illustrating class structures, attributes, methods, associations, and multiplicities.
+Figure~\ref{fig:class_diagram} presents the System Class Diagram showing class structures, attributes, methods, and relationships.
 
 \begin{figure}[htbp]
 \centering
@@ -498,19 +498,19 @@ Figure~\ref{fig:class_diagram} presents the System Class Diagram illustrating cl
 \label{fig:class_diagram}
 \end{figure}
 
-Class Responsibility Collaboration (CRC) breakdowns for core system classes are detailed below:
+Class Responsibility Collaboration (CRC) breakdowns for core system classes are explained below:
 \begin{enumerate}
-    \item \textbf{\texttt{LayoutDesignerApp}:} Responsible for managing the PySide6 canvas, tracking graphical button objects, and invoking export engines. Collaborates with \texttt{KeyButtonGraphic} and \texttt{DualExporterEngine}.
-    \item \textbf{\texttt{RuntimeKeyboardEngine}:} Serves as the central coordinator for background vision execution. Manages threads, invokes pose regression, and dispatches hit events. Collaborates with \texttt{CameraThread}, \texttt{MediaPipePoseExtractor}, and \texttt{KeyActionDispatcher}.
-    \item \textbf{\texttt{ScaleNormalizationEngine}:} Translates joint keypoints to wrist origin $\mathbf{P}_0$ and computes unitless ratios relative to $L_{\text{hand}}$. Collaborates with \texttt{SlidingWindowBuffer}.
-    \item \textbf{\texttt{HomographyMappingEngine}:} Receives sub-pixel AprilTag corner coordinates and computes $H \in \mathbb{R}^{3 \times 3}$ using SVD. Collaborates with \texttt{AprilTagTracker} and \texttt{KeyActionDispatcher}.
+    \item \textbf{\texttt{LayoutDesignerApp}:} Responsible for managing the PySide6 canvas, tracking graphical button objects, and invoking export functions. Collaborates with \texttt{KeyButtonGraphic} and export utilities.
+    \item \textbf{\texttt{RuntimeKeyboardEngine}:} Acts as the main coordinator for background vision processing. Manages threads, calls hand pose tracking, and dispatches key events. Collaborates with \texttt{CameraThread}, \texttt{MediaPipePoseExtractor}, and \texttt{KeyActionDispatcher}.
+    \item \textbf{\texttt{ScaleNormalizationEngine}:} Shifts joint coordinates relative to the wrist $\mathbf{P}_0$ and computes unitless scale ratios using hand length $L_{\text{hand}}$. Collaborates with \texttt{SlidingWindowBuffer}.
+    \item \textbf{\texttt{HomographyMappingEngine}:} Takes sub-pixel AprilTag corner points and calculates matrix $H \in \mathbb{R}^{3 \times 3}$ using SVD. Collaborates with \texttt{AprilTagTracker} and \texttt{KeyActionDispatcher}.
 \end{enumerate}
 
 \subsection{System Activity Diagram}
 \label{subsec:req_activity_diagram}
-The runtime execution engine operates across concurrent activity threads to achieve real-time latency performance.
+The runtime engine uses parallel execution threads to maintain real-time performance on standard CPUs.
 
-Figure~\ref{fig:activity_diagram} presents the System Activity Diagram illustrating parallel execution flows between video capture, AprilTag tracking, hand pose regression, sliding window LSTM touch inference, and homography action execution.
+Figure~\ref{fig:activity_diagram} presents the System Activity Diagram showing parallel workflows for video capture, AprilTag tracking, hand pose detection, sliding window LSTM touch inference, and homography action triggering.
 
 \begin{figure}[htbp]
 \centering
@@ -572,9 +572,9 @@ Figure~\ref{fig:activity_diagram} presents the System Activity Diagram illustrat
 
 \subsection{Sequence Diagrams Mapped to Key Use Cases}
 \label{subsec:req_sequence_diagrams}
-Sequence diagrams illustrate object interaction timelines and message passing routines during execution.
+Sequence diagrams illustrate the order of messages between software components during execution.
 
-Figure~\ref{fig:seq_diagram_designer} presents Sequence Diagram 1: *UC-01 \& UC-02 Layout Design \& Synchronized Export Sequence*.
+Figure~\ref{fig:seq_diagram_designer} shows Sequence Diagram 1 for layout design and synchronized file export (UC-01 and UC-02).
 
 \begin{figure}[htbp]
 \centering
@@ -609,11 +609,11 @@ Figure~\ref{fig:seq_diagram_designer} presents Sequence Diagram 1: *UC-01 \& UC-
 
 \end{tikzpicture}%
 }
-\caption{Sequence Diagram 1: Layout Design \& Synchronized Export Sequence (UC-01 \& UC-02).}
+\caption{Sequence Diagram 1: Layout Design and Synchronized Export Sequence (UC-01 and UC-02).}
 \label{fig:seq_diagram_designer}
 \end{figure}
 
-Figure~\ref{fig:seq_diagram_runtime} presents Sequence Diagram 2: *UC-07 \& UC-08 Real-Time Vision, Homography Tracking, and Key Execution Sequence*.
+Figure~\ref{fig:seq_diagram_runtime} shows Sequence Diagram 2 for real-time vision, AprilTag tracking, LSTM inference, and command execution (UC-07 and UC-08).
 
 \begin{figure}[htbp]
 \centering
@@ -653,15 +653,15 @@ Figure~\ref{fig:seq_diagram_runtime} presents Sequence Diagram 2: *UC-07 \& UC-0
 
 \end{tikzpicture}%
 }
-\caption{Sequence Diagram 2: Real-Time Vision, AprilTag Tracking, PyTorch LSTM Inference, and Action Execution Sequence (UC-07 \& UC-08).}
+\caption{Sequence Diagram 2: Real-Time Vision, AprilTag Tracking, PyTorch LSTM Inference, and Action Execution Sequence (UC-07 and UC-08).}
 \label{fig:seq_diagram_runtime}
 \end{figure}
 
 \subsection{System Statechart Diagram}
 \label{subsec:req_statechart_diagram}
-The behavioral lifecycle of a finger touch interaction is modeled using a Statechart diagram.
+The lifecycle states of a finger touch interaction are modeled using a Statechart diagram.
 
-Figure~\ref{fig:statechart_diagram} presents the System Statechart Diagram illustrating lifecycle states and transition triggers.
+Figure~\ref{fig:statechart_diagram} presents the System Statechart Diagram showing states and transition triggers.
 
 \begin{figure}[htbp]
 \centering
@@ -695,7 +695,7 @@ Figure~\ref{fig:statechart_diagram} presents the System Statechart Diagram illus
 
 \subsection{System Deployment Diagram}
 \label{subsec:req_deployment_diagram}
-Figure~\ref{fig:deployment_diagram} presents the System Deployment Diagram illustrating physical hardware devices, execution nodes, and software runtime artifacts.
+Figure~\ref{fig:deployment_diagram} presents the System Deployment Diagram showing hardware devices, execution environments, and software components.
 
 \begin{figure}[htbp]
 \centering
@@ -743,9 +743,9 @@ Figure~\ref{fig:deployment_diagram} presents the System Deployment Diagram illus
 
 \section{Proposed System Architecture Framework}
 \label{sec:req_architecture}
-The proposed system architecture is designed around the two-application suite model specified in Section 6 of \texttt{AGENTS.md}.
+The proposed system architecture is organized as a two-application software suite.
 
-Figure~\ref{fig:system_architecture_framework} presents the end-to-end System Architecture Framework Diagram illustrating synchronized data flows between Application 1 (Layout Designer Suite) and Application 2 (Runtime Virtual Keyboard Engine \& Command Mapper).
+Figure~\ref{fig:system_architecture_framework} presents the System Architecture Framework Diagram showing data flow between Application 1 (Layout Designer Suite) and Application 2 (Runtime Virtual Keyboard Engine and Command Mapper).
 
 \begin{figure}[htbp]
 \centering
@@ -807,29 +807,29 @@ Figure~\ref{fig:system_architecture_framework} presents the end-to-end System Ar
 \label{fig:system_architecture_framework}
 \end{figure}
 
-As detailed in Figure~\ref{fig:system_architecture_framework}, the architecture separates design concerns from runtime watch execution:
+As shown in Figure~\ref{fig:system_architecture_framework}, the design separation keeps layout authoring distinct from live camera processing:
 \begin{itemize}
-    \item **Application 1 (Layout Designer Suite):** Interactive desktop GUI tool that exports printable vector PDF layouts on standard plain paper embedded with AprilTag fiducial anchors alongside structural XML configuration schemas.
-    \item **Application 2 (Runtime Keyboard Engine):** Features a Setup \& Action Command Mapper GUI (Component A) to configure key-to-command bindings and select any single regular RGB camera feed, and a Background Vision Watch Engine (Component B) executing AprilTag homography estimation $H$, MediaPipe pose extraction, unitless hand-length scale normalization ($L_{\text{hand}}$), 12~FPS 5-frame sliding window PyTorch LSTM touch inference in real time on standard commodity CPUs without requiring a GPU, planar coordinate transformation ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), and XML action execution.
+    \item \textbf{Application 1 (Layout Designer Suite):} Desktop GUI tool that exports printable vector PDF layouts with border AprilTag markers on normal paper, together with XML layout coordinate definitions.
+    \item \textbf{Application 2 (Runtime Keyboard Engine):} Contains a Setup and Command Mapper GUI (Component A) to configure key-to-command mappings and choose a camera stream, and a Background Vision Watch Engine (Component B) that tracks AprilTag homography $H$, extracts MediaPipe hand landmarks, performs scale normalization ($L_{\text{hand}}$), evaluates a 12~FPS 5-frame sliding window with PyTorch LSTM on CPU, transforms coordinates ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), and dispatches key commands.
 \end{itemize}
 
 \subsection{Architectural Design Patterns Applied}
 \label{subsec:req_design_patterns}
-The software architecture incorporates recognized software design patterns to ensure maintainability:
+The software design uses standard design patterns to keep the code modular and maintainable:
 \begin{enumerate}
-    \item \textbf{Model-View-Controller (MVC):} Applied in Application 1 Layout Designer (\texttt{designer\_app.py}) to decouple the graphical rendering canvas (View) from underlying XML coordinate schemas (Model) and user drag actions (Controller).
-    \item \textbf{Producer-Consumer Thread Queue:} Applied in Application 2 to buffer raw OpenCV video frames captured by \texttt{camera\_thread.py} into a thread-safe Queue consumed by the PyTorch model manager (\texttt{model\_manager.py}), preventing frame drop.
-    \item \textbf{Strategy Pattern for Action Dispatching:} Encapsulates keystroke injection vs system shell command execution into interchangeable strategy objects.
-    \item \textbf{Singleton Model Manager:} Ensures that heavy PyTorch neural model binaries (\texttt{best\_finger\_touch\_lstm.pth}) are loaded into RAM once upon application launch.
+    \item \textbf{Model-View-Controller (MVC):} Used in the Layout Designer (\texttt{designer\_app.py}) to separate the visual canvas (View) from the XML coordinate data (Model) and user mouse actions (Controller).
+    \item \textbf{Producer-Consumer Thread Queue:} Used in Application 2 to buffer webcam frames captured by \texttt{camera\_thread.py} into a thread-safe Queue read by the model manager (\texttt{model\_manager.py}), avoiding dropped video frames.
+    \item \textbf{Strategy Pattern for Action Dispatching:} Separates regular keyboard typing from shell script execution into modular command handlers.
+    \item \textbf{Singleton Model Manager:} Ensures the trained PyTorch touch model (\texttt{best\_finger\_touch\_lstm.pth}) is loaded into memory only once during startup.
 \end{enumerate}
 
 \section{Functional and Non-Functional Requirements}
 \label{sec:req_fn_nfn}
-System requirements are categorized into explicit Functional Requirements (FR) and Non-Functional Requirements (NFR).
+System requirements are split into Functional Requirements (FR) and Non-Functional Requirements (NFR).
 
 \subsection{Functional Requirements (FR)}
 \label{subsec:req_functional}
-Functional requirements define the core operational capabilities and software services provided by the system architecture, as detailed in Table~\ref{tab:functional_requirements}.
+Functional requirements define the core functions and services provided by the system, as shown in Table~\ref{tab:functional_requirements}.
 
 \begin{table}[htbp]
 \centering
@@ -848,7 +848,7 @@ Functional requirements define the core operational capabilities and software se
 \textbf{FR-06} & XML Specification Loader & Application 2 must parse exported XML layout files and dynamically construct target coordinate lookup tables. \\
 \textbf{FR-07} & Keystroke Action Mapping & Setup GUI must enable users to map key IDs to single keystrokes (e.g., `'A'`, `'Space'`) or key combos (e.g., `'Ctrl+C'`). \\
 \textbf{FR-08} & System Command Mapping & Setup GUI must enable users to map key IDs to executable system shell commands or external Python scripts. \\
-\textbf{FR-09} & Profile Save / Load & System must allow saving custom layout action mapping profiles to JSON/XML disk files and re-importing them anytime. \\
+\textbf{FR-09} & Action Profile Multiplexing & System must allow users to save, load, and switch between multiple distinct action combination profiles (JSON/XML) for the exact same physical printed layout sheet without reprinting the paper. \\
 \textbf{FR-10} & Multi-Threaded Video Capture & Runtime engine must run OpenCV frame acquisition in a dedicated background thread to prevent frame drops. \\
 \textbf{FR-11} & AprilTag Sub-Pixel Tracking & AprilTag tracker engine must detect tag quads and extract sub-pixel corner coordinates under perspective camera tilt. \\
 \textbf{FR-12} & SVD Homography Solver & Engine must compute the $3 \times 3$ Planar Homography matrix $H$ using SVD ($\mathbf{A} \mathbf{h} = \mathbf{0}$) from tracked AprilTag correspondences. \\
@@ -865,17 +865,17 @@ Functional requirements define the core operational capabilities and software se
 
 \subsection{Detailed Functional Requirements Subsection Breakdown}
 \label{subsec:req_fr_details}
-The 18 functional requirements are operationalized across four key subsystem domains:
+The 18 functional requirements are grouped into four main subsystem areas:
 \begin{enumerate}
-    \item \textbf{Layout Designer Domain (FR-01 to FR-04):} Implemented in Application 1 (\texttt{designer/designer\_app.py}). Guarantees that layout creation, button bounding box calculations, AprilTag anchor placement, PDF vector rendering, and XML schema generation execute seamlessly.
-    \item \textbf{Setup \& Command Mapper Domain (FR-05 to FR-09):} Implemented in Application 2 Component A. Manages camera selection across any resolution, XML layout loading, interactive keystroke and shell command mapping, and disk configuration profile save/load routines.
-    \item \textbf{Vision Perception \& Kinematic Normalization Domain (FR-10 to FR-16):} Implemented in Application 2 Component B. Manages multi-threaded video capture (\texttt{camera\_thread.py}), AprilTag tracking (\texttt{aprilTag/estimater.py}), MediaPipe pose regression, unitless hand length scale normalization ($L_{\text{hand}}$) with direct raw feature propagation, and 12~FPS 5-frame sliding window generation (\texttt{create\_windows.py}).
-    \item \textbf{Deep Touch Classification \& Action Dispatch Domain (FR-17 to FR-18):} Implemented in Application 2 Component B. Manages CPU-based PyTorch LSTM touch inference (\texttt{best\_finger\_touch\_lstm.pth}), planar homography matrix transformation ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), XML key bounding box lookup, and OS keystroke/shell command execution.
+    \item \textbf{Layout Designer Domain (FR-01 to FR-04):} Implemented in Application 1 (\texttt{designer/designer\_app.py}). Ensures that creating buttons, calculating bounding boxes, placing AprilTag anchors, rendering vector PDFs, and writing XML layout files work smoothly for any custom keyboard layout.
+    \item \textbf{Setup and Command Mapper Domain (FR-05 to FR-09):} Implemented in Application 2 Component A. Manages camera selection across standard and low resolutions, XML layout loading, custom keystroke and shell command assignments, and saving or loading profile files, allowing users to switch action combinations on the exact same printed paper sheet without reprinting.
+    \item \textbf{Vision Perception and Scale Normalization Domain (FR-10 to FR-16):} Implemented in Application 2 Component B. Handles multi-threaded camera capture (\texttt{camera\_thread.py}), AprilTag tracking (\texttt{aprilTag/estimater.py}), MediaPipe joint tracking, hand length scale normalization ($L_{\text{hand}}$) with direct feature propagation, and 12~FPS 5-frame sliding window creation (\texttt{create\_windows.py}).
+    \item \textbf{Touch Classification and Command Execution Domain (FR-17 to FR-18):} Implemented in Application 2 Component B. Manages CPU-based PyTorch LSTM touch inference (\texttt{best\_finger\_touch\_lstm.pth}), planar homography coordinate mapping ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), XML key detection, and keystroke or shell command triggering.
 \end{enumerate}
 
 \subsection{Non-Functional Requirements (NFR)}
 \label{subsec:req_non_functional}
-Non-functional requirements specify quality attributes, performance constraints, and operational standards, as detailed in Table~\ref{tab:non_functional_requirements}.
+Non-functional requirements specify quality goals, system constraints, and performance targets, as detailed in Table~\ref{tab:non_functional_requirements}.
 
 \begin{table}[htbp]
 \centering
@@ -903,18 +903,18 @@ Non-functional requirements specify quality attributes, performance constraints,
 
 \subsection{Detailed Non-Functional Quality Constraints}
 \label{subsec:req_nfr_details}
-The 10 non-functional requirements enforce critical operational performance boundaries:
+The 10 non-functional requirements set key operational targets:
 \begin{itemize}
-    \item \textbf{Performance and Real-Time Execution (NFR-01, NFR-06):} The system guarantees an end-to-end frame processing latency of $< 30\text{ ms}$ (comfortably exceeding the $12\text{ FPS}$ real-time budget of $83.3\text{ ms}$) on standard commodity CPUs without requiring high-cost discrete GPUs or high-end processors.
-    \item \textbf{Machine Learning Classification Accuracy (NFR-02):} The optimal PyTorch LSTM model trained on 5-frame scale-normalized feature windows achieves a touch classification F1-score of $0.963$ across all five digits.
-    \item \textbf{Tracking Precision and Planar Tilt Robustness (NFR-03, NFR-04):} AprilTag corner localization achieves sub-pixel accuracy ($0.038\text{ px}$), enabling stable SVD homography calculation under planar inclination angles up to $75^\circ$.
-    \item \textbf{GDPR Biometric Data Privacy Compliance (NFR-08):} The system processes video frames locally in temporary RAM buffers and permanently discards raw camera images afterMediaPipe landmark extraction, storing only anonymized scale-normalized coordinate arrays ($(x_i^{\text{norm}}, y_i^{\text{norm}})$).
+    \item \textbf{Performance and Real-Time Execution (NFR-01, NFR-06):} The system provides an end-to-end frame processing time of under $30$~ms (well within the 12~FPS budget of $83.3$~ms) on standard commodity CPUs without requiring a dedicated GPU.
+    \item \textbf{Touch Classification Accuracy (NFR-02):} The PyTorch LSTM model trained on 5-frame scale-normalized feature windows achieves an F1-score of $0.963$ across all five fingers.
+    \item \textbf{Tracking Precision and Camera Tilt Support (NFR-03, NFR-04):} AprilTag corner tracking reaches sub-pixel accuracy ($0.038$~px), maintaining stable homography calculations under camera tilt angles up to $75^\circ$.
+    \item \textbf{Data Privacy Protection (NFR-08):} The system processes video feeds locally in memory and deletes raw camera frames after extracting 2D joint coordinates, keeping only anonymized coordinate arrays ($(x_i^{\text{norm}}, y_i^{\text{norm}})$).
 \end{itemize}
 
 \section{Chapter Summary}
 \label{sec:req_summary}
-This chapter presented a detailed System Requirement Specification (SRS) and Unified Modeling Language (UML) analysis for the customizable paper virtual keyboard system. 
+This chapter presented the System Requirement Specification (SRS) and Unified Modeling Language (UML) analysis for the customizable paper virtual keyboard system.
 
-Section~\ref{sec:req_stakeholder} identified and classified primary, secondary, and system stakeholders, establishing an Interest-Power matrix and trade-off resolution protocols. Section~\ref{sec:req_operationalization} mapped research data gathering techniques and stakeholder needs to system requirements via an operationalization matrix. Section~\ref{sec:req_uml_analysis} provided comprehensive UML models covering Use Case diagrams with formal specifications for all 8 core use cases, Class diagrams with CRC responsibility breakdowns, Activity diagrams, Sequence diagrams, Statechart diagrams, and Deployment diagrams. Section~\ref{sec:req_architecture} detailed the end-to-end System Architecture Framework Diagram and architectural design patterns. Finally, Section~\ref{sec:req_fn_nfn} specified 18 Functional Requirements and 10 Non-Functional Requirements with detailed domain breakdowns.
+Section~\ref{sec:req_stakeholder} identified and classified primary, secondary, and system stakeholders, providing a Power-Interest matrix and design trade-off resolutions. Section~\ref{sec:req_operationalization} mapped research findings and data collection to system requirements. Section~\ref{sec:req_uml_analysis} provided UML diagrams including Use Case diagrams with specifications for 8 core use cases, Class diagrams with CRC descriptions, Activity diagrams, Sequence diagrams, Statechart diagrams, and Deployment diagrams. Section~\ref{sec:req_architecture} described the System Architecture Framework Diagram and architectural design patterns. Finally, Section~\ref{sec:req_fn_nfn} specified 18 Functional Requirements and 10 Non-Functional Requirements with domain breakdowns.
 
-The requirement specifications and architectural designs established in this chapter form the direct blueprint for the software implementation, algorithm design, and empirical testing presented in subsequent chapters.
+The requirements and architectural models established in this chapter provide a direct guide for the software implementation, algorithm design, and testing presented in the subsequent chapters.

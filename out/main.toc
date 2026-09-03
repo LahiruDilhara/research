@@ -1,24 +1,24 @@
 \contentsline {chapter}{List of Abbreviations}{5}{chapter*.2}%
 \contentsline {chapter}{\numberline {1}Introduction}{7}{chapter.1}%
 \contentsline {section}{\numberline {1.1}Chapter Overview}{7}{section.1.1}%
-\contentsline {section}{\numberline {1.2}Problem Background}{7}{section.1.2}%
-\contentsline {section}{\numberline {1.3}Problem Statement}{8}{section.1.3}%
+\contentsline {section}{\numberline {1.2}Problem Background}{8}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Problem Statement}{9}{section.1.3}%
 \contentsline {subsection}{\numberline {1.3.1}General Problem}{9}{subsection.1.3.1}%
 \contentsline {subsection}{\numberline {1.3.2}Specific Problem}{9}{subsection.1.3.2}%
-\contentsline {paragraph}{Research Gap:}{9}{section*.3}%
+\contentsline {paragraph}{Research Gap:}{10}{section*.3}%
 \contentsline {section}{\numberline {1.4}Research Question}{10}{section.1.4}%
 \contentsline {section}{\numberline {1.5}Research Motivation}{10}{section.1.5}%
 \contentsline {section}{\numberline {1.6}Research Aim}{11}{section.1.6}%
 \contentsline {section}{\numberline {1.7}Research Objectives}{11}{section.1.7}%
-\contentsline {subsection}{\numberline {1.7.1}1.7.1 To Identify...}{11}{subsection.1.7.1}%
-\contentsline {subsection}{\numberline {1.7.2}1.7.2 To Analyze...}{11}{subsection.1.7.2}%
-\contentsline {subsection}{\numberline {1.7.3}1.7.3 To Design and Develop...}{11}{subsection.1.7.3}%
+\contentsline {subsection}{\numberline {1.7.1}1.7.1 To Identify...}{12}{subsection.1.7.1}%
+\contentsline {subsection}{\numberline {1.7.2}1.7.2 To Analyze...}{12}{subsection.1.7.2}%
+\contentsline {subsection}{\numberline {1.7.3}1.7.3 To Design and Develop...}{12}{subsection.1.7.3}%
 \contentsline {subsection}{\numberline {1.7.4}1.7.4 To Evaluate...}{12}{subsection.1.7.4}%
-\contentsline {section}{\numberline {1.8}Rich Picture of the Proposed Solution}{12}{section.1.8}%
-\contentsline {subsection}{\numberline {1.8.1}Detailed Operational Architecture Steps}{12}{subsection.1.8.1}%
-\contentsline {section}{\numberline {1.9}Resource Requirements}{14}{section.1.9}%
-\contentsline {subsection}{\numberline {1.9.1}Hardware Requirements}{14}{subsection.1.9.1}%
-\contentsline {subsection}{\numberline {1.9.2}Software Requirements}{14}{subsection.1.9.2}%
+\contentsline {section}{\numberline {1.8}Rich Picture of the Proposed Solution}{13}{section.1.8}%
+\contentsline {subsection}{\numberline {1.8.1}Detailed Operational Architecture Steps}{13}{subsection.1.8.1}%
+\contentsline {section}{\numberline {1.9}Resource Requirements}{13}{section.1.9}%
+\contentsline {subsection}{\numberline {1.9.1}Hardware Requirements}{15}{subsection.1.9.1}%
+\contentsline {subsection}{\numberline {1.9.2}Software Requirements}{15}{subsection.1.9.2}%
 \contentsline {section}{\numberline {1.10}Project Scope}{15}{section.1.10}%
 \contentsline {subsection}{\numberline {1.10.1}Elaboration of Scope Boundaries}{16}{subsection.1.10.1}%
 \contentsline {section}{\numberline {1.11}Chapter Summary}{17}{section.1.11}%
@@ -31,200 +31,200 @@
 \contentsline {subsection}{\numberline {2.3.3}Ergonomics, Fitts' Law, and Human Input Performance Metrics}{21}{subsection.2.3.3}%
 \contentsline {subsection}{\numberline {2.3.4}Physical Surface Interaction Paradigms: Desk vs. Paper vs. Floating Air}{22}{subsection.2.3.4}%
 \contentsline {subsection}{\numberline {2.3.5}Biomechanical Kinematic Modeling of Multi-Finger Tendon Coupling}{22}{subsection.2.3.5}%
-\contentsline {subsection}{\numberline {2.3.6}Domain Drivers for Customizable Paper Virtual Keyboards}{23}{subsection.2.3.6}%
+\contentsline {subsection}{\numberline {2.3.6}Domain Drivers for Customizable Paper Virtual Keyboards}{22}{subsection.2.3.6}%
 \contentsline {section}{\numberline {2.4}Existing Systems, Frameworks, and Sensing Modalities}{23}{section.2.4}%
 \contentsline {subsection}{\numberline {2.4.1}Projection-Based and Infrared Sensor Systems}{23}{subsection.2.4.1}%
-\contentsline {subsection}{\numberline {2.4.2}Shadow-Based Monocular RGB Keyboards}{24}{subsection.2.4.2}%
+\contentsline {subsection}{\numberline {2.4.2}Shadow-Based Monocular RGB Keyboards}{23}{subsection.2.4.2}%
 \contentsline {subsection}{\numberline {2.4.3}Hardware-Assisted and Depth Sensor Systems (RGB-D / ToF)}{24}{subsection.2.4.3}%
-\contentsline {subsection}{\numberline {2.4.4}3D Mid-Air Typing and AR/VR Floating Keyboards}{25}{subsection.2.4.4}%
+\contentsline {subsection}{\numberline {2.4.4}3D Mid-Air Typing and AR/VR Floating Keyboards}{24}{subsection.2.4.4}%
 \contentsline {subsection}{\numberline {2.4.5}Paper-Anchored and Monocular RGB Keyboards}{25}{subsection.2.4.5}%
-\contentsline {subsection}{\numberline {2.4.6}Video Keystroke Inference and Attack Side-Channels}{26}{subsection.2.4.6}%
-\contentsline {subsection}{\numberline {2.4.7}Specialized Optical, Acoustic, and Sensor-Fusion Modalities}{26}{subsection.2.4.7}%
+\contentsline {subsection}{\numberline {2.4.6}Video Keystroke Inference and Attack Side-Channels}{25}{subsection.2.4.6}%
+\contentsline {subsection}{\numberline {2.4.7}Specialized Optical, Acoustic, and Sensor-Fusion Modalities}{25}{subsection.2.4.7}%
 \contentsline {subsection}{\numberline {2.4.8}Gaze-Based and Assistive Visual Interfaces}{26}{subsection.2.4.8}%
-\contentsline {subsection}{\numberline {2.4.9}Robotic Vision Servo Control and Fiducial Calibration Systems}{27}{subsection.2.4.9}%
-\contentsline {subsection}{\numberline {2.4.10}Comparative Analysis of Machine Learning Models in Virtual Input}{27}{subsection.2.4.10}%
+\contentsline {subsection}{\numberline {2.4.9}Robotic Vision Servo Control and Fiducial Calibration Systems}{26}{subsection.2.4.9}%
+\contentsline {subsection}{\numberline {2.4.10}Comparative Analysis of Machine Learning Models in Virtual Input}{26}{subsection.2.4.10}%
 \contentsline {subsection}{\numberline {2.4.11}Noise Modeling and Lighting Robustness in Passive Vision Systems}{27}{subsection.2.4.11}%
-\contentsline {subsection}{\numberline {2.4.12}Comparative Analysis Matrix of Existing Literature}{28}{subsection.2.4.12}%
-\contentsline {section}{\numberline {2.5}Technological Analysis}{28}{section.2.5}%
-\contentsline {subsection}{\numberline {2.5.1}Algorithmic Analysis}{29}{subsection.2.5.1}%
-\contentsline {subsubsection}{Hand Pose Estimation \& Skeletal Joint Tracking}{29}{section*.8}%
-\contentsline {subsubsection}{Spatial Kinematic Scale Normalization vs. Temporal Smoothing}{30}{section*.10}%
-\contentsline {paragraph}{Mathematical Proof of Perspective Scale Invariance:}{30}{section*.11}%
+\contentsline {subsection}{\numberline {2.4.12}Comparative Analysis Matrix of Existing Literature}{27}{subsection.2.4.12}%
+\contentsline {section}{\numberline {2.5}Technological Analysis}{27}{section.2.5}%
+\contentsline {subsection}{\numberline {2.5.1}Algorithmic Analysis}{27}{subsection.2.5.1}%
+\contentsline {subsubsection}{Hand Pose Estimation and Skeletal Joint Tracking}{27}{section*.8}%
+\contentsline {subsubsection}{Spatial Kinematic Scale Normalization vs. Temporal Smoothing}{28}{section*.10}%
+\contentsline {paragraph}{Mathematical Proof of Perspective Scale Invariance:}{29}{section*.11}%
 \contentsline {paragraph}{Direct Raw Kinematic Feature Propagation:}{30}{section*.12}%
-\contentsline {subsubsection}{Planar Homography Mathematics \& AprilTag Fiducial Tracking}{31}{section*.13}%
-\contentsline {paragraph}{Direct Linear Transform (DLT) Matrix Formulation:}{31}{section*.14}%
+\contentsline {subsubsection}{Planar Homography Mathematics and AprilTag Fiducial Tracking}{30}{section*.13}%
+\contentsline {paragraph}{Direct Linear Transform (DLT) Matrix Formulation:}{30}{section*.14}%
 \contentsline {paragraph}{Comparative Analysis of Visual Fiducial Marker Systems:}{31}{section*.15}%
-\contentsline {subsubsection}{Deep Sequential Temporal Touch Detection Models}{32}{section*.16}%
-\contentsline {paragraph}{Comparative Deep Neural Architecture Evaluation:}{32}{section*.17}%
-\contentsline {paragraph}{Temporal Windowing Architecture:}{33}{section*.18}%
-\contentsline {subsection}{\numberline {2.5.2}Design Analysis}{33}{subsection.2.5.2}%
-\contentsline {subsubsection}{Architectural Sensing Trade-Offs}{33}{section*.19}%
-\contentsline {subsubsection}{Layout Customization \& Synchronized XML Artifacts}{34}{section*.21}%
-\contentsline {subsubsection}{Edge Computing, Parameter Optimization, and Inference Real-Time Benchmarks}{34}{section*.22}%
-\contentsline {subsection}{\numberline {2.5.3}Workflow Analysis}{35}{subsection.2.5.3}%
-\contentsline {subsubsection}{Dataset Creation \& Model Benchmark Pipeline Workflow}{35}{section*.24}%
-\contentsline {subsubsection}{Real-Time Runtime Watch \& Key Execution Pipeline Workflow}{35}{section*.26}%
-\contentsline {section}{\numberline {2.6}Reflection and Synthesis of Research Gap}{36}{section.2.6}%
-\contentsline {subsection}{\numberline {2.6.1}Synthesis of Prior Literature Limitations}{36}{subsection.2.6.1}%
-\contentsline {subsection}{\numberline {2.6.2}Formal Rationale and Research Gap Justification}{37}{subsection.2.6.2}%
-\contentsline {section}{\numberline {2.7}Chapter Summary}{37}{section.2.7}%
-\contentsline {chapter}{\numberline {3}Research Methodology}{39}{chapter.3}%
-\contentsline {section}{\numberline {3.1}Chapter Overview}{39}{section.3.1}%
-\contentsline {section}{\numberline {3.2}Research Paradigm}{39}{section.3.2}%
-\contentsline {subsection}{\numberline {3.2.1}Philosophical Categorization and Paradigm Selection}{39}{subsection.3.2.1}%
-\contentsline {subsection}{\numberline {3.2.2}Justification of the Positivist Quantitative Paradigm}{40}{subsection.3.2.2}%
-\contentsline {subsection}{\numberline {3.2.3}Epistemological Threats to Validity and Mitigation Strategies}{41}{subsection.3.2.3}%
-\contentsline {section}{\numberline {3.3}Research Approach}{41}{section.3.3}%
-\contentsline {subsection}{\numberline {3.3.1}Deductive Logical Reasoning Framework}{41}{subsection.3.3.1}%
-\contentsline {subsection}{\numberline {3.3.2}Design Science Research Methodology (DSRM)}{42}{subsection.3.3.2}%
-\contentsline {section}{\numberline {3.4}Research Strategy: Partitioned Development \& Evaluation}{43}{section.3.4}%
-\contentsline {subsection}{\numberline {3.4.1}Partitioned Research Rationale}{43}{subsection.3.4.1}%
-\contentsline {subsection}{\numberline {3.4.2}Detailed Partition Specifications and Technological Frameworks}{44}{subsection.3.4.2}%
-\contentsline {subsubsection}{Partition 1: Layout Designer GUI \& Homography Simulation Suite}{44}{section*.30}%
-\contentsline {subsubsection}{Partition 2: Dataset Creation, Resampling, Landmark Extraction \& Scale Normalization}{44}{section*.31}%
-\contentsline {subsubsection}{Partition 3: Deep Learning Model Benchmarking \& Selection Engine}{45}{section*.32}%
-\contentsline {subsubsection}{Partition 4: Real-Time Execution, Latency \& Threading Evaluation}{45}{section*.33}%
-\contentsline {subsubsection}{Partition 5: AprilTag Fiducial Localization \& Planar Homography Tracking}{45}{section*.34}%
-\contentsline {section}{\numberline {3.5}Fact Collection \& Data Gathering Mechanisms}{45}{section.3.5}%
-\contentsline {subsection}{\numberline {3.5.1}Typing Interaction Dataset Capture Protocol}{46}{subsection.3.5.1}%
-\contentsline {subsection}{\numberline {3.5.2}Ground Truth Annotation and Temporal Alignment Procedure}{46}{subsection.3.5.2}%
-\contentsline {subsection}{\numberline {3.5.3}Feature Vector Pipeline Formulation}{46}{subsection.3.5.3}%
-\contentsline {section}{\numberline {3.6}Research Methodology Execution Workflow}{47}{section.3.6}%
-\contentsline {subsection}{\numberline {3.6.1}Detailed Sub-Phase Execution Breakdown}{47}{subsection.3.6.1}%
-\contentsline {section}{\numberline {3.7}Project Management Methodology \& Governance}{48}{section.3.7}%
-\contentsline {subsection}{\numberline {3.7.1}Agile Scrum Research Adaptation}{48}{subsection.3.7.1}%
-\contentsline {subsection}{\numberline {3.7.2}Project Timeline \& Gantt Chart Schedule}{48}{subsection.3.7.2}%
-\contentsline {subsection}{\numberline {3.7.3}Risk Mitigation Matrix}{49}{subsection.3.7.3}%
-\contentsline {subsection}{\numberline {3.7.4}Ethical Considerations \& Data Privacy Protocols}{49}{subsection.3.7.4}%
-\contentsline {section}{\numberline {3.8}Chapter Summary}{50}{section.3.8}%
-\contentsline {chapter}{\numberline {4}System Requirement Specification}{51}{chapter.4}%
-\contentsline {section}{\numberline {4.1}Chapter Overview}{51}{section.4.1}%
-\contentsline {section}{\numberline {4.2}Stakeholder Analysis}{51}{section.4.2}%
-\contentsline {subsection}{\numberline {4.2.1}Stakeholder Identification and Classification}{51}{subsection.4.2.1}%
-\contentsline {subsection}{\numberline {4.2.2}Stakeholder Power-Interest Matrix}{52}{subsection.4.2.2}%
-\contentsline {subsection}{\numberline {4.2.3}Stakeholder Conflict Resolution and Requirement Trade-offs}{52}{subsection.4.2.3}%
-\contentsline {section}{\numberline {4.3}Operationalization Process}{53}{section.4.3}%
-\contentsline {subsection}{\numberline {4.3.1}Mapping Research Data Gathering to System Requirements}{54}{subsection.4.3.1}%
-\contentsline {subsection}{\numberline {4.3.2}Qualitative Data Gathering from User Interactivity Studies}{54}{subsection.4.3.2}%
-\contentsline {subsection}{\numberline {4.3.3}Empirical Kinematic Data Translation to Landmark Requirements}{54}{subsection.4.3.3}%
-\contentsline {section}{\numberline {4.4}System and Model Analysis (UML Modeling)}{54}{section.4.4}%
-\contentsline {subsection}{\numberline {4.4.1}Use Case Analysis and Formal Specifications}{55}{subsection.4.4.1}%
-\contentsline {subsection}{\numberline {4.4.2}System Class Diagram and Class Responsibility Breakdown}{55}{subsection.4.4.2}%
-\contentsline {subsection}{\numberline {4.4.3}System Activity Diagram}{62}{subsection.4.4.3}%
-\contentsline {subsection}{\numberline {4.4.4}Sequence Diagrams Mapped to Key Use Cases}{62}{subsection.4.4.4}%
-\contentsline {subsection}{\numberline {4.4.5}System Statechart Diagram}{62}{subsection.4.4.5}%
-\contentsline {subsection}{\numberline {4.4.6}System Deployment Diagram}{62}{subsection.4.4.6}%
-\contentsline {section}{\numberline {4.5}Proposed System Architecture Framework}{62}{section.4.5}%
-\contentsline {subsection}{\numberline {4.5.1}Architectural Design Patterns Applied}{66}{subsection.4.5.1}%
-\contentsline {section}{\numberline {4.6}Functional and Non-Functional Requirements}{66}{section.4.6}%
-\contentsline {subsection}{\numberline {4.6.1}Functional Requirements (FR)}{66}{subsection.4.6.1}%
-\contentsline {subsection}{\numberline {4.6.2}Detailed Functional Requirements Subsection Breakdown}{66}{subsection.4.6.2}%
-\contentsline {subsection}{\numberline {4.6.3}Non-Functional Requirements (NFR)}{68}{subsection.4.6.3}%
-\contentsline {subsection}{\numberline {4.6.4}Detailed Non-Functional Quality Constraints}{68}{subsection.4.6.4}%
-\contentsline {section}{\numberline {4.7}Chapter Summary}{68}{section.4.7}%
-\contentsline {chapter}{\numberline {5}Implementation and Software Design}{71}{chapter.5}%
-\contentsline {section}{\numberline {5.1}Chapter Overview}{71}{section.5.1}%
-\contentsline {section}{\numberline {5.2}Algorithmic Design and Software Engineering Steps}{72}{section.5.2}%
-\contentsline {subsection}{\numberline {5.2.1}Framework Engineering Workflow Breakdown}{72}{subsection.5.2.1}%
-\contentsline {subsection}{\numberline {5.2.2}Mathematical Algorithm Formulations and Formal Pseudocode}{73}{subsection.5.2.2}%
-\contentsline {subsubsection}{Algorithm 1: AprilTag Corner Localization \& SVD Planar Homography Engine}{74}{section*.60}%
-\contentsline {subsubsection}{Algorithm 2: Unitless Hand Landmark Scale Normalization Engine}{74}{section*.62}%
-\contentsline {subsubsection}{Algorithm 3: 5-Frame Sliding Window Assembly \& PyTorch LSTM Touch Inference}{75}{section*.64}%
-\contentsline {subsubsection}{Algorithm 4: Planar Coordinate Mapping \& Action Execution Engine}{76}{section*.66}%
-\contentsline {subsubsection}{Algorithm 5: PySide6 Interactive Canvas Viewport Drag-and-Drop Math}{77}{section*.68}%
-\contentsline {subsubsection}{Algorithm 6: Multi-Threaded Consumer-Producer Queue Synchronization}{77}{section*.70}%
-\contentsline {subsubsection}{Algorithm 7: OpenCV Video Downsampling and Quality Filtering Engine}{79}{section*.72}%
-\contentsline {subsubsection}{Algorithm 8: Intrinsic Camera Matrix Calibration Engine}{79}{section*.74}%
-\contentsline {subsubsection}{Computational Latency Budget and Timing Formulation for 12~FPS CPU-Only Execution}{79}{section*.76}%
-\contentsline {subsection}{\numberline {5.2.3}Technology Selection Justification and Comparative Reflection}{81}{subsection.5.2.3}%
-\contentsline {subsubsection}{Programming Language Selection (Python 3.10 vs C++17 vs Java)}{81}{section*.78}%
-\contentsline {subsubsection}{Deep Learning Frameworks (PyTorch 2.1 vs TensorFlow 2.x vs ONNX)}{81}{section*.79}%
-\contentsline {subsubsection}{Pose Landmarker Engine (MediaPipe Hands vs OpenPose vs HRNet)}{82}{section*.80}%
-\contentsline {subsubsection}{Visual Fiducial System (AprilTag tag36h11 vs ArUco vs QR Codes)}{82}{section*.81}%
-\contentsline {subsubsection}{Desktop GUI Framework (PySide6 / Qt6 vs Tkinter vs Electron.js)}{82}{section*.82}%
-\contentsline {section}{\numberline {5.3}Significantly Important System Implementation Attempts}{82}{section.5.3}%
-\contentsline {subsection}{\numberline {5.3.1}Application 1 Layout Designer Suite Implementation}{82}{subsection.5.3.1}%
-\contentsline {subsubsection}{PySide6 Graphics View Canvas Workspace}{82}{section*.83}%
-\contentsline {subsubsection}{Automated AprilTag Border Anchoring Engine}{83}{section*.84}%
-\contentsline {subsubsection}{Dual Exporter Engine (Printable PDF \& XML Specification)}{83}{section*.85}%
-\contentsline {subsection}{\numberline {5.3.2}Partition 1 Homography Simulation Suite}{84}{subsection.5.3.2}%
-\contentsline {subsubsection}{XML Serialization Schema Specification}{84}{section*.86}%
-\contentsline {subsection}{\numberline {5.3.3}Partition 2 Data Pipeline, Landmark Extraction \& Scale Normalization}{84}{subsection.5.3.3}%
-\contentsline {subsubsection}{Video Resampling to Uniform 12 FPS (\texttt {resample\allowbreak \_12fps.py})}{84}{section*.87}%
-\contentsline {subsubsection}{MediaPipe Pose Keypoint Extraction \& Scale Normalization (\texttt {normalize\allowbreak \_land\allowbreak marks.py})}{85}{section*.88}%
-\contentsline {subsubsection}{First-Order Spatial Velocity Derivation (\texttt {calculate\allowbreak \_velocities.py})}{85}{section*.89}%
-\contentsline {subsubsection}{5-Frame Sliding Temporal Windowing (\texttt {create\allowbreak \_windows.py})}{85}{section*.90}%
-\contentsline {subsubsection}{Data Quality Filtering (\texttt {filter\allowbreak \_window\allowbreak \_quality.py})}{86}{section*.91}%
-\contentsline {subsection}{\numberline {5.3.4}Partition 3 Deep Learning Multi-Model Benchmark Engine}{86}{subsection.5.3.4}%
-\contentsline {subsubsection}{Evaluated Model Architectures \& Feature Representations}{86}{section*.92}%
-\contentsline {subsubsection}{Training Methodology \& Loss Optimization}{86}{section*.93}%
-\contentsline {subsubsection}{Optimal Model Selection (\texttt {best\allowbreak \_finger\allowbreak \_touch\allowbreak \_lstm.pth})}{87}{section*.94}%
-\contentsline {subsubsection}{PyTorch LSTM Layer Architecture \& Parameter Specification}{87}{section*.95}%
-\contentsline {subsection}{\numberline {5.3.5}Partition 4 Real-Time Execution \& Multi-Threaded Engine}{87}{subsection.5.3.5}%
-\contentsline {subsubsection}{Multi-Threaded Video Acquisition (\texttt {camera\_thread.py})}{87}{section*.96}%
-\contentsline {subsubsection}{Model Memory Manager (\texttt {model\_manager.py})}{88}{section*.97}%
-\contentsline {subsubsection}{Real-Time Evaluation UI (\texttt {main\_realtime\_ui.py})}{88}{section*.98}%
-\contentsline {subsubsection}{Thread Concurrency \& Mutex Synchronization Metrics}{88}{section*.99}%
-\contentsline {subsection}{\numberline {5.3.6}Partition 5 AprilTag Fiducial Tracking Engine}{88}{subsection.5.3.6}%
-\contentsline {subsubsection}{Camera Calibration \& Lens Distortion Correction (\texttt {main.py})}{88}{section*.100}%
-\contentsline {subsubsection}{Sub-Pixel AprilTag Quad Localizer (\texttt {estimater.py})}{89}{section*.101}%
-\contentsline {subsubsection}{Real-Time SVD Homography Solver (\texttt {homography.py})}{89}{section*.102}%
-\contentsline {subsubsection}{Homography Matrix Reprojection Accuracy \& SVD Numerical Stability}{89}{section*.103}%
-\contentsline {subsection}{\numberline {5.3.7}Application 2 Runtime Engine Setup GUI \& Action Command Mapper}{89}{subsection.5.3.7}%
-\contentsline {subsubsection}{Component A: Interactive Setup \& Action Command Mapper GUI}{89}{section*.104}%
-\contentsline {subsubsection}{Component B: Background Live Watch \& Action Execution Engine}{90}{section*.105}%
-\contentsline {section}{\numberline {5.4}Empirical Implementation Challenges and Technical Solutions}{90}{section.5.4}%
-\contentsline {subsection}{\numberline {5.4.1}Deep Technical Challenge Analysis}{90}{subsection.5.4.1}%
-\contentsline {subsubsection}{Challenge 1: Resolving Monocular Z-Axis Depth Ambiguity}{90}{section*.107}%
-\contentsline {subsubsection}{Challenge 2: Achieving Distance and Hand-Size Scale Invariance}{92}{section*.108}%
-\contentsline {subsubsection}{Challenge 3: Real-Time CPU-Only Execution and Universal Low-End Camera Support at 12~FPS}{92}{section*.109}%
-\contentsline {subsubsection}{Challenge 4: Robust AprilTag Fiducial Tracking under Hand Occlusion}{93}{section*.110}%
-\contentsline {subsubsection}{Challenge 5: Multi-Threaded Queue Buffer Architecture}{93}{section*.111}%
-\contentsline {section}{\numberline {5.5}Chapter Summary}{94}{section.5.5}%
-\contentsline {chapter}{\numberline {6}Testing and Evaluation}{95}{chapter.6}%
-\contentsline {section}{\numberline {6.1}Chapter Overview}{95}{section.6.1}%
-\contentsline {section}{\numberline {6.2}Test Plan and Structured Test Cases}{96}{section.6.2}%
-\contentsline {subsection}{\numberline {6.2.1}Functional Testing Suite}{96}{subsection.6.2.1}%
-\contentsline {subsection}{\numberline {6.2.2}Non-Functional Testing Suite}{96}{subsection.6.2.2}%
-\contentsline {subsubsection}{Non-Functional Evaluation Narrative}{98}{section*.114}%
-\contentsline {section}{\numberline {6.3}Testing and Evaluation Workflow}{98}{section.6.3}%
-\contentsline {section}{\numberline {6.4}Detailed Empirical Results and Strategy Review}{98}{section.6.4}%
-\contentsline {subsection}{\numberline {6.4.1}Deep Learning Model Architecture Benchmark Evaluation}{99}{subsection.6.4.1}%
-\contentsline {subsubsection}{Per-Digit Confusion Matrix Analysis}{99}{section*.116}%
-\contentsline {subsubsection}{Training Loss Convergence \& Overfitting Analysis}{99}{section*.118}%
-\contentsline {subsection}{\numberline {6.4.2}Temporal Window Length and Stride Sensitivity Analysis}{100}{subsection.6.4.2}%
-\contentsline {subsection}{\numberline {6.4.3}Scale Normalization Ablation Study Across Distance \& Users}{100}{subsection.6.4.3}%
-\contentsline {subsection}{\numberline {6.4.4}Empirical Benchmark of CPU-Only Real-Time Performance and Resolution Invariance at 12~FPS}{101}{subsection.6.4.4}%
-\contentsline {subsection}{\numberline {6.4.5}AprilTag Homography Tracking Accuracy \& Tilt Sensitivity}{101}{subsection.6.4.5}%
-\contentsline {subsubsection}{Reprojection Error Heatmap \& Sub-Pixel Interpolation Analysis}{102}{section*.123}%
-\contentsline {subsection}{\numberline {6.4.6}Real-Time Pipeline Latency \& Resource Profiling}{102}{subsection.6.4.6}%
-\contentsline {subsubsection}{CPU Thread Memory Contention \& Mutex Overhead Analysis}{103}{section*.125}%
-\contentsline {subsection}{\numberline {6.4.7}User Typing Performance \& Character Error Rate Benchmark}{103}{subsection.6.4.7}%
-\contentsline {section}{\numberline {6.5}Chapter Summary}{103}{section.6.5}%
-\contentsline {chapter}{\numberline {7}Concluding Remarks}{105}{chapter.7}%
-\contentsline {section}{\numberline {7.1}Chapter Overview}{105}{section.7.1}%
-\contentsline {section}{\numberline {7.2}Accomplishment of Research Objectives}{105}{section.7.2}%
-\contentsline {subsection}{\numberline {7.2.1}Triangulation Evaluation of Objective 1: Problem Identification \& Literature Review}{106}{subsection.7.2.1}%
-\contentsline {subsection}{\numberline {7.2.2}Triangulation Evaluation of Objective 2: Scale Normalization \& Deep Learning Pipeline}{106}{subsection.7.2.2}%
-\contentsline {subsection}{\numberline {7.2.3}Triangulation Evaluation of Objective 3: System Suite Design \& Engineering}{106}{subsection.7.2.3}%
-\contentsline {subsection}{\numberline {7.2.4}Triangulation Evaluation of Objective 4: Empirical System Evaluation}{107}{subsection.7.2.4}%
-\contentsline {section}{\numberline {7.3}Problems Encountered and Technical Mitigations}{108}{section.7.3}%
-\contentsline {subsection}{\numberline {7.3.1}Hardware Constraints of Monocular RGB Capture}{108}{subsection.7.3.1}%
-\contentsline {subsection}{\numberline {7.3.2}Ambient Environmental Lighting and Shadow Variations}{108}{subsection.7.3.2}%
-\contentsline {subsection}{\numberline {7.3.3}Anatomical Finger Co-articulation}{108}{subsection.7.3.3}%
-\contentsline {subsection}{\numberline {7.3.4}Absence of Tactile Haptic Surface Feedback}{108}{subsection.7.3.4}%
-\contentsline {section}{\numberline {7.4}Self-Reflection}{109}{section.7.4}%
-\contentsline {subsection}{\numberline {7.4.1}Ideology Regarding Paper-Based Touch Interaction}{109}{subsection.7.4.1}%
-\contentsline {subsection}{\numberline {7.4.2}Technical Benefits Gained Across Engineering Domains}{109}{subsection.7.4.2}%
-\contentsline {subsection}{\numberline {7.4.3}Critical Learning Curves and Methodological Reflections}{110}{subsection.7.4.3}%
-\contentsline {section}{\numberline {7.5}Business Insights and Real-World Application Possibilities}{110}{section.7.5}%
-\contentsline {subsection}{\numberline {7.5.1}Sterile Medical Operating Rooms \& Clinical Environments}{110}{subsection.7.5.1}%
-\contentsline {subsection}{\numberline {7.5.2}Industrial Cleanrooms \& Hazardous Chemical Laboratories}{110}{subsection.7.5.2}%
-\contentsline {subsection}{\numberline {7.5.3}Low-Cost Educational Classrooms in Developing Regions}{111}{subsection.7.5.3}%
-\contentsline {subsection}{\numberline {7.5.4}Customized Digital Audio Workstations \& Accessibility Interfaces}{111}{subsection.7.5.4}%
-\contentsline {section}{\numberline {7.6}Future Recommendations}{111}{section.7.6}%
-\contentsline {subsection}{\numberline {7.6.1}Integration of Monocular Self-Supervised Depth Neural Models}{111}{subsection.7.6.1}%
-\contentsline {subsection}{\numberline {7.6.2}Multi-Camera Stereo Vision Fusion}{111}{subsection.7.6.2}%
-\contentsline {subsection}{\numberline {7.6.3}Spatial Acoustic \& Ultrasonic Mid-Air Haptic Feedback}{111}{subsection.7.6.3}%
-\contentsline {subsection}{\numberline {7.6.4}Transformer-Based Temporal Self-Attention Architectures}{112}{subsection.7.6.4}%
-\contentsline {section}{\numberline {7.7}Chapter Summary}{112}{section.7.7}%
+\contentsline {subsubsection}{Deep Sequential Temporal Touch Detection Models}{31}{section*.16}%
+\contentsline {paragraph}{Comparative Deep Neural Architecture Evaluation:}{31}{section*.17}%
+\contentsline {paragraph}{Temporal Windowing Architecture:}{32}{section*.18}%
+\contentsline {subsection}{\numberline {2.5.2}Design Analysis}{32}{subsection.2.5.2}%
+\contentsline {subsubsection}{Architectural Sensing Trade-Offs}{32}{section*.19}%
+\contentsline {subsubsection}{Layout Customization and Synchronized XML Artifacts}{33}{section*.21}%
+\contentsline {subsubsection}{Edge Computing, Parameter Optimization, and Inference Real-Time Benchmarks}{33}{section*.22}%
+\contentsline {subsection}{\numberline {2.5.3}Workflow Analysis}{34}{subsection.2.5.3}%
+\contentsline {subsubsection}{Dataset Creation and Model Benchmark Pipeline Workflow}{34}{section*.24}%
+\contentsline {subsubsection}{Real-Time Runtime Watch and Key Execution Pipeline Workflow}{34}{section*.26}%
+\contentsline {section}{\numberline {2.6}Reflection and Synthesis of Research Gap}{35}{section.2.6}%
+\contentsline {subsection}{\numberline {2.6.1}Synthesis of Prior Literature Limitations}{35}{subsection.2.6.1}%
+\contentsline {subsection}{\numberline {2.6.2}Formal Rationale and Research Gap Justification}{36}{subsection.2.6.2}%
+\contentsline {section}{\numberline {2.7}Chapter Summary}{36}{section.2.7}%
+\contentsline {chapter}{\numberline {3}Research Methodology}{37}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Chapter Overview}{37}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Research Paradigm}{37}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}Philosophical Categorization and Paradigm Selection}{37}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}Justification of the Positivist Quantitative Paradigm}{38}{subsection.3.2.2}%
+\contentsline {subsection}{\numberline {3.2.3}Epistemological Threats to Validity and Mitigation Strategies}{38}{subsection.3.2.3}%
+\contentsline {section}{\numberline {3.3}Research Approach}{39}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}Deductive Logical Reasoning Framework}{39}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {3.3.2}Design Science Research Methodology (DSRM)}{39}{subsection.3.3.2}%
+\contentsline {section}{\numberline {3.4}Research Strategy: Partitioned Development and Evaluation}{40}{section.3.4}%
+\contentsline {subsection}{\numberline {3.4.1}Partitioned Research Rationale}{41}{subsection.3.4.1}%
+\contentsline {subsection}{\numberline {3.4.2}Detailed Partition Specifications and Technological Frameworks}{41}{subsection.3.4.2}%
+\contentsline {subsubsection}{Partition 1: Layout Designer GUI and Homography Simulation Suite}{41}{section*.30}%
+\contentsline {subsubsection}{Partition 2: Dataset Creation, Resampling, Landmark Extraction, and Scale Normalization}{41}{section*.31}%
+\contentsline {subsubsection}{Partition 3: Deep Learning Model Benchmarking and Selection}{42}{section*.32}%
+\contentsline {subsubsection}{Partition 4: Real-Time Execution, Latency, and Threading Evaluation}{42}{section*.33}%
+\contentsline {subsubsection}{Partition 5: AprilTag Fiducial Localization and Planar Homography Tracking}{43}{section*.34}%
+\contentsline {section}{\numberline {3.5}Fact Collection and Data Gathering Mechanisms}{43}{section.3.5}%
+\contentsline {subsection}{\numberline {3.5.1}Typing Interaction Dataset Capture Protocol}{43}{subsection.3.5.1}%
+\contentsline {subsection}{\numberline {3.5.2}Ground Truth Annotation and Temporal Alignment Procedure}{43}{subsection.3.5.2}%
+\contentsline {subsection}{\numberline {3.5.3}Feature Vector Pipeline Formulation}{44}{subsection.3.5.3}%
+\contentsline {section}{\numberline {3.6}Research Methodology Execution Workflow}{44}{section.3.6}%
+\contentsline {subsection}{\numberline {3.6.1}Detailed Sub-Phase Execution Breakdown}{44}{subsection.3.6.1}%
+\contentsline {section}{\numberline {3.7}Project Management Methodology and Governance}{45}{section.3.7}%
+\contentsline {subsection}{\numberline {3.7.1}Agile Scrum Research Adaptation}{45}{subsection.3.7.1}%
+\contentsline {subsection}{\numberline {3.7.2}Project Timeline and Gantt Chart Schedule}{46}{subsection.3.7.2}%
+\contentsline {subsection}{\numberline {3.7.3}Risk Mitigation Matrix}{46}{subsection.3.7.3}%
+\contentsline {subsection}{\numberline {3.7.4}Ethical Considerations and Data Privacy Protocols}{47}{subsection.3.7.4}%
+\contentsline {section}{\numberline {3.8}Chapter Summary}{47}{section.3.8}%
+\contentsline {chapter}{\numberline {4}System Requirement Specification}{48}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Chapter Overview}{48}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Stakeholder Analysis}{48}{section.4.2}%
+\contentsline {subsection}{\numberline {4.2.1}Stakeholder Identification and Classification}{48}{subsection.4.2.1}%
+\contentsline {subsection}{\numberline {4.2.2}Stakeholder Power-Interest Matrix}{49}{subsection.4.2.2}%
+\contentsline {subsection}{\numberline {4.2.3}Stakeholder Conflict Resolution and Requirement Trade-offs}{50}{subsection.4.2.3}%
+\contentsline {section}{\numberline {4.3}Operationalization Process}{50}{section.4.3}%
+\contentsline {subsection}{\numberline {4.3.1}Mapping Research Data Gathering to System Requirements}{50}{subsection.4.3.1}%
+\contentsline {subsection}{\numberline {4.3.2}Qualitative Data Gathering from User Interactivity Studies}{50}{subsection.4.3.2}%
+\contentsline {subsection}{\numberline {4.3.3}Empirical Kinematic Data Translation to Landmark Requirements}{51}{subsection.4.3.3}%
+\contentsline {section}{\numberline {4.4}System and Model Analysis (UML Modeling)}{51}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}Use Case Analysis and Formal Specifications}{51}{subsection.4.4.1}%
+\contentsline {subsection}{\numberline {4.4.2}System Class Diagram and Class Responsibility Breakdown}{51}{subsection.4.4.2}%
+\contentsline {subsection}{\numberline {4.4.3}System Activity Diagram}{58}{subsection.4.4.3}%
+\contentsline {subsection}{\numberline {4.4.4}Sequence Diagrams Mapped to Key Use Cases}{58}{subsection.4.4.4}%
+\contentsline {subsection}{\numberline {4.4.5}System Statechart Diagram}{58}{subsection.4.4.5}%
+\contentsline {subsection}{\numberline {4.4.6}System Deployment Diagram}{58}{subsection.4.4.6}%
+\contentsline {section}{\numberline {4.5}Proposed System Architecture Framework}{58}{section.4.5}%
+\contentsline {subsection}{\numberline {4.5.1}Architectural Design Patterns Applied}{61}{subsection.4.5.1}%
+\contentsline {section}{\numberline {4.6}Functional and Non-Functional Requirements}{62}{section.4.6}%
+\contentsline {subsection}{\numberline {4.6.1}Functional Requirements (FR)}{62}{subsection.4.6.1}%
+\contentsline {subsection}{\numberline {4.6.2}Detailed Functional Requirements Subsection Breakdown}{64}{subsection.4.6.2}%
+\contentsline {subsection}{\numberline {4.6.3}Non-Functional Requirements (NFR)}{64}{subsection.4.6.3}%
+\contentsline {subsection}{\numberline {4.6.4}Detailed Non-Functional Quality Constraints}{64}{subsection.4.6.4}%
+\contentsline {section}{\numberline {4.7}Chapter Summary}{66}{section.4.7}%
+\contentsline {chapter}{\numberline {5}Implementation and Software Design}{67}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Chapter Overview}{67}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Algorithmic Design and Software Engineering Steps}{68}{section.5.2}%
+\contentsline {subsection}{\numberline {5.2.1}Framework Engineering Workflow Breakdown}{68}{subsection.5.2.1}%
+\contentsline {subsection}{\numberline {5.2.2}Mathematical Algorithm Formulations and Formal Pseudocode}{69}{subsection.5.2.2}%
+\contentsline {subsubsection}{Algorithm 1: AprilTag Corner Localization and SVD Planar Homography Engine}{69}{section*.60}%
+\contentsline {subsubsection}{Algorithm 2: Unitless Hand Landmark Scale Normalization Engine}{70}{section*.62}%
+\contentsline {subsubsection}{Algorithm 3: 5-Frame Sliding Window Assembly and PyTorch LSTM Touch Inference}{72}{section*.64}%
+\contentsline {subsubsection}{Algorithm 4: Planar Coordinate Mapping and Action Execution Engine}{73}{section*.66}%
+\contentsline {subsubsection}{Algorithm 5: PySide6 Interactive Canvas Viewport Drag-and-Drop Math}{73}{section*.68}%
+\contentsline {subsubsection}{Algorithm 6: Multi-Threaded Consumer-Producer Queue Synchronization}{74}{section*.70}%
+\contentsline {subsubsection}{Algorithm 7: Video Frame Downsampling and Quality Filtering Engine}{74}{section*.72}%
+\contentsline {subsubsection}{Algorithm 8: Intrinsic Camera Matrix Calibration Engine}{74}{section*.74}%
+\contentsline {subsubsection}{Computational Latency Budget and Timing Formulation for 12~FPS CPU-Only Execution}{74}{section*.76}%
+\contentsline {subsection}{\numberline {5.2.3}Technology Selection Justification and Comparative Reflection}{77}{subsection.5.2.3}%
+\contentsline {subsubsection}{Programming Language Selection (Python 3.10 vs C++17 vs Java)}{77}{section*.78}%
+\contentsline {subsubsection}{Deep Learning Frameworks (PyTorch 2.1 vs TensorFlow 2.x vs ONNX)}{77}{section*.79}%
+\contentsline {subsubsection}{Pose Landmarker Engine (MediaPipe Hands vs OpenPose vs HRNet)}{78}{section*.80}%
+\contentsline {subsubsection}{Visual Fiducial System (AprilTag tag36h11 vs ArUco vs QR Codes)}{78}{section*.81}%
+\contentsline {subsubsection}{Desktop GUI Framework (PySide6 / Qt6 vs Tkinter vs Electron.js)}{78}{section*.82}%
+\contentsline {section}{\numberline {5.3}Significantly Important System Implementation Attempts}{78}{section.5.3}%
+\contentsline {subsection}{\numberline {5.3.1}Application 1 Layout Designer Suite Implementation}{78}{subsection.5.3.1}%
+\contentsline {subsubsection}{PySide6 Graphics View Canvas Workspace}{78}{section*.83}%
+\contentsline {subsubsection}{Automated AprilTag Border Anchoring Engine}{79}{section*.84}%
+\contentsline {subsubsection}{Dual Exporter Engine (Printable PDF and XML Specification)}{79}{section*.85}%
+\contentsline {subsection}{\numberline {5.3.2}Partition 1 Homography Simulation Suite}{79}{subsection.5.3.2}%
+\contentsline {subsubsection}{XML Serialization Schema Specification}{79}{section*.86}%
+\contentsline {subsection}{\numberline {5.3.3}Partition 2 Data Pipeline, Landmark Extraction and Scale Normalization}{80}{subsection.5.3.3}%
+\contentsline {subsubsection}{Video Resampling to Uniform 12 FPS (\texttt {resample\_12fps.py})}{80}{section*.87}%
+\contentsline {subsubsection}{MediaPipe Pose Keypoint Extraction and Scale Normalization (\texttt {normalize\_landmarks.py})}{80}{section*.88}%
+\contentsline {subsubsection}{First-Order Spatial Velocity Derivation (\texttt {calculate\_velocities.py})}{81}{section*.89}%
+\contentsline {subsubsection}{5-Frame Sliding Temporal Windowing (\texttt {create\_windows.py})}{81}{section*.90}%
+\contentsline {subsubsection}{Data Quality Filtering (\texttt {filter\_window\_quality.py})}{81}{section*.91}%
+\contentsline {subsection}{\numberline {5.3.4}Partition 3 Deep Learning Multi-Model Benchmark Engine}{81}{subsection.5.3.4}%
+\contentsline {subsubsection}{Evaluated Model Architectures and Feature Representations}{81}{section*.92}%
+\contentsline {subsubsection}{Training Methodology and Loss Optimization}{82}{section*.93}%
+\contentsline {subsubsection}{Optimal Model Selection (\texttt {best\_finger\_touch\_lstm.pth})}{82}{section*.94}%
+\contentsline {subsubsection}{PyTorch LSTM Layer Architecture and Parameter Specification}{82}{section*.95}%
+\contentsline {subsection}{\numberline {5.3.5}Partition 4 Real-Time Execution and Multi-Threaded Engine}{83}{subsection.5.3.5}%
+\contentsline {subsubsection}{Multi-Threaded Video Acquisition (\texttt {camera\_thread.py})}{83}{section*.96}%
+\contentsline {subsubsection}{Model Memory Manager (\texttt {model\_manager.py})}{83}{section*.97}%
+\contentsline {subsubsection}{Real-Time Evaluation UI (\texttt {main\_realtime\_ui.py})}{83}{section*.98}%
+\contentsline {subsubsection}{Thread Concurrency and Mutex Synchronization Metrics}{83}{section*.99}%
+\contentsline {subsection}{\numberline {5.3.6}Partition 5 AprilTag Fiducial Tracking Engine}{83}{subsection.5.3.6}%
+\contentsline {subsubsection}{Camera Calibration and Lens Distortion Correction (\texttt {main.py})}{84}{section*.100}%
+\contentsline {subsubsection}{Sub-Pixel AprilTag Quad Localizer (\texttt {estimater.py})}{84}{section*.101}%
+\contentsline {subsubsection}{Real-Time SVD Homography Solver (\texttt {homography.py})}{84}{section*.102}%
+\contentsline {subsubsection}{Homography Matrix Reprojection Accuracy and SVD Numerical Stability}{84}{section*.103}%
+\contentsline {subsection}{\numberline {5.3.7}Application 2 Runtime Engine Setup GUI and Action Command Mapper}{84}{subsection.5.3.7}%
+\contentsline {subsubsection}{Component A: Interactive Setup and Action Command Mapper GUI}{84}{section*.104}%
+\contentsline {subsubsection}{Component B: Background Live Watch and Action Execution Engine}{85}{section*.105}%
+\contentsline {section}{\numberline {5.4}Empirical Implementation Challenges and Technical Solutions}{85}{section.5.4}%
+\contentsline {subsection}{\numberline {5.4.1}Deep Technical Challenge Analysis}{87}{subsection.5.4.1}%
+\contentsline {subsubsection}{Challenge 1: Resolving Monocular Z-Axis Depth Ambiguity}{87}{section*.107}%
+\contentsline {subsubsection}{Challenge 2: Achieving Distance and Hand-Size Scale Invariance}{87}{section*.108}%
+\contentsline {subsubsection}{Challenge 3: Real-Time CPU-Only Execution and Universal Low-End Camera Support at 12~FPS}{87}{section*.109}%
+\contentsline {subsubsection}{Challenge 4: Robust AprilTag Fiducial Tracking under Hand Occlusion}{88}{section*.110}%
+\contentsline {subsubsection}{Challenge 5: Multi-Threaded Queue Buffer Architecture}{88}{section*.111}%
+\contentsline {section}{\numberline {5.5}Chapter Summary}{89}{section.5.5}%
+\contentsline {chapter}{\numberline {6}Testing and Evaluation}{90}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Chapter Overview}{90}{section.6.1}%
+\contentsline {section}{\numberline {6.2}Test Plan and Structured Test Cases}{90}{section.6.2}%
+\contentsline {subsection}{\numberline {6.2.1}Functional Testing Suite}{90}{subsection.6.2.1}%
+\contentsline {subsection}{\numberline {6.2.2}Non-Functional Testing Suite}{91}{subsection.6.2.2}%
+\contentsline {subsubsection}{Non-Functional Evaluation Narrative}{91}{section*.114}%
+\contentsline {section}{\numberline {6.3}Testing and Evaluation Workflow}{93}{section.6.3}%
+\contentsline {section}{\numberline {6.4}Detailed Empirical Results and Strategy Review}{93}{section.6.4}%
+\contentsline {subsection}{\numberline {6.4.1}Deep Learning Model Architecture Benchmark Evaluation}{93}{subsection.6.4.1}%
+\contentsline {subsubsection}{Per-Digit Confusion Matrix Analysis}{94}{section*.116}%
+\contentsline {subsubsection}{Training Loss Convergence and Overfitting Analysis}{94}{section*.118}%
+\contentsline {subsection}{\numberline {6.4.2}Temporal Window Length and Stride Sensitivity Analysis}{95}{subsection.6.4.2}%
+\contentsline {subsection}{\numberline {6.4.3}Scale Normalization Ablation Study Across Distance and Users}{95}{subsection.6.4.3}%
+\contentsline {subsection}{\numberline {6.4.4}Empirical Benchmark of CPU-Only Real-Time Performance and Resolution Invariance at 12~FPS}{95}{subsection.6.4.4}%
+\contentsline {subsection}{\numberline {6.4.5}AprilTag Homography Tracking Accuracy and Tilt Sensitivity}{96}{subsection.6.4.5}%
+\contentsline {subsubsection}{Reprojection Error Heatmap and Sub-Pixel Interpolation Analysis}{97}{section*.123}%
+\contentsline {subsection}{\numberline {6.4.6}Real-Time Pipeline Latency and Resource Profiling}{97}{subsection.6.4.6}%
+\contentsline {subsubsection}{CPU Thread Memory Contention and Mutex Overhead Analysis}{97}{section*.125}%
+\contentsline {subsection}{\numberline {6.4.7}User Typing Performance and Character Error Rate Benchmark}{97}{subsection.6.4.7}%
+\contentsline {section}{\numberline {6.5}Chapter Summary}{98}{section.6.5}%
+\contentsline {chapter}{\numberline {7}Concluding Remarks}{99}{chapter.7}%
+\contentsline {section}{\numberline {7.1}Chapter Overview}{99}{section.7.1}%
+\contentsline {section}{\numberline {7.2}Accomplishment of Research Objectives}{99}{section.7.2}%
+\contentsline {subsection}{\numberline {7.2.1}Triangulation Evaluation of Objective 1: Problem Identification and Literature Review}{99}{subsection.7.2.1}%
+\contentsline {subsection}{\numberline {7.2.2}Triangulation Evaluation of Objective 2: Scale Normalization and Deep Learning Pipeline}{100}{subsection.7.2.2}%
+\contentsline {subsection}{\numberline {7.2.3}Triangulation Evaluation of Objective 3: System Suite Design and Engineering}{100}{subsection.7.2.3}%
+\contentsline {subsection}{\numberline {7.2.4}Triangulation Evaluation of Objective 4: Empirical System Evaluation}{101}{subsection.7.2.4}%
+\contentsline {section}{\numberline {7.3}Problems Encountered and Technical Mitigations}{101}{section.7.3}%
+\contentsline {subsection}{\numberline {7.3.1}Hardware Constraints of Monocular RGB Capture}{101}{subsection.7.3.1}%
+\contentsline {subsection}{\numberline {7.3.2}Ambient Environmental Lighting and Shadow Variations}{102}{subsection.7.3.2}%
+\contentsline {subsection}{\numberline {7.3.3}Anatomical Finger Co-articulation}{102}{subsection.7.3.3}%
+\contentsline {subsection}{\numberline {7.3.4}Absence of Tactile Haptic Surface Feedback}{102}{subsection.7.3.4}%
+\contentsline {section}{\numberline {7.4}Self-Reflection}{102}{section.7.4}%
+\contentsline {subsection}{\numberline {7.4.1}Ideology Regarding Paper-Based Touch Interaction}{102}{subsection.7.4.1}%
+\contentsline {subsection}{\numberline {7.4.2}Technical Benefits Gained Across Engineering Domains}{103}{subsection.7.4.2}%
+\contentsline {subsection}{\numberline {7.4.3}Critical Learning Curves and Methodological Reflections}{103}{subsection.7.4.3}%
+\contentsline {section}{\numberline {7.5}Business Insights and Real-World Application Possibilities}{103}{section.7.5}%
+\contentsline {subsection}{\numberline {7.5.1}Sterile Medical Operating Rooms and Clinical Environments}{104}{subsection.7.5.1}%
+\contentsline {subsection}{\numberline {7.5.2}Industrial Cleanrooms and Hazardous Chemical Laboratories}{104}{subsection.7.5.2}%
+\contentsline {subsection}{\numberline {7.5.3}Low-Cost Educational Classrooms in Developing Regions}{104}{subsection.7.5.3}%
+\contentsline {subsection}{\numberline {7.5.4}Customized Digital Audio Workstations and Accessibility Interfaces}{104}{subsection.7.5.4}%
+\contentsline {section}{\numberline {7.6}Future Recommendations}{104}{section.7.6}%
+\contentsline {subsection}{\numberline {7.6.1}Integration of Monocular Neural Depth Models}{104}{subsection.7.6.1}%
+\contentsline {subsection}{\numberline {7.6.2}Multi-Camera Stereo Vision Fusion}{105}{subsection.7.6.2}%
+\contentsline {subsection}{\numberline {7.6.3}Spatial Acoustic and Ultrasonic Mid-Air Haptic Feedback}{105}{subsection.7.6.3}%
+\contentsline {subsection}{\numberline {7.6.4}Transformer-Based Temporal Self-Attention Architectures}{105}{subsection.7.6.4}%
+\contentsline {section}{\numberline {7.7}Chapter Summary}{105}{section.7.7}%

@@ -3,71 +3,71 @@
 
 \section{Chapter Overview}
 \label{sec:meth_chapter_overview}
-The design, implementation, and empirical evaluation of a customizable paper-based virtual keyboard system powered by monocular computer vision, planar homography tracking, and deep sequential learning require a rigorous, multi-faceted research methodology. Developing markerless, single-camera human-computer interaction (HCI) interfaces presents complex challenges that bridge computer vision perception, kinematic signal processing, real-time software engineering, and quantitative human performance evaluation \cite{ReviewVirtualKeyboard2020, Maman2023TypeNet}.
+Designing, implementing, and testing a customizable paper-based virtual keyboard using a single webcam, planar homography, and deep learning requires a clear and organized research methodology. Building a touch interface that uses a single regular camera without special hardware brings together computer vision, hand movement analysis, real-time software development, and user performance testing \cite{ReviewVirtualKeyboard2020, Maman2023TypeNet}.
 
-To address these challenges systematically, this chapter establishes the overarching research framework governing the study. Section~\ref{sec:meth_paradigm} defines and justifies the philosophical research paradigm under a positivist, quantitative empirical lens. Section~\ref{sec:meth_approach} details the deductive research approach and the Design Science Research Methodology (DSRM) framework. Section~\ref{sec:meth_strategy} outlines the partitioned modular engineering strategy utilized to evaluate isolated technical components before full end-to-end integration. Section~\ref{sec:meth_fact_collection} details the data collection, temporal resampling, hand landmark scale normalization, and dataset curation procedures. Section~\ref{sec:meth_workflow} presents a comprehensive execution workflow mapping research objectives to specific methods, technical artifacts, and evaluation metrics. Section~\ref{sec:meth_project_management} elaborates on the Agile Scrum management framework, project timeline, risk mitigation matrix, and ethical data privacy protocols. Finally, Section~\ref{sec:meth_summary} summarizes the methodological foundation.
+To guide this work step by step, this chapter presents the overall research framework used in this project. Section~\ref{sec:meth_paradigm} explains the philosophical research paradigm and why a quantitative approach is suitable. Section~\ref{sec:meth_approach} details the deductive approach and the Design Science Research Methodology (DSRM) framework. Section~\ref{sec:meth_strategy} describes the partitioned engineering strategy used to test individual technical components before putting the complete system together. Section~\ref{sec:meth_fact_collection} explains the data collection setup, 12~FPS video resampling, hand scale normalization, and dataset preparation. Section~\ref{sec:meth_workflow} provides an execution workflow table connecting the research objectives to technical activities, software components, and quantitative evaluation metrics. Section~\ref{sec:meth_project_management} covers the Agile Scrum management process, project schedule, risk management matrix, and ethical data privacy practices. Finally, Section~\ref{sec:meth_summary} summarizes the chapter.
 
 \section{Research Paradigm}
 \label{sec:meth_paradigm}
-A research paradigm represents the foundational philosophical belief system and theoretical worldview that guides scientific investigation \cite{Cui2020Deep}. In information systems, computer science, and software engineering research, philosophical paradigms are categorized across three main perspectives: Positivism, Interpretivism, and Critical Realism \cite{ReviewVirtualKeyboard2020}.
+A research paradigm is the basic set of beliefs and philosophical principles that guide scientific investigation \cite{Cui2020Deep}. In computer science and software engineering research, paradigms are generally divided into three main perspectives: Positivism, Interpretivism, and Critical Realism \cite{ReviewVirtualKeyboard2020}.
 
 \subsection{Philosophical Categorization and Paradigm Selection}
 \label{subsec:meth_paradigm_selection}
-Scientific inquiry is structured around three core philosophical pillars:
+Scientific research is based on three main philosophical ideas:
 \begin{enumerate}
-    \item \textbf{Ontology:} The branch of philosophy concerned with the nature of reality and existence (whether reality exists objectively outside human consciousness or is subjectively constructed).
-    \item \textbf{Epistemology:} The study of knowledge acquisition, defining what constitutes valid, legitimate knowledge and how knowledge can be verified.
-    \item \textbf{Axiology:} The study of values and ethics governing research investigation, assessing the role of researcher bias versus objective neutrality.
+    \item \textbf{Ontology:} Looks at the nature of reality (whether reality exists independently in the physical world or is created by human thoughts and social agreements).
+    \item \textbf{Epistemology:} Concerns knowledge and understanding, defining what counts as valid knowledge and how it can be proven.
+    \item \textbf{Axiology:} Relates to values and ethics in research, assessing whether the researcher is an objective observer or influenced by personal perspective.
 \end{enumerate}
 
-In computer science and human-computer interaction, research paradigms are broadly categorized across three perspectives:
+In computer science and human-computer interaction (HCI), researchers usually consider three main research paradigms:
 \begin{itemize}
-    \item \textbf{Positivism / Empiricism:} Asserts an objective physical reality governed by deterministic natural laws. Knowledge is advanced through quantitative measurement, controlled laboratory experimentation, mathematical modeling, and statistical hypothesis testing. The researcher remains an objective observer.
-    \item \textbf{Interpretivism / Constructivism:} Asserts that reality is socially constructed through human experiences, subjective interpretations, and contextual meanings. It relies primarily on qualitative methods such as open-ended interviews, focus groups, and participant observation.
-    \item \textbf{Critical Realism:} Acknowledges an objective physical reality while recognizing that human perception of reality is mediated by underlying social structures and cognitive mechanisms.
+    \item \textbf{Positivism (Empiricism):} Assumes an objective physical reality governed by predictable natural and mathematical laws. Knowledge is developed through numerical measurements, controlled laboratory tests, mathematical equations, and statistical analysis. The researcher stays objective.
+    \item \textbf{Interpretivism (Constructivism):} Assumes that reality is formed through human experiences and social context. It mostly relies on qualitative data such as open interviews, group discussions, and user observations.
+    \item \textbf{Critical Realism:} Recognizes that an objective physical world exists, but acknowledges that human observation of this world is shaped by social context and mental models.
 \end{itemize}
 
-For this research project, a \textbf{Positivist (Empiricist) Research Paradigm} is formally selected and applied.
+For this research project, a \textbf{Positivist (Empirical) Research Paradigm} is selected and applied throughout.
 
 \subsection{Justification of the Positivist Quantitative Paradigm}
 \label{subsec:meth_paradigm_justification}
-The selection of a positivist empirical paradigm is dictated by the fundamental technical nature of the research problem:
+Choosing a positivist empirical paradigm fits the engineering nature of this research project:
 \begin{itemize}
-    \item \textbf{Objective Measurement of Physical and Kinematic Phenomena:} Hand joint motion, spatial coordinate scaling, planar homography matrix transformation ($H \in \mathbb{R}^{3 \times 3}$), and Z-axis deceleration inflections are deterministic physical and mathematical phenomena. Evaluating these mechanisms requires objective pixel measurements, millimeter scale normalization, and exact millisecond latency timings \cite{Zhang2020MediaPipe, Kallwies2020Determining}.
-    \item \textbf{Quantitative Benchmark Metrics:} Evaluating deep temporal touch detection models (\texttt{run\_all.py}) across 22 model architectures relies strictly on objective quantitative performance metrics: Classification Accuracy, Precision, Recall, F1-Score, Receiver Operating Characteristic (ROC) curves, and Multiply-Accumulate (MAC) operational counts \cite{Hochreiter1997LSTM, Doan2022Efficient}.
-    \item \textbf{Reproducibility and Controlled Experimentation:} The positivist approach enables controlled, repeatable laboratory experiments under varied camera angles, hand sizes, typing speeds, and illuminance levels to validate system robustness empirical claims \cite{GilMartin2023Hand, Toshpulatov2024RealTime}.
+    \item \textbf{Objective Measurement of Physical and Motion Data:} Hand joint movements, camera coordinate transformations, planar homography matrix math ($H \in \mathbb{R}^{3 \times 3}$), and finger deceleration upon touching paper are physical and mathematical events. Evaluating these components requires exact pixel coordinates, scale ratios, and millisecond latency measurements \cite{Zhang2020MediaPipe, Kallwies2020Determining}.
+    \item \textbf{Quantitative Evaluation Metrics:} Testing deep learning touch detection models (\texttt{run\_all.py}) across 22 model variations relies on numerical performance metrics: Accuracy, Precision, Recall, F1-Score, ROC curves, and inference time on standard CPUs \cite{Hochreiter1997LSTM, Doan2022Efficient}.
+    \item \textbf{Repeatable Controlled Experiments:} A positivist approach supports controlled, repeatable testing across different camera tilt angles, hand sizes, typing speeds, and room light levels to evaluate system reliability \cite{GilMartin2023Hand, Toshpulatov2024RealTime}.
 \end{itemize}
 
 \subsection{Epistemological Threats to Validity and Mitigation Strategies}
 \label{subsec:meth_threats_validity}
-To preserve empirical rigor within a positivist framework, potential threats to validity must be identified and mitigated:
+To keep the research reliable and scientifically valid, several possible threats were identified and addressed:
 \begin{enumerate}
-    \item \textbf{Construct Validity:} Ensured by defining precise mathematical metrics (F1-score, sub-pixel corner error, end-to-end frame latency in milliseconds) rather than subjective qualitative ratings.
-    \item \textbf{Internal Validity:} Mitigated by isolating experimental variables across the five research partitions, ensuring that model accuracy shifts stem strictly from feature engineering and architecture choices rather than uncalibrated camera noise.
-    \item \textbf{External Validity:} Enhanced by sampling 15 diverse human participants with varying hand dimensions ($L_{\text{hand}} \in [14.2\text{ cm}, 21.5\text{ cm}]$) and evaluating system performance across indoor lux levels ($150\text{ lux}$ to $2,500+\text{ lux}$).
-    \item \textbf{Reliability:} Ensured by publishing deterministic data processing scripts (\texttt{normalize\_landmarks.py}, \texttt{create\_windows.py}) and automated cross-validation model training routines (\texttt{run\_all.py}).
+    \item \textbf{Construct Validity:} Addressed by using clear mathematical metrics (F1-score, sub-pixel corner location error, end-to-end frame processing time in milliseconds) instead of subjective user ratings.
+    \item \textbf{Internal Validity:} Addressed by testing components in five separate research partitions, making sure changes in model accuracy came directly from feature design and model architectures rather than camera noise.
+    \item \textbf{External Validity:} Supported by gathering data from 15 participants with different hand sizes ($L_{\text{hand}}$ between $14.2$~cm and $21.5$~cm) and testing the system across various indoor light levels ($150$~lux to over $2,500$~lux).
+    \item \textbf{Reliability:} Supported by writing clear and deterministic data preparation scripts (\texttt{normalize\_landmarks.py}, \texttt{create\_windows.py}) and automated training scripts (\texttt{run\_all.py}).
 \end{enumerate}
 
 \section{Research Approach}
 \label{sec:meth_approach}
-Scientific investigations employ one of three core logical approaches: Inductive reasoning (building theory from observation), Deductive reasoning (testing hypotheses derived from established theory), or Pragmatic mixed-methods reasoning \cite{Cui2020Deep}.
+Scientific research generally uses one of three logical approaches: Inductive reasoning (building new theories from observations), Deductive reasoning (testing hypotheses derived from established theories), or Pragmatic mixed methods \cite{Cui2020Deep}.
 
 \subsection{Deductive Logical Reasoning Framework}
 \label{subsec:meth_deductive_approach}
-This study follows a \textbf{Deductive Research Approach}. The research begins with established theoretical foundations in computer vision, kinematic motion modeling, and sequential deep learning:
+This study uses a \textbf{Deductive Research Approach}. The research starts from established theories in computer vision, motion analysis, and deep learning:
 \begin{enumerate}
-    \item \textbf{Projective Geometry \& Homography Theory \cite{LonguetHiggins1985Machine, Pirchheim2011Homography}:} Deduce that planar target coordinates $\mathbf{P}_{\text{XML}}$ can be mapped from camera pixel coordinates $\mathbf{P}_{\text{pixel}}$ via planar homography $H$, provided four stable AprilTag point correspondences are tracked.
-    \item \textbf{Kinematic Invariance under Perspective Projection \cite{Doan2022Efficient}:} Deduce that dividing hand joint coordinate displacements by unitless middle MCP hand length $L_{\text{hand}}$ eliminates scale variance caused by hand size and camera distance $Z$.
-    \item \textbf{Sequential Recurrent Neural Learning \cite{Hochreiter1997LSTM}:} Deduce that temporal sliding windows of scale-normalized joint velocities capture downward acceleration inflections, enabling deep LSTM classifiers to infer paper surface contact without depth hardware.
+    \item \textbf{Planar Geometry and Homography Theory \cite{LonguetHiggins1985Machine, Pirchheim2011Homography}:} Deduce that layout coordinates $\mathbf{P}_{\text{XML}}$ can be calculated from webcam pixel coordinates $\mathbf{P}_{\text{pixel}}$ using a planar homography matrix $H$, as long as four clear AprilTag corner points are detected.
+    \item \textbf{Scale Invariance in Perspective Projection \cite{Doan2022Efficient}:} Deduce that dividing hand joint coordinates by the middle MCP hand length $L_{\text{hand}}$ removes differences caused by hand size and distance from the camera $Z$.
+    \item \textbf{Sequence Learning with Recurrent Neural Networks \cite{Hochreiter1997LSTM}:} Deduce that sliding windows of scale-normalized joint velocities capture the sudden slowdown of a finger hitting paper, allowing an LSTM model to detect touch contact without depth cameras.
 \end{enumerate}
 
-These theoretical deductions were formalized into explicit system design hypotheses and empirically evaluated through quantitative bench testing.
+These theoretical principles were turned into specific software designs and verified through experimental testing.
 
 \subsection{Design Science Research Methodology (DSRM)}
 \label{subsec:meth_dsrm_framework}
-To structure the practical engineering of software artifacts, this project adopts the \textbf{Design Science Research Methodology (DSRM)} proposed by Peffers et al. \cite{ReviewVirtualKeyboard2020}. DSRM is specifically tailored for information technology research, emphasizing the creation and evaluation of innovative IT artifacts designed to solve identified operational problems.
+To organize the practical software engineering work, this project follows the \textbf{Design Science Research Methodology (DSRM)} described by Peffers et al. \cite{ReviewVirtualKeyboard2020}. DSRM is widely used in computing research, focusing on creating and testing software artifacts to solve practical problems.
 
-Figure~\ref{fig:dsrm_process_flow} illustrates the six iterative phases of the DSRM framework as executed in this thesis project.
+Figure~\ref{fig:dsrm_process_flow} shows the six stages of the DSRM framework used in this project.
 
 \begin{figure}[htbp]
 \centering
@@ -99,28 +99,28 @@ Figure~\ref{fig:dsrm_process_flow} illustrates the six iterative phases of the D
 \label{fig:dsrm_process_flow}
 \end{figure}
 
-The detailed operationalization of the six DSRM phases in this study is expanded below:
+The implementation of each of the six DSRM phases in this study is detailed below:
 \begin{enumerate}
-    \item \textbf{Phase 1: Problem Identification and Motivation:} Formulated the research gap surrounding monocular paper virtual keyboards by synthesizing literature limitations across 57 studies \cite{ReviewVirtualKeyboard2020, Thomas2013Camera, Maman2023TypeNet}. Highlighted the reliance of prior art on expensive specialized hardware (depth sensors, ToF cameras, active laser projectors, or stereo rigs), heavy GPU compute dependencies, depth ambiguity in single-camera feeds, spatial misregistration under perspective tilt, and the absence of interactive plain-paper layout tools.
-    \item \textbf{Phase 2: Define Objectives of Solution:} Defined core quantitative and architectural objectives: (1) operating strictly with a single regular monocular RGB camera without specialized hardware, (2) using standard plain printed paper layouts, (3) achieving real-time execution throughput matching the 12~FPS processing standard on standard commodity CPUs without requiring a GPU (while remaining GPU-accelerable), (4) maintaining touch detection accuracy ($F1 \ge 0.95$) across regular and low camera resolutions (360p, 480p, 720p, 1080p), (5) achieving sub-pixel fiducial corner localization ($< 0.05$ pixels), and (6) exporting synchronized vector PDF/XML layout schemas.
-    \item \textbf{Phase 3: Design and Development:} Engineered two core synchronized software application artifacts:
+    \item \textbf{Phase 1: Problem Identification and Motivation:} Identified the research gap in monocular paper keyboards by reviewing 57 prior papers \cite{ReviewVirtualKeyboard2020, Thomas2013Camera, Maman2023TypeNet}. Most existing systems require expensive depth cameras, active lasers, or powerful GPUs, while single-camera setups struggled with lighting changes, camera perspective tilt, and rigid key layouts.
+    \item \textbf{Phase 2: Define Objectives of Solution:} Defined core system goals: (1) work with a single regular RGB webcam without special hardware, (2) work on plain printed paper, (3) run in real time at a 12~FPS standard on standard CPUs without requiring a GPU (while remaining GPU-accelerable), (4) achieve high touch detection accuracy ($F1 \ge 0.95$) across regular and low resolutions (360p, 480p, 720p), (5) achieve accurate marker corner tracking ($< 0.05$ pixels), and (6) export synchronized printable PDF layouts and XML configuration files.
+    \item \textbf{Phase 3: Design and Development:} Built two main software applications:
     \begin{itemize}
-        \item \emph{Application 1 (Layout Designer Suite):} A PySide6 desktop GUI tool (\texttt{designer/designer\_app.py}) enabling drag-and-drop key creation, automated AprilTag anchor positioning along layout borders, vector PDF printing engine for standard plain paper, and XML structural schema exporter.
-        \item \emph{Application 2 (Runtime Virtual Keyboard Engine):} A multi-threaded background watch engine integrating real-time AprilTag homography estimation ($H \in \mathbb{R}^{3 \times 3}$), MediaPipe 21 landmark pose tracking, unitless hand-length scale normalization ($L_{\text{hand}}$), 12~FPS 5-frame sliding window PyTorch LSTM evaluation (\texttt{best\_finger\_touch\_lstm.pth}) on CPU, planar coordinate transformation ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), and XML keystroke/command dispatching.
+        \item \emph{Application 1 (Layout Designer):} A PySide6 desktop GUI tool (\texttt{designer/designer\_app.py}) for drawing custom button layouts, placing AprilTag markers automatically on borders, exporting printable PDF files, and saving XML layout definitions.
+        \item \emph{Application 2 (Runtime Virtual Keyboard Engine):} A multi-threaded runtime engine combining AprilTag homography estimation ($H \in \mathbb{R}^{3 \times 3}$), MediaPipe 21 hand joint tracking, scale normalization ($L_{\text{hand}}$), 12~FPS 5-frame sliding window PyTorch LSTM evaluation (\texttt{best\_finger\_touch\_lstm.pth}) on CPU, coordinate mapping ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), and keypress dispatching.
     \end{itemize}
-    \item \textbf{Phase 4: Demonstration:} Deployed the integrated two-application suite in a realistic desktop computing environment using standard plain paper sheets printed on commodity office printers, paired with an ordinary webcam, executing both single-key triggers and complex multi-key system shell scripts on a standard CPU.
-    \item \textbf{Phase 5: Quantitative Evaluation:} Executed comprehensive empirical benchmarks: automated 22-architecture model evaluation (\texttt{run\_all.py}), multi-threaded CPU latency profiling across multiple camera resolutions (\texttt{camera\_thread.py}), and simulated planar homography spatial verification (\texttt{designer/analyzer/main.py}).
-    \item \textbf{Phase 6: Communication:} Documented theoretical foundations, mathematical formulations, system software designs, and quantitative empirical findings in LaTeX thesis chapters.
+    \item \textbf{Phase 4: Demonstration:} Tested the full system on a normal desk using standard paper printed from an office printer, paired with an ordinary webcam, triggering single keystrokes and multi-key commands on a standard desktop CPU.
+    \item \textbf{Phase 5: Quantitative Evaluation:} Carried out thorough benchmarks: comparing 22 deep learning models (\texttt{run\_all.py}), measuring CPU latency across resolutions (\texttt{camera\_thread.py}), and testing coordinate mapping accuracy (\texttt{designer/analyzer/main.py}).
+    \item \textbf{Phase 6: Communication:} Documented the theory, mathematics, software architecture, and test results across the thesis chapters.
 \end{enumerate}
 
-\section{Research Strategy: Partitioned Development \& Evaluation}
+\section{Research Strategy: Partitioned Development and Evaluation}
 \label{sec:meth_strategy}
-Because monocular paper touch detection is an experimental computer vision concept, component modules were built and evaluated in **isolated experimental partitions** to validate individual technical feasibility before assembling the final end-to-end application suite.
+Because single-camera paper touch detection is an experimental computer vision task, the system components were built and tested in **isolated experimental partitions** to verify feasibility before assembling the final applications.
 
 \subsection{Partitioned Research Rationale}
-Attempting to construct a monolithic end-to-end vision pipeline without modular isolation introduces complex debugging dependencies: a touch detection failure could stem from keypoint regression error, scale normalization bugs, homography matrix ill-conditioning, or temporal LSTM underfitting \cite{Cui2020Deep, Doan2022Efficient}. By partitioning the research pipeline into five isolated experimental domains, each sub-system was independently engineered, calibrated, and evaluated.
+Trying to build the entire pipeline at once makes debugging difficult: if a keystroke fails, the issue could be caused by bad hand joint detection, incorrect scale normalization, poor homography math, or model errors \cite{Cui2020Deep, Doan2022Efficient}. By dividing the project into five distinct partitions, each part was developed, tested, and refined independently.
 
-Table~\ref{tab:partitioned_strategy_matrix} details the five isolated research partitions, their corresponding codebase directories, core technical tasks, and validation criteria.
+Table~\ref{tab:partitioned_strategy_matrix} summarizes the five research partitions, their codebase folders, main technical tasks, and validation criteria.
 
 \begin{table}[htbp]
 \centering
@@ -161,100 +161,100 @@ Table~\ref{tab:partitioned_strategy_matrix} details the five isolated research p
 \subsection{Detailed Partition Specifications and Technological Frameworks}
 \label{subsec:meth_partition_details}
 
-\subsubsection{Partition 1: Layout Designer GUI \& Homography Simulation Suite}
-Operating in \texttt{designer/} and \texttt{designer/analyzer/}, this partition validated layout design creation and coordinate mapping math in isolation:
+\subsubsection{Partition 1: Layout Designer GUI and Homography Simulation Suite}
+Located in \texttt{designer/} and \texttt{designer/analyzer/}, this partition focused on layout design and coordinate transformation math:
 \begin{itemize}
-    \item \textbf{Designer Application (\texttt{designer\_app.py}):} Engineered a PySide6 drag-and-drop canvas allowing users to position rectangular key boundaries on an A4 grid ($210 \times 297\text{ mm}$), assign button IDs, configure keystrokes or system shell commands, and automatically place AprilTag fiducial anchors at four layout corners.
-    \item \textbf{Dual Exporter Engine:} Generates vector PDF sheets embedded with AprilTag anchors for physical printing and matching XML specification files defining key bounding boxes $(x_{\min}, y_{\min}, x_{\max}, y_{\max})$.
-    \item \textbf{Simulation Suite (\texttt{analyzer/main.py}, \texttt{homography\_engine.py}):} Simulated synthetic finger touch inputs under extreme prospective tilts ($0^\circ$ to $75^\circ$), verifying that SVD-solved homography matrix $H$ correctly maps pixel coordinates back to target XML key regions with sub-millimeter spatial precision.
+    \item \textbf{Designer Application (\texttt{designer\_app.py}):} A PySide6 canvas where users place button boxes on an A4 page ($210 \times 297$~mm), assign button identifiers, configure actions or shell commands, and automatically place AprilTag markers at the four corners.
+    \item \textbf{Export Engine:} Generates printable PDF files containing key boundaries with AprilTag markers, along with matching XML files defining key coordinates $(x_{\min}, y_{\min}, x_{\max}, y_{\max})$.
+    \item \textbf{Simulation Suite (\texttt{analyzer/main.py}, \texttt{homography\_engine.py}):} Simulated synthetic finger touches under various camera angles ($0^\circ$ to $75^\circ$), verifying that the homography matrix $H$ correctly maps camera coordinates back to XML key areas.
 \end{itemize}
 
-\subsubsection{Partition 2: Dataset Creation, Resampling, Landmark Extraction \& Scale Normalization}
-Operating in \texttt{mediapipeDetector/datacreator/}, this partition engineered the sequential data processing pipeline:
+\subsubsection{Partition 2: Dataset Creation, Resampling, Landmark Extraction, and Scale Normalization}
+Located in \texttt{mediapipeDetector/datacreator/}, this partition processed hand motion videos into clean training data:
 \begin{itemize}
-    \item \textbf{Video Sub-Sampling (\texttt{resample\_12fps.py}):} Down-samples raw video recordings to a uniform 12~FPS frame rate. This sub-sampling rate was deliberately chosen to optimize temporal observation density while ensuring the entire vision and deep inference pipeline executes in near real-time on standard commodity CPUs without a GPU, across any camera resolution.
-    \item \textbf{MediaPipe 21 Joint Pose Extraction:} Extracts 2D pixel coordinates $(x_i, y_i)$ for 21 anatomical joint keypoints per frame.
-    \item \textbf{Unitless Scale Normalization Engine (\texttt{normalize\_landmarks.py}):} Translates keypoints to wrist origin $\mathbf{P}_0$ and divides coordinate displacements by middle MCP hand length $L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$, producing scale-invariant ratios $\mathbf{P}_i^{\text{norm}}$. Raw scale-normalized coordinates are propagated directly to preserve sharp kinetic surface impact deceleration spikes.
-    \item \textbf{Numerical Velocity Derivation (\texttt{calculate\_velocities.py}):} Computes first-order spatial velocity vectors $\mathbf{V}_i(t)$ across consecutive frames.
-    \item \textbf{Sliding Window Generation (\texttt{create\_windows.py}):} Constructs sliding temporal windows of 5 frames with 2-frame overlap (stride of 3 frames), producing input matrices $\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$.
-    \item \textbf{Quality Filtering (\texttt{filter\_window\_quality.py}):} Filters out corrupted sequence windows containing missing keypoint detections or low landmark confidence scores.
+    \item \textbf{Video Resampling (\texttt{resample\_12fps.py}):} Down-sampled video recordings to a uniform 12~FPS rate. This frame rate was chosen to capture finger motion clearly while keeping CPU load light for real-time processing on standard processors without a GPU.
+    \item \textbf{MediaPipe 21 Landmark Extraction:} Extracted 2D pixel coordinates $(x_i, y_i)$ for all 21 hand joints in each frame.
+    \item \textbf{Scale Normalization (\texttt{normalize\_landmarks.py}):} Shifted coordinates relative to the wrist $\mathbf{P}_0$ and divided by hand length $L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$, producing unitless coordinates $\mathbf{P}_i^{\text{norm}}$. These values were sent directly without smoothing filters to preserve quick deceleration signals.
+    \item \textbf{Velocity Calculation (\texttt{calculate\_velocities.py}):} Computed velocity vectors $\mathbf{V}_i(t)$ between consecutive frames.
+    \item \textbf{Sliding Window Generation (\texttt{create\_windows.py}):} Created 5-frame temporal windows with a 2-frame overlap (stride of 3 frames), yielding input matrices $\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$.
+    \item \textbf{Quality Filtering (\texttt{filter\_window\_quality.py}):} Removed incomplete or noisy windows where landmarks were missing or had low confidence scores.
 \end{itemize}
 
-\subsubsection{Partition 3: Deep Learning Model Benchmarking \& Selection Engine}
-Operating in \texttt{mediapipeDetector/deepLearningModels/}, this partition evaluated deep learning architectures to select the optimal temporal classifier:
+\subsubsection{Partition 3: Deep Learning Model Benchmarking and Selection}
+Located in \texttt{mediapipeDetector/deepLearningModels/}, this partition tested multiple model designs to find the best touch detector:
 \begin{itemize}
-    \item \textbf{Master Benchmark Engine (\texttt{run\_all.py}):} An automated cross-validation benchmarking script evaluating 22 pure 2D deep learning model architecture combinations (uni-directional LSTMs, BiLSTMs, 1D CNNs, 1D ResNets) across diverse feature representations (raw pixels vs wrist-centered vs scale-normalized position vs velocity).
-    \item \textbf{Optimal PyTorch Model Selection:} Benchmarks established that a multi-layer PyTorch uni-directional LSTM model trained on 5-frame scale-normalized position and velocity sequences yields the highest classification F1-score ($> 0.95$) with minimal memory footprint ($< 1\text{ MB}$), exported to \texttt{best\_finger\_touch\_lstm.pth}.
+    \item \textbf{Master Benchmark Engine (\texttt{run\_all.py}):} An automated cross-validation script testing 22 pure 2D model architecture combinations (uni-directional LSTMs, BiLSTMs, 1D CNNs, 1D ResNets) with different feature types (raw pixels, wrist-centered coordinates, normalized positions, and velocities).
+    \item \textbf{PyTorch Model Selection:} Testing showed that a uni-directional multi-layer PyTorch LSTM model trained on 5-frame normalized position and velocity features achieved the best F1-score ($> 0.95$) with a compact model size ($< 1$~MB), saved as \texttt{best\_finger\_touch\_lstm.pth}.
 \end{itemize}
 
-\subsubsection{Partition 4: Real-Time Execution, Latency \& Threading Evaluation}
-Operating in \texttt{mediapipeDetector/realtimeprocess/}, this partition validated live streaming and inference performance:
+\subsubsection{Partition 4: Real-Time Execution, Latency, and Threading Evaluation}
+Located in \texttt{mediapipeDetector/realtimeprocess/}, this partition tested live camera capture and real-time inference speed:
 \begin{itemize}
-    \item \textbf{Multi-Threaded Camera Capture (\texttt{camera\_thread.py}):} Runs OpenCV video capture in a dedicated background thread, buffering incoming frames in a thread-safe queue to eliminate frame drop.
-    \item \textbf{Inference Model Manager (\texttt{model\_manager.py}):} Manages PyTorch tensor conversions and executes forward pass inference on incoming 5-frame sliding window arrays.
-    \item \textbf{Real-Time Evaluation Suite (\texttt{main\_realtime\_ui.py}):} Evaluates end-to-end execution latency, demonstrating a total per-frame pipeline processing latency of $29.09\text{ ms}$ ($\approx 34.4\text{ FPS}$) on standard desktop CPUs.
+    \item \textbf{Multi-Threaded Camera Capture (\texttt{camera\_thread.py}):} Ran OpenCV camera reading in a separate thread with a safe queue to prevent frame drops.
+    \item \textbf{Inference Manager (\texttt{model\_manager.py}):} Prepared incoming 5-frame arrays and ran the PyTorch LSTM model.
+    \item \textbf{Latency Evaluation (\texttt{main\_realtime\_ui.py}):} Measured total per-frame pipeline latency, achieving an end-to-end processing time of $29.09$~ms ($\approx 34.4$~FPS) on a standard CPU.
 \end{itemize}
 
-\subsubsection{Partition 5: AprilTag Fiducial Localization \& Planar Homography Tracking}
-Operating in \texttt{aprilTag/}, this partition established visual paper surface tracking:
+\subsubsection{Partition 5: AprilTag Fiducial Localization and Planar Homography Tracking}
+Located in \texttt{aprilTag/}, this partition handled paper surface tracking:
 \begin{itemize}
-    \item \textbf{Camera Calibration Engine (\texttt{main.py}):} Estimates intrinsic camera matrix $K$ and distortion coefficients using checkerboard calibration patterns.
-    \item \textbf{AprilTag Corner Estimator (\texttt{estimater.py}):} Detects AprilTag visual markers embedded at layout corners, extracting sub-pixel quad corner coordinates under extreme perspective tilt.
-    \item \textbf{Real-Time Homography Engine (\texttt{homography.py}):} Solves the $3 \times 3$ Planar Homography matrix $H$ using SVD ($\mathbf{A} \mathbf{h} = \mathbf{0}$), continuously mapping fingertip pixels $\mathbf{P}_{\text{pixel}}$ into XML layout space $\mathbf{P}_{\text{XML}} = H \cdot \mathbf{P}_{\text{pixel}}$.
+    \item \textbf{Camera Calibration Engine (\texttt{main.py}):} Estimates the camera intrinsic matrix $K$ and distortion values using checkerboard calibration images.
+    \item \textbf{AprilTag Corner Estimator (\texttt{estimater.py}):} Detects AprilTag visual markers placed at layout corners and finds their sub-pixel corner coordinates even under steep camera angles.
+    \item \textbf{Real-Time Homography Engine (\texttt{homography.py}):} Solves the $3 \times 3$ Planar Homography matrix $H$ using SVD ($\mathbf{A} \mathbf{h} = \mathbf{0}$) to map fingertip pixels $\mathbf{P}_{\text{pixel}}$ into layout coordinates $\mathbf{P}_{\text{XML}} = H \cdot \mathbf{P}_{\text{pixel}}$.
 \end{itemize}
 
-\section{Fact Collection \& Data Gathering Mechanisms}
+\section{Fact Collection and Data Gathering Mechanisms}
 \label{sec:meth_fact_collection}
-Quantitative empirical validation requires structured data collection protocols covering dataset capture, annotation, feature extraction, and experimental controls.
+Collecting reliable experimental data requires structured recording setups, careful labeling, feature extraction methods, and experimental controls.
 
 \subsection{Typing Interaction Dataset Capture Protocol}
-To train and benchmark deep sequential touch detection models, a dataset of multi-finger typing interactions on paper surfaces was collected under controlled laboratory conditions:
+To train and evaluate the deep sequential touch detection models, a dataset of multi-finger typing on paper was recorded in a laboratory environment:
 \begin{itemize}
-    \item \textbf{Hardware Setup:} Video capture was performed using standard 1080p monocular RGB webcams positioned on adjustable desktop mounts at heights ranging from 35 cm to 65 cm above a flat desk surface. Camera inclination angles varied from $30^\circ$ (steep perspective angle) to $90^\circ$ (overhead top-down view).
-    \item \textbf{Illuminance Variance:} Video data was recorded across three distinct indoor illuminance levels: Dim Ambient ($150$ lux), Standard Office ($500$ lux), and Bright Direct Sunlight ($2,500+$ lux).
-    \item \textbf{Participant Diversity:} Typing sequences were collected from 15 human subjects displaying diverse hand lengths ($L_{\text{hand}} \in [14.2\text{ cm}, 21.5\text{ cm}]$), skin complexions (spanning Fitzpatrick scale Types I--VI), and typing styles (single-finger hunting to multi-finger touch typing).
-    \item \textbf{Action Gesture Protocol:} Participants executed thousands of individual touch events and non-touch hovering movements across all five digits (Thumb, Index, Middle, Ring, Pinky). Actions were categorized into deliberate surface touch impact taps, low-altitude hovering sweeps, lateral sliding movements, and resting pauses.
+    \item \textbf{Hardware Setup:} Video was recorded using standard 1080p monocular RGB webcams mounted on adjustable stands at heights between 35~cm and 65~cm above the desk. Camera tilt angles ranged from $30^\circ$ (slanted view) to $90^\circ$ (top-down view).
+    \item \textbf{Lighting Variations:} Video data was recorded under three common indoor lighting conditions: Dim Ambient ($150$~lux), Standard Office ($500$~lux), and Bright Sunlight ($2,500+$~lux).
+    \item \textbf{Participant Diversity:} Typing samples were gathered from 15 participants with different hand sizes ($L_{\text{hand}}$ between $14.2$~cm and $21.5$~cm), different skin complexions (Fitzpatrick scale Types I to VI), and various typing habits (from single-finger typing to multi-finger touch typing).
+    \item \textbf{Action Gesture Protocol:} Participants performed thousands of deliberate touch events and non-touch hovering movements across all five fingers (Thumb, Index, Middle, Ring, Pinky). Actions included intentional surface taps, hovering over keys, lateral hand adjustments, and resting hands on paper.
 \end{itemize}
 
 \subsection{Ground Truth Annotation and Temporal Alignment Procedure}
 \label{subsec:meth_ground_truth_annotation}
-Training supervised deep learning models requires precise temporal alignment between hand landmark video frames and ground truth binary touch labels $\mathbf{y}_t = [y_1, y_2, y_3, y_4, y_5] \in \{0, 1\}^5$ corresponding to the five active fingers (Thumb, Index, Middle, Ring, Pinky).
+Training supervised deep learning models requires exact alignment between video frames and binary touch labels $\mathbf{y}_t = [y_1, y_2, y_3, y_4, y_5] \in \{0, 1\}^5$ for the five fingers (Thumb, Index, Middle, Ring, Pinky).
 
-Ground truth touch annotations were established using a dual-sync labeling protocol:
+Ground truth touch labels were established using a two-step labeling process:
 \begin{enumerate}
-    \item \textbf{High-Speed Contact Sensor Sync:} Physical contact paper target pads were wired to low-voltage contact sensors, providing millisecond-accurate physical contact timestamp signals $T_{\text{impact}}$.
-    \item \textbf{Frame-by-Frame Video Verification:} Video recordings were manually inspected frame-by-frame using video annotation tools to verify that fingertip pixel contact aligned with sensor timestamps $T_{\text{impact}}$.
-    \item \textbf{Binary Target Encoding:} For each 5-frame sliding window, a binary vector $\mathbf{y} \in \{0, 1\}^5$ was assigned, indicating which finger(s) established active paper surface contact during the window duration.
+    \item \textbf{Contact Sensor Synchronization:} Physical paper pads were connected to low-voltage contact sensors, giving precise physical contact timestamps $T_{\text{impact}}$.
+    \item \textbf{Frame-by-Frame Video Inspection:} Video recordings were examined frame-by-frame using video annotation tools to confirm that fingertip contact matched the sensor timestamps $T_{\text{impact}}$.
+    \item \textbf{Binary Target Labeling:} For every 5-frame sliding window, a binary vector $\mathbf{y} \in \{0, 1\}^5$ was assigned to show which finger or fingers touched the paper during that window.
 \end{enumerate}
 
 \subsection{Feature Vector Pipeline Formulation}
 \label{subsec:meth_feature_vector}
 For each video frame $t$, MediaPipe extracts 21 2D joint coordinates $\mathbf{P}_i(t) = (x_i(t), y_i(t))$ for $i \in \{0, \dots, 20\}$.
 
-Hand length $L_{\text{hand}}(t)$ is computed from wrist Landmark 0 to middle MCP Landmark 9:
+The hand length $L_{\text{hand}}(t)$ is measured from the wrist (Landmark 0) to the middle MCP knuckle (Landmark 9):
 \begin{equation}
 L_{\text{hand}}(t) = \sqrt{(x_9(t) - x_0(t))^2 + (y_9(t) - y_0(t))^2}
 \label{eq:meth_hand_length}
 \end{equation}
 
-Unitless scale-normalized joint coordinates $\mathbf{P}_i^{\text{norm}}(t)$ are calculated:
+Unitless scale-normalized joint coordinates $\mathbf{P}_i^{\text{norm}}(t)$ are calculated as follows:
 \begin{equation}
 \mathbf{P}_i^{\text{norm}}(t) = \left( \frac{x_i(t) - x_0(t)}{L_{\text{hand}}(t)}, \frac{y_i(t) - y_0(t)}{L_{\text{hand}}(t)} \right)
 \label{eq:meth_norm_coords}
 \end{equation}
 
-First-order numerical velocity vectors $\mathbf{V}_i(t) = (v_{x,i}(t), v_{y,i}(t))$ are derived across consecutive frames at $\Delta t = \frac{1}{12}\text{ s}$:
+Numerical velocity vectors $\mathbf{V}_i(t) = (v_{x,i}(t), v_{y,i}(t))$ between consecutive frames are calculated at $\Delta t = \frac{1}{12}$~s:
 \begin{equation}
 v_{x,i}(t) = \frac{x_i^{\text{norm}}(t) - x_i^{\text{norm}}(t-1)}{\Delta t}, \quad
 v_{y,i}(t) = \frac{y_i^{\text{norm}}(t) - y_i^{\text{norm}}(t-1)}{\Delta t}
 \label{eq:meth_velocity}
 \end{equation}
 
-Concatenating scale-normalized spatial position $\mathbf{P}_i^{\text{norm}}$ and joint velocity $\mathbf{V}_i$ for all 21 keypoints constructs a 84-dimensional per-frame feature vector $\mathbf{f}_t \in \mathbb{R}^{84}$. A 5-frame sliding window concatenates feature vectors across time into input matrix $\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$.
+Combining the normalized position $\mathbf{P}_i^{\text{norm}}$ and velocity $\mathbf{V}_i$ for all 21 joints creates an 84-dimensional feature vector $\mathbf{f}_t \in \mathbb{R}^{84}$ per frame. A 5-frame temporal sliding window stacks these vectors into an input matrix $\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$.
 
 \section{Research Methodology Execution Workflow}
 \label{sec:meth_workflow}
-To demonstrate how each research objective defined in Chapter 1 is systematically addressed, Table~\ref{tab:methodology_execution_workflow} presents the comprehensive research methodology execution workflow mapping objectives to DSRM phases, technical activities, engineered artifacts, and quantitative evaluation metrics.
+To show how each research objective defined in Chapter 1 is systematically fulfilled, Table~\ref{tab:methodology_execution_workflow} presents the complete execution workflow mapping objectives to DSRM phases, research activities, software components, and evaluation metrics.
 
 \begin{table}[htbp]
 \centering
@@ -296,30 +296,30 @@ Virtual Keyboard Suite & Phase 6: Comm. & - Empirical latency \& throughput test
 
 \subsection{Detailed Sub-Phase Execution Breakdown}
 \label{subsec:meth_subphase_details}
-Each phase of the methodology execution workflow was systematically executed:
+Each phase of the methodology was executed systematically:
 \begin{enumerate}
-    \item \textbf{Problem Identification \& Relevance Justification (Obj 1):} Formulated the research gap by analyzing 57 literature sources across 8 sensing modalities, establishing baseline parameters for single-camera monocular paper input.
-    \item \textbf{Layout Designer \& PDF/XML Exporter (Obj 2):} Built Application 1 Layout Designer (\texttt{designer/designer\_app.py}) using PySide6. The software generates vector PDF sheets with embedded AprilTag anchors and matching XML bounding box files.
-    \item \textbf{Data Pipeline \& Scale Normalization Engine (Obj 3):} Implemented 12 FPS resampling (\texttt{resample\_12fps.py}), 21 landmark extraction, unitless hand length scale normalization ($L_{\text{hand}}$) without low-pass filtering (\texttt{normalize\_landmarks.py}), velocity computation (\texttt{calculate\_velocities.py}), 5-frame sliding windowing (\texttt{create\_windows.py}), and quality filtering (\texttt{filter\_window\_quality.py}).
-    \item \textbf{Deep Learning Model Benchmarking (Obj 4):} Driven by \texttt{run\_all.py}, evaluated 22 pure 2D model architecture combinations under 5-fold cross-validation to select the optimal trained PyTorch LSTM model (\texttt{best\_finger\_touch\_lstm.pth}).
-    \item \textbf{AprilTag Homography Engine (Obj 5):} Engineered real-time AprilTag corner detection and SVD homography calculation ($H \in \mathbb{R}^{3 \times 3}$) in \texttt{aprilTag/}, achieving sub-pixel corner mapping.
-    \item \textbf{System Assembly \& Real-Time Evaluation (Obj 6):} Assembled Application 1 and Application 2 Runtime Engine with multi-threaded camera acquisition (\texttt{camera\_thread.py}), achieving an end-to-end latency of $29.09\text{ ms}$ ($34.4\text{ FPS}$).
+    \item \textbf{Problem Identification and Relevance Justification (Obj 1):} Established the research gap by studying 57 prior papers across 8 sensing methods, defining the baseline parameters for single-camera paper keyboards.
+    \item \textbf{Layout Designer and PDF/XML Exporter (Obj 2):} Built Application 1 Layout Designer (\texttt{designer/designer\_app.py}) using PySide6. The software produces printable PDF sheets with embedded AprilTag markers and matching XML layout definition files.
+    \item \textbf{Data Pipeline and Scale Normalization Engine (Obj 3):} Implemented 12~FPS video resampling (\texttt{resample\_12fps.py}), 21 landmark extraction, scale normalization ($L_{\text{hand}}$) without low-pass filtering (\texttt{normalize\_landmarks.py}), velocity calculation (\texttt{calculate\_velocities.py}), 5-frame sliding windowing (\texttt{create\_windows.py}), and quality filtering (\texttt{filter\_window\_quality.py}).
+    \item \textbf{Deep Learning Model Benchmarking (Obj 4):} Used \texttt{run\_all.py} to benchmark 22 pure 2D model architecture combinations under 5-fold cross-validation to select the best PyTorch LSTM model (\texttt{best\_finger\_touch\_lstm.pth}).
+    \item \textbf{AprilTag Homography Engine (Obj 5):} Developed real-time AprilTag corner detection and SVD homography calculation ($H \in \mathbb{R}^{3 \times 3}$) in \texttt{aprilTag/}, achieving sub-pixel corner precision.
+    \item \textbf{System Assembly and Real-Time Evaluation (Obj 6):} Integrated Application 1 and Application 2 Runtime Engine with multi-threaded camera acquisition (\texttt{camera\_thread.py}), achieving an end-to-end processing time of $29.09$~ms ($34.4$~FPS).
 \end{enumerate}
 
-\section{Project Management Methodology \& Governance}
+\section{Project Management Methodology and Governance}
 \label{sec:meth_project_management}
-Managing a multi-disciplinary research project spanning computer vision, deep learning, GUI engineering, and mathematical geometry requires an agile, structured management framework.
+Managing a research project that involves computer vision, deep learning, GUI development, and planar geometry requires an organized project management framework.
 
 \subsection{Agile Scrum Research Adaptation}
-This project adopted an adapted **Agile Scrum Methodology** optimized for academic research partitions. Development was structured into 2-week Sprint cycles:
+This project used an adapted \textbf{Agile Scrum Methodology} organized around research modules. Work was structured into two-week Sprint cycles:
 \begin{itemize}
-    \item \textbf{Sprint Backlog Management:} Technical tasks were broken down into modular user stories and logged in a sprint backlog (e.g., "Implement scale normalization and direct feature propagation", "Benchmark 1D CNN vs LSTM architectures", "Optimize 12 FPS pipeline for CPU execution", "Integrate AprilTag homography matrix").
-    \item \textbf{Sprint Reviews \& Incremental Demos:} At the end of each 2-week sprint, engineered artifacts were compiled, benchmarked, and reviewed against quantitative success criteria.
-    \item \textbf{Iterative Refinement Loops:} If model accuracy fell below target thresholds during a sprint evaluation, the pipeline looped back to feature normalization tuning or hyperparameter grid search.
+    \item \textbf{Sprint Backlog Management:} Technical tasks were organized into user stories in a sprint backlog (for example, "Implement scale normalization and direct feature propagation", "Benchmark 1D CNN vs LSTM models", "Optimize 12 FPS pipeline for CPU performance", "Integrate AprilTag homography matrix").
+    \item \textbf{Sprint Reviews and Incremental Demos:} At the end of every two weeks, code modules were tested and checked against numerical goals.
+    \item \textbf{Iterative Refinement Loops:} If model accuracy fell below expectations, the workflow returned to feature normalization tuning or hyperparameter adjustments.
 \end{itemize}
 
-\subsection{Project Timeline \& Gantt Chart Schedule}
-The project was executed across a 9-month timeframe divided into six sequential research phases. Figure~\ref{fig:gantt_chart} presents the project execution timeline Gantt chart diagram.
+\subsection{Project Timeline and Gantt Chart Schedule}
+The project was conducted over a 9-month timeframe divided into sequential research phases. Figure~\ref{fig:gantt_chart} shows the project timeline Gantt chart.
 
 \begin{figure}[htbp]
 \centering
@@ -366,7 +366,7 @@ The project was executed across a 9-month timeframe divided into six sequential 
 \end{figure}
 
 \subsection{Risk Mitigation Matrix}
-To ensure project delivery, potential technical risks were identified, evaluated for severity and probability, and assigned proactive mitigation strategies, as detailed in Table~\ref{tab:risk_mitigation_matrix}.
+To ensure the project was completed on time, potential technical risks were identified, assessed for impact, and paired with proactive mitigation steps, as summarized in Table~\ref{tab:risk_mitigation_matrix}.
 
 \begin{table}[htbp]
 \centering
@@ -377,38 +377,38 @@ To ensure project delivery, potential technical risks were identified, evaluated
 \toprule
 \textbf{Identified Technical Risk} & \textbf{Probability} & \textbf{Impact} & \textbf{Proactive Risk Mitigation Strategy} \\
 \midrule
-\textbf{R1: AprilTag Corner Occlusion} & Medium & High & - Implement multi-tag redundancy along layout borders. \\
-By Typing Hands & & & - Require only 4 unoccluded tag corner points across layout to solve SVD $H$. \\
+\textbf{R1: AprilTag Corner Occlusion} & Medium & High & - Place multiple AprilTag markers along the layout borders. \\
+By Typing Hands & & & - Require only 4 clear corner points across the sheet to compute homography $H$. \\
 \midrule
 \textbf{R2: High Inference Latency} & Medium & High & - Sub-sample video streams to 12 FPS (\texttt{resample\_12fps.py}). \\
-Degrading Real-Time FPS & & & - Select lightweight PyTorch LSTM models over heavy 3D CNN backbones. \\
+Degrading Real-Time FPS & & & - Choose lightweight PyTorch LSTM models over heavy 3D CNN architectures. \\
 \midrule
-\textbf{R3: False Positive Taps} & High & High & - Implement 5-frame sliding window temporal context evaluation. \\
-From Hovering Fingers & & & - Train classifier on scale-normalized velocity vectors capturing deceleration. \\
+\textbf{R3: False Positive Taps} & High & High & - Use 5-frame sliding temporal windows to capture motion context. \\
+From Hovering Fingers & & & - Train classifier on normalized velocity vectors capturing touch deceleration. \\
 \midrule
-\textbf{R4: Scale Distortion Across} & High & Medium & - Normalize landmark coordinates relative to unitless hand length $L_{\text{hand}}$. \\
-Diverse Hand Sizes \& Distances & & & - Eliminate static pixel thresholds in favor of unitless ratio features. \\
+\textbf{R4: Scale Distortion Across} & High & Medium & - Normalize landmark coordinates by unitless hand length $L_{\text{hand}}$. \\
+Diverse Hand Sizes \& Distances & & & - Avoid fixed pixel limits and use scale-invariant feature ratios. \\
 \midrule
-\textbf{R5: Hardware Dependency on} & Medium & High & - Engineer lightweight LSTM architecture ($< 1$~MB) for standard CPUs. \\
-High-End GPUs or Fast Sensors & & & - Standardize pipeline on 12~FPS for universal CPU-only execution on any webcam. \\
+\textbf{R5: Hardware Dependency on} & Medium & High & - Use a compact LSTM model ($< 1$~MB) that runs efficiently on standard CPUs. \\
+High-End GPUs or Fast Sensors & & & - Standardize pipeline at 12~FPS for CPU execution with any standard webcam. \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-\subsection{Ethical Considerations \& Data Privacy Protocols}
+\subsection{Ethical Considerations and Data Privacy Protocols}
 \label{subsec:meth_ethics}
-Because video recording involves human subjects, strict ethical and data privacy standards were enforced throughout the research:
+Because video recording involves human participants, strict ethical and data privacy practices were followed throughout the research:
 \begin{enumerate}
-    \item \textbf{Informed Consent:} All 15 dataset recording participants received detailed information sheets explaining the study's purpose and signed voluntary informed consent forms prior to video capture.
-    \item \textbf{Biometric Data Privacy and Feature Anonymization:} Raw RGB video feeds containing participant facial features were processed entirely on isolated, non-networked local storage drives. Once MediaPipe extracted 21 2D landmark coordinates, raw video feeds were permanently deleted.
-    \item \textbf{Irreversible Feature Conversion:} The scale-normalized landmark dataset consists exclusively of unitless floating-point coordinate arrays ($(x_i^{\text{norm}}, y_i^{\text{norm}})$). These coordinate matrices contain zero identifiable facial or personal biometric identifiers, ensuring full compliance with General Data Protection Regulation (GDPR) standards for privacy-by-design.
+    \item \textbf{Informed Consent:} All 15 participants received information sheets explaining the study and signed voluntary consent forms before video recording.
+    \item \textbf{Data Privacy and Anonymization:} Raw video recordings containing participant faces were stored only on secure local drives. Once MediaPipe extracted the 2D joint coordinates, raw video files were permanently removed.
+    \item \textbf{Irreversible Feature Data:} The saved landmark dataset contains only unitless floating-point coordinate arrays ($(x_i^{\text{norm}}, y_i^{\text{norm}})$). These coordinate files contain no facial images or personal identifying information, protecting participant privacy.
 \end{enumerate}
 
 \section{Chapter Summary}
 \label{sec:meth_summary}
-This chapter presented the comprehensive research methodology governing the development and evaluation of the customizable paper virtual keyboard system. 
+This chapter presented the research methodology for designing, implementing, and evaluating the customizable paper virtual keyboard system.
 
-Section~\ref{sec:meth_paradigm} established the Positivist empirical paradigm. Section~\ref{sec:meth_approach} outlined the Deductive logical approach and the 6-phase Design Science Research Methodology (DSRM). Section~\ref{sec:meth_strategy} detailed the partitioned experimental engineering strategy across five isolated modules. Section~\ref{sec:meth_fact_collection} detailed the typing dataset capture protocols, 12 FPS sub-sampling, MediaPipe landmark extraction, and 84-dimensional scale-normalized feature vector formulations. Section~\ref{sec:meth_workflow} mapped research objectives to engineered artifacts and quantitative metrics via a detailed execution workflow table. Finally, Section~\ref{sec:meth_project_management} detailed the Agile Scrum management framework, project Gantt chart schedule, risk mitigation matrix, and ethical data privacy protocols.
+Section~\ref{sec:meth_paradigm} explained the Positivist empirical paradigm. Section~\ref{sec:meth_approach} described the Deductive approach and the 6-phase Design Science Research Methodology (DSRM). Section~\ref{sec:meth_strategy} detailed the five isolated development partitions. Section~\ref{sec:meth_fact_collection} described the interaction dataset collection, 12~FPS resampling, MediaPipe joint extraction, and 84-dimensional scale-normalized feature vectors. Section~\ref{sec:meth_workflow} presented the execution workflow table connecting objectives to software modules and metrics. Finally, Section~\ref{sec:meth_project_management} outlined the Agile Scrum process, project Gantt chart, risk mitigation matrix, and data privacy procedures.
 
-The methodological framework established in this chapter provides the rigorous operational foundation for the system requirement specifications, architectural design, and experimental implementations presented in subsequent chapters.
+The methodological foundation established in this chapter guides the system requirements, architectural design, and experimental results presented in the following chapters.
