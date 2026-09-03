@@ -9,9 +9,16 @@ class WordImageRenderer:
     """
     Renders text words into transparent PNG image buffers matching the exact font properties
     (font family, size, color, baseline alignment, and style) of the original PDF text span.
+    Uses Computer Modern Unicode (CMU) TrueType fonts for 100% seamless visual identity with LaTeX documents.
     """
 
-    # Default TrueType font fallbacks
+    FONTS_DIR = os.path.join(os.path.dirname(__file__), "fonts")
+
+    CMU_SERIF_REGULAR = os.path.join(FONTS_DIR, "cmunrm.ttf")
+    CMU_SERIF_BOLD = os.path.join(FONTS_DIR, "cmunbx.ttf")
+    CMU_SERIF_ITALIC = os.path.join(FONTS_DIR, "cmunti.ttf")
+
+    # Default System TrueType font fallbacks
     SERIF_REGULAR = "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf"
     SERIF_BOLD = "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf"
     SERIF_ITALIC = "/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf"
@@ -30,7 +37,7 @@ class WordImageRenderer:
 
     def _select_font_file(self, font_name: str, is_bold: bool, is_italic: bool) -> str:
         """
-        Selects the appropriate system TrueType font file path based on font family and style attributes.
+        Selects the appropriate Computer Modern Unicode or System TrueType font file path based on font family and style attributes.
         """
         if self.font_path and os.path.exists(self.font_path):
             return self.font_path
@@ -39,8 +46,12 @@ class WordImageRenderer:
 
         # Check for Serif / Roman fonts (CMR, LMRoman, Times, Georgia, Serif)
         if TextClassifier.is_serif_font(name_lower):
-            if is_bold and is_italic:
-                return self.SERIF_BOLD_ITALIC
+            if is_bold and os.path.exists(self.CMU_SERIF_BOLD):
+                return self.CMU_SERIF_BOLD
+            elif is_italic and os.path.exists(self.CMU_SERIF_ITALIC):
+                return self.CMU_SERIF_ITALIC
+            elif os.path.exists(self.CMU_SERIF_REGULAR):
+                return self.CMU_SERIF_REGULAR
             elif is_bold:
                 return self.SERIF_BOLD
             elif is_italic:

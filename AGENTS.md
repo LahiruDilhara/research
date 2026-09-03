@@ -53,9 +53,9 @@ Because monocular paper touch detection is an experimental computer vision conce
 
 The research directly solves six concrete, well-documented research gaps identified across existing published virtual keyboard and vision-based input literature:
 
-1. **Simultaneous Multi-Finger Touch Detection on Monocular RGB Video:**
-   - *Literature Gap:* Existing monocular camera keyboards are restricted to single-finger tracking (tracking only the index finger or the single fastest moving finger; e.g. Thomas 2013, Posner et al. 2012, Ji et al. 2018, Srivastava & Tripathi 2012, Khare 2019). Shadow-based systems fail when multiple fingers approach the surface together because their shadows merge and occlude each other. They cannot detect simultaneous multi-key presses, chords, or modifier combinations (`Ctrl + C`, `Shift + A`).
-   - *Our Solution:* MediaPipe simultaneously tracks all 21 hand landmarks, and the PyTorch neural network evaluates touch probabilities independently across all five fingers (`thumb`, `index`, `middle`, `ring`, `pinky`) in parallel, enabling simultaneous multi-finger touch detection at the exact same moment.
+1. **Independent Multi-Finger Touch Detection on Monocular RGB Video:**
+   - *Literature Gap:* Existing monocular camera keyboards are restricted to single-finger tracking (tracking only the index finger or the single fastest moving finger; e.g. Thomas 2013, Posner et al. 2012, Ji et al. 2018, Srivastava & Tripathi 2012, Khare 2019). Shadow-based systems fail when multiple fingers move near the surface together because their shadows merge and occlude each other.
+   - *Our Solution:* MediaPipe tracks all 21 hand landmarks, and the PyTorch neural network evaluates touch probabilities independently across all five fingers (`thumb`, `index`, `middle`, `ring`, `pinky`) in parallel. The system detects discrete single touch events from any finger upon surface contact and triggers the corresponding key action sequentially (if another touch occurs, that is processed as a separate second event, without requiring continuous hold-down touches).
 
 2. **High Latency & CPU Real-Time Performance on Commodity Hardware:**
    - *Literature Gap:* Previous deep learning vision models drop below 15 FPS on standard CPUs (e.g. Enkhbat et al. 2020, Ji et al. 2018), or require expensive specialized hardware such as 3D Time-of-Flight depth cameras or infrared laser projectors to achieve real-time response (Lee & Kwon 2019, Toshpulatov et al. 2024, Kudale & Wanjale 2016).
@@ -232,7 +232,7 @@ The system has **`texlive-full`** and system development utilities installed. Th
   * **Camera Selector:** Allows the user to choose any active monocular RGB camera input stream (low-end webcams, legacy cameras, or high-res feeds).
   * **Layout Loader:** Loads any exported layout XML file.
   * **Interactive Action Mapping Table:** User maps each layout button ID to a specific action:
-    * *Keystroke Action:* Single keys or key combinations (e.g., `'A'`, `'Space'`, `'Ctrl+C'`).
+    * *Keystroke Action:* Single keys (e.g., `'A'`, `'Space'`, `'Enter'`).
     * *System Command Action:* Complete executable shell commands or scripts (e.g., launching terminal applications, executing Python scripts, controlling media playback).
   * **Action Configuration Save/Load:** Users can save custom layout action mappings to an configuration file on disk and re-import them anytime for maximum operational flexibility.
 * **Component B: Background Live Watch & Execution Engine:**

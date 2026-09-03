@@ -310,11 +310,11 @@ Detailed formal Use Case Specifications for core system operations are provided 
 \midrule
 \textbf{Use Case ID \& Title} & \textbf{UC-05: Map Buttons to Keystrokes or System Shell Commands} \\
 \textbf{Primary Actor} & Runtime Operator User \\
-\textbf{Description} & Operator maps each layout button ID to specific single keystrokes, key combinations, or system shell commands. \\
+\textbf{Description} & Operator maps each layout button ID to specific keystrokes or system shell commands. \\
 \textbf{Preconditions} & Layout XML schema successfully loaded in UC-04. \\
 \textbf{Postconditions} & Action mapping dictionary registered in runtime execution engine. \\
 \textbf{Main Success Scenario} & 1. System populates interactive action mapping table with loaded button IDs.\\
- & 2. Operator assigns keystrokes (e.g., `'Ctrl+C'`) or shell scripts to button IDs.\\
+ & 2. Operator assigns keystrokes (e.g., `'A'`, `'Enter'`) or shell scripts to button IDs.\\
  & 3. System registers action bindings in dispatcher queue.\\
 \textbf{Alternative Flows} & 2a. Invalid shell command syntax: System highlights invalid command string. \\
 \bottomrule
@@ -846,7 +846,7 @@ Functional requirements define the core functions and services provided by the s
 \textbf{FR-04} & XML Schema Generation & Application 1 must export structural XML files specifying key IDs, bounding box coordinates $(x_{\min}, y_{\min}, x_{\max}, y_{\max})$, default values, and tag locations. \\
 \textbf{FR-05} & Single Regular RGB Camera Selector & Application 2 Setup GUI must detect and allow users to select from any single regular monocular RGB camera stream (commodity webcams or laptop sensors across regular/low resolutions without specialized hardware). \\
 \textbf{FR-06} & XML Specification Loader & Application 2 must parse exported XML layout files and dynamically construct target coordinate lookup tables. \\
-\textbf{FR-07} & Keystroke Action Mapping & Setup GUI must enable users to map key IDs to single keystrokes (e.g., `'A'`, `'Space'`) or key combos (e.g., `'Ctrl+C'`). \\
+\textbf{FR-07} & Keystroke Action Mapping & Setup GUI must enable users to map key IDs to single keystrokes (e.g., `'A'`, `'Space'`, `'Enter'`). \\
 \textbf{FR-08} & System Command Mapping & Setup GUI must enable users to map key IDs to executable system shell commands or external Python scripts. \\
 \textbf{FR-09} & Action Profile Multiplexing & System must allow users to save, load, and switch between multiple distinct action combination profiles (JSON/XML) for the exact same physical printed layout sheet without reprinting the paper. \\
 \textbf{FR-10} & Multi-Threaded Video Capture & Runtime engine must run OpenCV frame acquisition in a dedicated background thread to prevent frame drops. \\

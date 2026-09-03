@@ -82,7 +82,7 @@ The complete system is split into two synchronized application tools working tog
 The dataflow pipeline runs through seven main processing stages:
 \begin{enumerate}
     \item \textbf{Stage 1 (Layout Design and Export):} The user uses the PySide6 canvas in Application 1 (\texttt{designer\_app.py}) to create key buttons, snap them to an A4 grid, set button IDs, and define rectangular boundaries $[x_{\min}, y_{\min}, x_{\max}, y_{\max}]$. The exporter generates a vector PDF print sheet with corner AprilTag markers and an XML layout specification file.
-    \item \textbf{Stage 2 (Action Mapping and Profile Saving):} The user opens Application 2 Component A (Setup GUI). The software loads the XML layout file, reads the key IDs, and shows an action mapping table. The user assigns each key ID to a single key (such as `'A'`), shortcut (such as `'Ctrl+C'`), or shell command. The physical layout is separated from digital actions: users can save and switch different action profiles (JSON files) for the exact same printed paper sheet without reprinting.
+    \item \textbf{Stage 2 (Action Mapping and Profile Saving):} The user opens Application 2 Component A (Setup GUI). The software loads the XML layout file, reads the key IDs, and shows an action mapping table. The user assigns each key ID to a single key (such as `'A'`), special key (such as `'Enter'`), or shell command. The physical layout is separated from digital actions: users can save and switch different action profiles (JSON files) for the exact same printed paper sheet without reprinting.
     \item \textbf{Stage 3 (Video Frame Ingestion):} Application 2 Component B starts running in the background. A dedicated worker thread (\texttt{camera\_thread.py}) captures webcam frames using OpenCV \texttt{VideoCapture} and puts raw frame arrays $\mathbf{I}_{\text{frame}} \in \mathbb{R}^{H \times W \times 3}$ into a thread-safe Queue buffer.
     \item \textbf{Stage 4 (AprilTag Tracking and Homography Calculation):} The tracking thread reads frames from the queue, converts them to grayscale, detects AprilTag quads (\texttt{tag36h11} family), extracts sub-pixel corner points, builds the Direct Linear Transformation (DLT) matrix $\mathbf{A}$, and calculates the Planar Homography matrix $H \in \mathbb{R}^{3 \times 3}$ using Singular Value Decomposition (SVD).
     \item \textbf{Stage 5 (Hand Joint Extraction and Scale Normalization):} Concurrently, MediaPipe Hand Landmarker extracts 21 2D hand joint coordinates $\mathbf{P}_i(t) = (x_i(t), y_i(t))$. Coordinates are shifted relative to wrist Landmark 0 ($\mathbf{P}_0$) and scaled by hand length $L_{\text{hand}}(t) = \|\mathbf{P}_9(t) - \mathbf{P}_0(t)\|_2$. Velocity vectors $\mathbf{V}_i(t)$ are calculated across consecutive frames ($\Delta t = \frac{1}{12}$~s). Normalized values are passed directly to the next stage to preserve sudden deceleration changes.
@@ -283,7 +283,7 @@ Algorithm~\ref{alg:coordinate_mapping} shows the formal pseudocode for planar co
 {\small 9: \hspace{2em} Set $j_{\text{hit}} = j$.} \\
 {\small 10: \hspace{2em} Extract action binding: $A_j = \mathbf{M}_{\text{action}}[j]$.} \\
 {\small 11: \hspace{2em} \textbf{if} $A_j$ is \texttt{KeystrokeAction} \textbf{then}} \\
-{\small 12: \hspace{2em} \hspace{1em} Inject system virtual key press event via OS API (e.g., `'Ctrl+C'`).} \\
+{\small 12: \hspace{2em} \hspace{1em} Inject system virtual key press event via OS API (e.g., `'A'`).} \\
 {\small 13: \hspace{2em} \textbf{else if} $A_j$ is \texttt{SystemCommandAction} \textbf{then}} \\
 {\small 14: \hspace{2em} \hspace{1em} Execute background shell command script: \texttt{subprocess.Popen(A\_j.command)}.} \\
 {\small 15: \hspace{2em} \textbf{end if}} \\
@@ -735,7 +735,7 @@ Component A provides a PySide6 setup window where users configure settings befor
     \item \textbf{Layout XML Schema Loader:} Loads custom layout XML files exported from Application 1 Layout Designer (such as QWERTY keyboards, numeric pads, macro pads, or accessibility grids), reading key IDs, bounding boxes, and AprilTag locations.
     \item \textbf{Interactive Action Mapping Configuration Table:} Displays an interactive table listing all layout key IDs. For each key ID, the user selects an action type:
     \begin{enumerate}
-        \item \emph{Keystroke Action:} Assigns key IDs to single keys or key combinations (such as `'A'`, `'Space'`, `'Ctrl+C'`, `'Alt+Tab'`).
+        \item \emph{Keystroke Action:} Assigns key IDs to single keys (such as `'A'`, `'Space'`, `'Enter'`).
         \item \emph{System Command Action:} Assigns key IDs to shell commands or scripts (such as opening terminal programs, controlling media playback, or running automation scripts).
     \end{enumerate}
     \item \textbf{Decoupled Action Profile Multiplexing (JSON Persistence):} To save paper and increase flexibility, the physical printed layout geometry is decoupled from digital action bindings. Users can save, export, and load multiple action profiles as JSON files (such as \texttt{typing\_profile.json}, \texttt{developer\_macros.json}, \texttt{daw\_controller.json}, \texttt{gaming\_mode.json}). This allows the exact same printed paper sheet to perform completely different functions simply by loading another action profile in software, without reprinting the page.
