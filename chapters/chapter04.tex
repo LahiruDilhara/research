@@ -852,11 +852,11 @@ Functional requirements define the core functions and services provided by the s
 \textbf{FR-10} & Multi-Threaded Video Capture & Runtime engine must run OpenCV frame acquisition in a dedicated background thread to prevent frame drops. \\
 \textbf{FR-11} & AprilTag Sub-Pixel Tracking & AprilTag tracker engine must detect tag quads and extract sub-pixel corner coordinates under perspective camera tilt. \\
 \textbf{FR-12} & SVD Homography Solver & Engine must compute the $3 \times 3$ Planar Homography matrix $H$ using SVD ($\mathbf{A} \mathbf{h} = \mathbf{0}$) from tracked AprilTag correspondences. \\
-\textbf{FR-13} & MediaPipe 21 Joint Pose & Engine must regress 2D pixel coordinates for 21 anatomical hand joint keypoints per video frame. \\
+\textbf{FR-13} & MediaPipe 21 Joint Pose & Engine must regress 2D pixel coordinates for 21 anatomical hand joint keypoints of the active interacting hand (\texttt{num\_hands=1}) per video frame. \\
 \textbf{FR-14} & Unitless Hand Scale Norm & System must translate keypoints to wrist origin $\mathbf{P}_0$ and scale coordinates by middle MCP hand length $L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$. \\
 \textbf{FR-15} & Direct Raw Propagation & Feature pipeline must propagate scale-normalized coordinates directly to classifier without artificial temporal low-pass smoothing. \\
-\textbf{FR-16} & 5-Frame Window Generation & System must assemble 84-dimensional feature vectors into sliding windows of 5 frames with 2-frame overlap (stride of 3 frames) at 12~FPS. \\
-\textbf{FR-17} & PyTorch LSTM Touch Inference & Lightweight PyTorch model (\texttt{best\_finger\_touch\_lstm.pth}) must classify active finger paper touch contact probability ($P > 0.90$) on standard CPU. \\
+\textbf{FR-16} & 5-Frame Window Generation & System must assemble 84-dimensional feature vectors into sliding windows of 5 frames with 2-frame overlap (stride of 3 frames) at 12~FPS representing the active single hand. \\
+\textbf{FR-17} & PyTorch LSTM Touch Inference & Lightweight PyTorch model (\texttt{best\_finger\_touch\_lstm.pth}) must classify active finger paper touch contact probability ($P > 0.90$) across all 5 digits on standard CPU. \\
 \textbf{FR-18} & Planar Coordinate Mapping & Engine must map active fingertip pixel coordinates through $H$ into XML layout space ($\mathbf{P}_{\text{XML}} = H \cdot \mathbf{P}_{\text{pixel}}$) and execute action. \\
 \bottomrule
 \end{tabular}%
@@ -869,8 +869,8 @@ The 18 functional requirements are grouped into four main subsystem areas:
 \begin{enumerate}
     \item \textbf{Layout Designer Domain (FR-01 to FR-04):} Implemented in Application 1 (\texttt{designer/designer\_app.py}). Ensures that creating buttons, calculating bounding boxes, placing AprilTag anchors, rendering vector PDFs, and writing XML layout files work smoothly for any custom keyboard layout.
     \item \textbf{Setup and Command Mapper Domain (FR-05 to FR-09):} Implemented in Application 2 Component A. Manages camera selection across standard and low resolutions, XML layout loading, custom keystroke and shell command assignments, and saving or loading profile files, allowing users to switch action combinations on the exact same printed paper sheet without reprinting.
-    \item \textbf{Vision Perception and Scale Normalization Domain (FR-10 to FR-16):} Implemented in Application 2 Component B. Handles multi-threaded camera capture (\texttt{camera\_thread.py}), AprilTag tracking (\texttt{aprilTag/estimater.py}), MediaPipe joint tracking, hand length scale normalization ($L_{\text{hand}}$) with direct feature propagation, and 12~FPS 5-frame sliding window creation (\texttt{create\_windows.py}).
-    \item \textbf{Touch Classification and Command Execution Domain (FR-17 to FR-18):} Implemented in Application 2 Component B. Manages CPU-based PyTorch LSTM touch inference (\texttt{best\_finger\_touch\_lstm.pth}), planar homography coordinate mapping ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), XML key detection, and keystroke or shell command triggering.
+    \item \textbf{Vision Perception and Scale Normalization Domain (FR-10 to FR-16):} Implemented in Application 2 Component B. Handles multi-threaded camera capture (\texttt{camera\_thread.py}), AprilTag tracking (\texttt{aprilTag/estimater.py}), MediaPipe single-hand joint tracking (\texttt{num\_hands=1}), hand length scale normalization ($L_{\text{hand}}$) with direct feature propagation, and 12~FPS 5-frame sliding window creation (\texttt{create\_windows.py}).
+    \item \textbf{Touch Classification and Command Execution Domain (FR-17 to FR-18):} Implemented in Application 2 Component B. Manages CPU-based PyTorch LSTM touch inference (\texttt{best\_finger\_touch\_lstm.pth}) for all 5 digits of the active hand, planar homography coordinate mapping ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), XML key detection, and keystroke or shell command triggering.
 \end{enumerate}
 
 \subsection{Non-Functional Requirements (NFR)}

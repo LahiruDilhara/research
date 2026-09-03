@@ -225,6 +225,7 @@
 \contentsline {section}{\numberline {7.6}Future Recommendations}{104}{section.7.6}%
 \contentsline {subsection}{\numberline {7.6.1}Integration of Monocular Neural Depth Models}{104}{subsection.7.6.1}%
 \contentsline {subsection}{\numberline {7.6.2}Multi-Camera Stereo Vision Fusion}{105}{subsection.7.6.2}%
-\contentsline {subsection}{\numberline {7.6.3}Spatial Acoustic and Ultrasonic Mid-Air Haptic Feedback}{105}{subsection.7.6.3}%
-\contentsline {subsection}{\numberline {7.6.4}Transformer-Based Temporal Self-Attention Architectures}{105}{subsection.7.6.4}%
+\contentsline {subsection}{\numberline {7.6.3}Two-Handed (Bimanual) Typing with Dual Window Buffering}{105}{subsection.7.6.3}%
+\contentsline {subsection}{\numberline {7.6.4}Spatial Acoustic and Ultrasonic Mid-Air Haptic Feedback}{105}{subsection.7.6.4}%
+\contentsline {subsection}{\numberline {7.6.5}Transformer-Based Temporal Self-Attention Architectures}{105}{subsection.7.6.5}%
 \contentsline {section}{\numberline {7.7}Chapter Summary}{105}{section.7.7}%

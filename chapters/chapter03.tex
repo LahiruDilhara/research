@@ -173,10 +173,10 @@ Located in \texttt{designer/} and \texttt{designer/analyzer/}, this partition fo
 Located in \texttt{mediapipeDetector/datacreator/}, this partition processed hand motion videos into clean training data:
 \begin{itemize}
     \item \textbf{Video Resampling (\texttt{resample\_12fps.py}):} Down-sampled video recordings to a uniform 12~FPS rate. This frame rate was chosen to capture finger motion clearly while keeping CPU load light for real-time processing on standard processors without a GPU.
-    \item \textbf{MediaPipe 21 Landmark Extraction:} Extracted 2D pixel coordinates $(x_i, y_i)$ for all 21 hand joints in each frame.
+    \item \textbf{MediaPipe 21 Landmark Extraction:} Extracted 2D pixel coordinates $(x_i, y_i)$ for all 21 hand joints of the active interacting hand in each frame (\texttt{num\_hands=1}). Single-hand tracking was used to avoid visual marker occlusion on A4 paper and to maintain low computational latency on standard CPUs.
     \item \textbf{Scale Normalization (\texttt{normalize\_landmarks.py}):} Shifted coordinates relative to the wrist $\mathbf{P}_0$ and divided by hand length $L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$, producing unitless coordinates $\mathbf{P}_i^{\text{norm}}$. These values were sent directly without smoothing filters to preserve quick deceleration signals.
     \item \textbf{Velocity Calculation (\texttt{calculate\_velocities.py}):} Computed velocity vectors $\mathbf{V}_i(t)$ between consecutive frames.
-    \item \textbf{Sliding Window Generation (\texttt{create\_windows.py}):} Created 5-frame temporal windows with a 2-frame overlap (stride of 3 frames), yielding input matrices $\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$.
+    \item \textbf{Sliding Window Generation (\texttt{create\_windows.py}):} Created 5-frame temporal windows with a 2-frame overlap (stride of 3 frames), yielding input matrices $\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$ representing the single active hand.
     \item \textbf{Quality Filtering (\texttt{filter\_window\_quality.py}):} Removed incomplete or noisy windows where landmarks were missing or had low confidence scores.
 \end{itemize}
 

@@ -819,10 +819,11 @@ To overcome this limitation, the system was designed around three main technical
 \end{enumerate}
 
 \subsubsection{Challenge 4: Robust AprilTag Fiducial Tracking under Hand Occlusion}
-In paper virtual keyboard systems, a user's hands move across the printed paper while typing. If fiducial markers are placed in the center of the sheet, typing hands frequently block them, disrupting homography matrix $H$ calculations.
+In paper virtual keyboard systems, a user's hand moves across the printed paper while typing. If fiducial markers are placed in the center of the sheet, or if multiple hands are placed over a compact A4 sheet simultaneously, markers can be blocked, disrupting homography matrix $H$ calculations.
 
-This challenge was solved through two design decisions:
+This challenge was solved through three key design decisions:
 \begin{enumerate}
+    \item \textbf{Single Active Hand Tracking Design:} The system focuses on single-handed active typing (\texttt{num\_hands=1}). Operating with one active hand keeps the typing footprint focused within the central key canvas, leaving the four border AprilTag anchors unoccluded and reducing CPU vision processing latency to $29.09\text{ ms}$.
     \item \textbf{Outer Border Anchor Placement:} In Application 1 Layout Designer (\texttt{designer\_app.py}), four AprilTag markers (\texttt{tag36h11} family, Tag IDs 0, 1, 2, 3) are placed along the outer margins of the paper sheet (Equations~\ref{eq:tag0_pos}--\ref{eq:tag3_pos}). Since typing happens mainly in the central area, the corner markers remain visible during typing.
     \item \textbf{Minimal SVD Point Correspondence Solver:} The SVD homography solver (\texttt{aprilTag/homography.py}) needs only four unoccluded corner points across the page to compute matrix $H \in \mathbb{R}^{3 \times 3}$. If one or two AprilTags are temporarily covered, the tracking engine continues solving $H$ using the remaining visible tag corners.
 \end{enumerate}

@@ -326,7 +326,7 @@ Because PyTorch LSTM forward passes run on pre-allocated tensor memory, there wa
 
 \subsection{User Typing Performance and Character Error Rate Benchmark}
 \label{subsec:test_user_typing}
-User typing performance was tested with ten participants typing standard test sentences on a printed A4 paper virtual keyboard. Metrics included Words Per Minute (WPM) and Character Error Rate (CER):
+User typing performance was tested with ten participants executing single-handed text transcription phrases on a printed A4 paper virtual keyboard. Testing single-hand typing matches the system scope, keeping camera marker visibility unobstructed and CPU latency low. Metrics included Words Per Minute (WPM) and Character Error Rate (CER):
 \begin{equation}
 \text{WPM} = \left( \frac{|C|}{5} \right) / T_{\text{min}}, \quad
 \text{CER} = \left( \frac{S + D + I}{|R|} \right) \times 100\%
@@ -334,7 +334,7 @@ User typing performance was tested with ten participants typing standard test se
 \end{equation}
 where $|C|$ is total characters typed, $T_{\text{min}}$ is time in minutes, $S$ is substitutions, $D$ is deletions, $I$ is insertions, and $|R|$ is reference text length.
 
-Table~\ref{tab:user_typing_performance} shows the typing test results comparing the paper virtual keyboard with mechanical keyboards and touchscreen tablets.
+Table~\ref{tab:user_typing_performance} shows the typing test results comparing single-handed paper virtual keyboard typing with physical mechanical keyboards and touchscreen tablets.
 
 \begin{table}[htbp]
 \centering

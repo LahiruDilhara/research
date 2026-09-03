@@ -142,6 +142,9 @@ Future work could explore adding lightweight monocular depth estimation models (
 \subsection{Multi-Camera Stereo Vision Fusion}
 Extending the single-camera setup to a dual-camera stereo configuration would help resolve hand occlusion. Tracking hand joints from two different angles would provide 3D triangulation and keep tracking active even when one camera view is partially blocked.
 
+\subsection{Two-Handed (Bimanual) Typing with Dual Window Buffering}
+While the current system implementation is optimized for single-handed active typing to ensure low CPU computation time and avoid fiducial marker occlusion on compact A4 paper sheets, the underlying modular architecture can be expanded to support two hands. Future research can configure MediaPipe for two hands (\texttt{num\_hands=2}) and run separate 5-frame sliding window buffers for both the left and right hands. With the lightweight PyTorch model taking only $2.08\text{ ms}$ per forward pass, dual-hand inference would take approximately $33\text{ ms}$ total on CPU, remaining well within the $83.33\text{ ms}$ 12~FPS frame budget.
+
 \subsection{Spatial Acoustic and Ultrasonic Mid-Air Haptic Feedback}
 To provide physical feeling without mechanical keys, future versions could incorporate ultrasonic mid-air haptic arrays. By focusing ultrasonic pressure waves onto the active fingertip when a key press is confirmed, users could feel physical tactile feedback in the air.
 
