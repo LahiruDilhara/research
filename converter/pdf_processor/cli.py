@@ -9,7 +9,7 @@ def parse_args(args=None):
     Parses command line arguments for the PDF post-processor tool.
     """
     parser = argparse.ArgumentParser(
-        description="PDF Post-Processor: Multi-stage pipeline converting body words to image snippets and zero-width characters."
+        description="PDF Post-Processor: 3-stage pipeline converting body words to images, homoglyphs, and zero-width characters."
     )
     
     parser.add_argument(
@@ -34,18 +34,25 @@ def parse_args(args=None):
     )
 
     parser.add_argument(
+        "--homo-prob",
+        type=float,
+        default=0.15,
+        help="Stage 2: Probability ratio (0.0 to 1.0) of replacing Latin letters with homoglyphs. Default: 0.15."
+    )
+
+    parser.add_argument(
         "--zw-prob",
         type=float,
         default=0.15,
-        help="Stage 2: Probability ratio (0.0 to 1.0) of injecting zero-width characters into body words. Default: 0.15."
+        help="Stage 3: Probability ratio (0.0 to 1.0) of injecting zero-width characters. Default: 0.15."
     )
 
     parser.add_argument(
         "--stage",
         type=str,
-        choices=["all", "stage1", "stage2"],
+        choices=["all", "stage1", "stage2", "stage3"],
         default="all",
-        help="Pipeline stage execution mode: 'all' (Stage 1 + Stage 2), 'stage1' (Images only), 'stage2' (Zero-width only). Default: 'all'."
+        help="Pipeline stage execution mode: 'all' (Stage 1 + 2 + 3), 'stage1' (Images), 'stage2' (Homoglyphs), 'stage3' (Zero-width). Default: 'all'."
     )
 
     parser.add_argument(
@@ -108,7 +115,8 @@ def main():
         print(f"Output PDF:           {output_path}")
         print(f"Execution Stage:      {args.stage}")
         print(f"Stage 1 Image Prob:   {args.probability}")
-        print(f"Stage 2 ZW-Char Prob: {args.zw_prob}")
+        print(f"Stage 2 Homoglyph Prob:{args.homo_prob}")
+        print(f"Stage 3 ZW-Char Prob: {args.zw_prob}")
         print(f"Random Seed:          {args.seed}")
         print(f"Min Word Length:      {args.min_word_len}")
         print(f"DPI Scale:            {args.dpi_scale}")
@@ -119,6 +127,7 @@ def main():
             input_path=input_path,
             output_path=output_path,
             probability=args.probability,
+            homo_probability=args.homo_prob,
             zw_probability=args.zw_prob,
             stage=args.stage,
             seed=args.seed,
@@ -134,7 +143,8 @@ def main():
         print(f"Total Pages:               {summary['total_pages']}")
         print(f"Body Words Scanned:        {summary['total_words_processed']}")
         print(f"Stage 1 Images Replaced:   {summary['total_image_replacements']}")
-        print(f"Stage 2 ZW-Chars Injected: {summary['total_zw_injections']}")
+        print(f"Stage 2 Homoglyphs Swapped:{summary['total_homo_substitutions']}")
+        print(f"Stage 3 ZW-Chars Injected: {summary['total_zw_injections']}")
         print(f"Output File Saved:         {summary['output_path']}")
 
     except Exception as e:

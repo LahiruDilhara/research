@@ -4,13 +4,15 @@ from typing import Optional, List, Tuple, Dict, Any
 from pdf_processor.classifier import TextClassifier
 from pdf_processor.renderer import WordImageRenderer
 from pdf_processor.zero_width import ZeroWidthInjector
+from pdf_processor.homoglyph import HomoglyphSubstitutor
 
 
 class PDFPostProcessor:
     """
     Multi-stage pipeline engine for PDF post-processing.
     Stage 1: Replaces randomly selected body words with transparent rendered images.
-    Stage 2: Injects invisible zero-width Unicode characters into selectable body words (using render_mode=3).
+    Stage 2: Substitutes Latin characters with visually identical homoglyphs (Cyrillic/Greek/Armenian).
+    Stage 3: Injects invisible zero-width Unicode characters into selectable body words (render_mode=3).
     Preserves document structure (titles, TOC, citations, references, headers, footers) and interactive links.
     """
 
@@ -19,6 +21,7 @@ class PDFPostProcessor:
         input_path: str,
         output_path: str,
         probability: float = 0.15,
+        homo_probability: float = 0.15,
         zw_probability: float = 0.15,
         stage: str = "all",
         seed: Optional[int] = None,
@@ -30,6 +33,7 @@ class PDFPostProcessor:
         self.input_path = input_path
         self.output_path = output_path
         self.probability = max(0.0, min(1.0, probability))
+        self.homo_probability = max(0.0, min(1.0, homo_probability))
         self.zw_probability = max(0.0, min(1.0, zw_probability))
         self.stage = (stage or "all").lower()
         self.min_word_len = min_word_len
@@ -39,6 +43,7 @@ class PDFPostProcessor:
             random.seed(seed)
 
         self.renderer = WordImageRenderer(font_path=font_path, dpi_scale=dpi_scale)
+        self.homo_substitutor = HomoglyphSubstitutor(seed=seed)
         self.zw_injector = ZeroWidthInjector(seed=seed)
 
     def _find_span_metrics(self, word_bbox: Tuple[float, float, float, float], page_dict: Dict[str, Any], default_size: float) -> Dict[str, Any]:
@@ -94,8 +99,7 @@ class PDFPostProcessor:
     @staticmethod
     def _is_inside_link(word_rect: fitz.Rect, page_links: List[Dict[str, Any]]) -> bool:
         """
-        Checks if a word bounding box intersects with any interactive link annotation
-        (e.g., clickable Table of Contents items, clickable citations, or external URIs).
+        Checks if a word bounding box intersects with any interactive link annotation.
         """
         for link in page_links:
             link_rect = link.get("from")
@@ -122,10 +126,12 @@ class PDFPostProcessor:
 
         total_words_processed = 0
         total_image_replacements = 0
+        total_homo_substitutions = 0
         total_zw_injections = 0
 
         run_stage1 = self.stage in ["all", "stage1"]
         run_stage2 = self.stage in ["all", "stage2"]
+        run_stage3 = self.stage in ["all", "stage3"]
 
         # Process page by page
         for page_idx in range(total_pages):
@@ -151,6 +157,7 @@ class PDFPostProcessor:
                     block_map[block_no] = (block.get("bbox", (0, 0, 0, 0)), full_block_text.strip())
 
             image_replacements: List[Tuple[fitz.Rect, str, Dict[str, Any]]] = []
+            homo_substitutions: List[Tuple[fitz.Rect, str, str, Dict[str, Any]]] = []
             zw_injections: List[Tuple[fitz.Rect, str, str, Dict[str, Any]]] = []
 
             for w in words:
@@ -190,14 +197,21 @@ class PDFPostProcessor:
                 total_words_processed += 1
 
                 # Stage 1 Sampling: Image Replacement
-                is_stage1_selected = False
+                is_selected = False
                 if run_stage1 and random.random() < self.probability:
                     image_replacements.append((word_rect, clean_word, metrics))
                     total_image_replacements += 1
-                    is_stage1_selected = True
+                    is_selected = True
 
-                # Stage 2 Sampling: Zero-Width Character Injection (for remaining selectable body words)
-                if run_stage2 and not is_stage1_selected and random.random() < self.zw_probability:
+                # Stage 2 Sampling: Homoglyph Substitution
+                if run_stage2 and not is_selected and random.random() < self.homo_probability:
+                    homo_word = self.homo_substitutor.substitute_word(clean_word)
+                    homo_substitutions.append((word_rect, clean_word, homo_word, metrics))
+                    total_homo_substitutions += 1
+                    is_selected = True
+
+                # Stage 3 Sampling: Zero-Width Character Injection
+                if run_stage3 and not is_selected and random.random() < self.zw_probability:
                     zw_word = self.zw_injector.inject_into_word(clean_word)
                     zw_injections.append((word_rect, clean_word, zw_word, metrics))
                     total_zw_injections += 1
@@ -223,7 +237,33 @@ class PDFPostProcessor:
                     )
                     page.insert_image(rect, stream=image_bytes)
 
-            # Execute Stage 2 (Zero-Width Injections)
+            # Execute Stage 2 (Homoglyph Substitutions)
+            if homo_substitutions:
+                for rect, word_text, homo_word, metrics in homo_substitutions:
+                    page.add_redact_annot(rect, fill=(1, 1, 1))
+
+                page.apply_redactions()
+
+                for rect, word_text, homo_word, metrics in homo_substitutions:
+                    font_file = self.renderer._select_font_file(
+                        metrics["font_name"], metrics["is_bold"], metrics["is_italic"]
+                    )
+                    rgb_color = self.renderer.int_color_to_rgb(metrics["color"])
+                    color_tuple = (rgb_color[0] / 255.0, rgb_color[1] / 255.0, rgb_color[2] / 255.0)
+                    
+                    baseline_pt = fitz.Point(rect.x0, metrics["baseline_y"])
+                    font_key = f"homo_font_{page_idx}_{metrics['is_bold']}_{metrics['is_italic']}"
+                    
+                    page.insert_text(
+                        baseline_pt,
+                        homo_word,
+                        fontsize=metrics["font_size"],
+                        fontname=font_key,
+                        fontfile=font_file,
+                        color=color_tuple
+                    )
+
+            # Execute Stage 3 (Zero-Width Injections)
             if zw_injections:
                 for rect, word_text, zw_word, metrics in zw_injections:
                     page.add_redact_annot(rect, fill=(1, 1, 1))
@@ -240,7 +280,7 @@ class PDFPostProcessor:
                     baseline_pt = fitz.Point(rect.x0, metrics["baseline_y"])
                     font_key = f"zw_font_{page_idx}_{metrics['is_bold']}_{metrics['is_italic']}"
                     
-                    # 1. Insert clean visible word text
+                    # Insert clean visible word text
                     page.insert_text(
                         baseline_pt,
                         word_text,
@@ -250,7 +290,7 @@ class PDFPostProcessor:
                         color=color_tuple
                     )
 
-                    # 2. Insert zero-width character text in INVISIBLE mode (render_mode=3)
+                    # Insert zero-width character text in INVISIBLE mode (render_mode=3)
                     page.insert_text(
                         baseline_pt,
                         zw_word,
@@ -261,7 +301,7 @@ class PDFPostProcessor:
                     )
 
             # Re-bind interactive links if any were modified by redactions
-            if image_replacements or zw_injections:
+            if image_replacements or homo_substitutions or zw_injections:
                 existing_links = page.get_links()
                 existing_rects = [l.get("from") for l in existing_links if l.get("from")]
 
@@ -274,7 +314,7 @@ class PDFPostProcessor:
                             pass
 
                 if self.verbose:
-                    print(f"Page {page_idx + 1}/{total_pages}: {len(image_replacements)} image replacements, {len(zw_injections)} zero-width injections.")
+                    print(f"Page {page_idx + 1}/{total_pages}: {len(image_replacements)} images, {len(homo_substitutions)} homoglyphs, {len(zw_injections)} zero-width injections.")
 
         # Save processed PDF
         doc.save(self.output_path, garbage=4, deflate=True)
@@ -284,6 +324,7 @@ class PDFPostProcessor:
             "total_pages": total_pages,
             "total_words_processed": total_words_processed,
             "total_image_replacements": total_image_replacements,
+            "total_homo_substitutions": total_homo_substitutions,
             "total_zw_injections": total_zw_injections,
             "output_path": self.output_path
         }
