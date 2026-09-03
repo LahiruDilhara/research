@@ -39,7 +39,7 @@ Because monocular paper touch detection is an experimental computer vision conce
 2. **Dataset Creation & Pipeline Engineering (`mediapipeDetector/datacreator/`)**:
    - Video processing, 12 FPS sub-sampling (`resample_12fps.py`), 21 MediaPipe hand joint extraction, unitless hand-length scale normalization (`normalize_landmarks.py`), joint velocity calculation (`calculate_velocities.py`), 5-frame 2-overlap temporal windowing (`create_windows.py`), and dataset quality filtering (`filter_window_quality.py`).
 3. **Deep Learning Model Benchmarking (`mediapipeDetector/deepLearningModels/`)**:
-   - Driven by `run_all.py`, evaluating 22 pure 2D model architecture and feature representation combinations (LSTM, BiLSTM, 1D CNN, 1D ResNet).
+   - Driven by `run_all.py`, evaluating 22 pure 2D model architecture and feature representation combinations across five core deep learning architecture families (1D CNN, Attention / Transformer, ResNet, BiLSTM, and LSTM).
    - Trained and selected the optimal PyTorch LSTM touch detection model (`best_finger_touch_lstm.pth`).
    - *Note:* Jupyter notebooks in this directory are legacy artifacts; `run_all.py` is the primary benchmark engine.
 4. **Real-Time Responsiveness Evaluation (`mediapipeDetector/realtimeprocess/`)**:
@@ -79,6 +79,30 @@ The research directly solves six concrete, well-documented research gaps identif
 
 ---
 
+## 1.2 Formal Primary & Secondary Research Questions (Sub-RQs)
+
+### Primary Research Question:
+> *"How can a monocular computer vision framework using strictly a single regular RGB camera and plain printed paper enable accurate, real-time, and flexible virtual keyboard interaction on flat surfaces (allowing users to design custom layouts and link different action combinations to the same physical printed sheet), executing entirely on standard commodity CPUs without requiring specialized hardware or dedicated GPUs, across regular and low camera resolutions?"*
+
+### Secondary Research Questions (Sub-RQs):
+1. **Sub-RQ 1 (Fiducial Marker Selection & Robust Layout Tracking):**
+   * *Question:* Which visual fiducial marker system (such as AprilTag, ArUco, ARTag, or STag) provides the highest planar homography accuracy and lowest corner jitter under camera perspective tilt and low video resolutions, and how can the paper layout be reliably tracked even when markers are partially occluded?
+   * *Investigation:* Benchmarking marker families under tilt angles up to $75^\circ$, lighting variations, and partial tag occlusions, supported by findings in Kalaitzakis et al. (2021) (`Kalaitzakis2021Fiducial`).
+2. **Sub-RQ 2 (MediaPipe Landmark Subsets & Spatial Kinematic Representation):**
+   * *Question:* Which combination and subset of the 21 MediaPipe hand joint landmarks (combined with unitless hand-length scale normalization and joint velocities) provide the most discriminative signals to identify finger touch contact without temporal smoothing delays?
+   * *Investigation:* Evaluating various landmark subset configurations (fingertip-only vs. full 21-joint skeleton vs. joint velocity combinations) in `mediapipeDetector/datacreator/`.
+3. **Sub-RQ 3 (Deep Learning Sequence Architecture Optimization):**
+   * *Question:* Which neural network architecture family (such as 1D CNN, Attention / Transformer, ResNet, BiLSTM, or LSTM) achieves the highest touch classification accuracy (F1-score) while maintaining near real-time inference speeds (under 3 ms) on a standard commodity CPU?
+   * *Investigation:* Evaluating 22 model architecture and feature representations across five model families (1D CNN, Attention, ResNet, BiLSTM, LSTM) in `mediapipeDetector/deepLearningModels/run_all.py`, confirming that LSTM/BiLSTM architectures deliver the best sequence modeling performance for contact impact.
+4. **Sub-RQ 4 (Temporal Windowing & Real-Time CPU Synchronization):**
+   * *Question:* What temporal sliding window length, step size, and sampling rate allow the multi-threaded vision pipeline to capture impact deceleration dynamics reliably while running at a 12 FPS rate on consumer CPUs without a GPU?
+   * *Investigation:* Analyzing sliding window configurations (5 frames with 2-frame overlap) in `mediapipeDetector/realtimeprocess/` to maintain 29.09 ms end-to-end latency on standard CPUs.
+5. **Sub-RQ 5 (Layout Decoupling & Action Multiplexing):**
+   * *Question:* How can physical paper layout geometry be separated from digital software semantics so that a single printed paper sheet can be dynamically bound to multiple distinct action profiles (typing, shortcuts, shell commands) without reprinting the page?
+   * *Investigation:* Decoupling XML physical bounding coordinates (Application 1 Designer) from JSON runtime action mappings (Application 2 Runtime Engine).
+
+---
+
 ## 2. System Workflow & Pipeline Architecture
 
 1. **Layout Design & Export**: The user creates a custom key layout using the GUI designer ([`designer/designer_app.py`](file:///home/lahirukasunidilhara/Documents/university/research/designer/designer_app.py)). The design is exported as:
@@ -107,7 +131,7 @@ Below is the layout of the project workspace:
 | [`designer/designer_app.py`](file:///home/lahirukasunidilhara/Documents/university/research/designer/designer_app.py)                | **Main Layout Designer Application.** PySide6 GUI tool for designing layouts, mapping button IDs, exporting XML & printable AprilTag PDF.                                                                                                                                      | **Core Component (Operational)**                 |
 | [`designer/analyzer/main.py`](file:///home/lahirukasunidilhara/Documents/university/research/designer/analyzer/main.py)               | Verification module for homography-based coordinate transformation using simulated finger touches.                                                                                                                                                                             | **Testing / Verification**                       |
 | [`mediapipeDetector/datacreator/`](file:///home/lahirukasunidilhara/Documents/university/research/mediapipeDetector/datacreator)      | Data pipeline: 12 FPS sub-sampling, landmark extraction, unitless scale normalization (`normalize_landmarks.py`), velocity derivation, and 5-frame 2-overlap window creation (`create_windows.py`).                                                                           | **Data Pipeline Engine**                         |
-| [`mediapipeDetector/deepLearningModels/run_all.py`](file:///home/lahirukasunidilhara/Documents/university/research/mediapipeDetector/deepLearningModels/run_all.py) | Deep learning model benchmark engine evaluating 22 pure 2D architectures (LSTM, BiLSTM, 1D CNN, 1D ResNet). Produces `best_finger_touch_lstm.pth`. (Jupyter notebooks in this dir are legacy).                                                                               | **Model Benchmark Engine**                       |
+| [`mediapipeDetector/deepLearningModels/run_all.py`](file:///home/lahirukasunidilhara/Documents/university/research/mediapipeDetector/deepLearningModels/run_all.py) | Deep learning model benchmark engine evaluating 22 pure 2D architectures across 5 families (LSTM, BiLSTM, 1D CNN, ResNet, Attention). Produces `best_finger_touch_lstm.pth`. (Jupyter notebooks in this dir are legacy). | **Model Benchmark Engine**                       |
 | [`mediapipeDetector/realtimeprocess/`](file:///home/lahirukasunidilhara/Documents/university/research/mediapipeDetector/realtimeprocess) | Live real-time evaluation suite (`main_realtime_ui.py`, `camera_thread.py`, `model_manager.py`) to test live camera latency and windowing responsiveness.                                                                                                                      | **Real-Time Evaluation Engine**                  |
 | [`aprilTag/`](file:///home/lahirukasunidilhara/Documents/university/research/aprilTag)                                                | Calibration and tracking scripts for AprilTag fiducial markers to compute $3 \times 3$ Homography matrix ($H$).                                                                                                                                                                | **Active Marker System**                         |
 | [`opencvAruco/`](file:///home/lahirukasunidilhara/Documents/university/research/opencvAruco)                                          | Legacy ArUco marker testing scripts used during marker evaluation.                                                                                                                                                                                                             | Legacy                                           |

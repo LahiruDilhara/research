@@ -49,13 +49,14 @@ To address this research gap, the project is guided by the following primary res
 \textit{How can a monocular computer vision framework using strictly a single regular RGB camera and plain printed paper enable accurate, real-time, and flexible virtual keyboard interaction on flat surfaces (allowing users to design custom layouts and link different action combinations to the same physical printed sheet), executing entirely on standard commodity CPUs without requiring specialized hardware or dedicated GPUs, across regular and low camera resolutions?}
 \end{quote}
 
-The investigation addresses the following specific sub-questions:
-\begin{itemize}
-    \item How can hand joint coordinates be scale-normalized to make feature extraction independent of camera resolution and distance while preserving finger touch deceleration dynamics?
-    \item What temporal sliding window length, step size, and recurrent model architecture allow a lightweight LSTM network to detect touches accurately while running at a 12~FPS rate on a standard commodity CPU?
-    \item How reliably can AprilTag planar homography correct for camera perspective tilt and paper shifts on a flat desk?
-    \item How can physical paper layout geometry be separated from digital software actions so that the same printed layout can trigger different keystroke and command profiles?
-\end{itemize}
+To systematically investigate this primary research question, the research addresses the following five specific secondary sub-questions:
+\begin{enumerate}
+    \item \textbf{Fiducial Marker Selection and Robust Layout Tracking:} Which visual fiducial marker system (such as AprilTag, ArUco, ARTag, or STag) provides the highest planar homography accuracy and lowest corner jitter under camera perspective tilt and low video resolutions, and how can the paper layout be reliably tracked even when markers are partially occluded?
+    \item \textbf{Hand Landmark Subsets and Kinematic Feature Representation:} Which combination and subset of the 21 MediaPipe hand joint landmarks (combined with unitless hand-length scale normalization and joint velocities) provide the most discriminative signals to identify finger touch contact without temporal smoothing delays?
+    \item \textbf{Deep Learning Sequence Architecture Optimization:} Which neural network architecture family (such as 1D CNN, Attention / Transformer, ResNet, BiLSTM, or LSTM) achieves the highest touch classification accuracy (F1-score) while maintaining near real-time inference speeds (under 3~ms) on a standard commodity CPU?
+    \item \textbf{Temporal Windowing and Real-Time CPU Synchronization:} What temporal sliding window length, step size, and sampling rate allow the multi-threaded vision pipeline to capture impact deceleration dynamics reliably while running at a 12~FPS rate on consumer CPUs without a GPU?
+    \item \textbf{Layout Decoupling and Action Multiplexing:} How can physical paper layout geometry be separated from digital software semantics so that a single printed paper sheet can be dynamically bound to multiple distinct action profiles (typing, shortcuts, shell commands) without reprinting the page?
+\end{enumerate}
 
 \section{Research Motivation}
 \label{sec:research_motivation}

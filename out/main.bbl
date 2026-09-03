@@ -282,6 +282,37 @@
       \verb 10.1109/SMC42975.2020.9283182
       \endverb
     \endentry
+    \entry{Fiala2010Designing}{article}{}{}
+      \name{author}{1}{}{%
+        {{hash=00e8d2b42112c18c775342481b82909d}{%
+           family={Fiala},
+           familyi={F\bibinitperiod},
+           given={Mark},
+           giveni={M\bibinitperiod}}}%
+      }
+      \strng{namehash}{00e8d2b42112c18c775342481b82909d}
+      \strng{fullhash}{00e8d2b42112c18c775342481b82909d}
+      \strng{fullhashraw}{00e8d2b42112c18c775342481b82909d}
+      \strng{bibnamehash}{00e8d2b42112c18c775342481b82909d}
+      \strng{authorbibnamehash}{00e8d2b42112c18c775342481b82909d}
+      \strng{authornamehash}{00e8d2b42112c18c775342481b82909d}
+      \strng{authorfullhash}{00e8d2b42112c18c775342481b82909d}
+      \strng{authorfullhashraw}{00e8d2b42112c18c775342481b82909d}
+      \field{sortinit}{F}
+      \field{sortinithash}{2638baaa20439f1b5a8f80c6c08a13b4}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Pattern Analysis and Machine Intelligence}
+      \field{number}{7}
+      \field{title}{Designing Highly Reliable Fiducial Markers}
+      \field{volume}{32}
+      \field{year}{2010}
+      \field{pages}{1317\bibrangedash 1324}
+      \range{pages}{8}
+      \verb{doi}
+      \verb 10.1109/TPAMI.2009.146
+      \endverb
+    \endentry
     \entry{Gammulle2021TMMF}{article}{}{}
       \name{author}{4}{}{%
         {{hash=bd9b9eb5c5d2ea503ea4fe9bc4b4aec7}{%
@@ -2171,6 +2202,53 @@
       \field{year}{2001}
       \field{pages}{1\bibrangedash 8}
       \range{pages}{8}
+    \endentry
+    \entry{Zhang2022DeepTag}{article}{}{}
+      \name{author}{4}{}{%
+        {{hash=f67f4e798335444d9046fbf17c0cd47a}{%
+           family={Zhang},
+           familyi={Z\bibinitperiod},
+           given={Zhuming},
+           giveni={Z\bibinitperiod}}}%
+        {{hash=ac5fcf6f9af5c56243c7b3acbd1ddbd1}{%
+           family={Hu},
+           familyi={H\bibinitperiod},
+           given={Yongtao},
+           giveni={Y\bibinitperiod}}}%
+        {{hash=a1c6d0e543bb1a0a9e153a83ce9a7636}{%
+           family={Yu},
+           familyi={Y\bibinitperiod},
+           given={Guoxing},
+           giveni={G\bibinitperiod}}}%
+        {{hash=55b3cc2e6006f44f0aec4975d8af0d19}{%
+           family={Dai},
+           familyi={D\bibinitperiod},
+           given={Jingwen},
+           giveni={J\bibinitperiod}}}%
+      }
+      \strng{namehash}{2c3dd0f8f69c939b3684162450671389}
+      \strng{fullhash}{20025df2720c99dded49acbfc7dd79a4}
+      \strng{fullhashraw}{20025df2720c99dded49acbfc7dd79a4}
+      \strng{bibnamehash}{20025df2720c99dded49acbfc7dd79a4}
+      \strng{authorbibnamehash}{20025df2720c99dded49acbfc7dd79a4}
+      \strng{authornamehash}{2c3dd0f8f69c939b3684162450671389}
+      \strng{authorfullhash}{20025df2720c99dded49acbfc7dd79a4}
+      \strng{authorfullhashraw}{20025df2720c99dded49acbfc7dd79a4}
+      \field{extraname}{4}
+      \field{sortinit}{Z}
+      \field{sortinithash}{96892c0b0a36bb8557c40c49813d48b3}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Transactions on Pattern Analysis and Machine Intelligence}
+      \field{number}{2}
+      \field{title}{DeepTag: A General Framework for Fiducial Marker Design and Detection}
+      \field{volume}{45}
+      \field{year}{2023}
+      \field{pages}{2307\bibrangedash 2320}
+      \range{pages}{14}
+      \verb{doi}
+      \verb 10.1109/TPAMI.2022.3174603
+      \endverb
     \endentry
   \enddatalist
 \endrefsection

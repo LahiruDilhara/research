@@ -3,7 +3,7 @@ import random
 import re
 import os
 import sys
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import Optional, List, Tuple, Dict, Any
 
 from pdf_processor.classifier import TextClassifier
@@ -25,7 +25,7 @@ def _process_single_page_worker(task_args: Tuple[str, int, Dict[str, float], Dic
     if page_seed is not None:
         random.seed(page_seed)
 
-    renderer = WordImageRenderer(font_path=config.get("font_path"), dpi_scale=config.get("dpi_scale", 3.0))
+    renderer = WordImageRenderer(font_path=config.get("font_path"), dpi_scale=config.get("dpi_scale", 2.5))
     homo_substitutor = HomoglyphSubstitutor(seed=page_seed)
     zw_injector = ZeroWidthInjector(seed=page_seed)
     disruptor = LayoutDisruptor(seed=page_seed)
@@ -192,26 +192,33 @@ def _process_single_page_worker(task_args: Tuple[str, int, Dict[str, float], Dic
             disrupted_word = disruptor.disrupt_word(clean_word, length_multiplier=disrupt_multiplier)
             layout_disruptions.append((word_rect, clean_word, disrupted_word, metrics))
 
-    # Stage 1 Execution
+    # Stage 1 Execution with 0-Distortion Bounding Box Placement
     if image_replacements:
         for rect, word_text, metrics in image_replacements:
             page.add_redact_annot(rect, fill=(1, 1, 1))
         page.apply_redactions()
 
+        pad_pt = 2.0 / renderer.dpi_scale
         for rect, word_text, metrics in image_replacements:
-            img_bytes = renderer.render_word_image(
+            font_file = metrics["font_file"]
+            img_bytes, glyph_w, glyph_h, top_offset = renderer.render_word_image(
                 word_text=word_text,
-                bbox_width=rect.width,
-                bbox_height=rect.height,
                 font_name=metrics["font_name"],
                 font_size=metrics["font_size"],
                 is_bold=metrics["is_bold"],
                 is_italic=metrics["is_italic"],
-                baseline_offset=metrics["baseline_offset"],
                 text_color=metrics["color"],
-                custom_font_file=metrics["font_file"]
+                custom_font_file=font_file
             )
-            page.insert_image(rect, stream=img_bytes)
+
+            baseline_y = metrics["baseline_y"]
+            insert_rect = fitz.Rect(
+                rect.x0 - pad_pt,
+                baseline_y + top_offset,
+                rect.x0 - pad_pt + glyph_w,
+                baseline_y + top_offset + glyph_h
+            )
+            page.insert_image(insert_rect, stream=img_bytes)
 
     # Stage 2 Execution
     if homo_substitutions:
@@ -268,7 +275,7 @@ def _process_single_page_worker(task_args: Tuple[str, int, Dict[str, float], Dic
 
     single_doc = fitz.open()
     single_doc.insert_pdf(doc, from_page=page_idx, to_page=page_idx)
-    page_bytes = single_doc.tobytes(garbage=4, deflate=True)
+    page_bytes = single_doc.tobytes(garbage=3, deflate=True)
     single_doc.close()
     doc.close()
 
@@ -299,7 +306,7 @@ class PDFPostProcessor:
         stage: str = "all",
         seed: Optional[int] = None,
         min_word_len: int = 3,
-        dpi_scale: float = 3.0,
+        dpi_scale: float = 2.5,
         max_images_per_page: int = 0,
         max_images_per_para: int = 0,
         zw_count: int = 2,
@@ -317,7 +324,7 @@ class PDFPostProcessor:
         self.stage = (stage or "all").lower()
         self.seed = seed
         self.min_word_len = min_word_len
-        self.dpi_scale = dpi_scale
+        self.dpi_scale = max(1.0, dpi_scale)
         self.max_images_per_page = max(0, max_images_per_page)
         self.max_images_per_para = max(0, max_images_per_para)
         self.zw_count = max(1, zw_count)
@@ -374,7 +381,9 @@ class PDFPostProcessor:
                 print(f"Processing {total_pages} pages in parallel using {self.workers} worker processes...")
             
             with ProcessPoolExecutor(max_workers=self.workers) as executor:
-                for res in executor.map(_process_single_page_worker, task_args):
+                futures = [executor.submit(_process_single_page_worker, t_arg) for t_arg in task_args]
+                for future in as_completed(futures):
+                    res = future.result()
                     processed_pages.append(res)
                     p_idx, _, stats = res
                     if self.verbose:
@@ -411,7 +420,7 @@ class PDFPostProcessor:
             final_doc.insert_pdf(page_doc)
             page_doc.close()
 
-        final_doc.save(self.output_path, garbage=4, deflate=True)
+        final_doc.save(self.output_path, garbage=3, deflate=True)
         final_doc.close()
 
         summary = {

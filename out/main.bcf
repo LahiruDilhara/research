@@ -2696,24 +2696,22 @@
     <bcf:citekey order="184" intorder="3">Wang2020Relative</bcf:citekey>
     <bcf:citekey order="185" intorder="1">LonguetHiggins1985Machine</bcf:citekey>
     <bcf:citekey order="185" intorder="2">Pirchheim2011Homography</bcf:citekey>
-    <bcf:citekey order="186" intorder="1">Wang2016AprilTag2</bcf:citekey>
-    <bcf:citekey order="186" intorder="2">Kallwies2020Determining</bcf:citekey>
-    <bcf:citekey order="186" intorder="3">Shabalina2018ARTag</bcf:citekey>
-    <bcf:citekey order="186" intorder="4">Kalaitzakis2021Fiducial</bcf:citekey>
-    <bcf:citekey order="186" intorder="5">GarridoJurado2026ArUco</bcf:citekey>
-    <bcf:citekey order="187" intorder="1">GarridoJurado2026ArUco</bcf:citekey>
-    <bcf:citekey order="187" intorder="2">Herdiansyah2024Implementation</bcf:citekey>
+    <bcf:citekey order="186" intorder="1">Fiala2010Designing</bcf:citekey>
+    <bcf:citekey order="186" intorder="2">Wang2016AprilTag2</bcf:citekey>
+    <bcf:citekey order="186" intorder="3">Kallwies2020Determining</bcf:citekey>
+    <bcf:citekey order="186" intorder="4">Shabalina2018ARTag</bcf:citekey>
+    <bcf:citekey order="186" intorder="5">Kalaitzakis2021Fiducial</bcf:citekey>
+    <bcf:citekey order="186" intorder="6">GarridoJurado2026ArUco</bcf:citekey>
+    <bcf:citekey order="186" intorder="7">Zhang2022DeepTag</bcf:citekey>
+    <bcf:citekey order="187" intorder="1">Fiala2010Designing</bcf:citekey>
     <bcf:citekey order="188" intorder="1">Wang2016AprilTag2</bcf:citekey>
-    <bcf:citekey order="188" intorder="2">Kallwies2020Determining</bcf:citekey>
-    <bcf:citekey order="189" intorder="1">Shabalina2018ARTag</bcf:citekey>
-    <bcf:citekey order="190" intorder="1">Kallwies2020Determining</bcf:citekey>
-    <bcf:citekey order="191" intorder="1">Kalaitzakis2021Fiducial</bcf:citekey>
-    <bcf:citekey order="192" intorder="1">Wang2016AprilTag2</bcf:citekey>
-    <bcf:citekey order="193" intorder="1">Kallwies2020Determining</bcf:citekey>
-    <bcf:citekey order="194" intorder="1">Shabalina2018ARTag</bcf:citekey>
-    <bcf:citekey order="194" intorder="2">Kalaitzakis2021Fiducial</bcf:citekey>
+    <bcf:citekey order="189" intorder="1">GarridoJurado2026ArUco</bcf:citekey>
+    <bcf:citekey order="190" intorder="1">Shabalina2018ARTag</bcf:citekey>
+    <bcf:citekey order="191" intorder="1">Kallwies2020Determining</bcf:citekey>
+    <bcf:citekey order="192" intorder="1">Kalaitzakis2021Fiducial</bcf:citekey>
+    <bcf:citekey order="193" intorder="1">Zhang2022DeepTag</bcf:citekey>
+    <bcf:citekey order="194" intorder="1">Zhang2022DeepTag</bcf:citekey>
     <bcf:citekey order="195" intorder="1">Wang2016AprilTag2</bcf:citekey>
-    <bcf:citekey order="195" intorder="2">Shabalina2018ARTag</bcf:citekey>
     <bcf:citekey order="196" intorder="1">Hochreiter1997LSTM</bcf:citekey>
     <bcf:citekey order="196" intorder="2">Nunez2018Convolutional</bcf:citekey>
     <bcf:citekey order="196" intorder="3">Gammulle2021TMMF</bcf:citekey>
@@ -2728,6 +2726,7 @@
     <bcf:citekey order="200" intorder="2">Ikram2020Skeleton</bcf:citekey>
     <bcf:citekey order="200" intorder="3">Nunez2018Convolutional</bcf:citekey>
     <bcf:citekey order="200" intorder="4">Doan2022Efficient</bcf:citekey>
+    <bcf:citekey order="200" intorder="5">Gammulle2021TMMF</bcf:citekey>
     <bcf:citekey order="201" intorder="1">Simao2016Unsupervised</bcf:citekey>
     <bcf:citekey order="201" intorder="2">Doan2022Efficient</bcf:citekey>
     <bcf:citekey order="201" intorder="3">Gammulle2021TMMF</bcf:citekey>
@@ -2806,6 +2805,7 @@
     <bcf:citekey order="244" intorder="1">Ji2018Local</bcf:citekey>
     <bcf:citekey order="245" intorder="1">Thomas2013Camera</bcf:citekey>
     <bcf:citekey order="246" intorder="1">ReviewVirtualKeyboard2020</bcf:citekey>
+    <bcf:citekey order="247" intorder="1">Zhang2022DeepTag</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nyt">

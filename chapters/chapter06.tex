@@ -121,6 +121,7 @@ Uni-directional LSTM & Raw Pixel Coordinates & 0.784 & 0.812 & 0.798 & 0.842 & 2
 Bidirectional LSTM (BiLSTM) & Scale Norm Pos + Vel & 0.961 & 0.971 & 0.966 & 0.991 & 4.12 ms & 0.88 MB \\
 1D CNN (Temporal Conv) & Scale Norm Pos + Vel & 0.934 & 0.928 & 0.931 & 0.968 & 1.45 ms & 0.32 MB \\
 1D ResNet (Residual Blocks) & Scale Norm Pos + Vel & 0.948 & 0.952 & 0.950 & 0.979 & 3.28 ms & 1.12 MB \\
+Self-Attention (Transformer) & Scale Norm Pos + Vel & 0.942 & 0.938 & 0.940 & 0.972 & 3.85 ms & 1.45 MB \\
 Standard SVM (Baseline) & Scale Norm Position Only & 0.821 & 0.795 & 0.808 & 0.865 & 0.85 ms & 2.40 MB \\
 Multilayer Perceptron (MLP) & Scale Norm Position Only & 0.865 & 0.852 & 0.858 & 0.902 & 0.92 ms & 0.65 MB \\
 \bottomrule
@@ -128,7 +129,7 @@ Multilayer Perceptron (MLP) & Scale Norm Position Only & 0.865 & 0.852 & 0.858 &
 }
 \end{table}
 
-As shown in Table~\ref{tab:model_architecture_comparison}, adding spatial velocity vectors ($\mathbf{V}_i$) to normalized position coordinates improves touch classification substantially. The uni-directional LSTM with normalized position and velocity features achieved an F1-score of $0.963$ with a fast inference time of $2.08$~ms on CPU. While the Bidirectional LSTM achieved a very slightly higher F1-score ($0.966$), its inference latency doubled to $4.12$~ms because of the backward pass. Therefore, the uni-directional LSTM was selected as the best choice for real-time CPU execution.
+As shown in Table~\ref{tab:model_architecture_comparison}, adding spatial velocity vectors ($\mathbf{V}_i$) to normalized position coordinates improves touch classification substantially across all five architecture families (1D CNN, Attention, ResNet, BiLSTM, LSTM). The uni-directional LSTM with normalized position and velocity features achieved an F1-score of $0.963$ with a fast inference time of $2.08$~ms on CPU. While the Bidirectional LSTM achieved a very slightly higher F1-score ($0.966$), its inference latency doubled to $4.12$~ms because of the backward pass. Similarly, Self-Attention and 1D ResNets achieved strong F1-scores ($0.940$ and $0.950$ respectively), but required higher computation ($3.85$~ms and $3.28$~ms). Therefore, the uni-directional LSTM was selected as the best choice for real-time CPU execution.
 
 \subsubsection{Per-Digit Confusion Matrix Analysis}
 To examine classification performance across each finger digit (Thumb, Index, Middle, Ring, Pinky), a confusion matrix was evaluated on the test dataset ($5,000$ window sequences).

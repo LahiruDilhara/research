@@ -522,15 +522,14 @@ Given $N \ge 4$ corresponding point pairs $(x_k, y_k) \leftrightarrow (x'_k, y'_
 Combining these equations yields the system $\mathbf{A}_{2N \times 9} \mathbf{h} = \mathbf{0}$. Solving this system using Singular Value Decomposition (SVD, where $\mathbf{A} = \mathbf{U} \mathbf{\Sigma} \mathbf{V}^T$) gives vector $\mathbf{h}$ from the column in $\mathbf{V}$ associated with the smallest singular value.
 
 \paragraph{Comparative Analysis of Visual Fiducial Marker Systems:}
-To provide reliable reference points for homography calculation, visual fiducial markers are placed at the corners of the printed layout \cite{Wang2016AprilTag2, Kallwies2020Determining, Shabalina2018ARTag, Kalaitzakis2021Fiducial, GarridoJurado2026ArUco}. Common marker systems include ARTag, ArUco \cite{GarridoJurado2026ArUco, Herdiansyah2024Implementation}, CALTag, and AprilTag \cite{Wang2016AprilTag2, Kallwies2020Determining}.
+To provide reliable reference points for homography calculation, visual fiducial markers are placed at the corners of the printed layout \cite{Fiala2010Designing, Wang2016AprilTag2, Kallwies2020Determining, Shabalina2018ARTag, Kalaitzakis2021Fiducial, GarridoJurado2026ArUco, Zhang2022DeepTag}. The field of planar fiducial tracking has evolved across three key generations:
+\begin{enumerate}
+    \item \textbf{Foundational Edge-Based Digital Markers (ARTag):} Fiala \cite{Fiala2010Designing} introduced the seminal ARTag architecture, establishing a two-stage pipeline consisting of edge-gradient based candidate quad hypothesis generation and forward-error-correcting digital verification. This eliminated the lighting sensitivity and high false-positive rates of earlier correlation-based templates.
+    \item \textbf{Sub-Pixel Line Clustering and Hamming Code Systems (AprilTag and ArUco):} AprilTag 2/3 \cite{Wang2016AprilTag2} and ArUco \cite{GarridoJurado2026ArUco} improved corner localization through sub-pixel gradient line clustering and adaptive thresholding. Comparative studies by Shabalina et al. \cite{Shabalina2018ARTag}, Kallwies et al. \cite{Kallwies2020Determining}, and Kalaitzakis et al. \cite{Kalaitzakis2021Fiducial} showed that AprilTag achieves a low median corner error of 0.017 pixels even at camera tilt angles up to $75^\circ$, outperforming ArUco under steep viewing angles and low image resolutions.
+    \item \textbf{Deep Learning Keypoint Marker Detectors (DeepTag):} Zhang et al. \cite{Zhang2022DeepTag} developed DeepTag, an end-to-end CNN framework that regresses dense internal keypoints (such as all internal grid cell centroids) and decodes digital IDs under severe motion blur and extreme viewing angles.
+\end{enumerate}
 
-Comparative studies by Shabalina et al. \cite{Shabalina2018ARTag}, Kallwies et al. \cite{Kallwies2020Determining}, and Kalaitzakis et al. \cite{Kalaitzakis2021Fiducial} evaluated these marker families under steep camera angles, low image resolutions, lighting variations, and partial corner occlusions. Their findings highlight:
-\begin{itemize}
-    \item \textbf{AprilTag Precision at Steep Angles:} AprilTag 2/3 \cite{Wang2016AprilTag2} uses adaptive thresholding, sub-pixel quad fitting, and gradient line clustering. Kallwies et al. \cite{Kallwies2020Determining} showed that AprilTag achieves a median corner error of only 0.017 pixels even at camera tilt angles up to $75^\circ$, performing better than standard ArUco markers \cite{Shabalina2018ARTag, Kalaitzakis2021Fiducial}.
-    \item \textbf{Reliable Tag Decoding:} AprilTag uses error-correcting codes with high Hamming distance thresholds ($d_H \ge 11$), preventing false tag detections when fingers briefly cast shadows over marker edges \cite{Wang2016AprilTag2, Shabalina2018ARTag}.
-\end{itemize}
-
-For these reasons, placing AprilTag markers along the borders of the printed paper layout provides steady reference points for real-time homography estimation $H$.
+While deep learning marker frameworks like DeepTag \cite{Zhang2022DeepTag} offer high robustness, traditional AprilTag detection \cite{Wang2016AprilTag2} runs in under $1.0$~ms on commodity CPUs with sub-pixel precision. This leaves computational headroom on standard CPUs for concurrent MediaPipe joint extraction and PyTorch touch classification without requiring a GPU. Therefore, border AprilTag markers were chosen for our real-time paper keyboard system.
 
 \subsubsection{Deep Sequential Temporal Touch Detection Models}
 Detecting finger surface touches from continuous normalized landmark sequences requires analyzing motion patterns across multiple frames over time \cite{Hochreiter1997LSTM, Nunez2018Convolutional, Gammulle2021TMMF}.
@@ -548,12 +547,13 @@ Recurrent Neural Networks (RNNs), especially Long Short-Term Memory (LSTM) netwo
 \end{align}
 
 \paragraph{Comparative Deep Neural Architecture Evaluation:}
-When modeling 1D time-series skeletal hand sequences, researchers evaluate four primary deep learning architectures \cite{Lai2018CNN, Ikram2020Skeleton, Nunez2018Convolutional, Doan2022Efficient}:
+When modeling 1D time-series skeletal hand sequences, researchers evaluate five primary deep learning architectures \cite{Lai2018CNN, Ikram2020Skeleton, Nunez2018Convolutional, Doan2022Efficient, Gammulle2021TMMF}:
 \begin{enumerate}
     \item \textbf{Uni-directional LSTM Networks:} Process sequence $\mathbf{X} = (\mathbf{x}_1, \dots, \mathbf{x}_T)$ forward in time. Uni-directional LSTMs rely only on current and past frames, making them ideal for live real-time streams where future frames are not yet available.
     \item \textbf{Bidirectional LSTMs (BiLSTM):} Combine a forward hidden state $\overrightarrow{\mathbf{h}}_t$ with a backward hidden state $\overleftarrow{\mathbf{h}}_t$. While BiLSTMs achieve high accuracy on pre-recorded datasets, the backward pass requires waiting for future frames, which introduces unwanted buffering latency in live typing.
     \item \textbf{1D Convolutional Neural Networks (1D CNN):} Apply 1D temporal convolution filters across landmark features. 1D CNNs extract local patterns quickly, but do not maintain recurrent memory states over longer motions.
-    \item \textbf{1D Residual Networks (1D ResNet):} Use skip-connections $\mathbf{y} = \mathcal{F}(\mathbf{x}) + \mathbf{x}$ to help train deeper temporal networks.
+    \item \textbf{1D Residual Networks (1D ResNet):} Use skip-connections $\mathbf{y} = \mathcal{F}(\mathbf{x}) + \mathbf{x}$ to help train deeper temporal convolutional layers while avoiding vanishing gradients.
+    \item \textbf{Self-Attention and Transformer Networks (Attention):} Use multi-head self-attention mechanisms $\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\left(\frac{\mathbf{Q} \mathbf{K}^T}{\sqrt{d_k}}\right) \mathbf{V}$ to capture pairwise dependencies across all temporal frames in a sequence.
 \end{enumerate}
 
 Our experimental benchmark using \texttt{run\_all.py} across 22 model combinations confirmed that a uni-directional PyTorch LSTM model trained on 5-frame scale-normalized sequences provides the best balance of high classification accuracy and low real-time CPU latency.
@@ -564,7 +564,7 @@ To evaluate incoming landmark data, input features are grouped into sliding temp
     \item \textbf{5-Frame Window with 2-Frame Overlap (Stride of 3 Frames):} When running at a standardized 12~FPS video rate, a 5-frame temporal window covers a duration of $T = 416.6$~ms. A 2-frame overlap (step size of 3 frames) means the PyTorch LSTM evaluates touches every 250~ms. Experimental testing shows that 5 frames provide enough temporal context to capture finger descent, surface impact, and finger recoil while keeping processing latency low.
 \end{itemize}
 
-Model benchmarks across 2D architectures (LSTM, BiLSTM, 1D CNN, 1D ResNet) confirm that a multi-layer PyTorch LSTM model trained on 5-frame scale-normalized sequences achieves strong classification performance for multi-finger touch detection on standard computer processors.
+Model benchmarks across 2D architectures (LSTM, BiLSTM, 1D CNN, 1D ResNet, Self-Attention) confirm that a multi-layer PyTorch LSTM model trained on 5-frame scale-normalized sequences achieves strong classification performance for multi-finger touch detection on standard computer processors.
 
 \subsection{Design Analysis}
 \label{subsec:lit_design_analysis}

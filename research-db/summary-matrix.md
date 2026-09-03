@@ -588,4 +588,23 @@ This document maintains structured technical summaries of research papers stored
   - Introduces a single-stage continuous gesture recognition framework (TMMF) learning gesture transitions without pre-segmentation.
   - Fuses temporal feature maps across variable-length gesture streams to detect and classify gestures concurrently.
 
+### 58. Designing Highly Reliable Fiducial Markers
+- **Authors & Year**: Mark Fiala (2010)
+- **Citation Key**: `Fiala2010Designing`
+- **DOI / URL**: [10.1109/TPAMI.2009.146](https://doi.org/10.1109/TPAMI.2009.146)
+- **Technical Summary & Methodology**:
+  - Introduces the seminal ARTag digital planar fiducial marker system in IEEE TPAMI.
+  - Formulates the two-stage detection architecture: edge-gradient based candidate quad hypothesis generation and digital coding verification with Hamming distance and CRC checks.
+  - Overcomes the lighting sensitivity and high false-positive rates of earlier correlation-based templates (such as ARToolkit).
+  - Establishes fundamental evaluation metrics for planar fiducial systems, including false positive rates, occlusion tolerance, and minimal resolution requirements.
 
+### 59. DeepTag: A General Framework for Fiducial Marker Design and Detection
+- **Authors & Year**: Zhuming Zhang, Yongtao Hu, Guoxing Yu, and Jingwen Dai (2023)
+- **Citation Key**: `Zhang2022DeepTag`
+- **DOI / URL**: [10.1109/TPAMI.2022.3174603](https://doi.org/10.1109/TPAMI.2022.3174603)
+- **Technical Summary & Methodology**:
+  - Proposes a deep learning based general framework for fiducial marker design, keypoint regression, and digital decoding using end-to-end CNNs.
+  - Utilizes dense internal keypoints (such as all internal grid cell centroids) rather than just the four outer corners to significantly improve pose and homography accuracy.
+  - Supports existing marker families (AprilTag, ArUco, TopoTag, RuneTag) and allows customized local patterns.
+  - Implements an on-the-fly synthetic data generation pipeline to train models without manual annotations.
+  - Demonstrates superior detection robustness and pose accuracy under steep viewing angles, severe motion blur, and low image resolutions.

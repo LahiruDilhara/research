@@ -653,12 +653,13 @@ The script \texttt{filter\_window\_quality.py} checks all generated window matri
 Partition 3 evaluated 22 pure 2D deep learning model and feature representation combinations using the master benchmark script \texttt{mediapipeDetector/deepLearningModels/run\_all.py}.
 
 \subsubsection{Evaluated Model Architectures and Feature Representations}
-The benchmark engine tested four neural network families:
+The benchmark engine tested five neural network families:
 \begin{enumerate}
     \item \textbf{Uni-directional LSTM Networks:} Multi-layer Long Short-Term Memory networks tracking sequential dependencies over time.
     \item \textbf{Bidirectional LSTM Networks (BiLSTM):} Recurrent networks processing sequences in both forward and backward directions.
     \item \textbf{1D Convolutional Neural Networks (1D CNN):} Convolutional layers extracting local temporal feature patterns across sliding windows.
-    \item \textbf{1D Residual Networks (1D ResNet):} Deep 1D convolutional residual networks with skip connections.
+    \item \textbf{1D Residual Networks (1D ResNet):} Deep 1D convolutional residual networks with skip connections preventing vanishing gradients.
+    \item \textbf{Self-Attention and Transformer Networks (Attention):} Multi-head self-attention mechanisms modeling pairwise temporal relationships across window frames.
 \end{enumerate}
 
 Each architecture was evaluated on four feature inputs: raw pixel coordinates, wrist-centered coordinates, scale-normalized positions, and scale-normalized position plus velocity vectors.

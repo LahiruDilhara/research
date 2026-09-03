@@ -148,6 +148,9 @@ While the current system implementation is optimized for single-handed active ty
 \subsection{Spatial Acoustic and Ultrasonic Mid-Air Haptic Feedback}
 To provide physical feeling without mechanical keys, future versions could incorporate ultrasonic mid-air haptic arrays. By focusing ultrasonic pressure waves onto the active fingertip when a key press is confirmed, users could feel physical tactile feedback in the air.
 
+\subsection{Deep Learning Based Fiducial Marker Tracking}
+While classical AprilTag 2/3 detection operates efficiently on CPU, future research could explore integrating lightweight convolutional marker detectors like DeepTag \cite{Zhang2022DeepTag}. By estimating dense keypoints directly through neural networks, such approaches could provide even greater homography stability under severe motion blur or heavy finger occlusions.
+
 \subsection{Transformer-Based Temporal Self-Attention Architectures}
 Although the PyTorch uni-directional LSTM model achieved strong results ($F1 = 0.963$), testing lightweight temporal Transformer models could help capture longer sequential patterns, potentially reducing Character Error Rates during fast, continuous typing.
 

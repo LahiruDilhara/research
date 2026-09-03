@@ -143,7 +143,7 @@ Table~\ref{tab:partitioned_strategy_matrix} summarizes the five research partiti
  & & - Data quality filtering (\texttt{filter\_window\_quality.py}) & \\
 \midrule
 \textbf{Partition 3: Deep Learning Model} & \texttt{mediapipeDetector/} & - Automated multi-architecture benchmark (\texttt{run\_all.py}) & - Highest F1-score model selection \\
-\textbf{Benchmarking} & \texttt{deepLearningModels/} & - Evaluated 22 pure 2D models (LSTM, BiLSTM, CNN, ResNet) & - Optimal PyTorch model trained \\
+\textbf{Benchmarking} & \texttt{deepLearningModels/} & - Evaluated 22 pure 2D models across 5 families (1D CNN, Attention, ResNet, BiLSTM, LSTM) & - Optimal PyTorch model trained \\
  & & - Trained PyTorch model (\texttt{best\_finger\_touch\_lstm.pth}) & - Low MAC operational counts \\
 \midrule
 \textbf{Partition 4: Real-Time} & \texttt{mediapipeDetector/} & - Multi-threaded camera feed capture (\texttt{camera\_thread.py}) & - Low per-frame latency ($< 30$ ms) \\
@@ -183,7 +183,7 @@ Located in \texttt{mediapipeDetector/datacreator/}, this partition processed han
 \subsubsection{Partition 3: Deep Learning Model Benchmarking and Selection}
 Located in \texttt{mediapipeDetector/deepLearningModels/}, this partition tested multiple model designs to find the best touch detector:
 \begin{itemize}
-    \item \textbf{Master Benchmark Engine (\texttt{run\_all.py}):} An automated cross-validation script testing 22 pure 2D model architecture combinations (uni-directional LSTMs, BiLSTMs, 1D CNNs, 1D ResNets) with different feature types (raw pixels, wrist-centered coordinates, normalized positions, and velocities).
+    \item \textbf{Master Benchmark Engine (\texttt{run\_all.py}):} An automated cross-validation script testing 22 pure 2D model architecture combinations across five model families (1D CNNs, Attention / Transformers, 1D ResNets, BiLSTMs, and uni-directional LSTMs) with different feature types (raw pixels, wrist-centered coordinates, normalized positions, and velocities).
     \item \textbf{PyTorch Model Selection:} Testing showed that a uni-directional multi-layer PyTorch LSTM model trained on 5-frame normalized position and velocity features achieved the best F1-score ($> 0.95$) with a compact model size ($< 1$~MB), saved as \texttt{best\_finger\_touch\_lstm.pth}.
 \end{itemize}
 
