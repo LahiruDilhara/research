@@ -1,93 +1,79 @@
-import io
 import os
+import io
 from typing import Tuple, Optional
 from PIL import Image, ImageDraw, ImageFont
+from pdf_processor.classifier import TextClassifier
 
 
 class WordImageRenderer:
     """
-    Renders individual words as transparent PNG image byte streams using Pillow.
-    Matches text metrics, font family (serif/sans/mono), weight (regular/bold),
-    style (italic), color, font size, and baseline position.
+    Renders text words into transparent PNG image buffers matching the exact font properties
+    (font family, size, color, baseline alignment, and style) of the original PDF text span.
     """
+
+    # Default TrueType font fallbacks
+    SERIF_REGULAR = "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf"
+    SERIF_BOLD = "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf"
+    SERIF_ITALIC = "/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf"
+    SERIF_BOLD_ITALIC = "/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf"
+
+    SANS_REGULAR = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+    SANS_BOLD = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+    SANS_ITALIC = "/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf"
+    SANS_BOLD_ITALIC = "/usr/share/fonts/truetype/liberation/LiberationSans-BoldItalic.ttf"
+
+    MONO_REGULAR = "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf"
 
     def __init__(self, font_path: Optional[str] = None, dpi_scale: float = 3.0):
         self.font_path = font_path
-        self.dpi_scale = dpi_scale
-        self._font_cache = {}
+        self.dpi_scale = max(1.0, dpi_scale)
 
     def _select_font_file(self, font_name: str, is_bold: bool, is_italic: bool) -> str:
         """
-        Maps PDF font attributes to installed system TrueType font files.
+        Selects the appropriate system TrueType font file path based on font family and style attributes.
         """
-        if self.font_path and os.path.isfile(self.font_path):
+        if self.font_path and os.path.exists(self.font_path):
             return self.font_path
 
-        clean_name = (font_name or "").lower()
+        name_lower = font_name.lower()
 
-        # Check Serif fonts (e.g. Times, Roman, Serif, Minion, Georgia)
-        if any(keyword in clean_name for keyword in ["times", "serif", "roman", "georgia", "minion"]):
+        # Check for Serif / Roman fonts (CMR, LMRoman, Times, Georgia, Serif)
+        if TextClassifier.is_serif_font(name_lower):
             if is_bold and is_italic:
-                return "/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf"
+                return self.SERIF_BOLD_ITALIC
             elif is_bold:
-                return "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf"
+                return self.SERIF_BOLD
             elif is_italic:
-                return "/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf"
+                return self.SERIF_ITALIC
             else:
-                return "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf"
+                return self.SERIF_REGULAR
 
-        # Check Monospace fonts (e.g. Courier, Mono, Monospace)
-        if any(keyword in clean_name for keyword in ["mono", "courier", "console"]):
-            if is_bold and is_italic:
-                return "/usr/share/fonts/truetype/liberation/LiberationMono-BoldItalic.ttf"
-            elif is_bold:
-                return "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf"
-            elif is_italic:
-                return "/usr/share/fonts/truetype/liberation/LiberationMono-Italic.ttf"
-            else:
-                return "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf"
+        # Check for Monospace fonts
+        if TextClassifier.is_mono_font(name_lower):
+            return self.MONO_REGULAR
 
-        # Default Sans-Serif fonts (e.g. Helvetica, Arial, Sans, Liberation)
+        # Default to Sans-Serif
         if is_bold and is_italic:
-            return "/usr/share/fonts/truetype/liberation/LiberationSans-BoldItalic.ttf"
+            return self.SANS_BOLD_ITALIC
         elif is_bold:
-            return "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+            return self.SANS_BOLD
         elif is_italic:
-            return "/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf"
+            return self.SANS_ITALIC
         else:
-            return "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+            return self.SANS_REGULAR
 
-    def _get_font(self, font_name: str, size: float, is_bold: bool, is_italic: bool) -> ImageFont.ImageFont:
-        """
-        Retrieves or caches a TrueType font matching target point size and style.
-        """
-        font_file = self._select_font_file(font_name, is_bold, is_italic)
-        scaled_size = max(8, int(size * self.dpi_scale))
-        cache_key = (font_file, scaled_size)
-
-        if cache_key in self._font_cache:
-            return self._font_cache[cache_key]
-
-        font = None
-        if os.path.isfile(font_file):
-            try:
-                font = ImageFont.truetype(font_file, scaled_size)
-            except Exception:
-                font = None
-
-        if font is None:
-            font = ImageFont.load_default()
-
-        self._font_cache[cache_key] = font
-        return font
+    def _select_font(self, font_name: str, font_size: float, is_bold: bool, is_italic: bool, custom_font_file: Optional[str] = None) -> ImageFont.FreeTypeFont:
+        font_file = custom_font_file if (custom_font_file and os.path.exists(custom_font_file)) else self._select_font_file(font_name, is_bold, is_italic)
+        try:
+            return ImageFont.truetype(font_file, int(font_size * self.dpi_scale))
+        except Exception:
+            return ImageFont.load_default()
 
     @staticmethod
     def int_color_to_rgb(color_int: int) -> Tuple[int, int, int]:
         """
-        Converts PyMuPDF 24-bit integer color (0xRRGGBB) to (R, G, B) tuple.
+        Converts sRGB integer color value to RGB tuple.
         """
-        if color_int is None or color_int < 0:
-            return (0, 0, 0)
         r = (color_int >> 16) & 0xFF
         g = (color_int >> 8) & 0xFF
         b = color_int & 0xFF
@@ -102,46 +88,33 @@ class WordImageRenderer:
         font_size: float,
         is_bold: bool = False,
         is_italic: bool = False,
-        baseline_offset: Optional[float] = None,
-        text_color: int = 0
+        baseline_offset: float = 0.0,
+        text_color: int = 0,
+        custom_font_file: Optional[str] = None
     ) -> bytes:
         """
-        Renders word_text into a transparent RGBA PNG image matching exact target bounding metrics.
+        Renders a word string into a high-DPI transparent PNG byte buffer matching the exact font file.
         """
-        scaled_w = max(1, int(bbox_width * self.dpi_scale))
-        scaled_h = max(1, int(bbox_height * self.dpi_scale))
+        canvas_w = max(1, int(bbox_width * self.dpi_scale))
+        canvas_h = max(1, int(bbox_height * self.dpi_scale))
 
-        # Create transparent image canvas
-        image = Image.new("RGBA", (scaled_w, scaled_h), (255, 255, 255, 0))
+        # Create transparent RGBA canvas
+        image = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
         draw = ImageDraw.Draw(image)
 
-        font = self._get_font(font_name, font_size, is_bold, is_italic)
-
-        # Measure drawn text width to adjust font size if needed (prevents horizontal stretching)
-        try:
-            bbox = font.getbbox(word_text, anchor="ls")
-            drawn_w = bbox[2] - bbox[0]
-            if drawn_w > 0 and abs(drawn_w - scaled_w) > (2 * self.dpi_scale):
-                ratio = scaled_w / drawn_w
-                adjusted_size = max(6.0, font_size * ratio)
-                font_file = self._select_font_file(font_name, is_bold, is_italic)
-                font = ImageFont.truetype(font_file, max(8, int(adjusted_size * self.dpi_scale)))
-        except Exception:
-            pass
-
-        # Calculate baseline position
-        if baseline_offset is not None and baseline_offset > 0:
-            pil_baseline_y = int(baseline_offset * self.dpi_scale)
-        else:
-            pil_baseline_y = int(scaled_h * 0.78)
-
+        font = self._select_font(font_name, font_size, is_bold, is_italic, custom_font_file)
         rgb_color = self.int_color_to_rgb(text_color)
-        rgba_fill = (rgb_color[0], rgb_color[1], rgb_color[2], 255)
+        fill_color = (rgb_color[0], rgb_color[1], rgb_color[2], 255)
 
-        # Draw text at exact baseline using Left-Baseline anchor 'ls'
-        draw.text((0, pil_baseline_y), word_text, fill=rgba_fill, font=font, anchor="ls")
+        # Baseline point calculation
+        baseline_y = baseline_offset * self.dpi_scale if baseline_offset > 0 else canvas_h * 0.78
+        draw_pt = (0, baseline_y)
 
+        # Render text onto transparent image canvas
+        draw.text(draw_pt, word_text, font=font, fill=fill_color, anchor="ls")
+
+        # Export image buffer as PNG
         buffer = io.BytesIO()
-        image.save(buffer, format="PNG", dpi=(int(72 * self.dpi_scale), int(72 * self.dpi_scale)))
+        image.save(buffer, format="PNG")
         buffer.seek(0)
         return buffer.getvalue()
