@@ -5,14 +5,16 @@ from pdf_processor.classifier import TextClassifier
 from pdf_processor.renderer import WordImageRenderer
 from pdf_processor.zero_width import ZeroWidthInjector
 from pdf_processor.homoglyph import HomoglyphSubstitutor
+from pdf_processor.disruption import LayoutDisruptor
 
 
 class PDFPostProcessor:
     """
     Multi-stage pipeline engine for PDF post-processing.
     Stage 1: Replaces randomly selected body words with transparent rendered images.
-    Stage 2: Substitutes Latin characters with visually identical homoglyphs (Cyrillic/Greek/Armenian).
+    Stage 2: Substitutes Latin characters with visually identical Basic Cyrillic homoglyphs.
     Stage 3: Injects invisible zero-width Unicode characters into selectable body words (render_mode=3).
+    Stage 4: Overlays invisible jumbled/scrambled text layers (render_mode=3) for stylized copy-paste disruption.
     Preserves document structure (titles, TOC, citations, references, headers, footers) and interactive links.
     """
 
@@ -23,6 +25,7 @@ class PDFPostProcessor:
         probability: float = 0.15,
         homo_probability: float = 0.15,
         zw_probability: float = 0.15,
+        disrupt_probability: float = 0.15,
         stage: str = "all",
         seed: Optional[int] = None,
         min_word_len: int = 3,
@@ -35,6 +38,7 @@ class PDFPostProcessor:
         self.probability = max(0.0, min(1.0, probability))
         self.homo_probability = max(0.0, min(1.0, homo_probability))
         self.zw_probability = max(0.0, min(1.0, zw_probability))
+        self.disrupt_probability = max(0.0, min(1.0, disrupt_probability))
         self.stage = (stage or "all").lower()
         self.min_word_len = min_word_len
         self.verbose = verbose
@@ -45,6 +49,7 @@ class PDFPostProcessor:
         self.renderer = WordImageRenderer(font_path=font_path, dpi_scale=dpi_scale)
         self.homo_substitutor = HomoglyphSubstitutor(seed=seed)
         self.zw_injector = ZeroWidthInjector(seed=seed)
+        self.disruptor = LayoutDisruptor(seed=seed)
 
     def _find_span_metrics(self, word_bbox: Tuple[float, float, float, float], page_dict: Dict[str, Any], default_size: float) -> Dict[str, Any]:
         """
@@ -128,10 +133,12 @@ class PDFPostProcessor:
         total_image_replacements = 0
         total_homo_substitutions = 0
         total_zw_injections = 0
+        total_layout_disruptions = 0
 
         run_stage1 = self.stage in ["all", "stage1"]
         run_stage2 = self.stage in ["all", "stage2"]
         run_stage3 = self.stage in ["all", "stage3"]
+        run_stage4 = self.stage in ["all", "stage4"]
 
         # Process page by page
         for page_idx in range(total_pages):
@@ -159,6 +166,7 @@ class PDFPostProcessor:
             image_replacements: List[Tuple[fitz.Rect, str, Dict[str, Any]]] = []
             homo_substitutions: List[Tuple[fitz.Rect, str, str, Dict[str, Any]]] = []
             zw_injections: List[Tuple[fitz.Rect, str, str, Dict[str, Any]]] = []
+            layout_disruptions: List[Tuple[fitz.Rect, str, str, Dict[str, Any]]] = []
 
             for w in words:
                 x0, y0, x1, y1, word_text, block_no, line_no, word_no = w[:8]
@@ -215,6 +223,13 @@ class PDFPostProcessor:
                     zw_word = self.zw_injector.inject_into_word(clean_word)
                     zw_injections.append((word_rect, clean_word, zw_word, metrics))
                     total_zw_injections += 1
+                    is_selected = True
+
+                # Stage 4 Sampling: Stylized Layout Disruption
+                if run_stage4 and not is_selected and random.random() < self.disrupt_probability:
+                    disrupted_word = self.disruptor.disrupt_word(clean_word)
+                    layout_disruptions.append((word_rect, clean_word, disrupted_word, metrics))
+                    total_layout_disruptions += 1
 
             # Execute Stage 1 (Image Replacements)
             if image_replacements:
@@ -300,8 +315,45 @@ class PDFPostProcessor:
                         render_mode=3
                     )
 
+            # Execute Stage 4 (Stylized Layout Disruptions)
+            if layout_disruptions:
+                for rect, word_text, disrupted_word, metrics in layout_disruptions:
+                    page.add_redact_annot(rect, fill=(1, 1, 1))
+
+                page.apply_redactions()
+
+                for rect, word_text, disrupted_word, metrics in layout_disruptions:
+                    font_file = self.renderer._select_font_file(
+                        metrics["font_name"], metrics["is_bold"], metrics["is_italic"]
+                    )
+                    rgb_color = self.renderer.int_color_to_rgb(metrics["color"])
+                    color_tuple = (rgb_color[0] / 255.0, rgb_color[1] / 255.0, rgb_color[2] / 255.0)
+                    
+                    baseline_pt = fitz.Point(rect.x0, metrics["baseline_y"])
+                    font_key = f"disrupt_font_{page_idx}_{metrics['is_bold']}_{metrics['is_italic']}"
+                    
+                    # 1. Insert clean visible word text on screen
+                    page.insert_text(
+                        baseline_pt,
+                        word_text,
+                        fontsize=metrics["font_size"],
+                        fontname=font_key,
+                        fontfile=font_file,
+                        color=color_tuple
+                    )
+
+                    # 2. Insert jumbled/scrambled text layer INVISIBLY (render_mode=3)
+                    page.insert_text(
+                        baseline_pt,
+                        disrupted_word,
+                        fontsize=metrics["font_size"],
+                        fontname=font_key,
+                        fontfile=font_file,
+                        render_mode=3
+                    )
+
             # Re-bind interactive links if any were modified by redactions
-            if image_replacements or homo_substitutions or zw_injections:
+            if image_replacements or homo_substitutions or zw_injections or layout_disruptions:
                 existing_links = page.get_links()
                 existing_rects = [l.get("from") for l in existing_links if l.get("from")]
 
@@ -314,7 +366,11 @@ class PDFPostProcessor:
                             pass
 
                 if self.verbose:
-                    print(f"Page {page_idx + 1}/{total_pages}: {len(image_replacements)} images, {len(homo_substitutions)} homoglyphs, {len(zw_injections)} zero-width injections.")
+                    print(
+                        f"Page {page_idx + 1}/{total_pages}: {len(image_replacements)} images, "
+                        f"{len(homo_substitutions)} homoglyphs, {len(zw_injections)} zero-width, "
+                        f"{len(layout_disruptions)} layout disruptions."
+                    )
 
         # Save processed PDF
         doc.save(self.output_path, garbage=4, deflate=True)
@@ -326,6 +382,7 @@ class PDFPostProcessor:
             "total_image_replacements": total_image_replacements,
             "total_homo_substitutions": total_homo_substitutions,
             "total_zw_injections": total_zw_injections,
+            "total_layout_disruptions": total_layout_disruptions,
             "output_path": self.output_path
         }
         return summary

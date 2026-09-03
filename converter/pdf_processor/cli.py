@@ -9,7 +9,7 @@ def parse_args(args=None):
     Parses command line arguments for the PDF post-processor tool.
     """
     parser = argparse.ArgumentParser(
-        description="PDF Post-Processor: 3-stage pipeline converting body words to images, homoglyphs, and zero-width characters."
+        description="PDF Post-Processor: 4-stage pipeline converting body words to images, homoglyphs, zero-width chars, and layout disruptions."
     )
     
     parser.add_argument(
@@ -48,11 +48,18 @@ def parse_args(args=None):
     )
 
     parser.add_argument(
+        "--disrupt-prob",
+        type=float,
+        default=0.15,
+        help="Stage 4: Probability ratio (0.0 to 1.0) of layout disruption (scrambled text layer). Default: 0.15."
+    )
+
+    parser.add_argument(
         "--stage",
         type=str,
-        choices=["all", "stage1", "stage2", "stage3"],
+        choices=["all", "stage1", "stage2", "stage3", "stage4"],
         default="all",
-        help="Pipeline stage execution mode: 'all' (Stage 1 + 2 + 3), 'stage1' (Images), 'stage2' (Homoglyphs), 'stage3' (Zero-width). Default: 'all'."
+        help="Pipeline stage execution mode: 'all' (Stages 1-4), 'stage1' (Images), 'stage2' (Homoglyphs), 'stage3' (Zero-width), 'stage4' (Disruption). Default: 'all'."
     )
 
     parser.add_argument(
@@ -117,6 +124,7 @@ def main():
         print(f"Stage 1 Image Prob:   {args.probability}")
         print(f"Stage 2 Homoglyph Prob:{args.homo_prob}")
         print(f"Stage 3 ZW-Char Prob: {args.zw_prob}")
+        print(f"Stage 4 Disruption Prob:{args.disrupt_prob}")
         print(f"Random Seed:          {args.seed}")
         print(f"Min Word Length:      {args.min_word_len}")
         print(f"DPI Scale:            {args.dpi_scale}")
@@ -129,6 +137,7 @@ def main():
             probability=args.probability,
             homo_probability=args.homo_prob,
             zw_probability=args.zw_prob,
+            disrupt_probability=args.disrupt_prob,
             stage=args.stage,
             seed=args.seed,
             min_word_len=args.min_word_len,
@@ -145,6 +154,7 @@ def main():
         print(f"Stage 1 Images Replaced:   {summary['total_image_replacements']}")
         print(f"Stage 2 Homoglyphs Swapped:{summary['total_homo_substitutions']}")
         print(f"Stage 3 ZW-Chars Injected: {summary['total_zw_injections']}")
+        print(f"Stage 4 Layout Disruptions:{summary['total_layout_disruptions']}")
         print(f"Output File Saved:         {summary['output_path']}")
 
     except Exception as e:
