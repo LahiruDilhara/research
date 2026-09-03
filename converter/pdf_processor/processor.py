@@ -10,7 +10,7 @@ class PDFPostProcessor:
     Main engine for PDF post-processing.
     Filters document structure to identify body paragraphs, randomly selects words,
     renders selected words as transparent PNG images matching exact font metrics,
-    redacts original text, and inserts images at exact locations.
+    redacts original text, and preserves all interactive document links (TOC, citations, URIs).
     """
 
     def __init__(
@@ -81,9 +81,26 @@ class PDFPostProcessor:
             "baseline_offset": (wy1 - wy0) * 0.78
         }
 
+    @staticmethod
+    def _is_inside_link(word_rect: fitz.Rect, page_links: List[Dict[str, Any]]) -> bool:
+        """
+        Checks if a word bounding box intersects with any interactive link annotation
+        (e.g., clickable Table of Contents items, clickable citations, or external URIs).
+        """
+        for link in page_links:
+            link_rect = link.get("from")
+            if link_rect and not (
+                word_rect.x1 < link_rect.x0 or
+                word_rect.x0 > link_rect.x1 or
+                word_rect.y1 < link_rect.y0 or
+                word_rect.y0 > link_rect.y1
+            ):
+                return True
+        return False
+
     def process(self) -> Dict[str, Any]:
         """
-        Executes end-to-end processing on the PDF document.
+        Executes end-to-end processing on the PDF document while strictly preserving interactive links.
         """
         doc = fitz.open(self.input_path)
         total_pages = len(doc)
@@ -101,6 +118,9 @@ class PDFPostProcessor:
             page = doc[page_idx]
             page_dict = pages_dict[page_idx]
             page_height = page.rect.height
+
+            # Retrieve all existing interactive page links (TOC links, citation links, URI links)
+            page_links = page.get_links()
 
             # Extract words: (x0, y0, x1, y1, word_text, block_no, line_no, word_no)
             words = page.get_text("words")
@@ -121,8 +141,13 @@ class PDFPostProcessor:
             for w in words:
                 x0, y0, x1, y1, word_text, block_no, line_no, word_no = w[:8]
                 clean_word = word_text.strip()
-                
+                word_rect = fitz.Rect(x0, y0, x1, y1)
+
                 if len(clean_word) < self.min_word_len:
+                    continue
+
+                # NEVER modify words inside interactive link regions (TOC, clickable citations, URIs)
+                if self._is_inside_link(word_rect, page_links):
                     continue
 
                 # Get font metrics
@@ -152,11 +177,10 @@ class PDFPostProcessor:
 
                 # Random probability selection
                 if random.random() < self.probability:
-                    word_rect = fitz.Rect(x0, y0, x1, y1)
                     replacements_on_page.append((word_rect, clean_word, metrics))
                     total_words_replaced += 1
 
-            # Perform redaction and image overlay for selected words on this page
+            # Perform redaction, image overlay, and link preservation for selected words on this page
             if replacements_on_page:
                 # Add redaction annotations to remove original vector text cleanly
                 for rect, word_text, metrics in replacements_on_page:
@@ -180,8 +204,20 @@ class PDFPostProcessor:
                     )
                     page.insert_image(rect, stream=image_bytes)
 
+                # Re-bind all original interactive links to guarantee TOC and citation connection preservation
+                existing_links = page.get_links()
+                existing_rects = [l.get("from") for l in existing_links if l.get("from")]
+
+                for link in page_links:
+                    link_rect = link.get("from")
+                    if link_rect and link_rect not in existing_rects:
+                        try:
+                            page.insert_link(link)
+                        except Exception:
+                            pass
+
                 if self.verbose:
-                    print(f"Page {page_idx + 1}/{total_pages}: Replaced {len(replacements_on_page)} words with images.")
+                    print(f"Page {page_idx + 1}/{total_pages}: Replaced {len(replacements_on_page)} words with images (preserved {len(page_links)} interactive links).")
 
         # Save processed PDF
         doc.save(self.output_path, garbage=4, deflate=True)
