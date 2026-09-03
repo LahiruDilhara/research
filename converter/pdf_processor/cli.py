@@ -6,7 +6,7 @@ from pdf_processor.processor import PDFPostProcessor
 
 def parse_args(args=None):
     """
-    Parses command line arguments for the PDF post-processor tool.
+    Parses command line arguments for the PDF post-processor tool with parallel page processing controls.
     """
     parser = argparse.ArgumentParser(
         description="PDF Post-Processor: 4-stage pipeline converting body words to images, homoglyphs, zero-width chars, and layout disruptions."
@@ -52,6 +52,41 @@ def parse_args(args=None):
         type=float,
         default=0.15,
         help="Stage 4: Probability ratio (0.0 to 1.0) of layout disruption (scrambled text layer). Default: 0.15."
+    )
+
+    parser.add_argument(
+        "--max-images-per-page",
+        type=int,
+        default=0,
+        help="Stage 1: Maximum number of word images allowed per page. (0 = unlimited). Default: 0."
+    )
+
+    parser.add_argument(
+        "--max-images-per-para",
+        type=int,
+        default=0,
+        help="Stage 1: Maximum number of word images allowed per body paragraph. (0 = unlimited). Default: 0."
+    )
+
+    parser.add_argument(
+        "--zw-count",
+        type=int,
+        default=2,
+        help="Stage 3: Number of invisible zero-width characters injected per selected word. Default: 2."
+    )
+
+    parser.add_argument(
+        "--disrupt-multiplier",
+        type=float,
+        default=1.5,
+        help="Stage 4: Length multiplier for scrambled invisible disruption overlay text. Default: 1.5."
+    )
+
+    parser.add_argument(
+        "-w", "--workers",
+        type=int,
+        default=1,
+        help="Number of parallel worker processes for page processing. (0 = auto-detect CPU cores, 1 = sequential). Default: 1."
     )
 
     parser.add_argument(
@@ -121,10 +156,13 @@ def main():
         print(f"Input PDF:            {input_path}")
         print(f"Output PDF:           {output_path}")
         print(f"Execution Stage:      {args.stage}")
+        print(f"Parallel Workers:     {args.workers if args.workers > 0 else f'Auto ({os.cpu_count()} CPU cores)'}")
         print(f"Stage 1 Image Prob:   {args.probability}")
+        print(f"Max Images / Page:    {args.max_images_per_page if args.max_images_per_page > 0 else 'Unlimited'}")
+        print(f"Max Images / Para:    {args.max_images_per_para if args.max_images_per_para > 0 else 'Unlimited'}")
         print(f"Stage 2 Homoglyph Prob:{args.homo_prob}")
-        print(f"Stage 3 ZW-Char Prob: {args.zw_prob}")
-        print(f"Stage 4 Disruption Prob:{args.disrupt_prob}")
+        print(f"Stage 3 ZW-Char Prob: {args.zw_prob} (Count: {args.zw_count} per word)")
+        print(f"Stage 4 Disruption Prob:{args.disrupt_prob} (Multiplier: {args.disrupt_multiplier}x)")
         print(f"Random Seed:          {args.seed}")
         print(f"Min Word Length:      {args.min_word_len}")
         print(f"DPI Scale:            {args.dpi_scale}")
@@ -142,6 +180,11 @@ def main():
             seed=args.seed,
             min_word_len=args.min_word_len,
             dpi_scale=args.dpi_scale,
+            max_images_per_page=args.max_images_per_page,
+            max_images_per_para=args.max_images_per_para,
+            zw_count=args.zw_count,
+            disrupt_multiplier=args.disrupt_multiplier,
+            workers=args.workers,
             font_path=args.font_path,
             verbose=args.verbose
         )

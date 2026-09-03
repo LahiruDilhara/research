@@ -1,10 +1,8 @@
-import pymupdf as fitz  # PyMuPDF
-import random
-import re
-import os
-import sys
+import sys, os, time, random, re
+sys.path.insert(0, os.path.abspath("."))
+from typing import Dict, Any, Tuple, List, Optional
+import pymupdf as fitz
 from concurrent.futures import ProcessPoolExecutor
-from typing import Optional, List, Tuple, Dict, Any
 
 from pdf_processor.classifier import TextClassifier
 from pdf_processor.renderer import WordImageRenderer
@@ -13,11 +11,7 @@ from pdf_processor.homoglyph import HomoglyphSubstitutor
 from pdf_processor.disruption import LayoutDisruptor
 
 
-def _process_single_page_worker(task_args: Tuple[str, int, Dict[str, float], Dict[str, Any]]) -> Tuple[int, bytes, Dict[str, int]]:
-    """
-    Top-level worker function for parallel multi-process PDF page processing.
-    Executes Stages 1-4 on a single PDF page in isolation.
-    """
+def _process_page_worker(task_args: Tuple[str, int, Dict[str, float], Dict[str, Any]]) -> Tuple[int, bytes, Dict[str, int]]:
     input_path, page_idx, doc_font_stats, config = task_args
 
     seed = config.get("seed")
@@ -96,8 +90,7 @@ def _process_single_page_worker(task_args: Tuple[str, int, Dict[str, float], Dic
         best_span = None
         best_overlap = 0.0
         for block in page_dict.get("blocks", []):
-            if block.get("type", 0) != 0:
-                continue
+            if block.get("type", 0) != 0: continue
             for line in block.get("lines", []):
                 for span in line.get("spans", []):
                     srect = fitz.Rect(span.get("bbox", (0, 0, 0, 0)))
@@ -106,7 +99,6 @@ def _process_single_page_worker(task_args: Tuple[str, int, Dict[str, float], Dic
                     if area > best_overlap:
                         best_overlap = area
                         best_span = span
-
         if best_span:
             fname = best_span.get("font", "")
             fsize = best_span.get("size", classifier.median_font_size)
@@ -116,28 +108,10 @@ def _process_single_page_worker(task_args: Tuple[str, int, Dict[str, float], Dic
             is_italic = classifier.is_italic_font(fname, flags)
             ffile = renderer._select_font_file(fname, is_bold, is_italic)
             origin = best_span.get("origin")
-            baseline_y = origin[1] if origin else (word_bbox[1] + (word_bbox[3] - word_bbox[1]) * 0.78)
+            baseline_y = origin[1] if origin else (word_bbox[1] + (word_bbox[3]-word_bbox[1])*0.78)
             baseline_offset = max(1.0, baseline_y - word_bbox[1])
-            return {
-                "font_name": fname,
-                "font_file": ffile,
-                "font_size": fsize,
-                "color": color,
-                "is_bold": is_bold,
-                "is_italic": is_italic,
-                "baseline_offset": baseline_offset,
-                "baseline_y": baseline_y
-            }
-        return {
-            "font_name": "",
-            "font_file": renderer.SERIF_REGULAR,
-            "font_size": classifier.median_font_size,
-            "color": 0,
-            "is_bold": False,
-            "is_italic": False,
-            "baseline_offset": (word_bbox[3] - word_bbox[1]) * 0.78,
-            "baseline_y": word_bbox[1] + (word_bbox[3] - word_bbox[1]) * 0.78
-        }
+            return {"font_name": fname, "font_file": ffile, "font_size": fsize, "color": color, "is_bold": is_bold, "is_italic": is_italic, "baseline_offset": baseline_offset, "baseline_y": baseline_y}
+        return {"font_name": "", "font_file": renderer.SERIF_REGULAR, "font_size": classifier.median_font_size, "color": 0, "is_bold": False, "is_italic": False, "baseline_offset": (word_bbox[3]-word_bbox[1])*0.78, "baseline_y": word_bbox[1]+(word_bbox[3]-word_bbox[1])*0.78}
 
     for w in words:
         x0, y0, x1, y1, word_text, block_no, line_no, word_no = w[:8]
@@ -192,79 +166,67 @@ def _process_single_page_worker(task_args: Tuple[str, int, Dict[str, float], Dic
             disrupted_word = disruptor.disrupt_word(clean_word, length_multiplier=disrupt_multiplier)
             layout_disruptions.append((word_rect, clean_word, disrupted_word, metrics))
 
-    # Stage 1 Execution
+    # Stage 1
     if image_replacements:
         for rect, word_text, metrics in image_replacements:
             page.add_redact_annot(rect, fill=(1, 1, 1))
         page.apply_redactions()
-
         for rect, word_text, metrics in image_replacements:
             img_bytes = renderer.render_word_image(
-                word_text=word_text,
-                bbox_width=rect.width,
-                bbox_height=rect.height,
-                font_name=metrics["font_name"],
-                font_size=metrics["font_size"],
-                is_bold=metrics["is_bold"],
-                is_italic=metrics["is_italic"],
-                baseline_offset=metrics["baseline_offset"],
-                text_color=metrics["color"],
+                word_text=word_text, bbox_width=rect.width, bbox_height=rect.height,
+                font_name=metrics["font_name"], font_size=metrics["font_size"],
+                is_bold=metrics["is_bold"], is_italic=metrics["is_italic"],
+                baseline_offset=metrics["baseline_offset"], text_color=metrics["color"],
                 custom_font_file=metrics["font_file"]
             )
             page.insert_image(rect, stream=img_bytes)
 
-    # Stage 2 Execution
+    # Stage 2
     if homo_substitutions:
         for rect, word_text, homo_word, metrics in homo_substitutions:
             page.add_redact_annot(rect, fill=(1, 1, 1))
         page.apply_redactions()
-
         for rect, word_text, homo_word, metrics in homo_substitutions:
             rgb = renderer.int_color_to_rgb(metrics["color"])
-            color_tuple = (rgb[0] / 255.0, rgb[1] / 255.0, rgb[2] / 255.0)
+            color_tuple = (rgb[0]/255.0, rgb[1]/255.0, rgb[2]/255.0)
             baseline_pt = fitz.Point(rect.x0, metrics["baseline_y"])
             font_key = f"homo_font_{page_idx}_{metrics['is_bold']}_{metrics['is_italic']}"
             page.insert_text(baseline_pt, homo_word, fontsize=metrics["font_size"], fontname=font_key, fontfile=metrics["font_file"], color=color_tuple)
 
-    # Stage 3 Execution
+    # Stage 3
     if zw_injections:
         for rect, word_text, zw_word, metrics in zw_injections:
             page.add_redact_annot(rect, fill=(1, 1, 1))
         page.apply_redactions()
-
         for rect, word_text, zw_word, metrics in zw_injections:
             rgb = renderer.int_color_to_rgb(metrics["color"])
-            color_tuple = (rgb[0] / 255.0, rgb[1] / 255.0, rgb[2] / 255.0)
+            color_tuple = (rgb[0]/255.0, rgb[1]/255.0, rgb[2]/255.0)
             baseline_pt = fitz.Point(rect.x0, metrics["baseline_y"])
             font_key = f"zw_font_{page_idx}_{metrics['is_bold']}_{metrics['is_italic']}"
             page.insert_text(baseline_pt, word_text, fontsize=metrics["font_size"], fontname=font_key, fontfile=metrics["font_file"], color=color_tuple)
             page.insert_text(baseline_pt, zw_word, fontsize=metrics["font_size"], fontname=font_key, fontfile=metrics["font_file"], render_mode=3)
 
-    # Stage 4 Execution
+    # Stage 4
     if layout_disruptions:
         for rect, word_text, disrupted_word, metrics in layout_disruptions:
             page.add_redact_annot(rect, fill=(1, 1, 1))
         page.apply_redactions()
-
         for rect, word_text, disrupted_word, metrics in layout_disruptions:
             rgb = renderer.int_color_to_rgb(metrics["color"])
-            color_tuple = (rgb[0] / 255.0, rgb[1] / 255.0, rgb[2] / 255.0)
+            color_tuple = (rgb[0]/255.0, rgb[1]/255.0, rgb[2]/255.0)
             baseline_pt = fitz.Point(rect.x0, metrics["baseline_y"])
             font_key = f"disrupt_font_{page_idx}_{metrics['is_bold']}_{metrics['is_italic']}"
             page.insert_text(baseline_pt, word_text, fontsize=metrics["font_size"], fontname=font_key, fontfile=metrics["font_file"], color=color_tuple)
             page.insert_text(baseline_pt, disrupted_word, fontsize=metrics["font_size"], fontname=font_key, fontfile=metrics["font_file"], render_mode=3)
 
-    # Re-bind interactive links
     if image_replacements or homo_substitutions or zw_injections or layout_disruptions:
         existing_links = page.get_links()
         existing_rects = [l.get("from") for l in existing_links if l.get("from")]
         for link in page_links:
             lrect = link.get("from")
             if lrect and lrect not in existing_rects:
-                try:
-                    page.insert_link(link)
-                except Exception:
-                    pass
+                try: page.insert_link(link)
+                except Exception: pass
 
     single_doc = fitz.open()
     single_doc.insert_pdf(doc, from_page=page_idx, to_page=page_idx)
@@ -282,145 +244,58 @@ def _process_single_page_worker(task_args: Tuple[str, int, Dict[str, float], Dic
     return (page_idx, page_bytes, stats)
 
 
-class PDFPostProcessor:
-    """
-    Multi-stage pipeline engine for PDF post-processing.
-    Supports sequential or multi-process parallel processing across PDF pages.
-    """
+def test_parallel_execution():
+    doc = fitz.open("main.pdf")
+    total_pages = len(doc)
+    pages_dict = [page.get_text("dict") for page in doc]
+    font_stats = TextClassifier.calculate_document_font_stats(pages_dict)
+    doc.close()
 
-    def __init__(
-        self,
-        input_path: str,
-        output_path: str,
-        probability: float = 0.15,
-        homo_probability: float = 0.15,
-        zw_probability: float = 0.15,
-        disrupt_probability: float = 0.15,
-        stage: str = "all",
-        seed: Optional[int] = None,
-        min_word_len: int = 3,
-        dpi_scale: float = 3.0,
-        max_images_per_page: int = 0,
-        max_images_per_para: int = 0,
-        zw_count: int = 2,
-        disrupt_multiplier: float = 1.5,
-        workers: int = 1,
-        font_path: Optional[str] = None,
-        verbose: bool = False
-    ):
-        self.input_path = input_path
-        self.output_path = output_path
-        self.probability = max(0.0, min(1.0, probability))
-        self.homo_probability = max(0.0, min(1.0, homo_probability))
-        self.zw_probability = max(0.0, min(1.0, zw_probability))
-        self.disrupt_probability = max(0.0, min(1.0, disrupt_probability))
-        self.stage = (stage or "all").lower()
-        self.seed = seed
-        self.min_word_len = min_word_len
-        self.dpi_scale = dpi_scale
-        self.max_images_per_page = max(0, max_images_per_page)
-        self.max_images_per_para = max(0, max_images_per_para)
-        self.zw_count = max(1, zw_count)
-        self.disrupt_multiplier = max(1.0, disrupt_multiplier)
-        
-        cpu_count = os.cpu_count() or 1
-        if workers == 0:
-            self.workers = cpu_count
-        else:
-            self.workers = max(1, workers)
+    config = {
+        "probability": 0.25,
+        "homo_probability": 0.15,
+        "zw_probability": 0.15,
+        "disrupt_probability": 0.15,
+        "stage": "all",
+        "seed": 42,
+        "min_word_len": 3,
+        "dpi_scale": 3.0,
+        "max_images_per_page": 0,
+        "max_images_per_para": 0,
+        "zw_count": 2,
+        "disrupt_multiplier": 1.5
+    }
 
-        self.font_path = font_path
-        self.verbose = verbose
+    workers = 4
+    print(f"--- Running Parallel Benchmark on main.pdf (112 pages) with {workers} worker processes ---")
+    t0 = time.time()
 
-    def process(self) -> Dict[str, Any]:
-        doc = fitz.open(self.input_path)
-        total_pages = len(doc)
+    task_args = [(os.path.abspath("main.pdf"), p_idx, font_stats, config) for p_idx in range(total_pages)]
 
-        pages_dict = [page.get_text("dict") for page in doc]
-        font_stats = TextClassifier.calculate_document_font_stats(pages_dict)
-        doc.close()
+    results = []
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        for res in executor.map(_process_page_worker, task_args):
+            results.append(res)
 
-        config = {
-            "probability": self.probability,
-            "homo_probability": self.homo_probability,
-            "zw_probability": self.zw_probability,
-            "disrupt_probability": self.disrupt_probability,
-            "stage": self.stage,
-            "seed": self.seed,
-            "min_word_len": self.min_word_len,
-            "dpi_scale": self.dpi_scale,
-            "max_images_per_page": self.max_images_per_page,
-            "max_images_per_para": self.max_images_per_para,
-            "zw_count": self.zw_count,
-            "disrupt_multiplier": self.disrupt_multiplier,
-            "font_path": self.font_path
-        }
+    t_proc = time.time() - t0
+    print(f"Parallel Processing completed in {t_proc:.2f} seconds!")
 
-        task_args = [
-            (self.input_path, page_idx, font_stats, config)
-            for page_idx in range(total_pages)
-        ]
+    results.sort(key=lambda x: x[0])
+    final_doc = fitz.open()
+    for p_idx, p_bytes, p_stats in results:
+        p_doc = fitz.open("pdf", p_bytes)
+        final_doc.insert_pdf(p_doc)
+        p_doc.close()
 
-        total_words_processed = 0
-        total_image_replacements = 0
-        total_homo_substitutions = 0
-        total_zw_injections = 0
-        total_layout_disruptions = 0
+    out_file = "tmp_parallel_main.pdf"
+    final_doc.save(out_file, garbage=4, deflate=True)
+    final_doc.close()
 
-        processed_pages: List[Tuple[int, bytes, Dict[str, int]]] = []
+    t_total = time.time() - t0
+    print(f"Merged output saved to '{out_file}' in {t_total:.2f} seconds total!")
+    
+    if os.path.exists(out_file):
+        os.remove(out_file)
 
-        if self.workers > 1 and total_pages > 1:
-            if self.verbose:
-                print(f"Processing {total_pages} pages in parallel using {self.workers} worker processes...")
-            
-            with ProcessPoolExecutor(max_workers=self.workers) as executor:
-                for res in executor.map(_process_single_page_worker, task_args):
-                    processed_pages.append(res)
-                    p_idx, _, stats = res
-                    if self.verbose:
-                        print(
-                            f"Page {p_idx + 1}/{total_pages}: {stats['images']} images, "
-                            f"{stats['homo']} homoglyphs, {stats['zw']} zero-width, "
-                            f"{stats['disrupt']} layout disruptions."
-                        )
-        else:
-            if self.verbose:
-                print(f"Processing {total_pages} pages sequentially...")
-            for t_arg in task_args:
-                res = _process_single_page_worker(t_arg)
-                processed_pages.append(res)
-                p_idx, _, stats = res
-                if self.verbose:
-                    print(
-                        f"Page {p_idx + 1}/{total_pages}: {stats['images']} images, "
-                        f"{stats['homo']} homoglyphs, {stats['zw']} zero-width, "
-                        f"{stats['disrupt']} layout disruptions."
-                    )
-
-        processed_pages.sort(key=lambda x: x[0])
-
-        final_doc = fitz.open()
-        for p_idx, page_bytes, stats in processed_pages:
-            total_words_processed += stats["words_scanned"]
-            total_image_replacements += stats["images"]
-            total_homo_substitutions += stats["homo"]
-            total_zw_injections += stats["zw"]
-            total_layout_disruptions += stats["disrupt"]
-
-            page_doc = fitz.open("pdf", page_bytes)
-            final_doc.insert_pdf(page_doc)
-            page_doc.close()
-
-        final_doc.save(self.output_path, garbage=4, deflate=True)
-        final_doc.close()
-
-        summary = {
-            "total_pages": total_pages,
-            "total_words_processed": total_words_processed,
-            "total_image_replacements": total_image_replacements,
-            "total_homo_substitutions": total_homo_substitutions,
-            "total_zw_injections": total_zw_injections,
-            "total_layout_disruptions": total_layout_disruptions,
-            "output_path": self.output_path
-        }
-        return summary
+if __name__ == "__main__":
+    test_parallel_execution()

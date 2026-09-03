@@ -22,11 +22,11 @@ class ZeroWidthInjector:
         if seed is not None:
             random.seed(seed)
 
-    def inject_into_word(self, word_text: str, intensity: int = 1) -> str:
+    def inject_into_word(self, word_text: str, zw_count: int = 2) -> str:
         """
-        Inserts random zero-width characters between letters of word_text.
+        Inserts specified number of random zero-width characters between letters of word_text.
         """
-        if len(word_text) <= 1:
+        if len(word_text) <= 1 or zw_count <= 0:
             return word_text
 
         letters = list(word_text)
@@ -34,11 +34,10 @@ class ZeroWidthInjector:
         
         for i, char in enumerate(letters[:-1]):
             result.append(char)
-            # Insert invisible character with given intensity probability
-            if random.random() <= 0.8:
-                for _ in range(intensity):
-                    invisible_char = random.choice(self.char_pool)
-                    result.append(invisible_char)
+            # Insert specified count of invisible characters
+            for _ in range(zw_count):
+                invisible_char = random.choice(self.char_pool)
+                result.append(invisible_char)
 
         result.append(letters[-1])
         return "".join(result)
