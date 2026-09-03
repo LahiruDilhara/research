@@ -3,14 +3,15 @@ import random
 from typing import Optional, List, Tuple, Dict, Any
 from pdf_processor.classifier import TextClassifier
 from pdf_processor.renderer import WordImageRenderer
+from pdf_processor.zero_width import ZeroWidthInjector
 
 
 class PDFPostProcessor:
     """
-    Main engine for PDF post-processing.
-    Filters document structure to identify body paragraphs, randomly selects words,
-    renders selected words as transparent PNG images matching exact font metrics,
-    redacts original text, and preserves all interactive document links (TOC, citations, URIs).
+    Multi-stage pipeline engine for PDF post-processing.
+    Stage 1: Replaces randomly selected body words with transparent rendered images.
+    Stage 2: Injects invisible zero-width Unicode characters into selectable body words (using render_mode=3).
+    Preserves document structure (titles, TOC, citations, references, headers, footers) and interactive links.
     """
 
     def __init__(
@@ -18,6 +19,8 @@ class PDFPostProcessor:
         input_path: str,
         output_path: str,
         probability: float = 0.15,
+        zw_probability: float = 0.15,
+        stage: str = "all",
         seed: Optional[int] = None,
         min_word_len: int = 3,
         dpi_scale: float = 3.0,
@@ -27,6 +30,8 @@ class PDFPostProcessor:
         self.input_path = input_path
         self.output_path = output_path
         self.probability = max(0.0, min(1.0, probability))
+        self.zw_probability = max(0.0, min(1.0, zw_probability))
+        self.stage = (stage or "all").lower()
         self.min_word_len = min_word_len
         self.verbose = verbose
         
@@ -34,6 +39,7 @@ class PDFPostProcessor:
             random.seed(seed)
 
         self.renderer = WordImageRenderer(font_path=font_path, dpi_scale=dpi_scale)
+        self.zw_injector = ZeroWidthInjector(seed=seed)
 
     def _find_span_metrics(self, word_bbox: Tuple[float, float, float, float], page_dict: Dict[str, Any], default_size: float) -> Dict[str, Any]:
         """
@@ -60,8 +66,10 @@ class PDFPostProcessor:
                         origin = span.get("origin")
                         if origin:
                             baseline_offset = max(1.0, origin[1] - wy0)
+                            baseline_y = origin[1]
                         else:
                             baseline_offset = (wy1 - wy0) * 0.78
+                            baseline_y = wy0 + baseline_offset
 
                         return {
                             "font_name": font_name,
@@ -69,7 +77,8 @@ class PDFPostProcessor:
                             "color": color,
                             "is_bold": is_bold,
                             "is_italic": is_italic,
-                            "baseline_offset": baseline_offset
+                            "baseline_offset": baseline_offset,
+                            "baseline_y": baseline_y
                         }
 
         return {
@@ -78,7 +87,8 @@ class PDFPostProcessor:
             "color": 0,
             "is_bold": False,
             "is_italic": False,
-            "baseline_offset": (wy1 - wy0) * 0.78
+            "baseline_offset": (wy1 - wy0) * 0.78,
+            "baseline_y": wy0 + (wy1 - wy0) * 0.78
         }
 
     @staticmethod
@@ -100,26 +110,30 @@ class PDFPostProcessor:
 
     def process(self) -> Dict[str, Any]:
         """
-        Executes end-to-end processing on the PDF document while strictly preserving interactive links.
+        Executes multi-stage PDF post-processing on the document.
         """
         doc = fitz.open(self.input_path)
         total_pages = len(doc)
         
-        # Step 1: Pre-pass to extract document-wide font statistics
+        # Pre-pass for document-wide font statistics
         pages_dict = [page.get_text("dict") for page in doc]
         font_stats = TextClassifier.calculate_document_font_stats(pages_dict)
         classifier = TextClassifier(doc_font_stats=font_stats)
 
         total_words_processed = 0
-        total_words_replaced = 0
+        total_image_replacements = 0
+        total_zw_injections = 0
 
-        # Step 2: Process page by page
+        run_stage1 = self.stage in ["all", "stage1"]
+        run_stage2 = self.stage in ["all", "stage2"]
+
+        # Process page by page
         for page_idx in range(total_pages):
             page = doc[page_idx]
             page_dict = pages_dict[page_idx]
             page_height = page.rect.height
 
-            # Retrieve all existing interactive page links (TOC links, citation links, URI links)
+            # Retrieve all existing interactive page links
             page_links = page.get_links()
 
             # Extract words: (x0, y0, x1, y1, word_text, block_no, line_no, word_no)
@@ -136,7 +150,8 @@ class PDFPostProcessor:
                             full_block_text += span.get("text", "") + " "
                     block_map[block_no] = (block.get("bbox", (0, 0, 0, 0)), full_block_text.strip())
 
-            replacements_on_page: List[Tuple[fitz.Rect, str, Dict[str, Any]]] = []
+            image_replacements: List[Tuple[fitz.Rect, str, Dict[str, Any]]] = []
+            zw_injections: List[Tuple[fitz.Rect, str, str, Dict[str, Any]]] = []
 
             for w in words:
                 x0, y0, x1, y1, word_text, block_no, line_no, word_no = w[:8]
@@ -146,7 +161,7 @@ class PDFPostProcessor:
                 if len(clean_word) < self.min_word_len:
                     continue
 
-                # NEVER modify words inside interactive link regions (TOC, clickable citations, URIs)
+                # Protect words inside interactive link regions (TOC, clickable citations, URIs)
                 if self._is_inside_link(word_rect, page_links):
                     continue
 
@@ -157,7 +172,6 @@ class PDFPostProcessor:
                 if block_no in block_map:
                     bbox, block_text = block_map[block_no]
                     
-                    # Classifier checks
                     if classifier.is_header_or_footer(bbox, page_height, block_text):
                         continue
                     if classifier.is_reference_heading_or_block(block_text):
@@ -175,22 +189,27 @@ class PDFPostProcessor:
 
                 total_words_processed += 1
 
-                # Random probability selection
-                if random.random() < self.probability:
-                    replacements_on_page.append((word_rect, clean_word, metrics))
-                    total_words_replaced += 1
+                # Stage 1 Sampling: Image Replacement
+                is_stage1_selected = False
+                if run_stage1 and random.random() < self.probability:
+                    image_replacements.append((word_rect, clean_word, metrics))
+                    total_image_replacements += 1
+                    is_stage1_selected = True
 
-            # Perform redaction, image overlay, and link preservation for selected words on this page
-            if replacements_on_page:
-                # Add redaction annotations to remove original vector text cleanly
-                for rect, word_text, metrics in replacements_on_page:
+                # Stage 2 Sampling: Zero-Width Character Injection (for remaining selectable body words)
+                if run_stage2 and not is_stage1_selected and random.random() < self.zw_probability:
+                    zw_word = self.zw_injector.inject_into_word(clean_word)
+                    zw_injections.append((word_rect, clean_word, zw_word, metrics))
+                    total_zw_injections += 1
+
+            # Execute Stage 1 (Image Replacements)
+            if image_replacements:
+                for rect, word_text, metrics in image_replacements:
                     page.add_redact_annot(rect, fill=(1, 1, 1))
 
-                # Apply redactions to wipe text
                 page.apply_redactions()
 
-                # Insert transparent PNG rendered image for each word
-                for rect, word_text, metrics in replacements_on_page:
+                for rect, word_text, metrics in image_replacements:
                     image_bytes = self.renderer.render_word_image(
                         word_text=word_text,
                         bbox_width=rect.width,
@@ -204,7 +223,45 @@ class PDFPostProcessor:
                     )
                     page.insert_image(rect, stream=image_bytes)
 
-                # Re-bind all original interactive links to guarantee TOC and citation connection preservation
+            # Execute Stage 2 (Zero-Width Injections)
+            if zw_injections:
+                for rect, word_text, zw_word, metrics in zw_injections:
+                    page.add_redact_annot(rect, fill=(1, 1, 1))
+
+                page.apply_redactions()
+
+                for rect, word_text, zw_word, metrics in zw_injections:
+                    font_file = self.renderer._select_font_file(
+                        metrics["font_name"], metrics["is_bold"], metrics["is_italic"]
+                    )
+                    rgb_color = self.renderer.int_color_to_rgb(metrics["color"])
+                    color_tuple = (rgb_color[0] / 255.0, rgb_color[1] / 255.0, rgb_color[2] / 255.0)
+                    
+                    baseline_pt = fitz.Point(rect.x0, metrics["baseline_y"])
+                    font_key = f"zw_font_{page_idx}_{metrics['is_bold']}_{metrics['is_italic']}"
+                    
+                    # 1. Insert clean visible word text
+                    page.insert_text(
+                        baseline_pt,
+                        word_text,
+                        fontsize=metrics["font_size"],
+                        fontname=font_key,
+                        fontfile=font_file,
+                        color=color_tuple
+                    )
+
+                    # 2. Insert zero-width character text in INVISIBLE mode (render_mode=3)
+                    page.insert_text(
+                        baseline_pt,
+                        zw_word,
+                        fontsize=metrics["font_size"],
+                        fontname=font_key,
+                        fontfile=font_file,
+                        render_mode=3
+                    )
+
+            # Re-bind interactive links if any were modified by redactions
+            if image_replacements or zw_injections:
                 existing_links = page.get_links()
                 existing_rects = [l.get("from") for l in existing_links if l.get("from")]
 
@@ -217,7 +274,7 @@ class PDFPostProcessor:
                             pass
 
                 if self.verbose:
-                    print(f"Page {page_idx + 1}/{total_pages}: Replaced {len(replacements_on_page)} words with images (preserved {len(page_links)} interactive links).")
+                    print(f"Page {page_idx + 1}/{total_pages}: {len(image_replacements)} image replacements, {len(zw_injections)} zero-width injections.")
 
         # Save processed PDF
         doc.save(self.output_path, garbage=4, deflate=True)
@@ -226,7 +283,8 @@ class PDFPostProcessor:
         summary = {
             "total_pages": total_pages,
             "total_words_processed": total_words_processed,
-            "total_words_replaced": total_words_replaced,
+            "total_image_replacements": total_image_replacements,
+            "total_zw_injections": total_zw_injections,
             "output_path": self.output_path
         }
         return summary

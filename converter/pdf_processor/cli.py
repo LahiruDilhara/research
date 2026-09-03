@@ -9,7 +9,7 @@ def parse_args(args=None):
     Parses command line arguments for the PDF post-processor tool.
     """
     parser = argparse.ArgumentParser(
-        description="PDF Post-Processor: Randomly converts body paragraph words into image snippets in place."
+        description="PDF Post-Processor: Multi-stage pipeline converting body words to image snippets and zero-width characters."
     )
     
     parser.add_argument(
@@ -30,7 +30,22 @@ def parse_args(args=None):
         "-p", "--probability",
         type=float,
         default=0.15,
-        help="Probability ratio (0.0 to 1.0) of converting body words into images. Default: 0.15."
+        help="Stage 1: Probability ratio (0.0 to 1.0) of converting body words into images. Default: 0.15."
+    )
+
+    parser.add_argument(
+        "--zw-prob",
+        type=float,
+        default=0.15,
+        help="Stage 2: Probability ratio (0.0 to 1.0) of injecting zero-width characters into body words. Default: 0.15."
+    )
+
+    parser.add_argument(
+        "--stage",
+        type=str,
+        choices=["all", "stage1", "stage2"],
+        default="all",
+        help="Pipeline stage execution mode: 'all' (Stage 1 + Stage 2), 'stage1' (Images only), 'stage2' (Zero-width only). Default: 'all'."
     )
 
     parser.add_argument(
@@ -44,7 +59,7 @@ def parse_args(args=None):
         "--min-word-len",
         type=int,
         default=3,
-        help="Minimum character length of words to consider for image replacement. Default: 3."
+        help="Minimum character length of words to consider. Default: 3."
     )
 
     parser.add_argument(
@@ -89,12 +104,14 @@ def main():
 
     if args.verbose:
         print("=== PDF Post-Processor CLI ===")
-        print(f"Input PDF:        {input_path}")
-        print(f"Output PDF:       {output_path}")
-        print(f"Replacement Prob: {args.probability}")
-        print(f"Random Seed:      {args.seed}")
-        print(f"Min Word Length:  {args.min_word_len}")
-        print(f"DPI Scale:        {args.dpi_scale}")
+        print(f"Input PDF:            {input_path}")
+        print(f"Output PDF:           {output_path}")
+        print(f"Execution Stage:      {args.stage}")
+        print(f"Stage 1 Image Prob:   {args.probability}")
+        print(f"Stage 2 ZW-Char Prob: {args.zw_prob}")
+        print(f"Random Seed:          {args.seed}")
+        print(f"Min Word Length:      {args.min_word_len}")
+        print(f"DPI Scale:            {args.dpi_scale}")
         print("==============================")
 
     try:
@@ -102,6 +119,8 @@ def main():
             input_path=input_path,
             output_path=output_path,
             probability=args.probability,
+            zw_probability=args.zw_prob,
+            stage=args.stage,
             seed=args.seed,
             min_word_len=args.min_word_len,
             dpi_scale=args.dpi_scale,
@@ -112,10 +131,11 @@ def main():
         summary = processor.process()
         
         print("\nProcessing completed successfully!")
-        print(f"Total Pages:           {summary['total_pages']}")
-        print(f"Body Words Scanned:    {summary['total_words_processed']}")
-        print(f"Words Converted:       {summary['total_words_replaced']}")
-        print(f"Output File Saved:     {summary['output_path']}")
+        print(f"Total Pages:               {summary['total_pages']}")
+        print(f"Body Words Scanned:        {summary['total_words_processed']}")
+        print(f"Stage 1 Images Replaced:   {summary['total_image_replacements']}")
+        print(f"Stage 2 ZW-Chars Injected: {summary['total_zw_injections']}")
+        print(f"Output File Saved:         {summary['output_path']}")
 
     except Exception as e:
         print(f"\nError processing PDF document: {e}", file=sys.stderr)
