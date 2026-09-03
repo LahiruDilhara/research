@@ -8,6 +8,7 @@ class TextClassifier:
     Classifies text blocks and spans in PDF documents to strictly isolate body paragraphs
     and exclude math formulas, equations, graphs, figures, tables, code blocks, titles,
     headings, TOC, references, headers, footers, and citations.
+    Allows narrative body paragraphs containing inline math variables and inline code snippets.
     """
 
     MATH_FONT_KEYWORDS = [
@@ -94,21 +95,62 @@ class TextClassifier:
             return True
         return bool(flags & 2)
 
+    @classmethod
+    def is_pure_code_block(cls, font_names: Set[str], block_text: str) -> bool:
+        """
+        Detects pure multi-line code blocks where all text spans use typewriter font.
+        Allows narrative prose paragraphs containing brief inline code snippets (e.g. Ctrl + C).
+        """
+        if not font_names:
+            return False
+        if all(cls.is_mono_font(fn) for fn in font_names):
+            return True
+        return False
+
     @staticmethod
     def is_math_or_formula_text(text: str) -> bool:
         """
-        Detects mathematical equations, formulas, math variables, and equation numbering.
+        Detects mathematical equations, formulas, math variables, and equation numbering at the word level.
         Does NOT flag normal English hyphenated words ('paper-based', 'real-time') or slashes ('and/or').
         """
         clean_text = text.strip()
+        if not clean_text:
+            return False
         
         # Standalone equation number format e.g. (1.1), (3.4)
         if re.match(r'^\s*\(\s*\d+(?:\.\d+)*\s*\)\s*$', clean_text):
             return True
 
+        # Single character variables e.g. f, X, Z, t in math context
+        if len(clean_text) == 1 and clean_text in "fXYZtP":
+            return True
+
         # Math equation/formula indicators (=, \sum, \int, \alpha, \beta, etc.)
         if re.search(r'[=×÷≠≤≥\^_\{\}\\|α-ωΑ-Ω∫∑√∂∇∝∞≈±]', clean_text):
             if re.search(r'[=≠≤≥∫∑√∂∇∝≈]', clean_text) or re.search(r'\\[a-zA-Z]+', clean_text):
+                return True
+
+        return False
+
+    @staticmethod
+    def is_standalone_equation_block(block_text: str) -> bool:
+        """
+        Detects centered standalone equation lines or equation number blocks.
+        Allows narrative prose paragraphs containing inline math variables.
+        """
+        clean_text = block_text.strip()
+        if not clean_text:
+            return False
+
+        # Standalone equation number line e.g. (1.1), (3.4)
+        if re.match(r'^\s*\(\s*\d+(?:\.\d+)*\s*\)\s*$', clean_text):
+            return True
+
+        # High density math equation line (e.g. \begin{equation} ... \end{equation})
+        math_symbols = re.findall(r'[=×÷≠≤≥\^_\{\}\\|α-ωΑ-Ω∫∑√∂∇∝∞≈±]', clean_text)
+        if len(math_symbols) > 0 and len(clean_text) > 0:
+            ratio = len(math_symbols) / len(clean_text)
+            if ratio > 0.20:
                 return True
 
         return False
@@ -190,7 +232,8 @@ class TextClassifier:
     def is_body_paragraph(self, block_text: str, font_names: Set[str], span_size: float) -> bool:
         """
         Strictly verifies that a block is a narrative body paragraph.
-        Excludes document titles, chapter titles, headings, math formulas, tables, figures, code blocks, lists, and metadata.
+        Allows narrative paragraphs containing inline math variables, citations, and inline code snippets,
+        while protecting standalone equation blocks, pure code blocks, section titles, headers, and references.
         """
         clean_text = block_text.strip()
         words = clean_text.split()
@@ -202,13 +245,10 @@ class TextClassifier:
         if self.is_title_or_heading(span_size, 0, font_names, clean_text):
             return False
 
-        if any(self.is_math_font(fn) for fn in font_names):
+        if self.is_pure_code_block(font_names, clean_text):
             return False
 
-        if self.is_math_or_formula_text(clean_text):
-            return False
-
-        if any(self.is_mono_font(fn) for fn in font_names):
+        if self.is_standalone_equation_block(clean_text):
             return False
 
         if self.is_reference_heading_or_block(clean_text):
