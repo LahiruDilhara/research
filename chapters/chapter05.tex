@@ -3,25 +3,25 @@
 
 \section{Chapter Overview}
 \label{sec:imp_chapter_overview}
-Turning theoretical computer vision models, planar homography geometry, and sequential deep learning into a working real-time virtual keyboard on standard plain paper requires a well-structured software architecture. Creating a camera-based human-computer interaction system that works with a single standard webcam, without specialized hardware (such as 3D depth sensors, Time-of-Flight cameras, laser projectors, or electronic gloves), requires clean software patterns, efficient multi-threading, accurate mathematical signal processing, and clear modular separation \cite{ReviewVirtualKeyboard2020, Maman2023TypeNet}.
+In order to implement the theoretical computer vision models, planar homography geometry, and sequential deep learning into the practical real-time virtual keyboard on ordinary paper, it is necessary to properly design the software architecture. There should be a camera-based human-computer interaction application that will work on one ordinary webcam and will not use any special hardware such as 3D depth sensors, Time-of-Flight cameras, laser projectors, or electronic gloves \cite{ReviewVirtualKeyboard2020, Maman2023TypeNet}.
 
-Designing a monocular paper virtual keyboard presents several engineering challenges. Unlike physical mechanical keyboards or touchscreen devices, plain paper provides no physical switch movement, key travel, or electrical signals when a user presses a key. Therefore, touch detection must rely entirely on vision, tracking finger movements and speed changes across consecutive webcam frames \cite{Zhang2020MediaPipe, Ji2018Local}. In addition, a single regular RGB camera cannot directly measure 3D depth, creating ambiguity when a finger hovers close above the paper \cite{Thomas2013Camera}. Solving these issues requires combining vision algorithms, scale-invariant feature extraction, deep learning models, and desktop event dispatchers running on a standard CPU without requiring a GPU.
+There are a number of engineering challenges that come up in the process of designing a monocular paper-based virtual keyboard. In contrast to a physical mechanical keyboard and touchscreen device, there is no physical switch movement, key travel, or electrical signals when a user presses a key. Thus, the touch detection process is purely based on vision and tracking the finger movements and the change of speed between consecutive webcam frames \cite{Zhang2020MediaPipe, Ji2018Local}. Moreover, there is no possibility of making any direct 3D depth measurements using an ordinary RGB camera, which results in ambiguity as to whether a finger is really pressed or just hovering above the paper \cite{Thomas2013Camera}. The solution to those challenges lies in using vision algorithms, scale-invariant feature extraction, sequential deep learning models, and desktop event dispatchers running on standard commodity CPUs without requiring a GPU.
 
-To make development and debugging manageable, the system components were built and tested across isolated partitions before assembling the complete system. The software suite consists of two main applications:
+In order to simplify the development and debugging processes, the system was developed and tested separately in each of the five partitions before integration into one whole system. The software package includes two main applications:
 \begin{enumerate}
-    \item \textbf{Application 1 (Layout Designer Suite \texttt{designer/designer\_app.py}):} An interactive PySide6 desktop GUI tool where users design custom button layouts, position keys, assign commands, and export synchronized printable PDF sheets (with embedded AprilTag markers for standard paper printing) and layout XML files.
-    \item \textbf{Application 2 (Runtime Virtual Keyboard Engine and Command Mapper):} A runtime software application containing a Setup GUI (Component A) for mapping button IDs to keystrokes or shell commands across any standard webcam feed, and a Background Live Watch Engine (Component B) that tracks AprilTag markers on plain paper to compute the $3 \times 3$ Homography matrix, tracks MediaPipe hand landmarks, scale-normalizes joint coordinates by hand length ($L_{\text{hand}}$), evaluates 12~FPS 5-frame sliding windows using a PyTorch LSTM model (\texttt{best\_finger\_touch\_lstm.pth}) on a standard CPU, and triggers the mapped system actions.
+    \item \textbf{Application 1 (Layout Designer Suite \texttt{designer/designer\_app.py}):} Interactive PySide6 desktop GUI application where users can create custom button layouts, place keys, bind commands to buttons, and output synchronized printable PDF sheets (including AprilTags for standard paper printing) and layout XML files.
+    \item \textbf{Application 2 (Runtime Virtual Keyboard Engine and Command Mapper):} Runtime software application that consists of two components: Setup GUI (Component A) that handles the mapping of button IDs to keystrokes or shell commands on any ordinary webcam feed, and Background Live Watch Engine (Component B) that detects AprilTag markers on ordinary paper, calculates the $3 \times 3$ Homography matrix, detects MediaPipe hand landmarks, scale-normalizes joint coordinates relative to hand length ($L_{\text{hand}}$), analyzes 12~FPS 5-frame sliding windows through a PyTorch LSTM model (\texttt{best\_finger\_touch\_lstm.pth}) on a standard CPU, and launches mapped system actions.
 \end{enumerate}
 
-This chapter describes the implementation details of the software system. Section~\ref{sec:imp_framework_steps} explains the algorithm designs, workflow block diagrams, pseudocode algorithms, CPU timing budgets, and technology choices. Section~\ref{sec:imp_significant_attempts} details the implementation of the five research partitions and the two main application GUIs. Section~\ref{sec:imp_challenges} discusses practical engineering challenges faced during development and their software solutions. Finally, Section~\ref{sec:imp_summary} summarizes the chapter.
+The software system details are discussed in this chapter. Algorithm designs, workflow diagrams, pseudocode algorithms, CPU timing budgets, and technologies used are discussed in Section~\ref{sec:imp_framework_steps}. Implementation of the five research partitions and two GUIs of the major applications is discussed in Section~\ref{sec:imp_significant_attempts}. Practical engineering challenges encountered in the process of development and software solutions are discussed in Section~\ref{sec:imp_challenges}. Section~\ref{sec:imp_summary} provides the summary of this chapter.
 
 \section{Algorithmic Design and Software Engineering Steps}
 \label{sec:imp_framework_steps}
-Developing the virtual keyboard software followed an organized engineering process covering layout design, video capture, hand joint extraction, scale normalization, deep learning inference, AprilTag marker tracking, and system action execution.
+Virtual keyboard application development involved a systematic engineering process with regard to layout design, capturing video frames, hand joint detection, scale normalization, inference using deep learning models, detection of AprilTags, and performing actions for the system.
 
 \subsection{Framework Engineering Workflow Breakdown}
 \label{subsec:imp_workflow_breakdown}
-The complete system is split into two synchronized application tools working together across an end-to-end dataflow pipeline, as shown in the block diagram in Figure~\ref{fig:imp_block_diagram}.
+The overall system is made up of two applications that work concurrently as shown in Figure~\ref{fig:imp_block_diagram}.
 
 \begin{figure}[htbp]
 \centering
@@ -79,25 +79,23 @@ The complete system is split into two synchronized application tools working tog
 \label{fig:imp_block_diagram}
 \end{figure}
 
-The dataflow pipeline runs through seven main processing stages:
+There are 7 stages in the dataflow pipeline:
 \begin{enumerate}
-    \item \textbf{Stage 1 (Layout Design and Export):} The user uses the PySide6 canvas in Application 1 (\texttt{designer\_app.py}) to create key buttons, snap them to an A4 grid, set button IDs, and define rectangular boundaries $[x_{\min}, y_{\min}, x_{\max}, y_{\max}]$. The exporter generates a vector PDF print sheet with corner AprilTag markers and an XML layout specification file.
-    \item \textbf{Stage 2 (Action Mapping and Profile Saving):} The user opens Application 2 Component A (Setup GUI). The software loads the XML layout file, reads the key IDs, and shows an action mapping table. The user assigns each key ID to a single key (such as `'A'`), special key (such as `'Enter'`), or shell command. The physical layout is separated from digital actions: users can save and switch different action profiles (JSON files) for the exact same printed paper sheet without reprinting.
-    \item \textbf{Stage 3 (Video Frame Ingestion):} Application 2 Component B starts running in the background. A dedicated worker thread (\texttt{camera\_thread.py}) captures webcam frames using OpenCV \texttt{VideoCapture} and puts raw frame arrays $\mathbf{I}_{\text{frame}} \in \mathbb{R}^{H \times W \times 3}$ into a thread-safe Queue buffer.
-    \item \textbf{Stage 4 (AprilTag Tracking and Homography Calculation):} The tracking thread reads frames from the queue, converts them to grayscale, detects AprilTag quads (\texttt{tag36h11} family), extracts sub-pixel corner points, builds the Direct Linear Transformation (DLT) matrix $\mathbf{A}$, and calculates the Planar Homography matrix $H \in \mathbb{R}^{3 \times 3}$ using Singular Value Decomposition (SVD).
-    \item \textbf{Stage 5 (Hand Joint Extraction and Scale Normalization):} Concurrently, MediaPipe Hand Landmarker extracts 21 2D hand joint coordinates $\mathbf{P}_i(t) = (x_i(t), y_i(t))$. Coordinates are shifted relative to wrist Landmark 0 ($\mathbf{P}_0$) and scaled by hand length $L_{\text{hand}}(t) = \|\mathbf{P}_9(t) - \mathbf{P}_0(t)\|_2$. Velocity vectors $\mathbf{V}_i(t)$ are calculated across consecutive frames ($\Delta t = \frac{1}{12}$~s). Normalized values are passed directly to the next stage to preserve sudden deceleration changes.
-    \item \textbf{Stage 6 (Sliding Window and PyTorch LSTM Inference):} The feature pipeline collects 84-dimensional feature vectors $\mathbf{f}_t$ across 5 consecutive frames into temporal matrix $\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$. The PyTorch model (\texttt{best\_finger\_touch\_lstm.pth}) evaluates $\mathbf{X}_W$ in under $2.1$~ms on a standard CPU, predicting touch probabilities $\mathbf{P}_{\text{touch}} \in [0, 1]^5$. If probability $p_k > 0.90$, finger $k$ is recognized as touching the paper.
-    \item \textbf{Stage 7 (Planar Coordinate Mapping and Action Triggering):} When a touch is confirmed, active fingertip pixel coordinates $(u_{\text{active}}, v_{\text{active}})$ are mapped through $H$ into layout coordinates $(X_{\text{target}}, Y_{\text{target}}) = H \cdot [u, v, 1]^T / w$. The system checks which button bounding box contains this coordinate and triggers the corresponding keypress or shell command.
+    \item \textbf{Stage 1 (Layout Design and Export):} The user designs necessary buttons in the PySide6 canvas in Application 1 (\texttt{designer\_app.py}), aligns them on an A4 grid, specifies button IDs, and creates rectangular bounds $[x_{\min}, y_{\min}, x_{\max}, y_{\max}]$. The exporter creates a vector PDF print sheet with corner AprilTag markers and an XML layout file.
+    \item \textbf{Stage 2 (Action Mapping and Profile Saving):} The user runs Application 2 Component A (Setup GUI). The application imports the XML layout file, recognizes button IDs, and shows an action mapping table. Each button ID is assigned to a particular key (\texttt{'A'}), special key (\texttt{'Enter'}), or shell command. Physical layout and digital actions are decoupled: users can save and change action profiles (JSON files) for the same printed paper sheet without any reprinting.
+    \item \textbf{Stage 3 (Frame Ingestion):} Application 2 Component B is started in the background. A camera worker thread (\texttt{camera\_thread.py}) captures frames using OpenCV \texttt{VideoCapture} and saves raw frame arrays $\mathbf{I}_{\text{frame}} \in \mathbb{R}^{H \times W \times 3}$ into a thread-safe Queue buffer.
+    \item \textbf{Stage 4 (AprilTag Detection and Homography Calculation):} The tracking thread receives frames from the queue, converts them to grayscale, detects AprilTag quads (\texttt{tag36h11} family), detects sub-pixel corner points, computes the Direct Linear Transformation (DLT) matrix $\mathbf{A}$, and computes the Planar Homography matrix $H \in \mathbb{R}^{3 \times 3}$ using SVD decomposition.
+    \item \textbf{Stage 5 (Joint Extraction and Scale Normalization):} In parallel, MediaPipe Hand Landmarker extracts 21 2D hand joint coordinates $\mathbf{P}_i(t) = (x_i(t), y_i(t))$. Coordinates are normalized relative to wrist Landmark 0 ($\mathbf{P}_0$) and scaled by hand length $L_{\text{hand}}(t) = \|\mathbf{P}_9(t) - \mathbf{P}_0(t)\|_2$. Velocity vectors $\mathbf{V}_i(t)$ are computed between consecutive frames ($\Delta t = \frac{1}{12}\text{ s}$). Normalized coordinates are passed directly to the next stage in order to preserve sudden contact decelerations.
+    \item \textbf{Stage 6 (Sliding Window and PyTorch LSTM Inference):} The feature pipeline gathers 84-dimensional feature vectors across 5 consecutive frames into temporal matrix $\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$. The PyTorch model (\texttt{best\_finger\_touch\_lstm.pth}) evaluates this matrix in less than $2.1\text{ ms}$ on a regular CPU, producing touch probabilities $\mathbf{P}_{\text{touch}} \in [0, 1]^5$. If probability $p_k > 0.90$, finger $k$ is considered touching the paper.
+    \item \textbf{Stage 7 (Coordinate Mapping and Action Triggering):} If a touch is detected, active fingertip pixel coordinates $(u_{\text{active}}, v_{\text{active}})$ are transformed by $H$ to layout coordinates $(X_{\text{target}}, Y_{\text{target}}) = H \cdot [u, v, 1]^T / w$. The system identifies which button bounding box contains this coordinate and performs the corresponding keypress or shell command.
 \end{enumerate}
 
 \subsection{Mathematical Algorithm Formulations and Formal Pseudocode}
 \label{subsec:imp_pseudocode_algorithms}
-To clearly describe the core software operations, mathematical formulations and formal pseudocode algorithms are presented for the main processing engines.
+Formal mathematical description and pseudocode algorithms of the main functions implemented in the software are presented below.
 
 \subsubsection{Algorithm 1: AprilTag Corner Localization and SVD Planar Homography Engine}
-The homography engine detects four AprilTag marker corners and computes the $3 \times 3$ Planar Homography matrix $H$ that maps camera pixel coordinates $(u, v)$ to layout XML coordinates $(x, y)$.
-
-Given $N \ge 4$ point correspondences $(u_i, v_i) \leftrightarrow (x_i, y_i)$, the Direct Linear Transformation (DLT) forms the linear equation $\mathbf{A}_{2N \times 9} \mathbf{h} = \mathbf{0}$, where:
+The homography engine finds four corner points of the AprilTag marker and calculates the Planar Homography $3 \times 3$ matrix $H$ which projects camera $(u, v)$ coordinates to layout XML coordinates $(x, y)$. Applying the Direct Linear Transformation (DLT) method with at least $N \ge 4$ corresponding points, one can create the linear equation $\mathbf{A}_{2N \times 9} \mathbf{h} = \mathbf{0}$, where:
 \begin{equation}
 \mathbf{A}_i = \begin{bmatrix}
 -u_i & -v_i & -1 & 0 & 0 & 0 & u_i x_i & v_i x_i & x_i \\
@@ -106,7 +104,7 @@ Given $N \ge 4$ point correspondences $(u_i, v_i) \leftrightarrow (x_i, y_i)$, t
 \label{eq:dlt_matrix_app}
 \end{equation}
 
-Solving $\mathbf{A} = \mathbf{U} \mathbf{\Sigma} \mathbf{V}^T$ using Singular Value Decomposition (SVD), the column vector $\mathbf{h}$ corresponding to the smallest singular value in $\mathbf{V}$ forms the homography matrix $H \in \mathbb{R}^{3 \times 3}$.
+By solving $\mathbf{A} = \mathbf{U} \mathbf{\Sigma} \mathbf{V}^T$ with Singular Value Decomposition (SVD), the column vector $\mathbf{h}$ corresponding to the smallest singular value in $\mathbf{V}$ forms the homography matrix $H \in \mathbb{R}^{3 \times 3}$.
 
 Algorithm~\ref{alg:homography_svd} presents the formal pseudocode for AprilTag corner localization and SVD homography calculation.
 
@@ -143,28 +141,26 @@ Algorithm~\ref{alg:homography_svd} presents the formal pseudocode for AprilTag c
 \end{figure}
 
 \subsubsection{Algorithm 2: Unitless Hand Landmark Scale Normalization Engine}
-The pose engine extracts 21 anatomical 2D hand joint coordinates $\mathbf{P}_i(t) = (x_i(t), y_i(t))$ per frame and applies scale normalization.
-
-Wrist Landmark 0 is used as origin $\mathbf{P}_0(t)$. Hand length $L_{\text{hand}}(t)$ is measured between wrist Landmark 0 and middle MCP Landmark 9:
+Pose estimation extracts 2D coordinates of 21 landmarks on a hand in each frame and normalizes the joints. The origin landmark is wrist Landmark 0 ($\mathbf{P}_0$). Hand length $L_{\text{hand}}(t)$ is determined as the distance between wrist Landmark 0 and middle MCP Landmark 9:
 \begin{equation}
 L_{\text{hand}}(t) = \sqrt{(x_9(t) - x_0(t))^2 + (y_9(t) - y_0(t))^2}
 \label{eq:hand_length_app}
 \end{equation}
 
-Unitless scale-normalized coordinates $\mathbf{P}_i^{\text{norm}}(t)$ are calculated as follows:
+Scale-free normalized coordinates $\mathbf{P}_i^{\text{norm}}(t)$ are determined as the ratio of relative distance to $L_{\text{hand}}(t)$:
 \begin{equation}
 \mathbf{P}_i^{\text{norm}}(t) = \left( \frac{x_i(t) - x_0(t)}{L_{\text{hand}}(t)}, \frac{y_i(t) - y_0(t)}{L_{\text{hand}}(t)} \right)
 \label{eq:norm_coords_app}
 \end{equation}
 
-Spatial velocity vectors $\mathbf{V}_i(t) = (v_{x,i}(t), v_{y,i}(t))$ between consecutive frames are derived at $\Delta t = \frac{1}{12}$~s:
+Velocity vectors $\mathbf{V}_i(t) = (v_{x,i}(t), v_{y,i}(t))$ are computed for consecutive frames with $\Delta t = \frac{1}{12}\text{ s}$:
 \begin{equation}
 v_{x,i}(t) = \frac{x_i^{\text{norm}}(t) - x_i^{\text{norm}}(t-1)}{\Delta t}, \quad
 v_{y,i}(t) = \frac{y_i^{\text{norm}}(t) - y_i^{\text{norm}}(t-1)}{\Delta t}
 \label{eq:velocity_app}
 \end{equation}
 
-These scale-normalized coordinates and velocities are passed directly to feature windowing to preserve deceleration signals when a finger hits the paper.
+Normalized coordinates and velocity vectors are used in the feature windowing algorithm as input data for detection of deceleration signals on touching the paper.
 
 Algorithm~\ref{alg:scale_normalization} details the formal pseudocode for hand landmark scale normalization and velocity calculation.
 
@@ -179,19 +175,19 @@ Algorithm~\ref{alg:scale_normalization} details the formal pseudocode for hand l
 \hline
 {\small\sffamily \textbf{Input:} Raw MediaPipe 21 landmark 2D coordinates $\{\mathbf{P}_i(t) = (x_i, y_i)\}_{i=0}^{20}$, Previous frame keypoints $\{\mathbf{P}_i(t-1)\}_{i=0}^{20}$, Frame time step $\Delta t = \frac{1}{12}\text{ s}$} \\
 {\small\sffamily \textbf{Output:} 84-Dimensional per-frame feature vector $\mathbf{f}_t \in \mathbb{R}^{84}$} \\
-{\small 1: Extract wrist origin coordinates $\mathbf{P}_0(t) = (x_0(t), y_0(t))$.} \\
-{\small 2: Extract middle MCP landmark coordinates $\mathbf{P}_9(t) = (x_9(t), y_9(t))$.} \\
-{\small 3: Compute unitless hand length scale factor: $L_{\text{hand}}(t) = \sqrt{(x_9(t) - x_0(t))^2 + (y_9(t) - y_0(t))^2}$.} \\
+{\small 1: Obtain wrist origin coordinates $\mathbf{P}_0(t) = (x_0(t), y_0(t))$.} \\
+{\small 2: Obtain middle MCP landmark coordinates $\mathbf{P}_9(t) = (x_9(t), y_9(t))$.} \\
+{\small 3: Compute scale factor of the hand length: $L_{\text{hand}}(t) = \sqrt{(x_9(t) - x_0(t))^2 + (y_9(t) - y_0(t))^2}$.} \\
 {\small 4: \textbf{if} $L_{\text{hand}}(t) < \epsilon$ ($< 10$ pixels) \textbf{then}} \\
 {\small 5: \hspace{1em} \textbf{return} Status: \texttt{INVALID\_HAND\_SCALE\_ERROR}} \\
 {\small 6: \textbf{end if}} \\
 {\small 7: Initialize empty feature vector array $\mathbf{f}_t \in \mathbb{R}^{84}$.} \\
 {\small 8: \textbf{for} each landmark $i \in \{0, 1, \dots, 20\}$ \textbf{do}} \\
-{\small 9: \hspace{1em} Calculate normalized position: $x_i^{\text{norm}}(t) = \frac{x_i(t) - x_0(t)}{L_{\text{hand}}(t)}$, \hspace{1em} $y_i^{\text{norm}}(t) = \frac{y_i(t) - y_0(t)}{L_{\text{hand}}(t)}$.} \\
-{\small 10: \hspace{1em} Calculate numerical velocity: $v_{x,i}(t) = \frac{x_i^{\text{norm}}(t) - x_i^{\text{norm}}(t-1)}{\Delta t}$, \hspace{1em} $v_{y,i}(t) = \frac{y_i^{\text{norm}}(t) - y_i^{\text{norm}}(t-1)}{\Delta t}$.} \\
+{\small 9: \hspace{1em} Compute normalized coordinates: $x_i^{\text{norm}}(t) = \frac{x_i(t) - x_0(t)}{L_{\text{hand}}(t)}$, \hspace{1em} $y_i^{\text{norm}}(t) = \frac{y_i(t) - y_0(t)}{L_{\text{hand}}(t)}$.} \\
+{\small 10: \hspace{1em} Compute numerical velocity: $v_{x,i}(t) = \frac{x_i^{\text{norm}}(t) - x_i^{\text{norm}}(t-1)}{\Delta t}$, \hspace{1em} $v_{y,i}(t) = \frac{y_i^{\text{norm}}(t) - y_i^{\text{norm}}(t-1)}{\Delta t}$.} \\
 {\small 11: \hspace{1em} Store $(x_i^{\text{norm}}, y_i^{\text{norm}}, v_{x,i}, v_{y,i})$ into feature vector $\mathbf{f}_t$ at indices $[4i : 4i+4]$.} \\
 {\small 12: \textbf{end for}} \\
-{\small 13: Direct raw feature propagation (preserve contact deceleration transients).} \\
+{\small 13: Raw feature propagation for contact deceleration signals.} \\
 {\small 14: \textbf{return} $\mathbf{f}_t \in \mathbb{R}^{84}$} \\
 \hline
 \end{tabular}
@@ -201,15 +197,13 @@ Algorithm~\ref{alg:scale_normalization} details the formal pseudocode for hand l
 \end{figure}
 
 \subsubsection{Algorithm 3: 5-Frame Sliding Window Assembly and PyTorch LSTM Touch Inference}
-The temporal inference engine stacks 84-dimensional feature vectors $\mathbf{f}_t$ across 5 consecutive frames into input matrix $\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$.
-
-The PyTorch uni-directional LSTM evaluates input matrix $\mathbf{X}_W$:
+The temporal inference engine stacks five consecutive frames of 84-dimensional feature vectors into input matrix $\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$. The input matrix $\mathbf{X}_W$ is processed with the help of PyTorch uni-directional LSTM:
 \begin{equation}
 \mathbf{h}_t, \mathbf{c}_t = \text{LSTM}(\mathbf{X}_W, \mathbf{h}_{t-1}, \mathbf{c}_{t-1})
 \label{eq:lstm_forward_app}
 \end{equation}
 
-A fully connected dense layer with sigmoid activation predicts the binary touch probability vector $\mathbf{P}_{\text{touch}} = [p_{\text{thumb}}, p_{\text{index}}, p_{\text{middle}}, p_{\text{ring}}, p_{\text{pinky}}] \in [0, 1]^5$. If probability $p_k > 0.90$, digit $k$ is classified as touching the paper.
+The binary touch probability vector $\mathbf{P}_{\text{touch}} = [p_{\text{thumb}}, p_{\text{index}}, p_{\text{middle}}, p_{\text{ring}}, p_{\text{pinky}}] \in [0, 1]^5$ is computed using a dense layer with sigmoid activation. If the probability of any digit $p_k > 0.90$, then it is recognized as touching the paper.
 
 Algorithm~\ref{alg:lstm_touch_inference} details the formal pseudocode for 5-frame sliding window assembly and PyTorch LSTM touch inference.
 
@@ -224,14 +218,14 @@ Algorithm~\ref{alg:lstm_touch_inference} details the formal pseudocode for 5-fra
 \hline
 {\small\sffamily \textbf{Input:} Per-frame feature vector $\mathbf{f}_t \in \mathbb{R}^{84}$, Sliding window Queue buffer $\mathbf{Q}_{\text{win}}$, PyTorch model instance \texttt{best\allowbreak\_finger\allowbreak\_touch\allowbreak\_lstm.pth}, Detection threshold $\tau_{\text{touch}} = 0.90$} \\
 {\small\sffamily \textbf{Output:} Active finger touch status array $\mathbf{S}_{\text{touch}} \in \{0, 1\}^5$, Active fingertip landmark index $k_{\text{active}}$} \\
-{\small 1: Append current feature vector $\mathbf{f}_t$ to sliding queue $\mathbf{Q}_{\text{win}}$.} \\
+{\small 1: Append current feature vector $\mathbf{f}_t$ to sliding window queue $\mathbf{Q}_{\text{win}}$.} \\
 {\small 2: \textbf{if} Length of $\mathbf{Q}_{\text{win}} < 5$ frames \textbf{then}} \\
 {\small 3: \hspace{1em} \textbf{return} $\mathbf{S}_{\text{touch}} = [0,0,0,0,0]$, Status: \texttt{WINDOW\_BUFFERING}} \\
 {\small 4: \textbf{end if}} \\
-{\small 5: Construct sliding window input matrix $\mathbf{X}_W = [\mathbf{f}_{t-4}, \mathbf{f}_{t-3}, \mathbf{f}_{t-2}, \mathbf{f}_{t-1}, \mathbf{f}_t]^T \in \mathbb{R}^{5 \times 84}$.} \\
-{\small 6: Advance sliding queue by stride of 3 frames (retaining 2-frame overlap).} \\
+{\small 5: Form sliding window input matrix $\mathbf{X}_W = [\mathbf{f}_{t-4}, \mathbf{f}_{t-3}, \mathbf{f}_{t-2}, \mathbf{f}_{t-1}, \mathbf{f}_t]^T \in \mathbb{R}^{5 \times 84}$.} \\
+{\small 6: Advance sliding window queue by 3 frames (retaining 2-frame overlap).} \\
 {\small 7: Convert $\mathbf{X}_W$ to PyTorch Tensor: $\mathbf{T}_{\text{input}} = \text{torch.tensor}(\mathbf{X}_W, \text{dtype}=\text{float32}).\text{unsqueeze}(0)$.} \\
-{\small 8: Execute PyTorch model forward pass in evaluation mode (\texttt{with torch.no\_grad():}):} \\
+{\small 8: Run forward pass with PyTorch model in evaluation mode (\texttt{with torch.no\_grad():}):} \\
 {\small 9: \hspace{1em} $\mathbf{y}_{\text{logits}} = \text{Model}(\mathbf{T}_{\text{input}})$.} \\
 {\small 10: \hspace{1em} $\mathbf{P}_{\text{touch}} = \text{sigmoid}(\mathbf{y}_{\text{logits}}) \in [0, 1]^5$.} \\
 {\small 11: Initialize binary status vector $\mathbf{S}_{\text{touch}} = [0, 0, 0, 0, 0]$.} \\
@@ -250,14 +244,14 @@ Algorithm~\ref{alg:lstm_touch_inference} details the formal pseudocode for 5-fra
 \end{figure}
 
 \subsubsection{Algorithm 4: Planar Coordinate Mapping and Action Execution Engine}
-When Algorithm~\ref{alg:lstm_touch_inference} detects a touch event, Algorithm~\ref{alg:coordinate_mapping} maps the active fingertip pixel coordinates $(u_{\text{active}}, v_{\text{active}})$ through Homography matrix $H$ into layout XML coordinates:
+If Algorithm~\ref{alg:lstm_touch_inference} detects a touch, Algorithm~\ref{alg:coordinate_mapping} transforms the active fingertip pixel coordinates $(u_{\text{active}}, v_{\text{active}})$ into the XML layout coordinates using the Homography Matrix $H$:
 \begin{equation}
 \begin{bmatrix} x_{\text{xml}} \\ y_{\text{xml}} \\ w \end{bmatrix} = H \cdot \begin{bmatrix} u_{\text{active}} \\ v_{\text{active}} \\ 1 \end{bmatrix}, \quad
 X_{\text{target}} = \frac{x_{\text{xml}}}{w}, \quad Y_{\text{target}} = \frac{y_{\text{xml}}}{w}
 \label{eq:homog_mapping_app}
 \end{equation}
 
-The system searches the XML key bounding boxes. If $(X_{\text{target}}, Y_{\text{target}}) \in [x_{\min}^j, x_{\max}^j] \times [y_{\min}^j, y_{\max}^j]$, key $j$ is pressed, executing the assigned keypress or shell command.
+The XML key bounding boxes are analyzed, and if the transformed coordinates $(X_{\text{target}}, Y_{\text{target}}) \in [x_{\min}^j, x_{\max}^j] \times [y_{\min}^j, y_{\max}^j]$, the system triggers keypress or shell command execution.
 
 Algorithm~\ref{alg:coordinate_mapping} shows the formal pseudocode for planar coordinate mapping and action execution.
 
@@ -283,7 +277,7 @@ Algorithm~\ref{alg:coordinate_mapping} shows the formal pseudocode for planar co
 {\small 9: \hspace{2em} Set $j_{\text{hit}} = j$.} \\
 {\small 10: \hspace{2em} Extract action binding: $A_j = \mathbf{M}_{\text{action}}[j]$.} \\
 {\small 11: \hspace{2em} \textbf{if} $A_j$ is \texttt{KeystrokeAction} \textbf{then}} \\
-{\small 12: \hspace{2em} \hspace{1em} Inject system virtual key press event via OS API (e.g., `'A'`).} \\
+{\small 12: \hspace{2em} \hspace{1em} Inject virtual key press event via OS API (e.g., \texttt{'A'}).} \\
 {\small 13: \hspace{2em} \textbf{else if} $A_j$ is \texttt{SystemCommandAction} \textbf{then}} \\
 {\small 14: \hspace{2em} \hspace{1em} Execute background shell command script: \texttt{subprocess.Popen(A\_j.command)}.} \\
 {\small 15: \hspace{2em} \textbf{end if}} \\
@@ -299,9 +293,9 @@ Algorithm~\ref{alg:coordinate_mapping} shows the formal pseudocode for planar co
 \end{figure}
 
 \subsubsection{Algorithm 5: PySide6 Interactive Canvas Viewport Drag-and-Drop Math}
-Application 1 (\texttt{designer\_app.py}) provides interactive mouse drag-and-drop key placement on a 2D canvas.
+Application 1 (\texttt{designer\_app.py}) provides interactive mouse drag-and-drop key placement on a 2D plane.
 
-Algorithm~\ref{alg:canvas_drag_drop} details formal pseudocode for mouse viewport coordinate mapping and snap-to-grid calculations.
+Algorithm~\ref{alg:canvas_drag_drop} details the formal pseudocode for mouse viewport coordinate mapping and snap-to-grid calculations.
 
 \begin{figure}[htbp]
 \centering
@@ -314,16 +308,16 @@ Algorithm~\ref{alg:canvas_drag_drop} details formal pseudocode for mouse viewpor
 \hline
 {\small\sffamily \textbf{Input:} Viewport mouse click coordinate $\mathbf{p}_{\text{mouse}} = (u_{\text{m}}, v_{\text{m}})$, Viewport transformation matrix $\mathbf{T}_{\text{view}} \in \mathbb{R}^{3 \times 3}$, Grid snap spacing $\Delta g = 5.0\text{ mm}$, Button size $(W_{\text{key}}, H_{\text{key}})$} \\
 {\small\sffamily \textbf{Output:} Snapped Key Bounding Box $B_{\text{new}} = (x_{\min}, y_{\min}, x_{\max}, y_{\max})$} \\
-{\small 1: Map viewport pixel coordinate to scene millimeter space: $[x_{\text{scene}}, y_{\text{scene}}, 1]^T = \mathbf{T}_{\text{view}}^{-1} \cdot [u_{\text{m}}, v_{\text{m}}, 1]^T$.} \\
-{\small 2: Compute grid-snapped origin coordinates:} \\
+{\small 1: Convert mouse viewport coordinate to corresponding scene coordinate in millimeters: $[x_{\text{scene}}, y_{\text{scene}}, 1]^T = \mathbf{T}_{\text{view}}^{-1} \cdot [u_{\text{m}}, v_{\text{m}}, 1]^T$.} \\
+{\small 2: Calculate grid-snapped origin coordinates depending on grid size:} \\
 {\small 3: \hspace{1em} $x_{\text{snap}} = \text{round}(x_{\text{scene}} / \Delta g) \times \Delta g$.} \\
 {\small 4: \hspace{1em} $y_{\text{snap}} = \text{round}(y_{\text{scene}} / \Delta g) \times \Delta g$.} \\
-{\small 5: Define bounding box: $x_{\min} = x_{\text{snap}}$, $y_{\min} = y_{\text{snap}}$, $x_{\max} = x_{\text{snap}} + W_{\text{key}}$, $y_{\max} = y_{\text{snap}} + H_{\text{key}}$.} \\
-{\small 6: Check bounding box collision against existing keys: $\text{Overlap} = \text{CheckIntersections}(B_{\text{new}}, \{B_{\text{existing}}\})$.} \\
+{\small 5: Construct bounding box of key: $x_{\min} = x_{\text{snap}}$, $y_{\min} = y_{\text{snap}}$, $x_{\max} = x_{\text{snap}} + W_{\text{key}}$, $y_{\max} = y_{\text{snap}} + H_{\text{key}}$.} \\
+{\small 6: Check for collision between bounding box and other keys: $\text{Overlap} = \text{CheckIntersections}(B_{\text{new}}, \{B_{\text{existing}}\})$.} \\
 {\small 7: \textbf{if} Overlap is True \textbf{then}} \\
-{\small 8: \hspace{1em} Shift origin $x_{\text{snap}} = x_{\text{snap}} + \Delta g$ and recompute $B_{\text{new}}$.} \\
+{\small 8: \hspace{1em} Shift origin coordinate $x_{\text{snap}} = x_{\text{snap}} + \Delta g$ and recompute $B_{\text{new}}$.} \\
 {\small 9: \textbf{end if}} \\
-{\small 10: Instantiate \texttt{KeyButtonGraphic} graphics item on \texttt{QGraphicsScene}.} \\
+{\small 10: Create graphics item in \texttt{QGraphicsScene} (\texttt{KeyButtonGraphic}).} \\
 {\small 11: \textbf{return} $B_{\text{new}}$} \\
 \hline
 \end{tabular}
@@ -333,9 +327,9 @@ Algorithm~\ref{alg:canvas_drag_drop} details formal pseudocode for mouse viewpor
 \end{figure}
 
 \subsubsection{Algorithm 6: Multi-Threaded Consumer-Producer Queue Synchronization}
-Application 2 (\texttt{camera\_thread.py}) uses multi-threaded queues to separate camera capture from model inference.
+Application 2 (\texttt{camera\_thread.py}) uses multi-threaded queues for separation of frame capture from model inference operations.
 
-Algorithm~\ref{alg:queue_synchronization} details formal pseudocode for consumer-producer thread synchronization.
+Algorithm~\ref{alg:queue_synchronization} details the formal pseudocode for consumer-producer thread synchronization.
 
 \begin{figure}[htbp]
 \centering
@@ -350,14 +344,14 @@ Algorithm~\ref{alg:queue_synchronization} details formal pseudocode for consumer
 {\small\sffamily \textbf{Output:} Thread-safe Frame Stream Buffer} \\
 {\small 1: \textbf{Worker Thread Function} \texttt{CameraCaptureLoop()}:} \\
 {\small 2: \textbf{while} Runtime flag \texttt{is\_running} is True \textbf{do}} \\
-{\small 3: \hspace{1em} Read raw video frame: $\text{ret}, \mathbf{I}_{\text{raw}} = \text{cap.read}()$.} \\
+{\small 3: \hspace{1em} Read raw video frame with \texttt{cap.read()}: $\text{ret}, \mathbf{I}_{\text{raw}} = \text{cap.read}()$.} \\
 {\small 4: \hspace{1em} \textbf{if} $\text{ret}$ is False \textbf{then} Continue.} \\
 {\small 5: \hspace{1em} Acquire Mutex Lock $\mathbf{L}_{\text{mutex}}$.} \\
 {\small 6: \hspace{1em} \textbf{if} Queue $\mathbf{Q}_{\text{frame}}$ is Full \textbf{then}} \\
-{\small 7: \hspace{2em} Discard oldest frame (Drop frame to prevent buffer bloat and lag).} \\
+{\small 7: \hspace{2em} Delete oldest frame to prevent buffer lag and frame bloat.} \\
 {\small 8: \hspace{2em} $\mathbf{Q}_{\text{frame}}.\text{get\_nowait}()$.} \\
 {\small 9: \hspace{1em} \textbf{end if}} \\
-{\small 10: \hspace{1em} Push new frame $\mathbf{I}_{\text{raw}}$ to $\mathbf{Q}_{\text{frame}}$.} \\
+{\small 10: \hspace{1em} Add new frame $\mathbf{I}_{\text{raw}}$ to $\mathbf{Q}_{\text{frame}}$.} \\
 {\small 11: \hspace{1em} Release Mutex Lock $\mathbf{L}_{\text{mutex}}$.} \\
 {\small 12: \textbf{end while}} \\
 \hline
@@ -368,9 +362,9 @@ Algorithm~\ref{alg:queue_synchronization} details formal pseudocode for consumer
 \end{figure}
 
 \subsubsection{Algorithm 7: Video Frame Downsampling and Quality Filtering Engine}
-The dataset pipeline (\texttt{mediapipeDetector/datacreator/resample\_12fps.py}) down-samples raw video recordings to a standard 12~FPS rate.
+The pipeline for the dataset down-samples the input video stream at 12~FPS (\texttt{mediapipeDetector/datacreator/resample\_12fps.py}).
 
-Algorithm~\ref{alg:resample_12fps} presents formal pseudocode for frame sub-sampling and blur filtering.
+Algorithm~\ref{alg:resample_12fps} presents the formal pseudocode for frame sub-sampling and Laplacian blur filtering.
 
 \begin{figure}[htbp]
 \centering
@@ -383,21 +377,21 @@ Algorithm~\ref{alg:resample_12fps} presents formal pseudocode for frame sub-samp
 \hline
 {\small\sffamily \textbf{Input:} Raw video file path $S_{\text{video}}$, Source Frame Rate $R_{\text{src}}$ (30/60 FPS), Target Frame Rate $R_{\text{target}} = 12\text{ FPS}$} \\
 {\small\sffamily \textbf{Output:} Downsampled video frame sequence matrix $\mathbf{V}_{\text{down}}$} \\
-{\small 1: Open video stream \texttt{cap = cv2.VideoCapture(S\_video)}.} \\
-{\small 2: Calculate frame step sampling ratio: $k_{\text{step}} = \text{round}(R_{\text{src}} / R_{\text{target}})$.} \\
+{\small 1: Read video stream using \texttt{cap = cv2.VideoCapture(S\_video)}.} \\
+{\small 2: Calculate sampling step frequency: $k_{\text{step}} = \text{round}(R_{\text{src}} / R_{\text{target}})$.} \\
 {\small 3: Initialize frame index $n = 0$, sampled buffer array $\mathbf{V}_{\text{down}} = []$.} \\
 {\small 4: \textbf{while} \texttt{cap.isOpened()} \textbf{do}} \\
-{\small 5: \hspace{1em} Read frame $\text{ret}, \mathbf{I}_n = \text{cap.read}()$.} \\
+{\small 5: \hspace{1em} Read frame: $\text{ret}, \mathbf{I}_n = \text{cap.read}()$.} \\
 {\small 6: \hspace{1em} \textbf{if} $\text{ret}$ is False \textbf{then} Break loop.} \\
 {\small 7: \hspace{1em} \textbf{if} $n \pmod{k_{\text{step}}} == 0$ \textbf{then}} \\
-{\small 8: \hspace{2em} Compute Laplacian blur metric: $b = \text{cv2.Laplacian}(\mathbf{I}_n, \text{cv2.CV\_64F}).\text{var}()$.} \\
+{\small 8: \hspace{2em} Calculate blur value based on Laplacian function: $b = \text{cv2.Laplacian}(\mathbf{I}_n, \text{cv2.CV\_64F}).\text{var}()$.} \\
 {\small 9: \hspace{2em} \textbf{if} Blur score $b \ge \theta_{\text{blur}}$ ($100.0$) \textbf{then}} \\
-{\small 10: \hspace{2em} \hspace{1em} Append frame $\mathbf{I}_n$ to sequence array $\mathbf{V}_{\text{down}}$.} \\
+{\small 10: \hspace{2em} \hspace{1em} Add current frame $\mathbf{I}_n$ to sequence list $\mathbf{V}_{\text{down}}$.} \\
 {\small 11: \hspace{2em} \textbf{end if}} \\
 {\small 12: \hspace{1em} \textbf{end if}} \\
 {\small 13: \hspace{1em} Increment frame index $n = n + 1$.} \\
 {\small 14: \textbf{end while}} \\
-{\small 15: \textbf{return} Frame sequence matrix $\mathbf{V}_{\text{down}}$} \\
+{\small 15: \textbf{return} Downsampled frame sequence matrix $\mathbf{V}_{\text{down}}$} \\
 \hline
 \end{tabular}
 \end{minipage}
@@ -406,9 +400,9 @@ Algorithm~\ref{alg:resample_12fps} presents formal pseudocode for frame sub-samp
 \end{figure}
 
 \subsubsection{Algorithm 8: Intrinsic Camera Matrix Calibration Engine}
-Camera calibration (\texttt{aprilTag/main.py}) calculates the intrinsic camera parameters $K$ and radial distortion vector $\mathbf{D}$.
+Camera calibration calculates the intrinsic camera parameters $K$ and radial distortion vector $\mathbf{D}$ (\texttt{aprilTag/main.py}).
 
-Algorithm~\ref{alg:camera_calibration} presents formal pseudocode for checkerboard corner extraction and pinhole camera calibration.
+Algorithm~\ref{alg:camera_calibration} presents the formal pseudocode for checkerboard corner extraction and pinhole camera calibration.
 
 \begin{figure}[htbp]
 \centering
@@ -421,13 +415,13 @@ Algorithm~\ref{alg:camera_calibration} presents formal pseudocode for checkerboa
 \hline
 {\small\sffamily \textbf{Input:} Calibration checkerboard images $\{\mathbf{I}_m\}_{m=1}^K$, Grid dimensions $(W_{\text{board}}, H_{\text{board}})$, Square size $s_{\text{square}} = 25.0\text{ mm}$} \\
 {\small\sffamily \textbf{Output:} Intrinsic matrix $K \in \mathbb{R}^{3 \times 3}$, Lens distortion vector $\mathbf{D} \in \mathbb{R}^5$} \\
-{\small 1: Define 3D object grid points $\mathbf{P}_{\text{obj}} = \{(i \cdot s, j \cdot s, 0)\}_{i=0, j=0}^{W_{\text{board}}-1, H_{\text{board}}-1}$.} \\
+{\small 1: Specify 3D object grid points on checkerboard: $\mathbf{P}_{\text{obj}} = \{(i \cdot s, j \cdot s, 0)\}_{i=0, j=0}^{W_{\text{board}}-1, H_{\text{board}}-1}$.} \\
 {\small 2: Initialize empty object point list $\mathcal{O}_{\text{pts}}$ and image point list $\mathcal{I}_{\text{pts}}$.} \\
 {\small 3: \textbf{for} each calibration image $\mathbf{I}_m$ \textbf{do}} \\
-{\small 4: \hspace{1em} Convert $\mathbf{I}_m$ to grayscale $\mathbf{I}_{\text{gray}}$.} \\
-{\small 5: \hspace{1em} Find checkerboard corners: $\text{found}, \mathbf{C}_{\text{raw}} = \text{cv2.findChessboardCorners}(\mathbf{I}_{\text{gray}}, (W_{\text{board}}, H_{\text{board}}))$.} \\
+{\small 4: \hspace{1em} Transform to grayscale image $\mathbf{I}_{\text{gray}}$.} \\
+{\small 5: \hspace{1em} Detect checkerboard corners: $\text{found}, \mathbf{C}_{\text{raw}} = \text{cv2.findChessboardCorners}(\mathbf{I}_{\text{gray}}, (W_{\text{board}}, H_{\text{board}}))$.} \\
 {\small 6: \hspace{1em} \textbf{if} $\text{found}$ is True \textbf{then}} \\
-{\small 7: \hspace{2em} Refine corners: $\mathbf{C}_{\text{sub}} = \text{cv2.cornerSubPix}(\mathbf{I}_{\text{gray}}, \mathbf{C}_{\text{raw}}, \text{winSize}=(11,11))$.} \\
+{\small 7: \hspace{2em} Refine corners to sub-pixel accuracy: $\mathbf{C}_{\text{sub}} = \text{cv2.cornerSubPix}(\mathbf{I}_{\text{gray}}, \mathbf{C}_{\text{raw}}, \text{winSize}=(11,11))$.} \\
 {\small 8: \hspace{2em} Append $\mathbf{P}_{\text{obj}}$ to $\mathcal{O}_{\text{pts}}$ and $\mathbf{C}_{\text{sub}}$ to $\mathcal{I}_{\text{pts}}$.} \\
 {\small 9: \hspace{1em} \textbf{end if}} \\
 {\small 10: \textbf{end for}} \\
@@ -442,48 +436,48 @@ Algorithm~\ref{alg:camera_calibration} presents formal pseudocode for checkerboa
 
 \subsubsection{Computational Latency Budget and Timing Formulation for 12~FPS CPU-Only Execution}
 \label{subsubsec:imp_cpu_latency_budget}
-A key goal of this research is ensuring that the whole pipeline runs in real time on standard consumer CPUs without requiring a GPU, while supporting regular low-cost webcams across different resolutions.
+An important objective of this research is to achieve real-time processing on standard consumer-grade CPUs without using a GPU, while supporting low-cost webcams across different resolutions.
 
-To evaluate this real-time requirement, the target sub-sampling rate is set to $f_{\text{target}} = 12$~FPS. The total time budget per frame $T_{\text{budget}}$ is:
+In order to verify real-time performance, the target sub-sampling rate is set to $f_{\text{target}} = 12\text{ FPS}$. Thus, the time budget per frame $T_{\text{budget}}$ is:
 \begin{equation}
 T_{\text{budget}} = \frac{1}{f_{\text{target}}} = \frac{1}{12\text{ s}} \approx 83.33\text{ ms}
 \label{eq:frame_budget}
 \end{equation}
 
-For continuous execution without queue backlogs, the total processing latency per frame $T_{\text{pipeline}}$ must stay below this budget:
+For continuous processing without queue backlogs, the total latency per frame $T_{\text{pipeline}}$ must stay below this budget:
 \begin{equation}
 T_{\text{pipeline}} = T_{\text{capture}} + T_{\text{apriltag}} + T_{\text{mediapipe}} + T_{\text{norm}} + T_{\text{lstm}} + T_{\text{dispatch}} < T_{\text{budget}}
 \label{eq:latency_inequality}
 \end{equation}
 where:
 \begin{itemize}
-    \item $T_{\text{capture}}$ is the time to capture and retrieve a frame from the queue ($T_{\text{capture}} \approx 1.20$~ms).
-    \item $T_{\text{apriltag}}$ is the time for grayscale conversion, corner extraction, and SVD homography calculation ($T_{\text{apriltag}} \approx 8.42$~ms).
-    \item $T_{\text{mediapipe}}$ is the 21-joint hand pose tracking latency ($T_{\text{mediapipe}} \approx 17.65$~ms).
-    \item $T_{\text{norm}}$ is the unitless hand scale normalization and velocity calculation time ($T_{\text{norm}} \approx 0.05$~ms).
-    \item $T_{\text{lstm}}$ is the PyTorch LSTM model forward pass time on CPU ($T_{\text{lstm}} \approx 2.08$~ms).
-    \item $T_{\text{dispatch}}$ is the planar coordinate mapping $P_{\text{XML}} = H \cdot P_{\text{pixel}}$ and key lookup time ($T_{\text{dispatch}} \approx 0.12$~ms).
+    \item $T_{\text{capture}}$ is the time of capturing and retrieving the frame from the queue ($T_{\text{capture}} \approx 1.20\text{ ms}$).
+    \item $T_{\text{apriltag}}$ is the time of grayscale conversion, corner extraction, and SVD Homography ($T_{\text{apriltag}} \approx 8.42\text{ ms}$).
+    \item $T_{\text{mediapipe}}$ is the latency for 21-joint hand tracking ($T_{\text{mediapipe}} \approx 17.65\text{ ms}$).
+    \item $T_{\text{norm}}$ is the time of unitless hand scale normalization and velocity calculation ($T_{\text{norm}} \approx 0.05\text{ ms}$).
+    \item $T_{\text{lstm}}$ is the time for PyTorch LSTM forward pass on CPU ($T_{\text{lstm}} \approx 2.08\text{ ms}$).
+    \item $T_{\text{dispatch}}$ is the time for calculation of planar coordinates and key lookup ($T_{\text{dispatch}} \approx 0.12\text{ ms}$).
 \end{itemize}
 
-Adding these measured latency values gives the total CPU execution time per frame:
+After summing up all of the latency values, the total CPU processing latency per frame is:
 \begin{equation}
 T_{\text{pipeline}} \approx 1.20 + 8.42 + 17.65 + 0.05 + 2.08 + 0.12 = 29.52\text{ ms}
 \label{eq:total_pipeline_latency}
 \end{equation}
 
-The remaining safety timing margin $M_{\text{safety}}$ is:
+Thus, there is an additional timing safety margin $M_{\text{safety}}$:
 \begin{equation}
 M_{\text{safety}} = T_{\text{budget}} - T_{\text{pipeline}} = 83.33\text{ ms} - 29.52\text{ ms} = 53.81\text{ ms} \quad (> 64\% \text{ safety margin})
 \label{eq:safety_margin}
 \end{equation}
 
-Since $T_{\text{pipeline}} \approx 29.52\text{ ms} \ll 83.33\text{ ms}$, the system uses only around $35.4\%$ of the available frame time on a standard quad-core CPU. This margin of $53.81$~ms ensures smooth, real-time performance even with operating system background tasks, different camera resolutions, and entry-level CPUs, without requiring GPU hardware.
+Since the total pipeline latency $T_{\text{pipeline}} \approx 29.52\text{ ms} \ll 83.33\text{ ms}$, it consumes only around $35.4\%$ of the available time budget on a standard quad-core CPU. This timing safety margin of $53.81\text{ ms}$ ensures smooth real-time execution even with background operating system tasks, various camera resolutions, and entry-level processors, without requiring dedicated GPU hardware.
 
 \subsection{Technology Selection Justification and Comparative Reflection}
 \label{subsec:imp_tech_justification}
-Selecting suitable programming tools, vision libraries, deep learning frameworks, and GUI kits is essential for maintaining real-time performance on standard CPUs.
+Choosing the appropriate programming languages, vision libraries, deep learning frameworks, and GUI toolkits is essential for maintaining real-time performance on commodity CPUs.
 
-Table~\ref{tab:tech_selection_matrix} presents a comparison of the selected technologies and evaluated alternatives.
+Table~\ref{tab:tech_selection_matrix} presents a summary of the selected technologies and evaluated alternatives.
 
 \begin{table}[htbp]
 \centering
@@ -519,42 +513,42 @@ Table~\ref{tab:tech_selection_matrix} presents a comparison of the selected tech
 \end{table}
 
 \subsubsection{Programming Language Selection (Python 3.10 vs C++17 vs Java)}
-Python 3.10 was chosen as the main language because of its rich ecosystem for computer vision, machine learning, and math computing. Although native C++ is fast, Python bindings for C++ backends (\texttt{OpenCV-Python}, \texttt{PyTorch}, \texttt{MediaPipe}) run the computationally heavy tasks inside compiled binaries, giving both fast execution and quick development.
+Python 3.10 was chosen as the main programming language due to the presence of many libraries for computer vision, machine learning, and math computations. Although the performance of native C++ is high, Python wrappers for compiled C++ backends (\texttt{OpenCV-Python}, \texttt{PyTorch}, \texttt{MediaPipe}) perform heavy calculations in precompiled binaries, making it fast and flexible for development.
 
 \subsubsection{Deep Learning Frameworks (PyTorch 2.1 vs TensorFlow 2.x vs ONNX)}
-PyTorch 2.1 was chosen over TensorFlow and ONNX Runtime because its dynamic graph structure makes creating 5-frame sliding window tensors straightforward. PyTorch's efficient CPU inference engine allows the trained LSTM model file (\texttt{best\_finger\_touch\_lstm.pth}) to evaluate input windows in under $2.1$~ms on standard CPUs.
+PyTorch 2.1 was selected as the deep learning framework compared to TensorFlow and ONNX Runtime due to its dynamic graph and the ability to build 5-frame sliding window tensors quickly. The CPU inference engine of PyTorch performs fast execution of the trained LSTM model (\texttt{best\_finger\_touch\_lstm.pth}) on normal CPUs in less than $2.1\text{ ms}$.
 
 \subsubsection{Pose Landmarker Engine (MediaPipe Hands vs OpenPose vs HRNet)}
-MediaPipe Hand Landmarker was selected because its lightweight palm detector and joint regressor run keypoint tracking in under $8$~ms on standard CPUs \cite{Zhang2020MediaPipe}. In contrast, larger pose models like OpenPose and HRNet need dedicated GPUs, running at over $100$~ms on CPUs.
+MediaPipe Hand Pose estimator was selected due to the ability of the Palm Detector and Joint Regressor modules to track 21 keypoints quickly ($8\text{ ms}$) on normal CPUs \cite{Zhang2020MediaPipe}. The larger models (OpenPose, HRNet) require special GPU hardware and process data for more than $100\text{ ms}$ on CPUs.
 
 \subsubsection{Visual Fiducial System (AprilTag tag36h11 vs ArUco vs QR Codes)}
-AprilTag markers (\texttt{tag36h11} family) were selected over OpenCV ArUco and QR codes because of their higher sub-pixel corner accuracy ($0.038$~px) and stable detection under camera angles up to $75^\circ$. The \texttt{tag36h11} codebook ensures a minimum Hamming distance $d_H \ge 11$, preventing false marker detections under different room lights.
+AprilTag markers (\texttt{tag36h11} family) were selected as visual fiducials compared to OpenCV ArUco and QR codes due to their sub-pixel corner accuracy ($0.038\text{ px}$) and reliable detection under camera tilt angles up to $75^\circ$. The codebook of \texttt{tag36h11} guarantees a minimal Hamming distance $d_H \ge 11$, preventing false marker detections under varying room illumination settings.
 
 \subsubsection{Desktop GUI Framework (PySide6 / Qt6 vs Tkinter vs Electron.js)}
-PySide6 (Qt for Python 6) was selected for the Layout Designer (\texttt{designer/designer\_app.py}) and the Setup GUI. Qt6's \texttt{QGraphicsScene} framework supports smooth 2D canvas drawing, allowing key buttons to be placed and moved with sub-pixel precision. Qt's vector printing engine (\texttt{QPrinter}) also generates high-quality PDF print sheets with embedded AprilTag markers.
+PySide6 (Qt for Python 6) was selected for the Layout Designer (\texttt{designer/designer\_app.py}) and the Setup GUI. The \texttt{QGraphicsScene} framework of the Qt6 toolkit provides the ability to draw the 2D canvas, enabling the placement and moving of key buttons with sub-pixel accuracy. The vector printing engine of Qt (\texttt{QPrinter}) also allows creating high-quality PDF print sheets with embedded AprilTag markers.
 
 \section{Significantly Important System Implementation Attempts}
 \label{sec:imp_significant_attempts}
-This section describes the software implementations across the five research partitions and the two main application GUIs.
+In this section, we describe the software implementation across the five research partitions and the two main application GUIs.
 
 \subsection{Application 1 Layout Designer Suite Implementation}
-Application 1 (\texttt{designer/designer\_app.py}) provides an interactive desktop GUI built with PySide6 for creating customizable paper keyboard layouts. The application allows users to draw key buttons on an A4 page grid ($210 \times 297$~mm), adjust key settings, place AprilTag markers automatically along margins, and export synchronized vector PDF print sheets and XML layout specification files.
+Application 1 (\texttt{designer/designer\_app.py}) provides an interactive desktop GUI for custom keyboard layout creation based on PySide6. This application allows designing custom keyboards by drawing keys on an A4 sheet of paper ($210 \times 297$~mm) with configurable properties, placing four AprilTag markers along the outer margins of the sheet, and exporting synchronized vector PDF print files and XML layout specification files.
 
 \subsubsection{PySide6 Graphics View Canvas Workspace}
-The layout designer canvas uses PySide6's \texttt{QGraphicsView} and \texttt{QGraphicsScene} classes. The scene uses millimeter dimensions ($1.0\text{ unit} = 1.0\text{ mm}$), providing a vector workspace. Users interact with the canvas using mouse drag-and-drop actions:
+The keyboard layout designer canvas uses the \texttt{QGraphicsView} and \texttt{QGraphicsScene} classes from PySide6. The scene uses millimeter dimensions ($1.0\text{ unit} = 1.0\text{ mm}$), creating a vector workspace. Within this workspace, users interact via mouse drag-and-drop actions:
 \begin{itemize}
-    \item \textbf{Key Placement and Snap-to-Grid Math:} When a user places a new key on the canvas, the mouse coordinates $(u_{\text{mouse}}, v_{\text{mouse}})$ are converted from screen pixels to millimeter coordinates using the inverse view matrix $\mathbf{T}_{\text{view}}^{-1}$. The button position is snapped to a $5.0$~mm grid:
+    \item \textbf{Key Placement and Snap-to-Grid Math:} When the user places a key button on the canvas, the mouse coordinates $(u_{\text{mouse}}, v_{\text{mouse}})$ are converted from screen pixels to millimeters by inverting the view matrix $\mathbf{T}_{\text{view}}^{-1}$. The positions of buttons are snapped using a $5.0$~mm grid:
     \begin{equation}
     x_{\text{snap}} = \text{round}\left(\frac{x_{\text{scene}}}{\Delta g}\right) \times \Delta g, \quad
     y_{\text{snap}} = \text{round}\left(\frac{y_{\text{scene}}}{\Delta g}\right) \times \Delta g
     \label{eq:grid_snap_math}
     \end{equation}
-    where $\Delta g = 5.0$~mm. This snap-to-grid calculation aligns key rows and columns neatly across regular typing layouts, DAW pads, or custom keypads.
-    \item \textbf{Custom Graphics Items (\texttt{KeyButtonGraphic}):} Key buttons are implemented as custom \texttt{QGraphicsRectItem} objects. Each key stores bounding box coordinates $[x_{\min}, y_{\min}, x_{\max}, y_{\max}]$, a unique key string ID (such as `'KEY\_A'` or `'KEY\_SPACE'`), a display label, font size, color, and border style. Users can drag handles to resize buttons dynamically.
+    where $\Delta g = 5.0$~mm. The snap-to-grid calculation aligns key rows and columns neatly across regular typing layouts, DAW pads, or custom keypads.
+    \item \textbf{Custom Graphics Items (\texttt{KeyButtonGraphic}):} Key buttons are implemented using custom \texttt{QGraphicsRectItem} objects. Properties of keys include bounding box coordinates $[x_{\min}, y_{\min}, x_{\max}, y_{\max}]$, a unique key string identifier (such as \texttt{'KEY\_A'} or \texttt{'KEY\_SPACE'}), display label, font size, color, and border style. Users can resize buttons dynamically using resize handles.
 \end{itemize}
 
 \subsubsection{Automated AprilTag Border Anchoring Engine}
-To ensure reliable marker tracking when hands are typing, Application 1 automatically places four AprilTag visual markers (\texttt{tag36h11} family, Tag IDs 0, 1, 2, 3) at the four outer corners of the layout sheet:
+To ensure reliable marker detection while hands are typing, Application 1 automatically places four AprilTag visual markers (\texttt{tag36h11} family, Tag IDs 0, 1, 2, 3) at the four outer corners of the keyboard layout sheet:
 \begin{align}
 \text{Tag 0 (Top-Left):} \quad & (x_0, y_0) = (15.0\text{ mm}, 15.0\text{ mm}) \label{eq:tag0_pos} \\
 \text{Tag 1 (Top-Right):} \quad & (x_1, y_1) = (195.0\text{ mm}, 15.0\text{ mm}) \label{eq:tag1_pos} \\
@@ -562,64 +556,63 @@ To ensure reliable marker tracking when hands are typing, Application 1 automati
 \text{Tag 3 (Bottom-Left):} \quad & (x_3, y_3) = (15.0\text{ mm}, 282.0\text{ mm}) \label{eq:tag3_pos}
 \end{align}
 
-Placing markers along the outer borders ensures that hands typing in the middle area do not cover all four tags at the same time.
+Placing markers along the outer borders ensures that hands typing in the active central area do not occlude all four fiducial tags simultaneously.
 
 \subsubsection{Dual Exporter Engine (Printable PDF and XML Specification)}
-When the layout design is finished, Application 1 generates two synchronized files:
+When the layout design is completed, Application 1 generates two synchronized output files:
 \begin{enumerate}
-    \item \textbf{Printable Vector PDF Sheet:} Built using Qt's \texttt{QPrinter} and \texttt{QPainter} engines, the software creates a 300 DPI PDF document of the A4 layout. The PDF includes key borders, text labels, and vector AprilTag markers. Users print this sheet on regular white paper using any desktop printer.
-    \item \textbf{Structural Layout XML Specification:} The exporter saves the layout geometry to an XML file defining page dimensions, AprilTag anchor locations, and key bounding boxes. This XML file is then loaded into Application 2 Runtime Engine.
+    \item \textbf{Printable Vector PDF Sheet:} Generated using Qt's \texttt{QPrinter} and \texttt{QPainter} engines, the software creates a 300 DPI vector PDF document of the A4 layout. The PDF includes key boundaries, text labels, and vector AprilTag markers. Users print this sheet on regular plain white paper using standard desktop printers.
+    \item \textbf{Structural Layout XML Specification:} The exporter saves the layout geometry to an XML file defining page dimensions, AprilTag anchor locations, and key bounding boxes. This XML file is then loaded directly into Application 2 Runtime Engine.
 \end{enumerate}
 
 \subsection{Partition 1 Homography Simulation Suite}
-Located in \texttt{designer/analyzer/}, the scripts \texttt{main.py}, \texttt{analyzer\_app.py}, and \texttt{homography\_engine.py} provide a simulated touch testing suite.
+The scripts \texttt{main.py}, \texttt{analyzer\_app.py}, and \texttt{homography\_engine.py} located in \texttt{designer/analyzer/} provide a simulated touch testing suite.
 
-The simulation generates synthetic finger touch coordinates under different camera tilt angles ($0^\circ$ to $75^\circ$). By applying the SVD homography matrix ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), the analyzer verifies that mapped coordinates fall accurately into the target XML key bounding boxes, checking mathematical correctness before testing with physical cameras.
-
+The simulation generates synthetic finger touch coordinates under various camera tilt angles from $0^\circ$ to $75^\circ$. By applying the SVD homography matrix ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), the analyzer verifies that transformed coordinates fall accurately into the target XML key bounding boxes, confirming mathematical correctness before physical camera testing.
 
 \subsubsection{XML Serialization Schema Specification}
-The exported layout XML file serves as the data format shared between Application 1 (Layout Designer) and Application 2 (Runtime Engine). The XML file uses a clear structure defining layout size, AprilTag anchor points, and individual key button boxes:
+The generated XML layout file acts as the shared data format between Application 1 (Layout Designer) and Application 2 (Runtime Engine). The XML structure defines layout dimensions, AprilTag anchor points, and individual key button boxes:
 \begin{enumerate}
-    \item \textbf{Root Element (\texttt{<keyboard\_layout>}):} Contains global attributes specifying the layout width ($210\text{ mm}$), height ($297\text{ mm}$), measurement units (\texttt{mm}), target paper format (\texttt{A4}), and total key count.
-    \item \textbf{Fiducial Anchors Section (\texttt{<apriltag\_anchors>}):} Contains four \texttt{<anchor>} tags for Tag IDs 0, 1, 2, and 3. Each anchor specifies its Tag ID, family (\texttt{tag36h11}), physical square size ($20.0\text{ mm}$), and 2D center coordinates $(x_{\text{center}}, y_{\text{center}})$ on the page.
-    \item \textbf{Key Button Definitions (\texttt{<key\_buttons>}):} Contains \texttt{<key>} elements for each button. Each key element specifies a unique key ID string (such as \texttt{"KEY\_A"}), a display label, and bounding box coordinates $[x_{\min}, y_{\min}, x_{\max}, y_{\max}]$ in millimeters.
+    \item \textbf{Root Element (\texttt{<keyboard\_layout>}):} Contains global attributes defining layout width ($210\text{ mm}$), height ($297\text{ mm}$), measurement units (\texttt{mm}), target paper format (\texttt{A4}), and total key count.
+    \item \textbf{Fiducial Anchors Section (\texttt{<apriltag\_anchors>}):} Contains four \texttt{<anchor>} tags for Tag IDs 0, 1, 2, and 3. Each anchor specifies its Tag ID, family name (\texttt{tag36h11}), physical square size ($20.0\text{ mm}$), and 2D center position $(x_{\text{center}}, y_{\text{center}})$ on the page.
+    \item \textbf{Key Button Definitions (\texttt{<key\_buttons>}):} Contains \texttt{<key>} elements for each button. Each key element specifies a unique key string ID (such as \texttt{"KEY\_A"}), display label, and bounding box coordinates $[x_{\min}, y_{\min}, x_{\max}, y_{\max}]$ in millimeters.
 \end{enumerate}
 
 \subsection{Partition 2 Data Pipeline, Landmark Extraction and Scale Normalization}
-Partition 2 (\texttt{mediapipeDetector/datacreator/}) provides the dataset creation and signal processing scripts for video processing, hand joint extraction, scale normalization, velocity calculation, sliding window generation, and quality filtering.
+Partition 2 (\texttt{mediapipeDetector/datacreator/}) provides signal processing and dataset creation scripts for video resampling, hand joint extraction, scale normalization, velocity computation, sliding window generation, and quality filtering.
 
 \subsubsection{Video Resampling to Uniform 12 FPS (\texttt{resample\_12fps.py})}
-Hand gesture video recordings were originally recorded at different frame rates (30~FPS or 60~FPS) depending on the webcam used. To establish a consistent time step, \texttt{resample\_12fps.py} processes raw videos and sub-samples them to 12~FPS:
+Raw hand gesture recordings were originally captured at varying frame rates (30~FPS or 60~FPS) depending on the webcam device. To establish a uniform time step, \texttt{resample\_12fps.py} resamples raw video streams to 12~FPS:
 \begin{equation}
 k_{\text{step}} = \text{round}\left(\frac{R_{\text{src}}}{12.0}\right)
 \label{eq:resample_step}
 \end{equation}
 
-For example, in a 60~FPS video, every 5th frame is kept ($k_{\text{step}} = 5$), giving an exact inter-frame time step $\Delta t = \frac{1}{12}\text{ s} \approx 83.33\text{ ms}$. Standardizing the frame rate ensures that finger velocities calculated across frames represent consistent physical movement.
+For example, in a 60~FPS video, every 5th frame is retained ($k_{\text{step}} = 5$), providing a constant inter-frame time step $\Delta t = \frac{1}{12}\text{ s} \approx 83.33\text{ ms}$. This standardized frame rate ensures that calculated finger velocities accurately reflect physical movement dynamics.
 
 \subsubsection{MediaPipe Pose Keypoint Extraction and Scale Normalization (\texttt{normalize\_landmarks.py})}
 For each 12~FPS video frame $\mathbf{I}_t$, MediaPipe Hand Landmarker extracts 21 anatomical 2D hand joints $\mathbf{P}_i(t) = (x_i(t), y_i(t))$ in normalized image coordinates $[0, 1] \times [0, 1]$.
 
-To make features invariant to different hand sizes and camera distances $Z$, \texttt{normalize\_landmarks.py} performs unitless scale normalization:
+To achieve scale invariance across varying hand sizes and camera distances $Z$, \texttt{normalize\_landmarks.py} applies unitless scale normalization:
 \begin{enumerate}
-    \item \textbf{Wrist Origin Translation:} Wrist Landmark 0 ($\mathbf{P}_0$) is set as the local coordinate origin. All joint positions are calculated relative to the wrist:
+    \item \textbf{Wrist Origin Translation:} Wrist Landmark 0 ($\mathbf{P}_0$) is assigned as the local coordinate origin, and all joint coordinates are referenced relative to the wrist:
     \begin{equation}
     \Delta x_i(t) = x_i(t) - x_0(t), \quad \Delta y_i(t) = y_i(t) - y_0(t)
     \label{eq:wrist_translation}
     \end{equation}
-    \item \textbf{Unitless Hand Length Scaling ($L_{\text{hand}}$):} Hand length $L_{\text{hand}}(t)$ is calculated as the Euclidean distance between wrist Landmark 0 ($\mathbf{P}_0$) and middle MCP Landmark 9 ($\mathbf{P}_9$):
+    \item \textbf{Unitless Hand Length Scaling ($L_{\text{hand}}$):} Hand length $L_{\text{hand}}(t)$ is computed as the Euclidean distance between wrist Landmark 0 ($\mathbf{P}_0$) and middle MCP Landmark 9 ($\mathbf{P}_9$):
     \begin{equation}
     L_{\text{hand}}(t) = \sqrt{(x_9(t) - x_0(t))^2 + (y_9(t) - y_0(t))^2}
     \label{eq:hand_length_derivation}
     \end{equation}
-    Normalized scale-invariant joint coordinates $\mathbf{P}_i^{\text{norm}}(t)$ are then computed:
+    Normalized scale-invariant joint coordinates $\mathbf{P}_i^{\text{norm}}(t)$ are then derived:
     \begin{equation}
     x_i^{\text{norm}}(t) = \frac{\Delta x_i(t)}{L_{\text{hand}}(t)}, \quad y_i^{\text{norm}}(t) = \frac{\Delta y_i(t)}{L_{\text{hand}}(t)}
     \label{eq:scale_norm_coords}
     \end{equation}
 \end{enumerate}
 
-\textbf{Direct Feature Propagation:} Raw scale-normalized keypoints are passed directly to velocity calculation and windowing without temporal low-pass filtering. This preserves sharp deceleration signals during paper contact.
+\textbf{Direct Feature Propagation:} Raw scale-normalized keypoints are forwarded directly to velocity calculation and temporal windowing without temporal low-pass filtering. This preserves sharp deceleration signals during paper contact.
 
 \subsubsection{First-Order Spatial Velocity Derivation (\texttt{calculate\_velocities.py})}
 Velocity vectors $\mathbf{V}_i(t) = (v_{x,i}(t), v_{y,i}(t))$ for all 21 keypoints are derived across consecutive 12~FPS frames ($\Delta t = \frac{1}{12}$~s):
@@ -644,28 +637,28 @@ The script \texttt{create\_windows.py} groups consecutive per-frame feature vect
 \label{eq:sliding_window_matrix}
 \end{equation}
 
-Windowing captures the short temporal pattern of finger movement and deceleration when striking a key.
+Temporal windowing captures the short motion pattern and deceleration signatures when striking a key.
 
 \subsubsection{Data Quality Filtering (\texttt{filter\_window\_quality.py})}
-The script \texttt{filter\_window\_quality.py} checks all generated window matrices and removes invalid samples (such as tracking loss, out-of-frame hands, or small hand lengths $L_{\text{hand}} < 10$~px). This step ensures that training datasets contain clean, reliable data.
+The script \texttt{filter\_window\_quality.py} validates all generated window matrices and removes invalid samples (such as tracking loss, out-of-frame hands, or small hand lengths $L_{\text{hand}} < 10$~px), ensuring that training datasets contain clean, reliable data.
 
 \subsection{Partition 3 Deep Learning Multi-Model Benchmark Engine}
-Partition 3 evaluated 22 pure 2D deep learning model and feature representation combinations using the master benchmark script \texttt{mediapipeDetector/deepLearningModels/run\_all.py}.
+Partition 3 evaluated 22 pure 2D deep learning model and feature representation configurations using the benchmark engine \texttt{mediapipeDetector/deepLearningModels/run\_all.py}.
 
 \subsubsection{Evaluated Model Architectures and Feature Representations}
-The benchmark engine tested five neural network families:
+The benchmark suite evaluated five neural network architecture families:
 \begin{enumerate}
-    \item \textbf{Uni-directional LSTM Networks:} Multi-layer Long Short-Term Memory networks tracking sequential dependencies over time.
-    \item \textbf{Bidirectional LSTM Networks (BiLSTM):} Recurrent networks processing sequences in both forward and backward directions.
-    \item \textbf{1D Convolutional Neural Networks (1D CNN):} Convolutional layers extracting local temporal feature patterns across sliding windows.
-    \item \textbf{1D Residual Networks (1D ResNet):} Deep 1D convolutional residual networks with skip connections preventing vanishing gradients.
-    \item \textbf{Self-Attention and Transformer Networks (Attention):} Multi-head self-attention mechanisms modeling pairwise temporal relationships across window frames.
+    \item \textbf{Uni-directional LSTM Networks:} Multi-layer Long Short-Term Memory networks capturing sequential dependencies over time.
+    \item \textbf{Bidirectional LSTM Networks (BiLSTM):} Recurrent networks processing data sequences in both forward and backward directions.
+    \item \textbf{1D Convolutional Neural Networks (1D CNN):} Convolutional architectures extracting localized temporal feature patterns across sliding windows.
+    \item \textbf{1D Residual Networks (1D ResNet):} Deep 1D convolutional residual networks using skip connections to prevent vanishing gradients.
+    \item \textbf{Self-Attention and Transformer Networks (Attention):} Multi-head self-attention mechanisms modeling pairwise temporal dependencies across window frames.
 \end{enumerate}
 
-Each architecture was evaluated across multiple feature input representations: raw pixel coordinates, wrist-centered coordinates, scale-normalized positions ($\mathbf{P}^{\text{norm}} \in \mathbb{R}^{42}$), numerical velocities ($\mathbf{V} \in \mathbb{R}^{42}$), and concatenated scale-normalized position plus velocity vectors ($\mathbf{f}_t = [\mathbf{P}^{\text{norm}}, \mathbf{V}] \in \mathbb{R}^{84}$). Across 5 temporal frames, this constructs the complete $(5 \times 84)$ window input tensor $\mathbf{X}_W$, providing both spatial joint geometry and dynamic impact deceleration signatures.
+Each architecture was evaluated across multiple input feature representations: raw pixel coordinates, wrist-centered coordinates, scale-normalized positions ($\mathbf{P}^{\text{norm}} \in \mathbb{R}^{42}$), numerical velocities ($\mathbf{V} \in \mathbb{R}^{42}$), and concatenated scale-normalized position plus velocity vectors ($\mathbf{f}_t = [\mathbf{P}^{\text{norm}}, \mathbf{V}] \in \mathbb{R}^{84}$). Across 5 temporal frames, this forms the complete $(5 \times 84)$ window input tensor $\mathbf{X}_W$, combining spatial joint geometry with dynamic impact deceleration signatures.
 
 \subsubsection{Training Methodology and Loss Optimization}
-Models were trained using 5-fold cross-validation with the following settings:
+Models were trained using 5-fold cross-validation with the following configurations:
 \begin{itemize}
     \item \textbf{Loss Function:} Binary Cross-Entropy with Logits loss ($\mathcal{L}_{\text{BCE}}$):
     \begin{equation}
@@ -677,86 +670,86 @@ Models were trained using 5-fold cross-validation with the following settings:
 \end{itemize}
 
 \subsubsection{Optimal Model Selection (\texttt{best\_finger\_touch\_lstm.pth})}
-Benchmarking showed that a multi-layer PyTorch uni-directional LSTM trained on 5-frame scale-normalized position and velocity features gave the highest overall performance (F1-score $0.963$, Precision $0.958$, Recall $0.968$) while remaining fast on CPU ($< 2.1$~ms inference time per window). The trained weights were saved as \texttt{best\_finger\_touch\_lstm.pth}.
+Benchmark experiments showed that the multi-layer PyTorch uni-directional LSTM model trained on 5-frame scale-normalized position and velocity features delivered the highest performance (F1-score $0.963$, Precision $0.958$, Recall $0.968$) while maintaining low CPU inference latency ($< 2.1$~ms per window). The trained weights were saved as \texttt{best\_finger\_touch\_lstm.pth}.
 
 \subsubsection{PyTorch LSTM Layer Architecture and Parameter Specification}
 The selected model architecture (\texttt{best\_finger\_touch\_lstm.pth}) is implemented as a PyTorch uni-directional LSTM network:
 \begin{itemize}
-    \item \textbf{Input Layer:} Receives 5-frame sliding window tensors $\mathbf{X}_W \in \mathbb{R}^{B \times 5 \times 84}$, where $B$ is the mini-batch size and $84$ is the per-frame feature dimension.
-    \item \textbf{Recurrent LSTM Layers:} Two stacked uni-directional LSTM layers with hidden dimension $H_{\text{dim}} = 128$. Dropout ($p = 0.30$) is used between layers. The hidden state tensor shape is $\mathbf{h}_t \in \mathbb{R}^{B \times 5 \times 128}$.
-    \item \textbf{Fully Connected Output Dense Layer:} Linear layer mapping the final hidden state $\mathbf{h}_5 \in \mathbb{R}^{B \times 128}$ to a 5-dimensional output vector $\mathbf{y}_{\text{logits}} \in \mathbb{R}^{B \times 5}$. Sigmoid activation predicts independent touch probabilities for all five fingers: $\mathbf{P}_{\text{touch}} = [p_{\text{thumb}}, p_{\text{index}}, p_{\text{middle}}, p_{\text{ring}}, p_{\text{pinky}}] \in [0, 1]^5$.
+    \item \textbf{Input Layer:} Processes the 5-frame sliding window tensor $\mathbf{X}_W \in \mathbb{R}^{B \times 5 \times 84}$, where $B$ is the mini-batch size and $84$ is the per-frame feature dimension.
+    \item \textbf{Recurrent LSTM Layers:} Two stacked uni-directional LSTM layers with hidden dimension $H_{\text{dim}} = 128$. Dropout ($p = 0.30$) is used between layers. The hidden state tensor dimensions are $\mathbf{h}_t \in \mathbb{R}^{B \times 5 \times 128}$.
+    \item \textbf{Fully Connected Output Dense Layer:} Linear layer mapping the final hidden state $\mathbf{h}_5 \in \mathbb{R}^{B \times 128}$ to a 5-dimensional output vector $\mathbf{y}_{\text{logits}} \in \mathbb{R}^{B \times 5}$. Sigmoid activation computes independent touch probabilities across all five fingers: $\mathbf{P}_{\text{touch}} = [p_{\text{thumb}}, p_{\text{index}}, p_{\text{middle}}, p_{\text{ring}}, p_{\text{pinky}}] \in [0, 1]^5$.
 \end{itemize}
 
-The model has $109,829$ trainable parameters and an ultra-small file size of $0.44\text{ MB}$. This small size allows the model to remain in CPU cache during real-time typing, keeping inference latency under $2.1$~ms.
+The network contains $109,829$ trainable parameters and has a compact file size of $0.44\text{ MB}$. This small memory footprint allows the model to remain in CPU cache during real-time typing, keeping inference latency under $2.1$~ms.
 
 \subsection{Partition 4 Real-Time Execution and Multi-Threaded Engine}
-Partition 4 (\texttt{mediapipeDetector/realtimeprocess/}) provides the real-time execution engine tested with scripts \texttt{camera\_thread.py}, \texttt{model\_manager.py}, and \texttt{main\_realtime\_ui.py}.
+Partition 4 (\texttt{mediapipeDetector/realtimeprocess/}) provides the real-time processing engine evaluated through \texttt{camera\_thread.py}, \texttt{model\_manager.py}, and \texttt{main\_realtime\_ui.py}.
 
 \subsubsection{Multi-Threaded Video Acquisition (\texttt{camera\_thread.py})}
-To prevent inference calculations from slowing down camera capture, \texttt{camera\_thread.py} runs OpenCV video capture in a dedicated PySide6 worker thread (\texttt{QThread}). Incoming frames $\mathbf{I}_{\text{raw}} \in \mathbb{R}^{H \times W \times 3}$ are placed into a thread-safe Queue buffer ($\mathbf{Q}_{\text{frame}}$, max size = 2). When the queue is full, older frames are dropped automatically to prevent latency lag.
+To prevent inference computations from slowing down camera capture, \texttt{camera\_thread.py} runs OpenCV video capture in a dedicated PySide6 worker thread (\texttt{QThread}). Captured frames are placed into a thread-safe Queue buffer ($\mathbf{Q}_{\text{frame}}$, max capacity = 2). When the buffer is full, older frames are dropped automatically to prevent latency lag.
 
 \subsubsection{Model Memory Manager (\texttt{model\_manager.py})}
-The script \texttt{model\_manager.py} handles PyTorch tensor conversions and window buffering. At startup, it loads the model weights (\texttt{best\_finger\_touch\_lstm.pth}) into memory once, avoiding disk access during typing. It maintains a 5-frame feature queue $\mathbf{Q}_{\text{win}}$, builds window matrices $\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$, and runs PyTorch inference in under $2.1$~ms.
+The script \texttt{model\_manager.py} handles PyTorch tensor transformations and window buffering. At startup, the model weights (\texttt{best\_finger\_touch\_lstm.pth}) are loaded into memory once to prevent disk read overhead during typing. It maintains a 5-frame feature queue $\mathbf{Q}_{\text{win}}$, builds window matrices $\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$, and performs PyTorch inference in under $2.1$~ms.
 
 \subsubsection{Real-Time Evaluation UI (\texttt{main\_realtime\_ui.py})}
-The script \texttt{main\_realtime\_ui.py} provides a desktop interface showing live camera video, MediaPipe hand landmark skeletons, confidence values, touch status indicators, and latency timers. Testing showed an average end-to-end latency of $29.09$~ms ($\approx 34.4$~FPS) on a standard CPU.
+The script \texttt{main\_realtime\_ui.py} provides a desktop UI displaying live camera video, MediaPipe hand landmark skeletons, confidence scores, touch status indicators, and latency timers. CPU latency tests demonstrated an average end-to-end processing time of $29.09$~ms ($\approx 34.4$~FPS).
 
 \subsubsection{Thread Concurrency and Mutex Synchronization Metrics}
-The multi-threaded system in Application 2 (\texttt{camera\_thread.py}) isolates camera capture from vision processing using mutex locks (\texttt{QMutex}) and condition variables (\texttt{QWaitCondition}):
+The multi-threaded architecture in Application 2 (\texttt{camera\_thread.py}) isolates camera capture from vision processing using mutex locks (\texttt{QMutex}) and condition variables (\texttt{QWaitCondition}):
 \begin{itemize}
-    \item \textbf{Producer Thread Latency:} Captures webcam frames via OpenCV \texttt{VideoCapture} at a steady $30.0$~FPS ($33.33$~ms per frame), placing them in Queue $\mathbf{Q}_{\text{frame}}$. Lock acquisition takes less than $0.05$~ms.
-    \item \textbf{Consumer Worker Latency:} Dequeues frames, tracks AprilTag markers, extracts MediaPipe hand joints, runs 5-frame PyTorch LSTM inference, and performs homography coordinate mapping. Total consumer processing averages $29.09$~ms per frame.
-    \item \textbf{Zero Buffer Lag Guarantee:} Because consumer processing ($29.09$~ms) is faster than the camera frame interval ($33.33$~ms), the queue length stays at 0 or 1, avoiding buffer buildup and input lag.
+    \item \textbf{Producer Thread Latency:} Captures webcam frames via OpenCV \texttt{VideoCapture} at a steady $30.0$~FPS ($33.33$~ms per frame), placing them in Queue $\mathbf{Q}_{\text{frame}}$. Mutex locking latency is lower than $0.05$~ms per request.
+    \item \textbf{Consumer Worker Latency:} Dequeues frames, tracks AprilTag markers, extracts MediaPipe hand joints, runs 5-frame PyTorch LSTM inference, and performs homography coordinate transformation. Total consumer processing averages $29.09$~ms per frame.
+    \item \textbf{Zero Buffer Lag Guarantee:} Because consumer worker latency ($29.09$~ms) is faster than the camera frame interval ($33.33$~ms), the queue length remains at 0 or 1, preventing buffer buildup and eliminating input latency.
 \end{itemize}
 
 \subsection{Partition 5 AprilTag Fiducial Tracking Engine}
 Partition 5 (\texttt{aprilTag/}) implements visual fiducial marker tracking and homography calculation across scripts \texttt{main.py}, \texttt{estimater.py}, and \texttt{homography.py}.
 
 \subsubsection{Camera Calibration and Lens Distortion Correction (\texttt{main.py})}
-The script \texttt{main.py} performs camera matrix calibration using checkerboard images, finding the $3 \times 3$ intrinsic matrix $K$ and lens distortion coefficients $\mathbf{D} = [k_1, k_2, p_1, p_2, k_3]$. Video frames are undistorted before computing the homography matrix.
+The script \texttt{main.py} performs camera matrix calibration using checkerboard images to determine the $3 \times 3$ intrinsic matrix $K$ and lens distortion coefficients $\mathbf{D} = [k_1, k_2, p_1, p_2, k_3]$. Video frames are undistorted prior to computing the homography matrix.
 
 \subsubsection{Sub-Pixel AprilTag Quad Localizer (\texttt{estimater.py})}
-The script \texttt{estimater.py} detects AprilTag markers (\texttt{tag36h11} family) in grayscale frames. It extracts sub-pixel corner coordinates $\{(u_k, v_k)\}_{k=1}^4$ for each tag, working reliably under camera tilt angles up to $75^\circ$.
+The script \texttt{estimater.py} detects AprilTag markers (\texttt{tag36h11} family) in grayscale frames. It extracts sub-pixel corner coordinates $\{(u_k, v_k)\}_{k=1}^4$ for each detected marker, functioning reliably under camera tilt angles up to $75^\circ$.
 
 \subsubsection{Real-Time SVD Homography Solver (\texttt{homography.py})}
-The script \texttt{homography.py} builds the Direct Linear Transformation (DLT) coefficient matrix $\mathbf{A}_{2N \times 9}$ from point correspondences between detected corner pixels and XML anchor coordinates. It calculates the homography matrix $H \in \mathbb{R}^{3 \times 3}$ using Singular Value Decomposition ($\mathbf{A} = \mathbf{U}\mathbf{\Sigma}\mathbf{V}^T$), keeping the matrix updated in memory.
+The script \texttt{homography.py} constructs the Direct Linear Transformation (DLT) coefficient matrix $\mathbf{A}_{2N \times 9}$ from point correspondences between detected corner pixels and XML anchor coordinates. It calculates the homography matrix $H \in \mathbb{R}^{3 \times 3}$ using Singular Value Decomposition ($\mathbf{A} = \mathbf{U}\mathbf{\Sigma}\mathbf{V}^T$), maintaining an updated matrix in memory.
 
 \subsubsection{Homography Matrix Reprojection Accuracy and SVD Numerical Stability}
 The homography solver (\texttt{aprilTag/homography.py}) computes Singular Value Decomposition across the DLT matrix $\mathbf{A}_{2N \times 9}$.
 
-To maintain numerical stability during typing, the solver checks the matrix condition number $\kappa(\mathbf{A}) = \frac{\sigma_{\max}}{\sigma_{\min}}$. If $\kappa(\mathbf{A}) > 10^6$ (which happens if corners become collinear or perspective is degraded), the solver discards the unstable result and keeps the previous valid matrix $H_{\text{prev}}$ from memory. Under standard camera angles ($0^\circ$ to $60^\circ$ tilt), the RMS reprojection error $e_{\text{rms}} = \sqrt{\frac{1}{N} \sum_{i=1}^N \| \mathbf{P}_i^{\text{xml}} - H \cdot \mathbf{P}_i^{\text{pixel}} \|^2}$ stays below $0.42\text{ mm}$ across the A4 paper surface, confirming sub-millimeter mapping precision.
+To maintain numerical stability during typing, the solver evaluates the matrix condition number $\kappa(\mathbf{A}) = \frac{\sigma_{\max}}{\sigma_{\min}}$. If $\kappa(\mathbf{A}) > 10^6$ (which occurs when corner points become collinear or perspective is degraded), the solver rejects the unstable solution and retains the previous valid matrix $H_{\text{prev}}$ from memory. Under standard camera angles ($0^\circ$ to $60^\circ$ tilt), the RMS reprojection error $e_{\text{rms}} = \sqrt{\frac{1}{N} \sum_{i=1}^N \| \mathbf{P}_i^{\text{xml}} - H \cdot \mathbf{P}_i^{\text{pixel}} \|^2}$ remains below $0.42\text{ mm}$ across the A4 paper surface, confirming sub-millimeter mapping precision.
 
 \subsection{Application 2 Runtime Engine Setup GUI and Action Command Mapper}
 Application 2 provides a complete desktop virtual keyboard runtime combining an interactive Setup GUI (Component A) and a Background Live Vision Watch Engine (Component B).
 
 \subsubsection{Component A: Interactive Setup and Action Command Mapper GUI}
-Component A provides a PySide6 setup window where users configure settings before starting the background engine:
+Component A provides a PySide6 configuration window where users set preferences before launching the background engine:
 \begin{itemize}
-    \item \textbf{Input Camera Feed Selector:} Lists connected USB webcams and video devices, showing a live video preview for camera alignment.
-    \item \textbf{Layout XML Schema Loader:} Loads custom layout XML files exported from Application 1 Layout Designer (such as QWERTY keyboards, numeric pads, macro pads, or accessibility grids), reading key IDs, bounding boxes, and AprilTag locations.
-    \item \textbf{Interactive Action Mapping Configuration Table:} Displays an interactive table listing all layout key IDs. For each key ID, the user selects an action type:
+    \item \textbf{Input Camera Feed Selector:} Lists all connected USB webcams and video input devices, offering a live video preview for camera alignment.
+    \item \textbf{Layout XML Schema Loader:} Loads custom layout XML files exported from Application 1 Layout Designer (such as QWERTY keyboards, numeric pads, macro pads, or accessibility grids), reading key IDs, bounding boxes, and AprilTag anchor locations.
+    \item \textbf{Interactive Action Mapping Configuration Table:} Displays an interactive table of all layout key IDs. For each key ID, users configure an action mapping:
     \begin{enumerate}
-        \item \emph{Keystroke Action:} Assigns key IDs to single keys (such as `'A'`, `'Space'`, `'Enter'`).
-        \item \emph{System Command Action:} Assigns key IDs to shell commands or scripts (such as opening terminal programs, controlling media playback, or running automation scripts).
+        \item \emph{Keystroke Action:} Assigns key IDs to keyboard keystrokes (such as `'A'`, `'Space'`, or `'Enter'`).
+        \item \emph{System Command Action:} Assigns key IDs to shell commands or scripts (such as opening terminal utilities, media controls, or system automation scripts).
     \end{enumerate}
-    \item \textbf{Decoupled Action Profile Multiplexing (JSON Persistence):} To save paper and increase flexibility, the physical printed layout geometry is decoupled from digital action bindings. Users can save, export, and load multiple action profiles as JSON files (such as \texttt{typing\_profile.json}, \texttt{developer\_macros.json}, \texttt{daw\_controller.json}, \texttt{gaming\_mode.json}). This allows the exact same printed paper sheet to perform completely different functions simply by loading another action profile in software, without reprinting the page.
+    \item \textbf{Decoupled Action Profile Multiplexing (JSON Persistence):} To save paper and enhance flexibility, physical printed layout geometry is decoupled from digital action bindings. Users can save, export, and import multiple action profiles as JSON files (such as \texttt{typing\_profile.json}, \texttt{developer\_macros.json}, \texttt{daw\_controller.json}, or \texttt{gaming\_mode.json}). This allows the exact same physical printed paper sheet to perform completely different functions simply by selecting a different action profile in software, without reprinting the page.
 \end{itemize}
 
 \subsubsection{Component B: Background Live Watch and Action Execution Engine}
-Once configured in Component A, Component B runs in the background, continuously watching the camera and dispatching actions:
+Once configured in Component A, Component B operates in the background, continuously processing the video stream and dispatching actions:
 \begin{enumerate}
     \item \textbf{Continuous AprilTag Tracking:} Tracks paper AprilTag markers to recalculate and update the Planar Homography matrix $H \in \mathbb{R}^{3 \times 3}$.
-    \item \textbf{Pose Regression and Scale Normalization:} Extracts 21 MediaPipe hand joints, shifts them relative to wrist origin $\mathbf{P}_0$, and normalizes coordinates using hand length $L_{\text{hand}}$ without low-pass filtering.
+    \item \textbf{Pose Regression and Scale Normalization:} Extracts 21 MediaPipe hand joints, shifts coordinates relative to wrist origin $\mathbf{P}_0$, and normalizes coordinates using hand length $L_{\text{hand}}$ without low-pass filtering.
     \item \textbf{PyTorch LSTM Touch Inference:} Buffers 84-dimensional feature vectors $\mathbf{f}_t$ across 5-frame sliding windows $\mathbf{X}_W$, evaluating the PyTorch LSTM model (\texttt{best\_finger\_touch\_lstm.pth}) to detect paper contact ($p_k > 0.90$).
     \item \textbf{Planar Homography Coordinate Transformation:} Maps active fingertip pixel coordinates $(u_{\text{active}}, v_{\text{active}})$ through $H$ into XML coordinates $(X_{\text{xml}}, Y_{\text{xml}})$.
-    \item \textbf{XML Key Lookup and Action Dispatch:} Checks XML key bounding boxes. When a matching key $j$ is found, Component B sends the mapped keystroke or executes the shell command using \texttt{subprocess.Popen()}.
+    \item \textbf{XML Key Lookup and Action Dispatch:} Evaluates XML key bounding boxes. When a matching key $j$ is found, Component B sends the mapped keystroke or executes the shell command using \texttt{subprocess.Popen()}.
 \end{enumerate}
 
 \section{Empirical Implementation Challenges and Technical Solutions}
 \label{sec:imp_challenges}
-Building a monocular paper virtual keyboard involved several practical challenges across computer vision, signal processing, machine learning, and multi-threading.
+There were many practical challenges encountered in various areas including computer vision, signal processing, machine learning, and multi-threading while developing the customizable paper virtual keyboard using a monocular camera setup.
 
-Table~\ref{tab:implementation_challenges} summarizes five key technical challenges encountered during implementation and the software solutions engineered to solve them.
+The five key technical challenges encountered and their engineered solutions are summarized in Table~\ref{tab:implementation_challenges} below.
 
 \begin{table}[htbp]
 \centering
@@ -793,57 +786,57 @@ Table~\ref{tab:implementation_challenges} summarizes five key technical challeng
 \label{subsec:imp_challenge_analysis}
 
 \subsubsection{Challenge 1: Resolving Monocular Z-Axis Depth Ambiguity}
-Standard monocular webcam video feeds capture a 2D image of the 3D world, losing direct depth information along the Z-axis \cite{ReviewVirtualKeyboard2020, Thomas2013Camera}. When a user's finger hovers slightly above a paper keyboard, its 2D pixel coordinates $(u, v)$ look almost identical to those when the finger actually touches the paper. Using simple static 2D distance thresholds cannot distinguish hovering from touching, leading to frequent false key presses.
+The traditional monocular camera captures a 2D image of the 3D world, meaning that there is no direct depth information along the Z-axis \cite{ReviewVirtualKeyboard2020, Thomas2013Camera}. When a user's finger hovers slightly above a paper keyboard, its 2D coordinates $(u, v)$ are nearly identical to those when the finger physically touches the paper surface. As a result, static 2D distance thresholding cannot distinguish hovering from touching, leading to frequent false positive actuations.
 
-To resolve this depth ambiguity without needing specialized depth hardware (such as stereo cameras or time-of-flight sensors), the system uses temporal feature windowing. When a finger moves downward to press a key on a physical surface, its speed changes in a clear pattern: an acceleration phase during downward movement followed by a rapid deceleration when the finger strikes the paper. By creating 5-frame sliding temporal windows ($\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$) containing scale-normalized velocity vectors $\mathbf{V}_i(t)$, the PyTorch LSTM model (\texttt{best\_finger\_touch\_lstm.pth}) detects this deceleration pattern and identifies touch events accurately without requiring 3D depth sensors.
+To resolve this depth ambiguity without requiring specialized depth hardware (such as stereo camera pairs or Time-of-Flight sensors), the system uses temporal feature windowing. When a finger moves downward to press a key on a physical surface, it follows a distinct kinematic trajectory: an initial acceleration phase during downward motion followed by an abrupt deceleration upon striking the paper. The 5-frame sliding temporal window matrices $\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$, containing scale-normalized velocity vectors $\mathbf{V}_i(t)$, allow the PyTorch LSTM model (\texttt{best\_finger\_touch\_lstm.pth}) to detect this sudden impact deceleration reliably without 3D depth sensors.
 
 \subsubsection{Challenge 2: Achieving Distance and Hand-Size Scale Invariance}
-Fingertip pixel movement in webcam images depends on two main factors: the distance $Z$ between the hand and the camera, and the physical hand size of the user. Because of perspective projection, a fingertip movement of $10\text{ mm}$ produces a pixel shift $x_{\text{pixel}} = f \cdot \frac{X}{Z}$, where $f$ is the focal length. As a result, fixed pixel thresholds fail when a user sits closer to or farther from the camera, or between users with different hand sizes.
+Fingertip pixel displacement in webcam images depends on two primary factors: the physical distance $Z$ between the hand and the camera, and the anatomical hand size of the individual user. Under perspective projection, a fingertip displacement of $10\text{ mm}$ produces a pixel shift $x_{\text{pixel}} = f \cdot \frac{X}{Z}$, where $f$ is the focal length. Consequently, fixed pixel thresholds fail when a user moves closer or farther from the camera, or between users with different hand dimensions.
 
-This problem was solved by implementing unitless hand scale normalization in \texttt{normalize\_landmarks.py}. Wrist Landmark 0 ($\mathbf{P}_0$) is set as the local coordinate origin, removing absolute screen position offsets. Hand length $L_{\text{hand}}(t) = \|\mathbf{P}_9(t) - \mathbf{P}_0(t)\|_2$ is calculated as the Euclidean distance between wrist Landmark 0 and middle MCP Landmark 9. All 21 joint landmark coordinates are then divided by this hand length:
+This challenge was solved through unitless hand scale normalization in \texttt{normalize\_landmarks.py}. Wrist Landmark 0 ($\mathbf{P}_0$) is selected as the local coordinate origin, removing absolute screen position offsets. Hand length $L_{\text{hand}}(t) = \|\mathbf{P}_9(t) - \mathbf{P}_0(t)\|_2$ is calculated as the Euclidean distance between wrist Landmark 0 and middle MCP Landmark 9. All 21 landmark coordinates are then normalized relative to hand length:
 \begin{equation}
 x_i^{\text{norm}}(t) = \frac{x_i(t) - x_0(t)}{L_{\text{hand}}(t)}, \quad
 y_i^{\text{norm}}(t) = \frac{y_i(t) - y_0(t)}{L_{\text{hand}}(t)}
 \label{eq:scale_norm_explanation}
 \end{equation}
 
-Dividing by $L_{\text{hand}}(t)$ converts raw pixel coordinates into unitless ratios. If a user moves closer to the camera, both joint distances $\Delta x_i$ and hand length $L_{\text{hand}}$ increase by the same proportion, keeping the normalized features $\mathbf{P}_i^{\text{norm}}$ stable.
+Dividing by $L_{\text{hand}}(t)$ converts raw pixel coordinates into unitless ratios. If a user moves closer to the camera, joint coordinate offsets $\Delta x_i$ and hand length $L_{\text{hand}}$ increase proportionally, keeping the scale-normalized features $\mathbf{P}_i^{\text{norm}}$ stable.
 
 \subsubsection{Challenge 3: Real-Time CPU-Only Execution and Universal Low-End Camera Support at 12~FPS}
-A major engineering goal in monocular vision interfaces is achieving reliable real-time performance on standard computers without requiring dedicated GPUs. Many computer vision and deep learning pipelines require expensive GPU hardware and high-resolution video streams ($\ge 1080$p, $60$~FPS) to stay responsive, which limits their use on standard budget laptops.
+A central design requirement for monocular vision interfaces is delivering reliable real-time performance on standard computers without requiring dedicated GPU resources. Many deep learning vision pipelines demand costly GPU acceleration and high-resolution video streams ($\ge 1080$p, $60$~FPS) to stay responsive, limiting their usability on budget consumer laptops.
 
-To overcome this limitation, the system was designed around three main technical choices:
+To address this constraint, the system incorporates three key engineering decisions:
 \begin{enumerate}
-    \item \textbf{12~FPS Standardized Sub-Sampling:} Choosing 12~FPS provides an available per-frame time budget of $T_{\text{budget}} \approx 83.33\text{ ms}$. As shown in Section~\ref{subsubsec:imp_cpu_latency_budget}, the total CPU latency per frame across AprilTag tracking ($8.42\text{ ms}$), MediaPipe landmark tracking ($17.65\text{ ms}$), scale normalization ($0.05\text{ ms}$), and PyTorch LSTM inference ($2.08\text{ ms}$) is only $29.52\text{ ms}$, using only $35.4\%$ of the available frame time on a standard CPU.
-    \item \textbf{Lightweight Uni-Directional LSTM Architecture:} Instead of using heavy 3D spatio-temporal convolutions or large transformer models, the system uses a compact uni-directional LSTM network ($< 1\text{ MB}$ file size). Running a forward pass on a 5-frame temporal window ($\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$) takes only $2.08\text{ ms}$ on standard CPUs, enabling fast touch classification with low processor load.
-    \item \textbf{Low-End Camera and Resolution Independence:} Because AprilTag homography and MediaPipe scale normalization operate in normalized coordinate spaces, the runtime engine works reliably across different camera resolutions (such as 360p, 480p, 720p, 1080p). This ensures that standard budget webcams and built-in laptop cameras work reliably.
+    \item \textbf{12~FPS Standardized Sub-Sampling:} Standardizing the pipeline at 12~FPS provides a per-frame time budget of $T_{\text{budget}} \approx 83.33\text{ ms}$. As shown in Section~\ref{subsubsec:imp_cpu_latency_budget}, the total CPU latency per frame across AprilTag tracking ($8.42\text{ ms}$), MediaPipe landmark tracking ($17.65\text{ ms}$), scale normalization ($0.05\text{ ms}$), and PyTorch LSTM inference ($2.08\text{ ms}$) is only $29.52\text{ ms}$, which consumes only $35.4\%$ of the available frame budget on a standard CPU.
+    \item \textbf{Lightweight Uni-Directional LSTM Architecture:} Instead of computationally expensive 3D spatio-temporal convolutions or large transformer models, the system deploys a compact uni-directional LSTM network ($< 1\text{ MB}$ parameter size). Evaluating a single forward pass on a 5-frame window ($\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$) requires only $2.08\text{ ms}$ on standard CPUs, enabling fast touch classification with low processor load.
+    \item \textbf{Low-End Camera and Resolution Independence:} Because AprilTag homography and MediaPipe scale normalization operate in normalized coordinate spaces, the runtime engine processes video feeds across diverse resolutions (such as 360p, 480p, 720p, 1080p), ensuring compatibility with budget USB webcams and built-in laptop cameras.
 \end{enumerate}
 
 \subsubsection{Challenge 4: Robust AprilTag Fiducial Tracking under Hand Occlusion}
-In paper virtual keyboard systems, a user's hand moves across the printed paper while typing. If fiducial markers are placed in the center of the sheet, or if multiple hands are placed over a compact A4 sheet simultaneously, markers can be blocked, disrupting homography matrix $H$ calculations.
+In paper virtual keyboard systems, a user's hand moves across the printed paper while typing. When fiducial markers are placed in the center of the sheet or when typing on compact A4 paper, hand movements can occlude fiducial markers, disrupting homography matrix $H$ calculations.
 
-This challenge was solved through three key design decisions:
+This issue was addressed through three key design strategies:
 \begin{enumerate}
-    \item \textbf{Single Active Hand Tracking Design:} The system focuses on single-handed active typing (\texttt{num\_hands=1}). Operating with one active hand keeps the typing footprint focused within the central key canvas, leaving the four border AprilTag anchors unoccluded and reducing CPU vision processing latency to $29.09\text{ ms}$.
-    \item \textbf{Outer Border Anchor Placement:} In Application 1 Layout Designer (\texttt{designer\_app.py}), four AprilTag markers (\texttt{tag36h11} family, Tag IDs 0, 1, 2, 3) are placed along the outer margins of the paper sheet (Equations~\ref{eq:tag0_pos}--\ref{eq:tag3_pos}). Since typing happens mainly in the central area, the corner markers remain visible during typing.
-    \item \textbf{Minimal SVD Point Correspondence Solver:} The SVD homography solver (\texttt{aprilTag/homography.py}) needs only four unoccluded corner points across the page to compute matrix $H \in \mathbb{R}^{3 \times 3}$. If one or two AprilTags are temporarily covered, the tracking engine continues solving $H$ using the remaining visible tag corners.
+    \item \textbf{Single Active Hand Tracking Design:} The virtual keyboard is optimized for single-hand active typing (\texttt{num\_hands=1}). Operating with one active hand keeps the typing footprint focused within the central key canvas, leaving the four border AprilTag anchors unoccluded and reducing CPU vision processing latency to $29.09\text{ ms}$.
+    \item \textbf{Outer Border Anchor Placement:} Four AprilTag markers (\texttt{tag36h11} family, Tag IDs 0, 1, 2, 3) are positioned along the outer borders of the paper sheet (Equations~\ref{eq:tag0_pos}--\ref{eq:tag3_pos}). Because typing occurs in the central area, the corner markers remain visible during interaction.
+    \item \textbf{Minimal SVD Point Correspondence Solver:} The SVD-based homography solver (\texttt{aprilTag/homography.py}) requires only four unoccluded corner points across the page to compute matrix $H \in \mathbb{R}^{3 \times 3}$. Even when one or two AprilTag markers are temporarily blocked during typing, the solver continues tracking using the remaining visible tag corners.
 \end{enumerate}
 
 \subsubsection{Challenge 5: Multi-Threaded Queue Buffer Architecture}
-In single-threaded vision programs, video frame capture, hand landmark extraction, model inference, homography updates, and UI rendering run sequentially in one loop. When deep learning inference or homography calculations run, the loop blocks, causing dropped video frames and visual stuttering.
+In single-threaded vision programs, video capture, hand landmark extraction, deep learning inference, homography updates, and UI rendering execute sequentially in a single loop. When deep learning inference or homography calculations occur, the main execution thread blocks, causing dropped video frames and latency lag.
 
-To achieve smooth execution, Application 2 uses a multi-threaded Producer-Consumer queue design in \texttt{camera\_thread.py}:
+To ensure responsive performance, Application 2 implements a multi-threaded Producer-Consumer queue architecture in \texttt{camera\_thread.py}:
 \begin{itemize}
-    \item \textbf{Producer Capture Thread:} OpenCV video capture runs in a high-priority background worker thread (\texttt{QThread}), reading video frames at a constant rate and placing them into a thread-safe Queue buffer ($\mathbf{Q}_{\text{frame}}$, max size = 2).
-    \item \textbf{Consumer Vision and Inference Thread:} The background watch engine retrieves frames from the queue asynchronously. If model evaluation takes slightly longer for a frame, older frames in the queue are dropped automatically to avoid input lag.
+    \item \textbf{Producer Capture Thread:} Video frames captured via OpenCV are placed into a thread-safe Queue buffer ($\mathbf{Q}_{\text{frame}}$, capacity limit = 2) in a high-priority background worker thread (\texttt{QThread}).
+    \item \textbf{Consumer Vision and Inference Thread:} The background watch engine retrieves frames asynchronously from the queue. If additional time is required for inference, older frames in the queue are dropped automatically to prevent latency accumulation.
 \end{itemize}
 
-Decoupling camera capture from inference ensures steady pipeline throughput at $34.4$~FPS ($29.09$~ms per frame) on standard desktop CPUs.
+This multi-threaded design ensures that the pipeline throughput remains at a steady $34.4$~FPS ($29.09$~ms per frame) on standard commodity CPUs.
 
 \section{Chapter Summary}
 \label{sec:imp_summary}
-This chapter described the software implementation and algorithm designs for the customizable paper virtual keyboard system.
+This chapter presented the software implementation and algorithm designs for the customizable paper virtual keyboard system.
 
-Section~\ref{sec:imp_framework_steps} established the system workflow, presented formal mathematical pseudocode algorithms for AprilTag SVD homography, scale normalization, PyTorch LSTM touch inference, and planar coordinate mapping, formulated the CPU timing budget for 12~FPS execution, and justified technology selections (Python 3.10, PyTorch, MediaPipe, PySide6). Section~\ref{sec:imp_significant_attempts} detailed the implementations of Application 1 Layout Designer (\texttt{designer\_app.py}) and the five isolated research partitions (\texttt{designer/analyzer/}, \texttt{mediapipeDetector/datacreator/}, \texttt{mediapipeDetector/deepLearningModels/run\_all.py}, \texttt{mediapipeDetector/realtimeprocess/}, \texttt{aprilTag/}). Section~\ref{sec:imp_challenges} analyzed five technical challenges (depth ambiguity, scale variance, real-time CPU execution at 12~FPS, AprilTag occlusion, multi-threading) and their engineered software solutions.
+Section~\ref{sec:imp_framework_steps} described the complete system workflow, presented formal mathematical pseudocode algorithms for AprilTag Singular Value Decomposition homography, scale normalization, PyTorch LSTM touch inference, and planar coordinate transformation, formulated the CPU timing budget for 12~FPS real-time performance, and justified technology selections (Python 3.10, PyTorch, MediaPipe, PySide6). Section~\ref{sec:imp_significant_attempts} detailed the implementations of Application 1 Layout Designer (\texttt{designer\_app.py}) and the five isolated research partitions (\texttt{designer/analyzer/}, \texttt{mediapipeDetector/datacreator/}, \texttt{mediapipeDetector/deepLearningModels/run\_all.py}, \texttt{mediapipeDetector/realtimeprocess/}, \texttt{aprilTag/}). Section~\ref{sec:imp_challenges} analyzed five technical challenges (depth ambiguity, scale variance, real-time CPU execution at 12~FPS, AprilTag occlusion, multi-threading) and their engineered software solutions.
 
-The software architecture and implementations described in this chapter provide the operational basis for the empirical testing and evaluation presented in Chapter 6.
+The software architecture and implementations established in this chapter provide the operational basis for the empirical experiments and performance evaluations presented in Chapter 6.
