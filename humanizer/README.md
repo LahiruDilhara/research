@@ -6,7 +6,8 @@ A FastAPI web service powered by Playwright running in **head mode (visible brow
 
 - **Continuous Listening Route**: The FastAPI server keeps running indefinitely, listening for requests.
 - **Persistent Tab in Head Mode**: Chromium opens with the tab visible and stays open across requests.
-- **Automatic Session & Cookie Reset Every 2 Requests**: Every 2 requests, the server destroys the old context, wipes cookies/storage, and initializes a completely brand new browser context and session to prevent tracking, rate limits, or stale fingerprints.
+- **Automatic Page Refresh Every 20 Uses**: After a page is used 20 times, the tab is closed and reopened cleanly to avoid memory leaks while retaining stealth and performance.
+- **Sequential Multi-Pass Humanization**: Supports multi-pass iterative humanization (`repeat`/`repeats` parameter and `-r` CLI flag) where each pass feeds into the next.
 - **Simple Payload**: Accepts `{"text": "..."}` (or `{"message": "..."}`).
 - **Internal JavaScript Context Execution**: Executes in-page `fetch('https://www.humanizeai.pro/api/process', ...)` inside the authenticated browser tab.
 - **Interactive CAPTCHA / Challenge Handling**: If Cloudflare or a CAPTCHA appears, the browser window is brought to front and the service waits until you solve it in the browser window, then automatically retries and returns the result.
@@ -15,13 +16,16 @@ A FastAPI web service powered by Playwright running in **head mode (visible brow
 
 ## Running the Server
 
-Start the continuous server:
+Start the continuous server with custom repeat and page-limit flags:
 ```bash
-uv run python main.py
+uv run python main.py -r 2 --page-limit 20
 ```
-*(Or `uv run uvicorn main:app --host 0.0.0.0 --port 8000`)*
 
-The browser window will open in head mode and stay open at `https://www.humanizeai.pro/`.
+### Server Command-Line Flags:
+- `-r`, `--repeat`, `--repeats`: Number of sequential repeat passes per incoming request (default: `1`).
+- `--page-limit`, `--page-iterations`, `--page-max-uses`: Number of iterations / uses before the page is closed and reopened (default: `20`).
+- `--host`: Host interface to bind to (default: `0.0.0.0`).
+- `--port`: Port to listen on (default: `8000`).
 
 ---
 
@@ -42,6 +46,7 @@ The browser window will open in head mode and stay open at `https://www.humanize
   "success": true,
   "text": "The field of Human-Computer Interaction (HCI) has grown significantly in recent decades...",
   "humanized_text": "The field of Human-Computer Interaction (HCI) has grown significantly in recent decades...",
+  "passes_completed": 2,
   "raw_response": {
     "result": [
       {
@@ -55,26 +60,10 @@ The browser window will open in head mode and stay open at `https://www.humanize
 ```
 
 #### Optional Parameters
+- `repeat` / `repeats`: Override repeat count for this specific request (default: server configured value)
 - `style`: Rewriting style (default: `"standard"`)
 - `alg`: Algorithm mode (default: `0`)
 - `sessionId`: Custom session ID (auto-generated if omitted)
-
-#### Example Response
-```json
-{
-  "success": true,
-  "humanized_text": "The field of Human-Computer Interaction (HCI) has grown significantly in recent decades...",
-  "raw_response": {
-    "result": [
-      {
-        "text": "The field of Human-Computer Interaction (HCI) has grown significantly in recent decades..."
-      }
-    ],
-    "request_ref": "dad02d5e-8d26-41a2-99b4-d3f9b691d2dc"
-  },
-  "error": null
-}
-```
 
 ---
 

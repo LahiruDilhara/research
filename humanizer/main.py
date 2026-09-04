@@ -96,18 +96,21 @@ class HumanizeRequest(BaseModel):
     style: Optional[str] = Field("standard", description="Rewriting style")
     alg: Optional[int] = Field(0, description="Algorithm mode")
     sessionId: Optional[str] = Field(None, description="Custom session ID")
+    repeat: Optional[int] = Field(None, description="Number of times to sequentially repeat humanization (overrides server default)")
+    repeats: Optional[int] = Field(None, description="Alias for repeat")
 
 
 class HumanizeResponse(BaseModel):
     success: bool
     text: Optional[str] = None
     humanized_text: Optional[str] = None
+    passes_completed: Optional[int] = None
     raw_response: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
 
 class BrowserManager:
-    def __init__(self):
+    def __init__(self, page_limit: int = 20, default_repeat: int = 1):
         self._playwright = None
         self._browser: Optional[Browser] = None
         self._context: Optional[BrowserContext] = None
@@ -115,6 +118,9 @@ class BrowserManager:
         self._stealth = Stealth()
         self._lock = asyncio.Lock()
         self._request_count = 0
+        self._page_usage_count = 0
+        self.page_limit = page_limit
+        self.default_repeat = default_repeat
 
     async def _create_fresh_context_and_page(self):
         """Creates a fresh isolated browser context with stealth and initial cookies."""
@@ -132,6 +138,7 @@ class BrowserManager:
             logger.warning(f"Failed to inject cookies: {e}")
 
         self._page = await self._context.new_page()
+        self._page_usage_count = 0
         await self._stealth.apply_stealth_async(self._page)
 
         logger.info("Navigating fresh tab to https://www.humanizeai.pro/ ...")
@@ -157,24 +164,37 @@ class BrowserManager:
         
         await self._create_fresh_context_and_page()
 
-    async def reset_session(self):
-        """Completely destroys current context/cookies/storage and initializes a fresh session."""
-        logger.info(f"{BOLD}{YELLOW}[SESSION RESET] 2 requests processed. Wiping cookies, storage & creating brand new session...{RESET}")
+    async def reopen_page(self):
+        """Closes current page and reopens a fresh page after reaching page limit uses."""
+        logger.info(f"{BOLD}{YELLOW}[PAGE REOPEN] Page reached {self.page_limit} uses limit. Closing page and reopening fresh tab...{RESET}")
         try:
             if self._page and not self._page.is_closed():
                 await self._page.close()
-            if self._context:
-                await self._context.close()
         except Exception as e:
-            logger.warning(f"Error during context cleanup: {e}")
+            logger.warning(f"Error closing page: {e}")
 
-        await self._create_fresh_context_and_page()
-        logger.info(f"{BOLD}{GREEN}[SESSION RESET COMPLETE] Brand new clean browser session initialized.{RESET}")
+        if self._context is None:
+            await self._create_fresh_context_and_page()
+            return
+
+        self._page = await self._context.new_page()
+        self._page_usage_count = 0
+        await self._stealth.apply_stealth_async(self._page)
+
+        logger.info("Navigating reopened tab to https://www.humanizeai.pro/ ...")
+        await self._page.goto("https://www.humanizeai.pro/", wait_until="load", timeout=60000)
+        await self._page.wait_for_timeout(2000)
+        
+        title = await self._page.title()
+        logger.info(f"{BOLD}{GREEN}Fresh reopened page ready: '{title}'{RESET}")
 
     async def ensure_page(self) -> Page:
         if self._page is None or self._page.is_closed():
             logger.warning("Tab was closed. Re-opening persistent tab...")
-            await self._create_fresh_context_and_page()
+            if self._context is not None:
+                await self.reopen_page()
+            else:
+                await self._create_fresh_context_and_page()
         return self._page
 
     async def is_captcha_active(self, page: Page) -> bool:
@@ -235,80 +255,151 @@ class BrowserManager:
         """
         return await page.evaluate(js_script, payload)
 
+    async def send_single_pass(
+        self,
+        text: str,
+        style: str = "standard",
+        alg: int = 0,
+        session_id: Optional[str] = None,
+        pass_idx: int = 1,
+        total_passes: int = 1
+    ) -> Dict[str, Any]:
+        start_time = time.time()
+        page = await self.ensure_page()
+        effective_session_id = session_id or generate_session_id()
+
+        payload = {
+            "test_allultra": None,
+            "text": text,
+            "trialNumber": 0,
+            "alg": alg,
+            "sessionId": effective_session_id,
+            "keywords": [],
+            "style": style,
+            "isLogged": False,
+            "ultra": False,
+            "arm": "a",
+            "isSample": False,
+            "multilang": True
+        }
+
+        self._request_count += 1
+        self._page_usage_count += 1
+        current_count = self._request_count
+        current_page_uses = self._page_usage_count
+        
+        pass_info = f" [Pass {pass_idx}/{total_passes}]" if total_passes > 1 else ""
+        preview = text[:80].replace("\n", " ") + ("..." if len(text) > 80 else "")
+        logger.info(f"{CYAN}[Req #{current_count}]{pass_info} Sending in-page request (Page use {current_page_uses}/{self.page_limit}, {len(text)} chars) -> '{preview}'{RESET}")
+        
+        res = await self.execute_in_page_fetch(page, payload)
+        status_code = res.get("status", 500)
+
+        # Check if captcha or Cloudflare challenge triggered
+        if status_code in (403, 429) or await self.is_captcha_active(page):
+            logger.warning(f"{BOLD}{YELLOW}" + "=" * 75 + f"{RESET}")
+            logger.warning(f"{BOLD}{YELLOW}[ACTION REQUIRED] Captcha / Cloudflare challenge triggered!{RESET}")
+            logger.warning(f"{BOLD}{YELLOW}Please look at the open Chromium window and solve the captcha.{RESET}")
+            logger.warning(f"{BOLD}{YELLOW}The service is waiting and will resume automatically once solved...{RESET}")
+            logger.warning(f"{BOLD}{YELLOW}" + "=" * 75 + f"{RESET}")
+
+            try:
+                await page.bring_to_front()
+            except Exception:
+                pass
+
+            # Wait loop for user to solve
+            retry_count = 0
+            while retry_count < 120:
+                await asyncio.sleep(2.5)
+                retry_count += 1
+                
+                if not await self.is_captcha_active(page):
+                    logger.info(f"{GREEN}Challenge solved! Retrying API fetch (attempt {retry_count})...{RESET}")
+                    res = await self.execute_in_page_fetch(page, payload)
+                    if res.get("ok") and res.get("status") == 200:
+                        break
+                else:
+                    if retry_count % 5 == 0:
+                        logger.warning(f"{YELLOW}Waiting for captcha solution in browser (waiting {retry_count * 2.5:.0f}s)...{RESET}")
+
+        elapsed = time.time() - start_time
+        if res.get("ok") and res.get("status") == 200:
+            logger.info(f"{BOLD}{GREEN}✓ [Req #{current_count}]{pass_info} Received 200 OK from humanizeai.pro in {elapsed:.2f}s{RESET}")
+        else:
+            logger.error(f"{BOLD}{RED}✗ [Req #{current_count}]{pass_info} Failed with status {res.get('status')} in {elapsed:.2f}s: {res.get('error') or 'Blocked/Error'}{RESET}")
+
+        # When same page has reached page_limit uses, close page and reopen
+        if self._page_usage_count >= self.page_limit:
+            await self.reopen_page()
+
+        return res
+
     async def process_message(
         self,
         text: str,
         style: str = "standard",
         alg: int = 0,
-        session_id: Optional[str] = None
+        session_id: Optional[str] = None,
+        repeats: int = 1
     ) -> Dict[str, Any]:
         async with self._lock:
-            start_time = time.time()
-            page = await self.ensure_page()
-            effective_session_id = session_id or generate_session_id()
+            total_passes = max(1, repeats)
+            current_text = text
+            last_res: Dict[str, Any] = {}
+            pass_history = []
 
-            payload = {
-                "test_allultra": None,
-                "text": text,
-                "trialNumber": 0,
-                "alg": alg,
-                "sessionId": effective_session_id,
-                "keywords": [],
-                "style": style,
-                "isLogged": False,
-                "ultra": False,
-                "arm": "a",
-                "isSample": False,
-                "multilang": True
+            if total_passes > 1:
+                logger.info(f"{BOLD}{MAGENTA}" + "=" * 60 + f"{RESET}")
+                logger.info(f"{BOLD}{MAGENTA}[MULTI-PASS START] Beginning {total_passes} sequential iteration(s){RESET}")
+                logger.info(f"{BOLD}{MAGENTA}" + "=" * 60 + f"{RESET}")
+
+            for p in range(1, total_passes + 1):
+                res = await self.send_single_pass(
+                    text=current_text,
+                    style=style,
+                    alg=alg,
+                    session_id=session_id if p == 1 else None,
+                    pass_idx=p,
+                    total_passes=total_passes
+                )
+                last_res = res
+                status_code = res.get("status", 500)
+                if status_code != 200 or not res.get("ok"):
+                    logger.warning(f"{RED}Pass {p}/{total_passes} failed. Aborting further repeat passes.{RESET}")
+                    break
+
+                # Extract humanized text for next pass
+                data = res.get("data")
+                extracted = None
+                if isinstance(data, dict):
+                    results = data.get("result")
+                    if isinstance(results, list) and len(results) > 0 and isinstance(results[0], dict):
+                        extracted = results[0].get("text")
+                    elif "text" in data:
+                        extracted = data.get("text")
+
+                if extracted and extracted.strip():
+                    pass_history.append(extracted)
+                    current_text = extracted.strip()
+                    if p < total_passes:
+                        next_preview = (current_text[:60].replace("\n", " ") + "...") if len(current_text) > 60 else current_text
+                        logger.info(f"{BOLD}{CYAN}--> Output from Pass {p} will be the input for Pass {p+1}: '{next_preview}'{RESET}")
+                        await asyncio.sleep(0.5)
+                else:
+                    logger.warning(f"{YELLOW}Pass {p}/{total_passes} returned empty text. Keeping previous text.{RESET}")
+
+            if total_passes > 1:
+                logger.info(f"{BOLD}{MAGENTA}" + "=" * 60 + f"{RESET}")
+                logger.info(f"{BOLD}{GREEN}[MULTI-PASS COMPLETE] Finished {len(pass_history)}/{total_passes} iteration(s){RESET}")
+                logger.info(f"{BOLD}{MAGENTA}" + "=" * 60 + f"{RESET}")
+
+            return {
+                "last_res": last_res,
+                "final_text": current_text,
+                "passes_completed": len(pass_history) if pass_history else (1 if last_res.get("ok") else 0),
+                "history": pass_history
             }
-
-            self._request_count += 1
-            current_count = self._request_count
-            preview = text[:80].replace("\n", " ") + ("..." if len(text) > 80 else "")
-            logger.info(f"{CYAN}[Req #{current_count}] Sending in-page request ({len(text)} chars) -> '{preview}'{RESET}")
-            
-            res = await self.execute_in_page_fetch(page, payload)
-            status_code = res.get("status", 500)
-
-            # Check if captcha or Cloudflare challenge triggered
-            if status_code in (403, 429) or await self.is_captcha_active(page):
-                logger.warning(f"{BOLD}{YELLOW}" + "=" * 75 + f"{RESET}")
-                logger.warning(f"{BOLD}{YELLOW}[ACTION REQUIRED] Captcha / Cloudflare challenge triggered!{RESET}")
-                logger.warning(f"{BOLD}{YELLOW}Please look at the open Chromium window and solve the captcha.{RESET}")
-                logger.warning(f"{BOLD}{YELLOW}The service is waiting and will resume automatically once solved...{RESET}")
-                logger.warning(f"{BOLD}{YELLOW}" + "=" * 75 + f"{RESET}")
-
-                try:
-                    await page.bring_to_front()
-                except Exception:
-                    pass
-
-                # Wait loop for user to solve
-                retry_count = 0
-                while retry_count < 120:
-                    await asyncio.sleep(2.5)
-                    retry_count += 1
-                    
-                    if not await self.is_captcha_active(page):
-                        logger.info(f"{GREEN}Challenge solved! Retrying API fetch (attempt {retry_count})...{RESET}")
-                        res = await self.execute_in_page_fetch(page, payload)
-                        if res.get("ok") and res.get("status") == 200:
-                            break
-                    else:
-                        if retry_count % 5 == 0:
-                            logger.warning(f"{YELLOW}Waiting for captcha solution in browser (waiting {retry_count * 2.5:.0f}s)...{RESET}")
-
-            elapsed = time.time() - start_time
-            if res.get("ok") and res.get("status") == 200:
-                logger.info(f"{BOLD}{GREEN}✓ [Req #{current_count}] Received 200 OK from humanizeai.pro in {elapsed:.2f}s{RESET}")
-            else:
-                logger.error(f"{BOLD}{RED}✗ [Req #{current_count}] Failed with status {res.get('status')} in {elapsed:.2f}s: {res.get('error') or 'Blocked/Error'}{RESET}")
-
-            # Every 2 requests, reset context, clear cookies and initialize a fully fresh session
-            if current_count % 2 == 0:
-                await self.reset_session()
-
-            return res
 
     async def close(self):
         logger.info("Shutting down Chromium browser...")
@@ -364,40 +455,45 @@ async def humanize_endpoint(req: HumanizeRequest):
     logger.info(f"{BOLD}{MAGENTA}--> Incoming POST request on route{RESET}")
 
     try:
-        res = await browser_manager.process_message(
+        repeat_count = (
+            req.repeats
+            if req.repeats is not None
+            else (req.repeat if req.repeat is not None else browser_manager.default_repeat)
+        )
+        if repeat_count < 1:
+            repeat_count = 1
+
+        result_dict = await browser_manager.process_message(
             text=input_text,
             style=req.style or "standard",
             alg=req.alg if req.alg is not None else 0,
-            session_id=req.sessionId
+            session_id=req.sessionId,
+            repeats=repeat_count
         )
 
-        status_code = res.get("status", 500)
-        data = res.get("data")
+        last_res = result_dict.get("last_res", {})
+        status_code = last_res.get("status", 500)
+        data = last_res.get("data")
+        final_text = result_dict.get("final_text")
+        passes_completed = result_dict.get("passes_completed", 0)
 
-        if status_code != 200 or not res.get("ok"):
-            error_msg = res.get("error") or f"Upstream returned HTTP status {status_code}"
+        if passes_completed == 0 or (status_code != 200 and not last_res.get("ok")):
+            error_msg = last_res.get("error") or f"Upstream returned HTTP status {status_code}"
             return HumanizeResponse(
                 success=False,
                 error=error_msg,
-                raw_response=data
+                raw_response=data,
+                passes_completed=passes_completed
             )
 
-        # Extract humanized text
-        extracted_text = None
-        if isinstance(data, dict):
-            results = data.get("result")
-            if isinstance(results, list) and len(results) > 0 and isinstance(results[0], dict):
-                extracted_text = results[0].get("text")
-            elif "text" in data:
-                extracted_text = data.get("text")
-
-        preview_out = (extracted_text[:80].replace("\n", " ") + "...") if extracted_text else "None"
-        logger.info(f"{BOLD}{GREEN}<-- Returning response: '{preview_out}'{RESET}")
+        preview_out = (final_text[:80].replace("\n", " ") + "...") if final_text else "None"
+        logger.info(f"{BOLD}{GREEN}<-- Returning response after {passes_completed} pass(es): '{preview_out}'{RESET}")
 
         return HumanizeResponse(
             success=True,
-            text=extracted_text,
-            humanized_text=extracted_text,
+            text=final_text,
+            humanized_text=final_text,
+            passes_completed=passes_completed,
             raw_response=data
         )
 
@@ -411,12 +507,56 @@ async def health_check():
     return {
         "status": "ok",
         "service": "humanizer-playwright-head",
-        "tab_status": "open" if browser_manager._page and not browser_manager._page.is_closed() else "closed"
+        "tab_status": "open" if browser_manager._page and not browser_manager._page.is_closed() else "closed",
+        "page_usage_count": browser_manager._page_usage_count,
+        "page_limit": browser_manager.page_limit,
+        "default_repeat": browser_manager.default_repeat,
     }
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Start HumanizeAI Playwright Service in Head Mode"
+    )
+    parser.add_argument(
+        "-r", "--repeat", "--repeats",
+        type=int,
+        default=1,
+        help="Number of times to sequentially repeat humanization for each incoming request (default: 1)"
+    )
+    parser.add_argument(
+        "--page-limit", "--page-iterations", "--page-max-uses",
+        type=int,
+        default=20,
+        dest="page_limit",
+        help="Number of iterations/uses before closing and reopening the page (default: 20)"
+    )
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="0.0.0.0",
+        help="Host interface to bind to (default: 0.0.0.0)"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to listen on (default: 8000)"
+    )
+
+    args = parser.parse_args()
+
+    browser_manager.page_limit = max(1, args.page_limit)
+    browser_manager.default_repeat = max(1, args.repeat)
+
+    logger.info(f"{BOLD}{GREEN}Starting server with backend configuration:{RESET}")
+    logger.info(f"  • Sequential repeat count per request: {browser_manager.default_repeat}")
+    logger.info(f"  • Page reopen limit: {browser_manager.page_limit} iterations")
+    logger.info(f"  • Endpoint: http://{args.host}:{args.port}/humanize")
+
+    uvicorn.run(app, host=args.host, port=args.port, reload=False)
 
 
 

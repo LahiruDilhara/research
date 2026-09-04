@@ -14,23 +14,40 @@ Every section listed below has had its text processed through the tool and inser
 - [x] **1.3 Problem Statement & Research Gap**
   - [x] 1.3 Introductory Statement
   - [x] 1.3.1 General Problem
-  - [x] 1.3.2 Specific Problems (Points 1–6)
+  - [x] 1.3.2 Specific Problems (Points 1–6 with Humanized Titles)
   - [x] 1.3.3 Research Gap
 - [x] **1.4 Research Questions**
   - [x] 1.4.1 Primary Research Question
-  - [x] 1.4.2 Secondary Research Questions (Sub-RQs 1–5)
-- [ ] **1.5 Research Motivation**
-- [ ] **1.6 Research Aim**
-- [ ] **1.7 Research Objectives**
-- [ ] **1.8 Rich Picture & Operational Workflow**
-- [ ] **1.9 Resource Requirements**
-- [ ] **1.10 Project Scope**
-- [ ] **1.11 Chapter Summary**
+  - [x] 1.4.2 Secondary Research Questions (Sub-RQs 1–5 with Humanized Titles)
+- [x] **1.5 Research Motivation**
+  - [x] 1.5 Motivation Dimensions (Points 1–6 with Humanized Titles)
+- [x] **1.6 Research Aim**
+- [x] **1.7 Research Objectives**
+  - [x] 1.7.1 To Identify Theoretical Foundations
+  - [x] 1.7.2 To Analyze Kinematics and Feature Normalization
+  - [x] 1.7.3 To Design and Develop Two-Application Suite (Items 1–5)
+  - [x] 1.7.4 To Evaluate System Performance and Latency
+- [x] **1.8 Rich Picture & Operational Workflow**
+  - [x] 1.8.1 Introductory Operational Description
+  - [x] 1.8.2 Detailed Operational Architecture Steps (Steps 1–7)
+- [x] **1.9 Resource Requirements**
+  - [x] 1.9.1 Hardware Requirements (Items 1–4)
+  - [x] 1.9.2 Software Requirements (Items 1–7)
+- [x] **1.10 Project Scope**
+  - [x] 1.10.1 Introductory Scope Description & Table 1.1 (Scope Boundaries)
+  - [x] 1.10.2 In-Scope Technical Boundaries (Paragraphs 1 & 2)
+  - [x] 1.10.3 Out-of-Scope Boundaries and Future Extensions
+- [x] **1.11 Chapter Summary**
 
 ---
 
 ## Chapter 2: Literature Review (`chapters/chapter02.tex`)
-- [ ] Status: Pending
+- [x] **2.1 Chapter Overview** (Paragraphs 1–2, Challenges 1–4, and Synthesis)
+- [x] **2.2 Conceptual Map of the Literature** (Intro, Taxonomy Diagram Nodes, and Taxonomical Summary 1–4)
+- [ ] **2.3 Domain Overview**
+- [ ] **2.4 Existing Systems / Frameworks / Designs**
+- [ ] **2.5 Technological Analysis**
+- [ ] **2.6 Reflection and Synthesis of Research Gap**
 
 ---
 

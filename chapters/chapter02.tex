@@ -3,23 +3,23 @@
 
 \section{Chapter Overview}
 \label{sec:lit_chapter_overview}
-The steady growth of mobile computing, augmented reality (AR), virtual reality (VR), and everyday embedded computer systems has changed how people expect to interact with computers. For more than a century, text input and computer control have relied almost entirely on mechanical QWERTY keyboards and capacitive touchscreens. Although physical keyboards provide clear tactile clicks and allow trained users to type quickly, their fixed physical form creates several practical problems \cite{ReviewVirtualKeyboard2020, Lee2022Virtual}. Physical keyboards take up permanent desk space, cannot change their key arrangements for specialized software tasks (such as audio mixing, industrial computer-aided design, digital painting, or video editing), can spread germs in hospital wards or shared public kiosks, and can be easily damaged by spilled liquids and dust \cite{ReviewVirtualKeyboard2020}.
+Due to constant innovation in the field of mobile computing technology, augmented and virtual reality, as well as computer systems being widely implemented into everyday objects, our approach towards interacting with computers has changed as well. For almost the entire period of the last century, the text input and generally computer interaction have been carried out using QWERTY mechanical keyboards and capacitive touch screens. Despite the fact that the mechanical keyboard allows the user to receive tangible tactile feedback and hence type quickly, the lack of mobility and fixation of the mechanical keyboard poses some challenges \cite{ReviewVirtualKeyboard2020, Lee2022Virtual}. First of all, the mechanical keyboard occupies the permanent space on the desk, is not flexible to changes of the software, can lead to infections in hospital wards or public kiosks, and is easily damaged due to liquid spills and dust accumulation \cite{ReviewVirtualKeyboard2020}.
 
-To overcome these physical limitations, computer vision researchers have explored virtual input interfaces that turn flat physical surfaces or open air into interactive typing areas using standard camera sensors \cite{Zhang2001Visual, Srivastava2012RealTime, Khare2019QWERTY, Maman2023TypeNet}. Monocular vision-based virtual keyboards offer a promising approach: by watching a flat physical surface (such as a paper sheet or a wooden desk) with a single ordinary RGB webcam, users can interact with virtual keys without needing extra hardware switches or dedicated electronic boards.
+In order to overcome this problem, a number of attempts have been made by the computer vision experts to create virtual input devices that can transform any two-dimensional plane into an input surface using the ordinary camera sensor \cite{Zhang2001Visual, Srivastava2012RealTime, Khare2019QWERTY, Maman2023TypeNet}. The virtual keyboard could be created using the method called monocular vision, which looks very promising because it uses a planar surface monitored only by one RGB camera without any additional switches or electric board components.
 
-However, creating a reliable, fast, and customizable virtual keyboard that works with a single ordinary RGB video feed presents several difficult challenges in computer vision, hand motion analysis, and sequential deep learning. The main technical challenges include:
+Nevertheless, the creation of an accurate, efficient, and adjustable virtual keyboard through a usual RGB video stream does not lack the challenges associated with computer vision, gesture recognition, and sequence learning. They are the following challenges:
 \begin{enumerate}
-    \item \textbf{Detecting Surface Touch Without Depth Hardware:} Standard monocular RGB webcams do not provide direct depth information along the Z-axis. Telling the exact moment a fingertip hits a flat surface (distinguishing an actual key press from a finger hovering slightly above the paper) without expensive Time-of-Flight (ToF) sensors or laser projectors remains a difficult computer vision problem \cite{Thomas2013Camera, Posner2012Single, Lee2019Virtual, Toshpulatov2024RealTime}.
-    \item \textbf{Hand Scale Differences and Signal Quality:} Hand landmark tracking models produce raw pixel coordinates that change depending on hand size, distance from the camera, and user position \cite{Zhang2020MediaPipe, Doan2022Efficient}. Normalizing spatial features directly from joint movements without using temporal smoothing filters (which blur quick touch impacts and add delay) is necessary for accurate real-time touch detection \cite{Kumar2026Hybrid}.
-    \item \textbf{Camera Tilt and Surface Alignment:} When a paper layout or the webcam shifts slightly, perspective distortion causes fixed coordinate grids to fail. Real-time planar marker tracking and homography matrix calculations ($H \in \mathbb{R}^{3 \times 3}$) are needed to keep the camera view and the layout aligned \cite{Wang2016AprilTag2, Kallwies2020Determining, Pirchheim2011Homography, Herdiansyah2024Implementation}.
-    \item \textbf{Custom Layout Design and Action Mapping:} Most existing virtual typing systems use fixed QWERTY layouts and lack software tools that let users design custom printable paper templates with visual markers while connecting buttons to custom keystrokes or shell commands \cite{ReviewVirtualKeyboard2020}.
+    \item \textbf{Detection of Touch on Surface without Using Depth Sensors:} Monocular cameras with RGB color filters do not give any indication regarding depth along the Z-axis. The challenge arises in identifying the exact moment when the finger actually touches the surface in order to differentiate between pressing a button and touching the paper above the surface \cite{Thomas2013Camera, Posner2012Single, Lee2019Virtual, Toshpulatov2024RealTime}.
+    \item \textbf{Hand Size and Signal Distortion:} In the hand landmark-based model, the output of the pixel coordinate is dependent on the size of the hand, the distance from the camera, and the position of the user \cite{Zhang2020MediaPipe, Doan2022Efficient}. Normalizing the spatial landmarks without applying temporal filtering, which would cause distortion of touch events, is crucial for detecting touch events \cite{Kumar2026Hybrid}.
+    \item \textbf{Camera Tilt and Plane Orientation:} Even a slight misalignment between the paper and webcam alignment will lead to distortion of the perspective. This, in turn, makes the coordinate grids fail. It is therefore necessary that the planar markers and homography matrix ($H \in \mathbb{R}^{3 \times 3}$) are computed in real time \cite{Wang2016AprilTag2, Kallwies2020Determining, Pirchheim2011Homography, Herdiansyah2024Implementation}.
+    \item \textbf{Custom Design of Layouts and Mapping of Actions:} All virtual typing programs currently available use a standard QWERTY keyboard, but none of them allow for creating custom layouts in written form, allowing certain buttons to be assigned to particular keystrokes or shell commands \cite{ReviewVirtualKeyboard2020}.
 \end{enumerate}
 
-This chapter provides a detailed, critical review of prior research related to vision-based virtual input systems, planar marker tracking, hand joint estimation, feature scale normalization, and deep learning sequence models. Section~\ref{sec:lit_conceptual_map} presents a conceptual map that shows how the literature is structured. Section~\ref{sec:lit_domain_overview} gives a domain overview covering the history of text input, typing biomechanics, ergonomics, and domain drivers. Section~\ref{sec:lit_existing_systems} evaluates existing virtual keyboard systems across eight sensing categories. Section~\ref{sec:lit_technological_analysis} presents a technical analysis of key algorithms (MediaPipe hand tracking, scale normalization mathematics, AprilTag planar homography, and PyTorch LSTM models), design trade-offs, and processing workflows. Finally, Section~\ref{sec:lit_reflection} discusses the limitations of prior systems and explains the research gap addressed by this project.
+An in-depth critical review of the literature in vision-based virtual input, planar marker tracking, hand joint estimation, feature scaling, and deep learning sequence modeling will be discussed in this chapter. The way the literature has been organized is captured in the concept map provided in Section~\ref{sec:lit_conceptual_map}. In Section~\ref{sec:lit_domain_overview}, there is a brief overview of the field, which includes the history of text input, typing mechanism, ergonomics, and driving forces within the field. Section~\ref{sec:lit_existing_systems} provides the analysis of the available virtual keyboards using eight different kinds of sensors. The description of some basic algorithms and their processing technique is given in Section~\ref{sec:lit_technological_analysis}. The weaknesses of the existing approaches are highlighted in Section~\ref{sec:lit_reflection}.
 
 \section{Conceptual Map of the Literature}
 \label{sec:lit_conceptual_map}
-To help the reader understand the organization of prior work, Figure~\ref{fig:lit_conceptual_map_diagram} shows a conceptual taxonomy of the literature reviewed in this chapter.
+For the reader to be able to comprehend the nature of these prior studies, Figure~\ref{fig:lit_conceptual_map_diagram} below illustrates a classification scheme of the reviewed literature in this chapter.
 
 \begin{figure}[htbp]
 \centering
@@ -35,10 +35,10 @@ To help the reader understand the organization of prior work, Figure~\ref{fig:li
 \node (root) [header, at={(0, 0)}] {\textbf{Monocular Vision-Based Virtual Keyboard Literature Taxonomy}};
 
 % Level 1 Nodes - Perfectly leveled at y = -2.0cm across 4 distinct columns
-\node (l1_domain) [box, at={(-6.5, -2.0)}] {1. HCI and Input Paradigms\\(\S\ref{sec:lit_domain_overview})};
-\node (l1_systems) [box, at={(-2.15, -2.0)}] {2. Sensing Modalities\\(\S\ref{sec:lit_existing_systems})};
-\node (l1_tech) [box, at={(2.15, -2.0)}] {3. Technological Analysis\\(\S\ref{sec:lit_technological_analysis})};
-\node (l1_reflect) [box, at={(6.5, -2.0)}] {4. Research Synthesis\\(\S\ref{sec:lit_reflection})};
+\node (l1_domain) [box, at={(-6.5, -2.0)}] {1. HCI and Input Paradigms\\(Section~\ref{sec:lit_domain_overview})};
+\node (l1_systems) [box, at={(-2.15, -2.0)}] {2. Sensing Modalities\\(Section~\ref{sec:lit_existing_systems})};
+\node (l1_tech) [box, at={(2.15, -2.0)}] {3. Technological Analysis\\(Section~\ref{sec:lit_technological_analysis})};
+\node (l1_reflect) [box, at={(6.5, -2.0)}] {4. Research Synthesis\\(Section~\ref{sec:lit_reflection})};
 
 % Connections to Level 1
 \draw [arrow] (root.south -| l1_domain.north) -- (l1_domain.north);
@@ -66,7 +66,7 @@ To help the reader understand the organization of prior work, Figure~\ref{fig:li
 
 % Column 4: Research Synthesis
 \node (l2_gap) [subbox, below=0.5cm of l1_reflect] {Prior Art Limitations\\\cite{Thomas2013Camera, Lee2019Virtual, Maman2023TypeNet}};
-\node (l2_solution) [subbox, below=0.35cm of l2_gap] {Proposed Architecture\\Synthesis (\S\ref{sec:lit_reflection})};
+\node (l2_solution) [subbox, below=0.35cm of l2_gap] {Proposed Architecture\\Synthesis (Section~\ref{sec:lit_reflection})};
 
 % Vertical Column Connections
 \draw [arrow] (l1_domain) -- (l2_history);
@@ -95,10 +95,10 @@ To help the reader understand the organization of prior work, Figure~\ref{fig:li
 
 As shown in Figure~\ref{fig:lit_conceptual_map_diagram}, the literature review is grouped into four main sections:
 \begin{itemize}
-    \item \textbf{HCI and Input Paradigms (\S\ref{sec:lit_domain_overview}):} Reviews the history of typing devices and explains the motivations for paper-based virtual keyboards.
-    \item \textbf{Sensing Modalities (\S\ref{sec:lit_existing_systems}):} Compares eight different sensing methods using a detailed summary table (Table~\ref{tab:lit_comparative_matrix}).
-    \item \textbf{Technological Analysis (\S\ref{sec:lit_technological_analysis}):} Examines key technical components, including MediaPipe hand landmark tracking, hand scale normalization, AprilTag planar homography, PyTorch LSTM touch detection, and system workflows.
-    \item \textbf{Research Synthesis (\S\ref{sec:lit_reflection}):} Synthesizes the findings to clearly define the research gap addressed in this project.
+    \item \textbf{Typing Machines and Paper Based Virtual Keyboard (Section~\ref{sec:lit_domain_overview}):} Description of the existing typing machines and the rationale behind the use of paper based virtual keyboard.
+    \item \textbf{Sensing Modalities (Section~\ref{sec:lit_existing_systems}):} Eight types of sensors have been analyzed in a comprehensive table format (Table~\ref{tab:lit_comparative_matrix}).
+    \item \textbf{Technical Analysis (Section~\ref{sec:lit_technological_analysis}):} Includes an analysis of key technical components such as MediaPipe Hand Landmark Detector, Hand Size Normalization, April Tag Planar Homography, and PyTorch LSTM Touch Detector.
+    \item \textbf{Research Synthesis (Section~\ref{sec:lit_reflection}):} The synthesis of the findings of the research to help identify the gap in the research that needs to be researched.
 \end{itemize}
 
 \section{Domain Overview}

@@ -45,67 +45,67 @@ In relation to monocular computer vision and human-computer interaction, develop
 
 \section{Research Question}
 \label{sec:research_question}
-In order to fill the gap found in the literature, the main research question that will guide this study is the following:
+In order to bridge this gap in the knowledge, the research question for the current study can be formulated as:
 
 \begin{quote}
-\textit{How is it possible for a monocular computer vision system employing only a single RGB camera as well as regular printed paper to facilitate precise, instantaneous, and adaptable interactions with the virtual keyboard that works in any plane surface where users are able to create their own layout and bind multiple actions with one physical sheet of paper, all running in general purpose CPUs without any special hardware?}
+\textit{How is it possible for a computer vision system that employs only one regular RGB camera along with common printed paper to allow precise, real-time and customizable interaction through virtual keyboard on any flat surface by letting the users create their own keyboard layout and assigning various actions to the printed piece of paper, all on a commodity CPU and without using any special equipment or a GPU?}
 \end{quote}
 
-To answer the main research question systematically and comprehensively, the research explores the following five subsidiary questions:
+To address the core research questions in a systematic way, the following five research questions will be analyzed:
 \begin{enumerate}
-    \item \textbf{Fiducial marker choice and tracking of layout under perspective:} Which visual fiducial marker scheme, e.g., AprilTag, ArUco, ARTag, or STag, would result in the highest planar homography precision and least jitter in the corners under the perspective rotation of the camera and low video resolution conditions, and how to track the paper layout with occlusion of markers?
-    \item \textbf{Combination and subset of hand landmarks and kinematic features:} What is the optimal combination and subset of the 21 MediaPipe hand joint landmarks together with hand-length scale normalization and joint velocities that yield the highest discriminatory power for finger touch detection?
-    \item \textbf{Sequence architecture optimization for deep learning:} What type of neural network architecture, such as 1D CNN, Attention/Transformer, ResNet, BiLSTM, or LSTM, gives us the best results in terms of touch detection accuracy and F1 score, but with the speed less than 3~ms at the same time?
-    \item \textbf{Temporal Windowing and Real-Time CPU Synchronization:} For what time length, step, and sampling rate of the temporal sliding window can the multi-threaded vision processing pipeline reliably detect impact deceleration dynamics when operated at 12~FPS on commodity CPUs without a GPU?
-    \item \textbf{Layout separation and action multiplexing:} What is the way to make the geometric structure of paper layout physically independent from software semantics in order for one paper printout to be capable of being associated with several actions, such as typing, shortcuts, and shell commands?
+    \item \textbf{Selection of Vision-based Fiducial Markers and Paper Layout Tracking Method:} Which is the vision-based fiducial marker technique like AprilTag, ArUco, ARTag, and STag which will give the right homography because of lesser jitter at the corner due to camera rotation angles and fewer resolution videos, and which is the paper layout tracking with occluded markers?
+    \item \textbf{Subsets of hand landmarks and features representation:} What will be the best choice for the subsets of 21 hand landmarks from the MediaPipe dataset, normalized with the unitless scaling according to hand length and joint velocity, for the finger touch contact detection problem?
+    \item \textbf{Designing an Optimum Neural Network Architecture for Deep Learning-Based Touch Recognition Sequence Model:} Which will be the optimum neural network architecture between 1D CNN, Attention/Transformer, ResNet, BiLSTM, and LSTM that will give maximum accuracy and F1 score as well as a latency below 3 milliseconds in touch recognition?
+    \item \textbf{Sliding window and synchronization of the CPU for real-time processing:} What should the size of the sliding window in time, the time interval, and the sampling rate be in order to obtain the deceleration dynamics at 12 frames per second on CPU-based processors?
+    \item \textbf{The Separation of Paper Layout and Multiplexing of Actions:} What can be done in order to separate the layout of the paper and the semantics of the software that will allow us to convert a printed page of paper into different sequences of actions (keyboard input, keyboard shortcuts, command line interfaces, etc.)?
 \end{enumerate}
 
 \section{Research Motivation}
 \label{sec:research_motivation}
-There are many practical and technological reasons why this research can be helpful in human-computer interaction and accessible computing:
+There are certain reasons that make it absolutely necessary for the implementation of this research into human computer interaction and assistive technologies:
 \begin{itemize}
-    \item \textbf{Low Cost and Broad Accessibility:} Using no depth-sensing devices, laser projectors, or specialized hardware, but rather just plain paper, a common webcam, and a standard processor makes it possible to use the technology on inexpensive PCs in schools, at home, and in developing regions \cite{Khare2019QWERTY, Sreenath2021Monocular}.
-    \item \textbf{Custom Layouts and Reusable Paper Sheets:} Users can design customized key configurations (such as number pads, gaming grids, or assistive configurations) and print them on paper. The same physical key configuration (printed sheet) can be reconfigured to work in different software modes (for instance, standard typing, programming shortcuts, or audio editing macros) without reprinting new sheets.
-    \item \textbf{Hardware Independence Across Standard CPUs and Budget Cameras:} Making sure that the software works in real time on standard consumer CPUs, without requiring GPU usage and operating across various camera resolutions (such as 360p, 480p, and 720p), makes it possible to run the system on older laptops and budget computers.
-    \item \textbf{Inexpensive and Disposable Paper Interfaces:} In industrial workshops, chemistry laboratories, and classrooms, custom keypads can be printed on paper at very low cost and replaced easily if damaged or soiled.
-    \item \textbf{Hygienic Input for Medical Environments:} In hospital wards and operating rooms, physical keyboards collect bacteria; paper keyboard sheets with printed AprilTag markers can be laminated for easy sanitization or simply discarded after use.
-    \item \textbf{Real-Time Deep Learning on Standard CPUs:} Showing that a compact PyTorch LSTM network detects finger deceleration patterns during surface contact in real time on a CPU without GPU usage provides an effective approach for lightweight vision systems \cite{Hochreiter1997LSTM, Zhang2020MediaPipe, GilMartin2023Hand, Gammulle2021TMMF}.
+    \item \textbf{Cost-effective and easily available:} Since there is no requirement to use the depth sensor, laser and expensive hardware, this makes the technology affordable for low-cost computers through the use of paper, a regular webcam and a regular computer processor \cite{Khare2019QWERTY, Sreenath2021Monocular}.
+    \item \textbf{Designing dynamic layouts using flexible sheets:} A keypad for numbers, games, or even a handicap-friendly keypad can be designed based on personal preference and can be printed on a single piece of paper. But the same single piece of paper can be programmed with different software profiles without the need to print another single piece of paper.
+    \item \textbf{Independence of hardware for standard processors and low-cost cameras:} The capability to run the real-time performance on the normal consumer processor without needing the graphics processing unit for the low resolution camera feed like 360p and 480p makes the application able to run on old computers as well.
+    \item \textbf{Paper based cost effective interface:} Keyboards customized to work on paper for industrial work areas, chemistry labs, and classroom use are easily produced and easily replaceable in case of damage or contamination.
+    \item \textbf{Hygienic input for sterilized setting:} Keyboards which can easily collect germs inside the hospital can be replaced with paper keyboards which contain AprilTags either laminated for cleaning purposes or even disposable.
+    \item \textbf{Deep Learning in Real Time with Normal CPUs:} Use of PyTorch lightweight LSTM model which is able to detect finger impact dynamics in real time in a CPU without a GPU is a good design pattern for lightweight vision systems \cite{Hochreiter1997LSTM, Zhang2020MediaPipe, GilMartin2023Hand, Gammulle2021TMMF}.
 \end{itemize}
 
 \section{Research Aim}
 \label{sec:research_aim}
-The main goal of this research is the design, development, and evaluation of a customizable, paper-based virtual keyboard system. This system allows users to create custom designs on plain paper and associate the same paper printout with multiple individual action profiles (keystrokes, keyboard shortcuts, and executable shell commands). It works solely with the help of a single monocular RGB webcam without specialized hardware (such as depth cameras, Time-of-Flight sensors, or stereo rigs) by tracking plain paper layouts with AprilTag fiducials and running in real time on commodity CPUs without a GPU even at low camera resolutions.
+The objective of this project is to develop a configurable paper based virtual keyboard system which will allow configuring personalized keyboards by means of paper along with the configuration of the same paper for performing various functions such as keystrokes, shortcuts and shell commands. This operates solely based on the utilization of just one monocular RGB camera, with no other devices needed, according to the simple paper-based approach using AprilTag markers, even in real-time, on normal computer systems without the need for a GPU.
 
 \section{Research Objectives}
 \label{sec:research_text_objectives}
-To accomplish the research aim, the work is divided into four research objectives:
+This research has been broken down into four objectives to achieve the research objective:
 
-\subsection{1.7.1 To Identify...}
+\subsection{To Identify Baseline Requirements and Theoretical Foundations}
 \label{subsec:obj_identify}
-To review and investigate theoretical concepts, planar homography techniques, hand tracking methods, and feature normalization techniques from the literature and define baseline requirements for single RGB camera tracking, plain paper homography, decoupled action profile mapping, and real-time CPU computation without specialized hardware.
+The investigation into theories, planar homography methods, hand tracking approaches, and feature normalization procedures from various references, in order to set benchmarks for single RGB camera tracking, paper homography, decoupled action profile mapping, and real-time CPU computations without hardware aid.
 
-\subsection{1.7.2 To Analyze...}
+\subsection{To Analyze Hand Kinematics and Feature Normalization}
 \label{subsec:obj_analyze}
-To analyze hand joint kinematic features, unitless hand-length scale normalization, direct feature propagation, and temporal sliding windows (with 5 frames and 2-frame overlap at a 12~FPS standardized rate) to achieve camera resolution independence and real-time CPU computation without any need for a GPU.
+The evaluation criteria include consideration of kinematics hand joint properties, normalization of hand length so that it is dimensionless, no intermediate transformation during feature propagation, and sliding window of 5 frames with 2 frames overlapping each other per second with a 12 FPS frame rate. This offers freedom from the resolution of the camera and the processing speed of the CPU without requiring the use of a GPU.
 
-\subsection{1.7.3 To Design and Develop...}
+\subsection{To Design and Develop the Two-Application Suite}
 \label{subsec:obj_design}
-To design, develop, and integrate an end-to-end two-application software suite comprising:
+The process of developing the two applications in this software package will be undertaken as described below:
 \begin{enumerate}
-    \item A PySide6 desktop layout designer (Application 1) for interactive key layout creation, generation of layout XML files, and printing PDF sheets with embedded AprilTag markers on standard plain paper.
-    \item A runtime configuration and command mapper GUI (Application 2, Component A) through which users can choose regular RGB webcam feeds, load layout XML files, map buttons to keystrokes or shell commands, and save or switch between different action profiles for the same printed paper layout.
-    \item An AprilTag visual tracking module to compute a real-time $3 \times 3$ Planar Homography matrix ($H$) from a single camera feed to correct perspective tilt and paper movement across regular and low camera resolutions \cite{Wang2016AprilTag2, Kallwies2020Determining}.
-    \item A MediaPipe Hand Landmarker tracking module together with a hand-length scale normalizer that processes raw keypoints directly without temporal smoothing \cite{Zhang2020MediaPipe, SanchezBrizuela2023Lightweight}.
-    \item A lightweight PyTorch LSTM touch detection model (under 1~MB file size) trained using 12~FPS 5-frame temporal windows for real-time touch detection of finger contact on standard CPUs without a GPU \cite{Hochreiter1997LSTM, GilMartin2023Hand, Simao2016Unsupervised}.
+    \item Application 1 of PySide6 is made for the interactive designing of the layouts, generating the XML files to represent the keyboard layout, and creating the sheets containing AprilTags in PDF format on normal papers.
+    \item The name of this tool is Runtime Configuration and Command Mapper GUI (Application 2, Component A). This tool allows the user to select the standard RGB web camera input streams, import the layout XML files, assign buttons with keys or shell commands and switch between various action sets of the same printed paper layout.
+    \item Vision block using April tags to generate the 3x3 homography matrix in real-time considering only one input stream that is generated by the camera to solve the perspective angle and movement of the paper issue \cite{Wang2016AprilTag2, Kallwies2020Determining}.
+    \item The hand keypoints were tracked using the MediaPipe Hand Landmarker tracking model, which used the hand scale length normalizer. No temporal filtering was done on these keypoints \cite{Zhang2020MediaPipe, SanchezBrizuela2023Lightweight}.
+    \item Tiny LSTM based PyTorch model for finger touch detection which is of small size less than 1 MB and trained using 12FPS and 5 frames per sequence without using GPU \cite{Hochreiter1997LSTM, GilMartin2023Hand, Simao2016Unsupervised}.
 \end{enumerate}
 
-\subsection{1.7.4 To Evaluate...}
+\subsection{To Evaluate System Performance and Latency}
 \label{subsec:obj_evaluate}
-To evaluate the complete system in terms of touch classification accuracy (precision, recall, F1-score), homography mapping precision, multi-profile action dispatch reliability on the same printed layout, CPU real-time latency across different camera resolutions (360p, 480p, 720p, 1080p), typing speed (Words Per Minute), Character Error Rate (CER), and overall usability on plain paper setups.
+Performance evaluation of the complete system with respect to the accuracy of touch detection (precision, recall, and F1 score), accuracy of homography mapping, reliability of action dispatching using multi-profiles for a single printed design, latency of real-time CPU usage at different camera resolutions like 360p, 480p, 720p, and 1080p and typing speed in WPM, character error rate and usability on plain paper.
 
 \section{Rich Picture of the Proposed Solution}
 \label{sec:rich_picture}
-The entire operational workflow of the proposed customizable paper-based virtual keyboard system is shown in Figure~\ref{fig:rich_picture_diagram}. The system design involves two phases, namely, the Layout Design and Export Phase (offline design phase) and the Real-Time Camera Pipeline and Key Execution Phase (online runtime phase).
+The whole process for the designed paper-based virtual keyboard system is shown below in Figure~\ref{fig:rich_picture_diagram}. The process of designing the system has been carried out through two main steps, namely Layout Design and Export Step, which is offline, and Camera Pipeline Step and Execution Step, which is online.
 
 \begin{figure}[htbp]
 \centering
@@ -172,43 +172,42 @@ The entire operational workflow of the proposed customizable paper-based virtual
 
 \subsection{Detailed Operational Architecture Steps}
 \begin{enumerate}
-    \item \textbf{Layout Design and Export:} The user designs a custom layout of keys using the PySide6 desktop designer software. This software generates two synchronized files: an XML file defining key region coordinates, button values, action commands, and anchor locations of AprilTag markers; and a printable PDF sheet displaying the layout grid with AprilTag markers placed along the borders.
-    \item \textbf{Physical Paper Setup and Capture:} The user prints the PDF file on ordinary paper and places it on a flat table. An ordinary USB webcam or laptop camera captures the real-time video feed at any standard resolution.
-    \item \textbf{AprilTag Tracking and Homography Calculation:} The AprilTag tracking module detects the four corner fiducial markers on the paper and determines their 2D pixel coordinates \cite{Wang2016AprilTag2, Kallwies2020Determining, Shabalina2018ARTag, Kalaitzakis2021Fiducial}. It computes a $3 \times 3$ Planar Homography matrix ($H$) to map camera pixel coordinates directly into the XML layout coordinate space \cite{Pirchheim2011Homography, Herdiansyah2024Implementation, GarridoJurado2026ArUco}.
-    \item \textbf{Hand Tracking and Scale Normalization:} MediaPipe Hand Landmarker identifies 21 skeletal joint keypoints on detected hands \cite{Zhang2020MediaPipe, SanchezBrizuela2023Lightweight, Sreenath2021Monocular, Ivacko2024Edge, Andriyanov2025Improving}. These coordinates are normalized with respect to hand length ($L_{\text{hand}}$, the distance between the wrist and the middle MCP joint) to make features invariant to hand size, camera distance, and image resolution. Raw scale-normalized features are passed directly to the model without temporal smoothing to keep contact deceleration signals crisp.
-    \item \textbf{Temporal Windowing:} Normalized joint positions and derived velocities are gathered at a 12~FPS rate into sliding temporal windows of 5 frames with a 2-frame overlap (a step size of 3 frames) \cite{Simao2016Unsupervised, Gammulle2021TMMF}.
-    \item \textbf{LSTM Touch Classification on CPU:} The custom PyTorch LSTM neural network evaluates each 5-frame window on the CPU to detect whether a finger touched the physical surface \cite{Hochreiter1997LSTM, GilMartin2023Hand, Doan2022Efficient, Nunez2018Convolutional, Lai2018CNN}.
-    \item \textbf{Homography Coordinate Mapping and Key Execution:} When a touch event is confirmed, the coordinates of the active fingertip pixel ($P_{\text{pixel}}$) are transformed using $H$ into the XML layout coordinate space ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$) and matched against key boundaries to trigger the mapped keystroke or system shell command.
+    \item \textbf{Key Layout Design and Exporting:} User designs layout of keys using PySide6 GUI design tool. This design tool creates two files that work in sync; one is an XML file that has details about location of key regions, button values, commands and anchor points of AprilTags, while the second file is a print layout that is created in PDF format.
+    \item \textbf{Paper Document Format and Capture:} The user puts the paper copy of the PDF document onto the table. The video of the image is then recorded using a regular webcam or even the webcam of the laptop.
+    \item \textbf{AprilTag Detection and Calculation of the Planar Homography Matrix:} In the module of AprilTag detection, the four fiducial marks located at the four corners of the paper are detected. The coordinates of these four fiducials in 2D pixels are then determined \cite{Wang2016AprilTag2, Kallwies2020Determining, Shabalina2018ARTag, Kalaitzakis2021Fiducial}. The 3 by 3 matrix $H$, which is used in the transformation from camera pixels to XML coordinates, is determined \cite{Pirchheim2011Homography, Herdiansyah2024Implementation, GarridoJurado2026ArUco}.
+    \item \textbf{Hand Tracking and Scaling:} The MediaPipe hand landmarker has 21 landmarks, where these landmarks are represented by coordinates available in the hand \cite{Zhang2020MediaPipe, SanchezBrizuela2023Lightweight, Sreenath2021Monocular, Ivacko2024Edge, Andriyanov2025Improving}. The scaling of these landmarks is done based on the size of the hands, which in turn is determined from the distance between the wrist and the metacarpophalangeal joint of the middle finger. Normalized raw scale feature value is fed directly into the classifier without smoothing in time domain in order to maintain deceleration peak value.
+    \item \textbf{Temporal Windowing:} Joint positions and their corresponding velocities are sampled at 12 FPS through temporal windows of 5 frames each, with 2 frames overlap between adjacent windows (step size of 3 frames) \cite{Simao2016Unsupervised, Gammulle2021TMMF}.
+    \item \textbf{CPU-Based LSTM Touch Detection:} The LSTM neural network created for use with PyTorch distinguishes between touch and no touch based on each five-frame sequence on the CPU \cite{Hochreiter1997LSTM, GilMartin2023Hand, Doan2022Efficient, Nunez2018Convolutional, Lai2018CNN}.
+    \item \textbf{Transformation of Coordinates by Homography and Key Recognition:} As soon as the touch action is detected, the coordinates of the pixel corresponding to the finger that touches the screen are converted into the coordinates of the XML layout according to the matrix $H$ and are compared with the boundaries of keys. This executes the given keyboard shortcut or executes the given command using the shell.
 \end{enumerate}
 
 \section{Resource Requirements}
 \label{sec:resource_requirements}
-The hardware and software specifications needed to build, run, and test the customizable paper-based virtual keyboard system are listed below.
+Hardware and Software Requirements to Develop, Run, and Test the Customize Virtual Keyboard Using Paper are as Follows:
 
 \subsection{Hardware Requirements}
 \label{subsec:hardware_req}
 \begin{itemize}
-    \item \textbf{Monocular Camera:} Any ordinary USB webcam, low-end camera, or built-in laptop camera working at regular or low resolutions (such as 360p, 480p, 720p, or 1080p) is sufficient. High frame-rate or high-resolution cameras are not needed.
-    \item \textbf{Host Computer:} A standard PC or laptop with an x86\_64 or ARM processor (such as an Intel Core i3/i5, AMD Ryzen, or basic equivalent, with at least 4~GB of RAM). The system runs in near real time on standard consumer CPUs without requiring high-end processors.
-    \item \textbf{Graphics Card (Optional):} Live inference runs entirely on the CPU. A dedicated GPU is optional and not required for runtime execution.
-    \item \textbf{Physical Materials:} A standard desktop printer with normal A4 or Letter paper, and a flat desk or table surface.
+    \item \textbf{Camera:} It could be any regular webcam that connects through USB, camera or even the in-built camera in the laptop that works on ordinary resolution like 360p, 480p, 720p or 1080p. Camera with high frame per second or high resolution is not very much required.
+    \item \textbf{Host Machine:} An ordinary PC or laptop that may have a processor in x86\_64 or ARM architecture, such as the Intel Core i3 or i5 processor or the equivalent AMD Ryzen processor, along with 4GB of RAM. The system nearly operates in real-time through the use of ordinary processors.
+    \item \textbf{Optional Graphics Card:} The inference is performed purely on the CPU. There is no need for a graphics card.
+    \item \textbf{Materials to be used physically:} Standard printer that would be suitable for use on a desktop computer using standard size paper such as A4/Letter.
 \end{itemize}
 
 \subsection{Software Requirements}
 \label{subsec:software_req}
 \begin{itemize}
-    \item \textbf{Operating System:} Linux (Ubuntu 22.04 LTS or 24.04 LTS), macOS, or Windows 11.
-    \item \textbf{Programming Language and Tools:} Python 3.10 or higher, managed using the `uv` package manager.
-    \item \textbf{GUI Framework:} PySide6 (Qt for Python) for desktop layout design and setup interfaces.
-    \item \textbf{Computer Vision Libraries:} OpenCV (`opencv-python`) and Pupil AprilTag (`apriltag` Python bindings).
-    \item \textbf{Hand Pose Estimation:} Google MediaPipe Hand Landmarker (`mediapipe`).
-    \item \textbf{Deep Learning Framework:} PyTorch (`torch`, `torchvision`) for LSTM model definition, training, and real-time CPU inference.
-    \item \textbf{Document Tools:} TeX Live full suite (`pdflatex`, `latexmk`, `biber`) for thesis compilation.
+    \item \textbf{OS:} Operating systems for Linux such as Ubuntu 22.04 LTS, 24.04 LTS; macOS, Windows 11.
+    \item \textbf{Languages \& Tools Used for Programming:} Python version 3.10+ with uv package manager.
+    \item \textbf{PySide6:} This is Qt in Python and is employed in making desktop layouts and interfaces.
+    \item \textbf{Computer Vision Libraries in Python:} OpenCV and Pupil AprilTag.
+    \item \textbf{Hand Pose Estimation:} The MediaPipe Hand Landmarker method from Google.
+    \item \textbf{Deep Learning Architecture:} Utilization of PyTorch for designing, training, and testing an LSTM network using real-time CPU.
 \end{itemize}
 
 \section{Project Scope}
 \label{sec:project_scope}
-In order to keep the project scope well-defined and manageable, clear boundaries to the scope of the research project were established. Defining what is included in the scope of this research project and what is outside its scope helps design an effective and user-friendly system that achieves its goals without introducing extra complexity. Table~\ref{tab:project_scope} summarizes what is considered within the project scope and what is excluded from scope.
+To make sure that the scope of this project has been defined clearly and has some boundaries, scope boundaries for the research project were established. Knowing about the scope of the particular research project makes it possible for us to devise an efficient system that does not complicate matters. Table~\ref{tab:project_scope} shows what is included and excluded from the scope of this project.
 
 \begin{table}[H]
 \centering
@@ -219,40 +218,40 @@ In order to keep the project scope well-defined and manageable, clear boundaries
 \toprule
 \textbf{In-Scope System Elements} & \textbf{Out-of-Scope System Elements} \\
 \midrule
-Single regular monocular RGB camera input (standard USB webcams, budget sensors, regular/low resolutions: 360p, 480p, 720p, 1080p, at 12~FPS). & Specialized 3D depth sensors (RGB-D), Time-of-Flight (ToF) cameras, infrared emitters, or stereo camera setups. \\
+Monocular RGB camera (common), common USB webcams can also serve as examples as well as affordable sensors with common resolutions of 360p, 480p, 720p, and 1080p at 12~FPS speed. & Depth sensor, Time-of-flight camera, Infrared light source or stereo camera. \\
 \addlinespace
-Single-hand active typing and touch tracking (extracting 21 joint landmarks for one active hand, classifying touches across all 5 individual fingers). & Two-handed simultaneous (bimanual) typing or multi-user typing (reserved for future extensions to avoid marker occlusion on A4 paper). \\
+One Hand Active Typing and Touch Detection, where the tracking is done on 21 joints of one active hand and the touch is identified separately on all five fingers. & Two-fingered typing or group typing at once, for future editions only to prevent marker obscuration on A4 paper. \\
 \addlinespace
-Standard plain printed paper layout sheets (A4/Letter) with AprilTag markers printed using regular desktop printers. & Active capacitive sheets, conductive ink traces, wired sensor pads, or specialized physical touch hardware. \\
+Sheet of plain white paper, having AprilTag marking printed by a computer printer, either in A4 or Letter sizes. & Active capacitive films, conductive ink strips, wired sensing panels, or even any type of touch sensitive hardware components. \\
 \addlinespace
-Standard commodity CPU execution for real-time inference without requiring dedicated GPU acceleration (GPU remains optional). & Mandatory GPU requirements or expensive high-end workstation clusters. \\
+Inference in real-time using a CPU-based standard commodity solution without GPU. & Necessity or costliness of GPUs for top performance workstations. \\
 \addlinespace
-PySide6 desktop GUI tool for custom layout design, XML export, and AprilTag PDF printing. & Mobile native app ports (iOS/Android) or web browser extensions. \\
+PySide6 based GUI application for creating custom layouts and exporting to XML file to print AprilTag PDFs. & Applications native to the iOS or Android operating system or browser add-ons. \\
 \addlinespace
-AprilTag fiducial marker tracking and 2D planar $3\times3$ Homography transformation under perspective tilt. & Non-planar or 3D curved surface tracking (such as cylinders or spheres). \\
+Fiducial Marker Tracking using April Tag along with 2D Planar 3x3 Homography Transform with Perspective Tilt. & Tracing the curved surface of 3D objects like cylinder and sphere. \\
 \addlinespace
-Unitless hand-length scale normalization ($L_{\text{hand}}$) with direct feature propagation for complete resolution invariance. & Full 3D biomechanical joint muscle force or physical pressure distribution modeling. \\
+Normalized length of hands (unit-less) through feature propagation method for acquiring full resolution invariance. & 3D biomechanical modeling of muscular forces/pressures at joints. \\
 \addlinespace
-Custom lightweight PyTorch LSTM neural network evaluating 5-frame sliding feature windows for touch classification on CPU. & Large-scale end-to-end language model (LLM) auto-correct context generators. \\
+Simple Lightweight LSTM Neural Network Using PyTorch with Custom Sliding Feature Window of 5 Frames for Touches Recognition on the CPU. & Corrections performed automatically in large language models. \\
 \addlinespace
-Real-time virtual key press execution and XML coordinate lookup on flat desk surfaces. & Multi-user simultaneous typing on the same printed paper keyboard. \\
+Real-time virtual key stroke execution and XML search on coordinates for flat surfaces. & Several users inputting text simultaneously through the printed paper keyboard. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \subsection{In-Scope Technical Boundaries}
 \label{subsec:in_scope_boundaries}
-When considering the hardware and sensing scope, the research strictly confines itself to the use of one simple monocular RGB webcam and ordinary plain printed sheets of paper \cite{Posner2012Single, Enkhbat2020HandKey, Sreenath2021Monocular}. The system is designed to function with low-cost USB webcams and laptop webcams at normal or low resolutions like 360p, 480p, 720p, and 1080p. No special high frame rate camera, studio optics, or depth sensors are required. The layout of the keyboard is printed on ordinary A4 or Letter paper via normal office desktop inkjet or laser printers. There are no electronics, wiring, or sensors embedded on the paper. Besides, the runtime algorithm is developed to run in real time on commodity consumer-grade CPUs without the need for a dedicated GPU or high-performance workstation.
+As far as the hardware and the sensor variety is concerned, the research employs one simple RGB webcam and regular printed papers \cite{Posner2012Single, Enkhbat2020HandKey, Sreenath2021Monocular}. The system can be operated by using budget USB webcams as well as laptop webcams that have either normal or low resolution, i.e., 360p, 480p, 720p, and 1080p. High-speed cameras, professional lenses, and depth sensors are not needed at all. The keyboard pattern is printed on regular A4/Letter papers via an ordinary inkjet or laser printer on the office computer desk. There are neither any electronics nor any sensors embedded in the paper. Moreover, the algorithm is implemented in real-time without any GPU usage.
 
-In terms of interaction design and vision tracking, the design is aimed only at the active interaction of one hand and tracking of 21 landmarks of one active hand at a time. The deep learning model calculates the probabilities of touching of all five individual fingers of the active hand (Thumb, Index, Middle, Ring, and Pinky) simultaneously. Single-hand tracking helps to keep latency to a minimum ($29.09\text{ ms}$), and also to prevent hand occlusion of the four fiducial AprilTag border anchors on small A4 sheets of paper. Physical paper shape is separated from digital action semantics using PySide6 Layout Designer, enabling users to customize key layouts and assign the same physical printed sheet of paper to different action sets (typing, developer shortcuts, DAW music controls, or terminal commands) just by loading configuration profiles in the software \cite{Doan2022Efficient, Li2021CNN, Lee2022Virtual}. Vision tracking uses continuous AprilTag planar homography tracking that compensates for paper motion and camera angle \cite{Wang2016AprilTag2, Kalaitzakis2021Fiducial}. Hand landmarks are normalized to hand length without temporal smoothing delays at the standard 12~FPS rate in 5-frame sliding windows, and then classified using a compact PyTorch LSTM neural network on CPU \cite{Hochreiter1997LSTM, Zhang2020MediaPipe, GilMartin2023Hand}.
+Regarding the design for interaction and vision tracking, the current design allows the interaction and tracking of one hand with 21 landmarks of the active hand. In this scenario, the deep learning algorithm calculates the probabilities of touching of all five fingers of the active hand including Thumb, Index, Middle, Ring and Pinky finger in one stroke. The interaction with the single hand not only allows the reduction of latency up to 29.09 ms but also avoids the occlusion of the four fiducial AprilTag border anchors on the small A4 sheets of paper. The decoupling of physical paper shape and digital action semantics is achieved using the PySide6 Layout Designer allowing the user to configure his key layout and use the same physical sheet of paper to make different kinds of actions such as typing, developer shortcuts, DAW music controls, and terminal commands by switching configurations in the software \cite{Doan2022Efficient, Li2021CNN, Lee2022Virtual}. The vision tracking is done using the AprilTag planar homography tracking which compensates for the paper movement and camera angle \cite{Wang2016AprilTag2, Kalaitzakis2021Fiducial}. The hand landmarks are normalized to the hand length with no temporal smoothing of 12 FPS and classified using the compact PyTorch LSTM neural network on CPU \cite{Hochreiter1997LSTM, Zhang2020MediaPipe, GilMartin2023Hand}.
 
 \subsection{Out-of-Scope Boundaries and Future Extensions}
 \label{subsec:out_scope_boundaries}
-In order to make the design feasible, low cost, and efficient on regular computer CPUs, a number of advanced features have been deliberately left out of the scope of this work. Firstly, with regard to the hardware aspect, specialized sensors for 3D depth detection, Time-of-Flight cameras, stereocameras, infrared laser pointers, and sensor gloves have been excluded \cite{Lee2019Virtual, Kudale2016RealTime}. Electronic paper and conductive ink circuitry are not included in the current design, nor is the typing on curved 3D surfaces, such as cylinders and spheres. Any input is only allowed on regular sheets of paper on flat surfaces. Secondly, with respect to interaction, two-handed typing and multi-user interaction have been ruled out of this project. Tracking of both hands at once would block the AprilTag marker detection on the usual A4 papers and overwhelm the CPU. Finally, complete 3D muscle force detection of fingers, calculations of touch pressures, and text autocompletion with a large language model are not part of this project and may be considered for further research.
+To make this particular design feasible and inexpensive enough to be implemented in normal PCs, some advanced features have been left out purposefully in this design. Firstly, with respect to the hardware side of things, there is no use of any sensors like 3D depth sensors, Time-of-Flight camera, stereo cameras, Infrared laser pointer, and sensor gloves \cite{Lee2019Virtual, Kudale2016RealTime}. Neither has the use of e-paper and ink circuit been considered in this design. Typing on 3D surfaces like cylinder and spheres has been left out of consideration as well. Only typing on normal paper in a flat plane has been taken into account in this case. Secondly, regarding the interaction aspect of this design, two-handed typing and multi-user interaction have not been considered in this design as well. Two-handed detection will confuse the AprilTag marker detection from the normal A4 papers and also cause CPU overload. Finally, 3D force detection of the fingers, touch pressure calculation, and auto-completion of texts using language models have not been considered in this design.
 
 \section{Chapter Summary}
 \label{sec:chapter_summary}
-This introductory chapter has provided a detailed overview of the problem background, problem statement, research questions, motivation, aim, objectives, solution architecture, resource requirements, and project scope for a customizable paper-based virtual keyboard system.
+Above is the introductory chapter which covers the background of the problem, the problem statement, research questions, motivation, objective, aim, solution architecture, resource requirements, and scope of the custom paper virtual keyboard project.
 
-Through the replacement of expensive specialized hardware (such as depth sensors, Time-of-Flight cameras, laser projectors, and high-end GPUs) with an ordinary RGB camera, standard plain printed paper, AprilTag planar homography tracking \cite{Wang2016AprilTag2, Kallwies2020Determining}, unitless scale normalization \cite{Zhang2020MediaPipe}, and a lightweight PyTorch LSTM touch classifier running in real time at 12~FPS on commodity CPUs \cite{Hochreiter1997LSTM, GilMartin2023Hand}, this research addresses key accessibility and technical challenges in monocular vision input interfaces. Chapter 2 (Literature Review) is the subsequent chapter that provides a comprehensive critical review of existing virtual keyboard frameworks, hand pose estimation algorithms, planar homography techniques, and deep learning gesture classification models in current literature.
+By employing a cheap alternative such as an RGB camera, a sheet of paper, AprilTags planar homography tracking \cite{Wang2016AprilTag2, Kallwies2020Determining}, unit scale normalization \cite{Zhang2020MediaPipe}, and the light-weight PyTorch LSTM touch classifier operating at 12~FPS on commodity hardware \cite{Hochreiter1997LSTM, GilMartin2023Hand}, this study manages to tackle some of the most critical issues of accessibility and technological complexity associated with the monocular vision-based user interface technologies. The second chapter, entitled the Literature Review, will include a thorough review of the literature on current methods for designing virtual keyboards, hand pose estimation, planar homography techniques, and gesture classification by means of deep learning.
 

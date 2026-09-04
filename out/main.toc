@@ -8,19 +8,19 @@
 \contentsline {paragraph}{Research Gap:}{11}{section*.3}%
 \contentsline {section}{\numberline {1.4}Research Question}{11}{section.1.4}%
 \contentsline {section}{\numberline {1.5}Research Motivation}{12}{section.1.5}%
-\contentsline {section}{\numberline {1.6}Research Aim}{12}{section.1.6}%
+\contentsline {section}{\numberline {1.6}Research Aim}{13}{section.1.6}%
 \contentsline {section}{\numberline {1.7}Research Objectives}{13}{section.1.7}%
-\contentsline {subsection}{\numberline {1.7.1}1.7.1 To Identify...}{13}{subsection.1.7.1}%
-\contentsline {subsection}{\numberline {1.7.2}1.7.2 To Analyze...}{13}{subsection.1.7.2}%
-\contentsline {subsection}{\numberline {1.7.3}1.7.3 To Design and Develop...}{13}{subsection.1.7.3}%
-\contentsline {subsection}{\numberline {1.7.4}1.7.4 To Evaluate...}{14}{subsection.1.7.4}%
+\contentsline {subsection}{\numberline {1.7.1}To Identify Baseline Requirements and Theoretical Foundations}{13}{subsection.1.7.1}%
+\contentsline {subsection}{\numberline {1.7.2}To Analyze Hand Kinematics and Feature Normalization}{13}{subsection.1.7.2}%
+\contentsline {subsection}{\numberline {1.7.3}To Design and Develop the Two-Application Suite}{13}{subsection.1.7.3}%
+\contentsline {subsection}{\numberline {1.7.4}To Evaluate System Performance and Latency}{14}{subsection.1.7.4}%
 \contentsline {section}{\numberline {1.8}Rich Picture of the Proposed Solution}{14}{section.1.8}%
 \contentsline {subsection}{\numberline {1.8.1}Detailed Operational Architecture Steps}{14}{subsection.1.8.1}%
 \contentsline {section}{\numberline {1.9}Resource Requirements}{16}{section.1.9}%
 \contentsline {subsection}{\numberline {1.9.1}Hardware Requirements}{16}{subsection.1.9.1}%
 \contentsline {subsection}{\numberline {1.9.2}Software Requirements}{16}{subsection.1.9.2}%
 \contentsline {section}{\numberline {1.10}Project Scope}{17}{section.1.10}%
-\contentsline {subsection}{\numberline {1.10.1}In-Scope Technical Boundaries}{17}{subsection.1.10.1}%
+\contentsline {subsection}{\numberline {1.10.1}In-Scope Technical Boundaries}{18}{subsection.1.10.1}%
 \contentsline {subsection}{\numberline {1.10.2}Out-of-Scope Boundaries and Future Extensions}{18}{subsection.1.10.2}%
 \contentsline {section}{\numberline {1.11}Chapter Summary}{18}{section.1.11}%
 \contentsline {chapter}{\numberline {2}Literature Review}{20}{chapter.2}%
