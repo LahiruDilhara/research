@@ -63,37 +63,34 @@ Solving $\mathbf{A} = \mathbf{U} \mathbf{\Sigma} \mathbf{V}^T$ using Singular Va
 
 Algorithm~\ref{alg:homography_svd} presents the formal pseudocode for AprilTag corner localization and SVD homography calculation.
 
-\begin{figure}[htbp]
+\begin{table}[htbp]
 \centering
-\begin{minipage}{0.92\textwidth}
-\small
-\setlength{\extrarowheight}{2pt}
-\begin{tabular}{|p{0.96\linewidth}|}
-\hline
-\textbf{Algorithm 1: AprilTag Corner Localization and SVD Planar Homography Calculation} \\
-\hline
-{\small\sffamily \textbf{Input:} Video frame image $\mathbf{I}_{\text{frame}} \in \mathbb{R}^{H \times W \times 3}$, Target XML anchor coordinates $\{(x_k^{\text{xml}}, y_k^{\text{xml}})\}_{k=1}^M$} \\
-{\small\sffamily \textbf{Output:} Updated Planar Homography matrix $H \in \mathbb{R}^{3 \times 3}$, Sub-pixel tracking error $e_{\text{rms}}$} \\
-{\small 1: Convert $\mathbf{I}_{\text{frame}}$ to grayscale single-channel image $\mathbf{I}_{\text{gray}}$.} \\
-{\small 2: Detect AprilTag visual quads using AprilTag family \texttt{tag36h11}.} \\
-{\small 3: \textbf{if} Count of detected valid tags $M_{\text{detected}} < 4$ \textbf{then}} \\
-{\small 4: \hspace{1em} Retain previous valid Homography matrix $H_{\text{prev}}$ from memory buffer.} \\
-{\small 5: \hspace{1em} \textbf{return} $H_{\text{prev}}$, Status: \texttt{TAG\_OCCLUSION\_WARNING}} \\
-{\small 6: \textbf{end if}} \\
-{\small 7: Extract sub-pixel corner pixel coordinates $\{(u_k, v_k)\}_{k=1}^{4 M_{\text{detected}}}$.} \\
-{\small 8: Construct $2N \times 9$ DLT coefficient matrix $\mathbf{A}$ using Equation~\ref{eq:dlt_matrix_app}.} \\
-{\small 9: Compute Singular Value Decomposition: $\mathbf{U}, \mathbf{\Sigma}, \mathbf{V}^T = \text{SVD}(\mathbf{A})$.} \\
-{\small 10: Extract column vector $\mathbf{h} = \mathbf{V}[:, 8]$ corresponding to minimum singular value $\sigma_{\min}$.} \\
-{\small 11: Reshape $\mathbf{h}$ into $3 \times 3$ matrix $H_{\text{raw}}$ and normalize $H = \frac{1}{h_{33}} H_{\text{raw}}$.} \\
-{\small 12: Compute RMS reprojection error $e_{\text{rms}} = \sqrt{\frac{1}{N} \sum_{i=1}^N \| \mathbf{P}_i^{\text{xml}} - H \cdot \mathbf{P}_i^{\text{pixel}} \|^2}$.} \\
-{\small 13: Update shared runtime memory buffer with $H$.} \\
-{\small 14: \textbf{return} $H, e_{\text{rms}}$} \\
-\hline
-\end{tabular}
-\end{minipage}
 \caption{Formal algorithmic specification for AprilTag corner localization and SVD planar homography calculation.}
 \label{alg:homography_svd}
-\end{figure}
+\begin{tabular}{l p{13.5cm}}
+\toprule
+\textbf{Step / Field} & \textbf{Algorithm 1: AprilTag Corner Localization and SVD Planar Homography Calculation} \\
+\midrule
+\textbf{Input:} & Video frame image $\mathbf{I}_{\text{frame}} \in \mathbb{R}^{H \times W \times 3}$, Target XML anchor coordinates $\{(x_k^{\text{xml}}, y_k^{\text{xml}})\}_{k=1}^M$ \\
+\textbf{Output:} & Updated Planar Homography matrix $H \in \mathbb{R}^{3 \times 3}$, Sub-pixel tracking error $e_{\text{rms}}$ \\
+\midrule
+\textbf{1:} & Convert $\mathbf{I}_{\text{frame}}$ to grayscale single-channel image $\mathbf{I}_{\text{gray}}$. \\
+\textbf{2:} & Detect AprilTag visual quads using AprilTag family \texttt{tag36h11}. \\
+\textbf{3:} & \textbf{if} Count of detected valid tags $M_{\text{detected}} < 4$ \textbf{then} \\
+\textbf{4:} & \hspace{1em} Retain previous valid Homography matrix $H_{\text{prev}}$ from memory buffer. \\
+\textbf{5:} & \hspace{1em} \textbf{return} $H_{\text{prev}}$, Status: \texttt{TAG\_OCCLUSION\_WARNING} \\
+\textbf{6:} & \textbf{end if} \\
+\textbf{7:} & Extract sub-pixel corner pixel coordinates $\{(u_k, v_k)\}_{k=1}^{4 M_{\text{detected}}}$. \\
+\textbf{8:} & Construct $2N \times 9$ DLT coefficient matrix $\mathbf{A}$ using Equation~\ref{eq:dlt_matrix_app}. \\
+\textbf{9:} & Compute Singular Value Decomposition: $\mathbf{U}, \mathbf{\Sigma}, \mathbf{V}^T = \text{SVD}(\mathbf{A})$. \\
+\textbf{10:} & Extract column vector $\mathbf{h} = \mathbf{V}[:, 8]$ corresponding to minimum singular value $\sigma_{\min}$. \\
+\textbf{11:} & Reshape $\mathbf{h}$ into $3 \times 3$ matrix $H_{\text{raw}}$ and normalize $H = \frac{1}{h_{33}} H_{\text{raw}}$. \\
+\textbf{12:} & Compute RMS reprojection error $e_{\text{rms}} = \sqrt{\frac{1}{N} \sum_{i=1}^N \| \mathbf{P}_i^{\text{xml}} - H \cdot \mathbf{P}_i^{\text{pixel}} \|^2}$. \\
+\textbf{13:} & Update shared runtime memory buffer with $H$. \\
+\textbf{14:} & \textbf{return} $H, e_{\text{rms}}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsubsection{Algorithm 2: Unitless Hand Landmark Scale Normalization Engine}
 The pose engine extracts 21 anatomical 2D hand joint coordinates $\mathbf{P}_i(t) = (x_i(t), y_i(t))$ per frame and applies scale normalization.
@@ -121,37 +118,34 @@ These scale-normalized coordinates and velocities are passed directly to feature
 
 Algorithm~\ref{alg:scale_normalization} details the formal pseudocode for hand landmark scale normalization and velocity calculation.
 
-\begin{figure}[htbp]
+\begin{table}[htbp]
 \centering
-\begin{minipage}{0.92\textwidth}
-\small
-\setlength{\extrarowheight}{2pt}
-\begin{tabular}{|p{0.96\linewidth}|}
-\hline
-\textbf{Algorithm 2: Unitless Hand Landmark Scale Normalization and Velocity Derivation} \\
-\hline
-{\small\sffamily \textbf{Input:} Raw MediaPipe 21 landmark 2D coordinates $\{\mathbf{P}_i(t) = (x_i, y_i)\}_{i=0}^{20}$, Previous frame keypoints $\{\mathbf{P}_i(t-1)\}_{i=0}^{20}$, Frame time step $\Delta t = \frac{1}{12}\text{ s}$} \\
-{\small\sffamily \textbf{Output:} 84-Dimensional per-frame feature vector $\mathbf{f}_t \in \mathbb{R}^{84}$} \\
-{\small 1: Extract wrist origin coordinates $\mathbf{P}_0(t) = (x_0(t), y_0(t))$.} \\
-{\small 2: Extract middle MCP landmark coordinates $\mathbf{P}_9(t) = (x_9(t), y_9(t))$.} \\
-{\small 3: Compute unitless hand length scale factor: $L_{\text{hand}}(t) = \sqrt{(x_9(t) - x_0(t))^2 + (y_9(t) - y_0(t))^2}$.} \\
-{\small 4: \textbf{if} $L_{\text{hand}}(t) < \epsilon$ ($< 10$ pixels) \textbf{then}} \\
-{\small 5: \hspace{1em} \textbf{return} Status: \texttt{INVALID\_HAND\_SCALE\_ERROR}} \\
-{\small 6: \textbf{end if}} \\
-{\small 7: Initialize empty feature vector array $\mathbf{f}_t \in \mathbb{R}^{84}$.} \\
-{\small 8: \textbf{for} each landmark $i \in \{0, 1, \dots, 20\}$ \textbf{do}} \\
-{\small 9: \hspace{1em} Calculate normalized position: $x_i^{\text{norm}}(t) = \frac{x_i(t) - x_0(t)}{L_{\text{hand}}(t)}$, \hspace{1em} $y_i^{\text{norm}}(t) = \frac{y_i(t) - y_0(t)}{L_{\text{hand}}(t)}$.} \\
-{\small 10: \hspace{1em} Calculate numerical velocity: $v_{x,i}(t) = \frac{x_i^{\text{norm}}(t) - x_i^{\text{norm}}(t-1)}{\Delta t}$, \hspace{1em} $v_{y,i}(t) = \frac{y_i^{\text{norm}}(t) - y_i^{\text{norm}}(t-1)}{\Delta t}$.} \\
-{\small 11: \hspace{1em} Store $(x_i^{\text{norm}}, y_i^{\text{norm}}, v_{x,i}, v_{y,i})$ into feature vector $\mathbf{f}_t$ at indices $[4i : 4i+4]$.} \\
-{\small 12: \textbf{end for}} \\
-{\small 13: Direct raw feature propagation (preserve contact deceleration transients).} \\
-{\small 14: \textbf{return} $\mathbf{f}_t \in \mathbb{R}^{84}$} \\
-\hline
-\end{tabular}
-\end{minipage}
 \caption{Formal algorithmic specification for unitless hand landmark scale normalization.}
 \label{alg:scale_normalization}
-\end{figure}
+\begin{tabular}{l p{13.5cm}}
+\toprule
+\textbf{Step / Field} & \textbf{Algorithm 2: Unitless Hand Landmark Scale Normalization and Velocity Derivation} \\
+\midrule
+\textbf{Input:} & Raw MediaPipe 21 landmark 2D coordinates $\{\mathbf{P}_i(t) = (x_i, y_i)\}_{i=0}^{20}$, Previous frame keypoints $\{\mathbf{P}_i(t-1)\}_{i=0}^{20}$, Frame time step $\Delta t = \frac{1}{12}\text{ s}$ \\
+\textbf{Output:} & 84-Dimensional per-frame feature vector $\mathbf{f}_t \in \mathbb{R}^{84}$ \\
+\midrule
+\textbf{1:} & Extract wrist origin coordinates $\mathbf{P}_0(t) = (x_0(t), y_0(t))$. \\
+\textbf{2:} & Extract middle MCP landmark coordinates $\mathbf{P}_9(t) = (x_9(t), y_9(t))$. \\
+\textbf{3:} & Compute unitless hand length scale factor: $L_{\text{hand}}(t) = \sqrt{(x_9(t) - x_0(t))^2 + (y_9(t) - y_0(t))^2}$. \\
+\textbf{4:} & \textbf{if} $L_{\text{hand}}(t) < \epsilon$ ($< 10$ pixels) \textbf{then} \\
+\textbf{5:} & \hspace{1em} \textbf{return} Status: \texttt{INVALID\_HAND\_SCALE\_ERROR} \\
+\textbf{6:} & \textbf{end if} \\
+\textbf{7:} & Initialize empty feature vector array $\mathbf{f}_t \in \mathbb{R}^{84}$. \\
+\textbf{8:} & \textbf{for} each landmark $i \in \{0, 1, \dots, 20\}$ \textbf{do} \\
+\textbf{9:} & \hspace{1em} Calculate normalized position: $x_i^{\text{norm}}(t) = \frac{x_i(t) - x_0(t)}{L_{\text{hand}}(t)}$, \hspace{1em} $y_i^{\text{norm}}(t) = \frac{y_i(t) - y_0(t)}{L_{\text{hand}}(t)}$. \\
+\textbf{10:} & \hspace{1em} Calculate numerical velocity: $v_{x,i}(t) = \frac{x_i^{\text{norm}}(t) - x_i^{\text{norm}}(t-1)}{\Delta t}$, \hspace{1em} $v_{y,i}(t) = \frac{y_i^{\text{norm}}(t) - y_i^{\text{norm}}(t-1)}{\Delta t}$. \\
+\textbf{11:} & \hspace{1em} Store $(x_i^{\text{norm}}, y_i^{\text{norm}}, v_{x,i}, v_{y,i})$ into feature vector $\mathbf{f}_t$ at indices $[4i : 4i+4]$. \\
+\textbf{12:} & \textbf{end for} \\
+\textbf{13:} & Direct raw feature propagation (preserve contact deceleration transients). \\
+\textbf{14:} & \textbf{return} $\mathbf{f}_t \in \mathbb{R}^{84}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsubsection{Algorithm 3: 5-Frame Sliding Window Assembly and PyTorch LSTM Touch Inference}
 The temporal inference engine stacks 84-dimensional feature vectors $\mathbf{f}_t$ across 5 consecutive frames into input matrix $\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$.
@@ -166,41 +160,38 @@ A fully connected dense layer with sigmoid activation predicts the binary touch 
 
 Algorithm~\ref{alg:lstm_touch_inference} details the formal pseudocode for 5-frame sliding window assembly and PyTorch LSTM touch inference.
 
-\begin{figure}[htbp]
+\begin{table}[htbp]
 \centering
-\begin{minipage}{0.92\textwidth}
-\small
-\setlength{\extrarowheight}{2pt}
-\begin{tabular}{|p{0.96\linewidth}|}
-\hline
-\textbf{Algorithm 3: 5-Frame Sliding Window Assembly and PyTorch LSTM Touch Inference} \\
-\hline
-{\small\sffamily \textbf{Input:} Per-frame feature vector $\mathbf{f}_t \in \mathbb{R}^{84}$, Sliding window Queue buffer $\mathbf{Q}_{\text{win}}$, PyTorch model instance \texttt{best\allowbreak\_finger\allowbreak\_touch\allowbreak\_lstm.pth}, Detection threshold $\tau_{\text{touch}} = 0.90$} \\
-{\small\sffamily \textbf{Output:} Active finger touch status array $\mathbf{S}_{\text{touch}} \in \{0, 1\}^5$, Active fingertip landmark index $k_{\text{active}}$} \\
-{\small 1: Append current feature vector $\mathbf{f}_t$ to sliding queue $\mathbf{Q}_{\text{win}}$.} \\
-{\small 2: \textbf{if} Length of $\mathbf{Q}_{\text{win}} < 5$ frames \textbf{then}} \\
-{\small 3: \hspace{1em} \textbf{return} $\mathbf{S}_{\text{touch}} = [0,0,0,0,0]$, Status: \texttt{WINDOW\_BUFFERING}} \\
-{\small 4: \textbf{end if}} \\
-{\small 5: Construct sliding window input matrix $\mathbf{X}_W = [\mathbf{f}_{t-4}, \mathbf{f}_{t-3}, \mathbf{f}_{t-2}, \mathbf{f}_{t-1}, \mathbf{f}_t]^T \in \mathbb{R}^{5 \times 84}$.} \\
-{\small 6: Advance sliding queue by stride of 3 frames (retaining 2-frame overlap).} \\
-{\small 7: Convert $\mathbf{X}_W$ to PyTorch Tensor: $\mathbf{T}_{\text{input}} = \text{torch.tensor}(\mathbf{X}_W, \text{dtype}=\text{float32}).\text{unsqueeze}(0)$.} \\
-{\small 8: Execute PyTorch model forward pass in evaluation mode (\texttt{with torch.no\_grad():}):} \\
-{\small 9: \hspace{1em} $\mathbf{y}_{\text{logits}} = \text{Model}(\mathbf{T}_{\text{input}})$.} \\
-{\small 10: \hspace{1em} $\mathbf{P}_{\text{touch}} = \text{sigmoid}(\mathbf{y}_{\text{logits}}) \in [0, 1]^5$.} \\
-{\small 11: Initialize binary status vector $\mathbf{S}_{\text{touch}} = [0, 0, 0, 0, 0]$.} \\
-{\small 12: \textbf{for} each finger digit $k \in \{0, 1, 2, 3, 4\}$ \textbf{do}} \\
-{\small 13: \hspace{1em} \textbf{if} $P_{\text{touch}}[k] > \tau_{\text{touch}}$ \textbf{then}} \\
-{\small 14: \hspace{2em} Set $\mathbf{S}_{\text{touch}}[k] = 1$ (Touch Confirmed).} \\
-{\small 15: \hspace{2em} Set active fingertip landmark index: $k_{\text{active}} \in \{4, 8, 12, 16, 20\}$.} \\
-{\small 16: \hspace{1em} \textbf{end if}} \\
-{\small 17: \textbf{end for}} \\
-{\small 18: \textbf{return} $\mathbf{S}_{\text{touch}}, k_{\text{active}}$} \\
-\hline
-\end{tabular}
-\end{minipage}
 \caption{Formal algorithmic specification for 5-frame sliding window assembly and PyTorch LSTM touch inference.}
 \label{alg:lstm_touch_inference}
-\end{figure}
+\begin{tabular}{l p{13.5cm}}
+\toprule
+\textbf{Step / Field} & \textbf{Algorithm 3: 5-Frame Sliding Window Assembly and PyTorch LSTM Touch Inference} \\
+\midrule
+\textbf{Input:} & Per-frame feature vector $\mathbf{f}_t \in \mathbb{R}^{84}$, Sliding window Queue buffer $\mathbf{Q}_{\text{win}}$, PyTorch model instance \texttt{best\allowbreak\_finger\allowbreak\_touch\allowbreak\_lstm.pth}, Detection threshold $\tau_{\text{touch}} = 0.90$ \\
+\textbf{Output:} & Active finger touch status array $\mathbf{S}_{\text{touch}} \in \{0, 1\}^5$, Active fingertip landmark index $k_{\text{active}}$ \\
+\midrule
+\textbf{1:} & Append current feature vector $\mathbf{f}_t$ to sliding queue $\mathbf{Q}_{\text{win}}$. \\
+\textbf{2:} & \textbf{if} Length of $\mathbf{Q}_{\text{win}} < 5$ frames \textbf{then} \\
+\textbf{3:} & \hspace{1em} \textbf{return} $\mathbf{S}_{\text{touch}} = [0,0,0,0,0]$, Status: \texttt{WINDOW\_BUFFERING} \\
+\textbf{4:} & \textbf{end if} \\
+\textbf{5:} & Construct sliding window input matrix $\mathbf{X}_W = [\mathbf{f}_{t-4}, \mathbf{f}_{t-3}, \mathbf{f}_{t-2}, \mathbf{f}_{t-1}, \mathbf{f}_t]^T \in \mathbb{R}^{5 \times 84}$. \\
+\textbf{6:} & Advance sliding queue by stride of 3 frames (retaining 2-frame overlap). \\
+\textbf{7:} & Convert $\mathbf{X}_W$ to PyTorch Tensor: $\mathbf{T}_{\text{input}} = \text{torch.tensor}(\mathbf{X}_W, \text{dtype}=\text{float32}).\text{unsqueeze}(0)$. \\
+\textbf{8:} & Execute PyTorch model forward pass in evaluation mode (\texttt{with torch.no\_grad():}): \\
+\textbf{9:} & \hspace{1em} $\mathbf{y}_{\text{logits}} = \text{Model}(\mathbf{T}_{\text{input}})$. \\
+\textbf{10:} & \hspace{1em} $\mathbf{P}_{\text{touch}} = \text{sigmoid}(\mathbf{y}_{\text{logits}}) \in [0, 1]^5$. \\
+\textbf{11:} & Initialize binary status vector $\mathbf{S}_{\text{touch}} = [0, 0, 0, 0, 0]$. \\
+\textbf{12:} & \textbf{for} each finger digit $k \in \{0, 1, 2, 3, 4\}$ \textbf{do} \\
+\textbf{13:} & \hspace{1em} \textbf{if} $P_{\text{touch}}[k] > \tau_{\text{touch}}$ \textbf{then} \\
+\textbf{14:} & \hspace{2em} Set $\mathbf{S}_{\text{touch}}[k] = 1$ (Touch Confirmed). \\
+\textbf{15:} & \hspace{2em} Set active fingertip landmark index: $k_{\text{active}} \in \{4, 8, 12, 16, 20\}$. \\
+\textbf{16:} & \hspace{1em} \textbf{end if} \\
+\textbf{17:} & \textbf{end for} \\
+\textbf{18:} & \textbf{return} $\mathbf{S}_{\text{touch}}, k_{\text{active}}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsubsection{Algorithm 4: Planar Coordinate Mapping and Action Execution Engine}
 When Algorithm~\ref{alg:lstm_touch_inference} detects a touch event, Algorithm~\ref{alg:coordinate_mapping} maps the active fingertip pixel coordinates $(u_{\text{active}}, v_{\text{active}})$ through Homography matrix $H$ into layout XML coordinates:
@@ -214,184 +205,169 @@ The system searches the XML key bounding boxes. If $(X_{\text{target}}, Y_{\text
 
 Algorithm~\ref{alg:coordinate_mapping} shows the formal pseudocode for planar coordinate mapping and action execution.
 
-\begin{figure}[htbp]
+\begin{table}[htbp]
 \centering
-\begin{minipage}{0.92\textwidth}
-\small
-\setlength{\extrarowheight}{2pt}
-\begin{tabular}{|p{0.96\linewidth}|}
-\hline
-\textbf{Algorithm 4: Planar Coordinate Mapping and Action Execution Engine} \\
-\hline
-{\small\sffamily \textbf{Input:} Active fingertip pixel coordinate $\mathbf{P}_{\text{pixel}} = (u, v)$, Homography matrix $H \in \mathbb{R}^{3 \times 3}$, Target XML key bounding boxes $\{B_j = (x_{\min}^j, y_{\min}^j, x_{\max}^j, y_{\max}^j)\}_{j=1}^K$, Action mapping dictionary $\mathbf{M}_{\text{action}}$} \\
-{\small\sffamily \textbf{Output:} Executed Action Status, Hit Key ID $j_{\text{hit}}$} \\
-{\small 1: Compute homogeneous target vector: $[x_{\text{temp}}, y_{\text{temp}}, w]^T = H \cdot [u, v, 1]^T$.} \\
-{\small 2: \textbf{if} $|w| < 10^{-6}$ \textbf{then}} \\
-{\small 3: \hspace{1em} \textbf{return} Status: \texttt{HOMOGRAPHY\_SINGULARITY\_ERROR}} \\
-{\small 4: \textbf{end if}} \\
-{\small 5: Dehomogenize XML planar coordinates: $X_{\text{xml}} = \frac{x_{\text{temp}}}{w}$, \hspace{1em} $Y_{\text{xml}} = \frac{y_{\text{temp}}}{w}$.} \\
-{\small 6: Initialize $j_{\text{hit}} = \text{None}$.} \\
-{\small 7: \textbf{for} each key button $j \in \{1, 2, \dots, K\}$ in XML layout \textbf{do}} \\
-{\small 8: \hspace{1em} \textbf{if} $x_{\min}^j \le X_{\text{xml}} \le x_{\max}^j$ \textbf{and} $y_{\min}^j \le Y_{\text{xml}} \le y_{\max}^j$ \textbf{then}} \\
-{\small 9: \hspace{2em} Set $j_{\text{hit}} = j$.} \\
-{\small 10: \hspace{2em} Extract action binding: $A_j = \mathbf{M}_{\text{action}}[j]$.} \\
-{\small 11: \hspace{2em} \textbf{if} $A_j$ is \texttt{KeystrokeAction} \textbf{then}} \\
-{\small 12: \hspace{2em} \hspace{1em} Inject system virtual key press event via OS API (e.g., `'A'`).} \\
-{\small 13: \hspace{2em} \textbf{else if} $A_j$ is \texttt{SystemCommandAction} \textbf{then}} \\
-{\small 14: \hspace{2em} \hspace{1em} Execute background shell command script: \texttt{subprocess.Popen(A\_j.command)}.} \\
-{\small 15: \hspace{2em} \textbf{end if}} \\
-{\small 16: \hspace{2em} Break loop.} \\
-{\small 17: \hspace{1em} \textbf{end if}} \\
-{\small 18: \textbf{end for}} \\
-{\small 19: \textbf{return} Status: \texttt{ACTION\_DISPATCHED\_SUCCESS}, Hit Key ID $j_{\text{hit}}$} \\
-\hline
-\end{tabular}
-\end{minipage}
 \caption{Formal algorithmic specification for planar coordinate mapping and action execution.}
 \label{alg:coordinate_mapping}
-\end{figure}
+\begin{tabular}{l p{13.5cm}}
+\toprule
+\textbf{Step / Field} & \textbf{Algorithm 4: Planar Coordinate Mapping and Action Execution Engine} \\
+\midrule
+\textbf{Input:} & Active fingertip pixel coordinate $\mathbf{P}_{\text{pixel}} = (u, v)$, Homography matrix $H \in \mathbb{R}^{3 \times 3}$, Target XML key bounding boxes $\{B_j = (x_{\min}^j, y_{\min}^j, x_{\max}^j, y_{\max}^j)\}_{j=1}^K$, Action mapping dictionary $\mathbf{M}_{\text{action}}$ \\
+\textbf{Output:} & Executed Action Status, Hit Key ID $j_{\text{hit}}$ \\
+\midrule
+\textbf{1:} & Compute homogeneous target vector: $[x_{\text{temp}}, y_{\text{temp}}, w]^T = H \cdot [u, v, 1]^T$. \\
+\textbf{2:} & \textbf{if} $|w| < 10^{-6}$ \textbf{then} \\
+\textbf{3:} & \hspace{1em} \textbf{return} Status: \texttt{HOMOGRAPHY\_SINGULARITY\_ERROR} \\
+\textbf{4:} & \textbf{end if} \\
+\textbf{5:} & Dehomogenize XML planar coordinates: $X_{\text{xml}} = \frac{x_{\text{temp}}}{w}$, \hspace{1em} $Y_{\text{xml}} = \frac{y_{\text{temp}}}{w}$. \\
+\textbf{6:} & Initialize $j_{\text{hit}} = \text{None}$. \\
+\textbf{7:} & \textbf{for} each key button $j \in \{1, 2, \dots, K\}$ in XML layout \textbf{do} \\
+\textbf{8:} & \hspace{1em} \textbf{if} $x_{\min}^j \le X_{\text{xml}} \le x_{\max}^j$ \textbf{and} $y_{\min}^j \le Y_{\text{xml}} \le y_{\max}^j$ \textbf{then} \\
+\textbf{9:} & \hspace{2em} Set $j_{\text{hit}} = j$. \\
+\textbf{10:} & \hspace{2em} Extract action binding: $A_j = \mathbf{M}_{\text{action}}[j]$. \\
+\textbf{11:} & \hspace{2em} \textbf{if} $A_j$ is \texttt{KeystrokeAction} \textbf{then} \\
+\textbf{12:} & \hspace{2em} \hspace{1em} Inject system virtual key press event via OS API (e.g., `'A'`). \\
+\textbf{13:} & \hspace{2em} \textbf{else if} $A_j$ is \texttt{SystemCommandAction} \textbf{then} \\
+\textbf{14:} & \hspace{2em} \hspace{1em} Execute background shell command script: \texttt{subprocess.Popen(A\_j.command)}. \\
+\textbf{15:} & \hspace{2em} \textbf{end if} \\
+\textbf{16:} & \hspace{2em} Break loop. \\
+\textbf{17:} & \hspace{1em} \textbf{end if} \\
+\textbf{18:} & \textbf{end for} \\
+\textbf{19:} & \textbf{return} Status: \texttt{ACTION\_DISPATCHED\_SUCCESS}, Hit Key ID $j_{\text{hit}}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsubsection{Algorithm 5: PySide6 Interactive Canvas Viewport Drag-and-Drop Math}
 Application 1 (\texttt{designer\_app.py}) provides interactive mouse drag-and-drop key placement on a 2D canvas.
 
 Algorithm~\ref{alg:canvas_drag_drop} details formal pseudocode for mouse viewport coordinate mapping and snap-to-grid calculations.
 
-\begin{figure}[htbp]
+\begin{table}[htbp]
 \centering
-\begin{minipage}{0.92\textwidth}
-\small
-\setlength{\extrarowheight}{2pt}
-\begin{tabular}{|p{0.96\linewidth}|}
-\hline
-\textbf{Algorithm 5: PySide6 Interactive Canvas Viewport Drag-and-Drop Math} \\
-\hline
-{\small\sffamily \textbf{Input:} Viewport mouse click coordinate $\mathbf{p}_{\text{mouse}} = (u_{\text{m}}, v_{\text{m}})$, Viewport transformation matrix $\mathbf{T}_{\text{view}} \in \mathbb{R}^{3 \times 3}$, Grid snap spacing $\Delta g = 5.0\text{ mm}$, Button size $(W_{\text{key}}, H_{\text{key}})$} \\
-{\small\sffamily \textbf{Output:} Snapped Key Bounding Box $B_{\text{new}} = (x_{\min}, y_{\min}, x_{\max}, y_{\max})$} \\
-{\small 1: Map viewport pixel coordinate to scene millimeter space: $[x_{\text{scene}}, y_{\text{scene}}, 1]^T = \mathbf{T}_{\text{view}}^{-1} \cdot [u_{\text{m}}, v_{\text{m}}, 1]^T$.} \\
-{\small 2: Compute grid-snapped origin coordinates:} \\
-{\small 3: \hspace{1em} $x_{\text{snap}} = \text{round}(x_{\text{scene}} / \Delta g) \times \Delta g$.} \\
-{\small 4: \hspace{1em} $y_{\text{snap}} = \text{round}(y_{\text{scene}} / \Delta g) \times \Delta g$.} \\
-{\small 5: Define bounding box: $x_{\min} = x_{\text{snap}}$, $y_{\min} = y_{\text{snap}}$, $x_{\max} = x_{\text{snap}} + W_{\text{key}}$, $y_{\max} = y_{\text{snap}} + H_{\text{key}}$.} \\
-{\small 6: Check bounding box collision against existing keys: $\text{Overlap} = \text{CheckIntersections}(B_{\text{new}}, \{B_{\text{existing}}\})$.} \\
-{\small 7: \textbf{if} Overlap is True \textbf{then}} \\
-{\small 8: \hspace{1em} Shift origin $x_{\text{snap}} = x_{\text{snap}} + \Delta g$ and recompute $B_{\text{new}}$.} \\
-{\small 9: \textbf{end if}} \\
-{\small 10: Instantiate \texttt{KeyButtonGraphic} graphics item on \texttt{QGraphicsScene}.} \\
-{\small 11: \textbf{return} $B_{\text{new}}$} \\
-\hline
-\end{tabular}
-\end{minipage}
 \caption{Formal algorithmic specification for PySide6 canvas viewport drag-and-drop key placement.}
 \label{alg:canvas_drag_drop}
-\end{figure}
+\begin{tabular}{l p{13.5cm}}
+\toprule
+\textbf{Step / Field} & \textbf{Algorithm 5: PySide6 Interactive Canvas Viewport Drag-and-Drop Math} \\
+\midrule
+\textbf{Input:} & Viewport mouse click coordinate $\mathbf{p}_{\text{mouse}} = (u_{\text{m}}, v_{\text{m}})$, Viewport transformation matrix $\mathbf{T}_{\text{view}} \in \mathbb{R}^{3 \times 3}$, Grid snap spacing $\Delta g = 5.0\text{ mm}$, Button size $(W_{\text{key}}, H_{\text{key}})$ \\
+\textbf{Output:} & Snapped Key Bounding Box $B_{\text{new}} = (x_{\min}, y_{\min}, x_{\max}, y_{\max})$ \\
+\midrule
+\textbf{1:} & Map viewport pixel coordinate to scene millimeter space: $[x_{\text{scene}}, y_{\text{scene}}, 1]^T = \mathbf{T}_{\text{view}}^{-1} \cdot [u_{\text{m}}, v_{\text{m}}, 1]^T$. \\
+\textbf{2:} & Compute grid-snapped origin coordinates: \\
+\textbf{3:} & \hspace{1em} $x_{\text{snap}} = \text{round}(x_{\text{scene}} / \Delta g) \times \Delta g$. \\
+\textbf{4:} & \hspace{1em} $y_{\text{snap}} = \text{round}(y_{\text{scene}} / \Delta g) \times \Delta g$. \\
+\textbf{5:} & Define bounding box: $x_{\min} = x_{\text{snap}}$, $y_{\min} = y_{\text{snap}}$, $x_{\max} = x_{\text{snap}} + W_{\text{key}}$, $y_{\max} = y_{\text{snap}} + H_{\text{key}}$. \\
+\textbf{6:} & Check bounding box collision against existing keys: $\text{Overlap} = \text{CheckIntersections}(B_{\text{new}}, \{B_{\text{existing}}\})$. \\
+\textbf{7:} & \textbf{if} Overlap is True \textbf{then} \\
+\textbf{8:} & \hspace{1em} Shift origin $x_{\text{snap}} = x_{\text{snap}} + \Delta g$ and recompute $B_{\text{new}}$. \\
+\textbf{9:} & \textbf{end if} \\
+\textbf{10:} & Instantiate \texttt{KeyButtonGraphic} graphics item on \texttt{QGraphicsScene}. \\
+\textbf{11:} & \textbf{return} $B_{\text{new}}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsubsection{Algorithm 6: Multi-Threaded Consumer-Producer Queue Synchronization}
 Application 2 (\texttt{camera\_thread.py}) uses multi-threaded queues to separate camera capture from model inference.
 
 Algorithm~\ref{alg:queue_synchronization} details formal pseudocode for consumer-producer thread synchronization.
 
-\begin{figure}[htbp]
+\begin{table}[htbp]
 \centering
-\begin{minipage}{0.92\textwidth}
-\small
-\setlength{\extrarowheight}{2pt}
-\begin{tabular}{|p{0.96\linewidth}|}
-\hline
-\textbf{Algorithm 6: Multi-Threaded Consumer-Producer Queue Synchronization} \\
-\hline
-{\small\sffamily \textbf{Input:} Video Capture object \texttt{cv2.VideoCapture}, Shared Queue buffer $\mathbf{Q}_{\text{frame}}$ (Max Size = 2), Mutex Lock $\mathbf{L}_{\text{mutex}}$} \\
-{\small\sffamily \textbf{Output:} Thread-safe Frame Stream Buffer} \\
-{\small 1: \textbf{Worker Thread Function} \texttt{CameraCaptureLoop()}:} \\
-{\small 2: \textbf{while} Runtime flag \texttt{is\_running} is True \textbf{do}} \\
-{\small 3: \hspace{1em} Read raw video frame: $\text{ret}, \mathbf{I}_{\text{raw}} = \text{cap.read}()$.} \\
-{\small 4: \hspace{1em} \textbf{if} $\text{ret}$ is False \textbf{then} Continue.} \\
-{\small 5: \hspace{1em} Acquire Mutex Lock $\mathbf{L}_{\text{mutex}}$.} \\
-{\small 6: \hspace{1em} \textbf{if} Queue $\mathbf{Q}_{\text{frame}}$ is Full \textbf{then}} \\
-{\small 7: \hspace{2em} Discard oldest frame (Drop frame to prevent buffer bloat and lag).} \\
-{\small 8: \hspace{2em} $\mathbf{Q}_{\text{frame}}.\text{get\_nowait}()$.} \\
-{\small 9: \hspace{1em} \textbf{end if}} \\
-{\small 10: \hspace{1em} Push new frame $\mathbf{I}_{\text{raw}}$ to $\mathbf{Q}_{\text{frame}}$.} \\
-{\small 11: \hspace{1em} Release Mutex Lock $\mathbf{L}_{\text{mutex}}$.} \\
-{\small 12: \textbf{end while}} \\
-\hline
-\end{tabular}
-\end{minipage}
 \caption{Formal algorithmic specification for multi-threaded consumer-producer queue synchronization.}
 \label{alg:queue_synchronization}
-\end{figure}
+\begin{tabular}{l p{13.5cm}}
+\toprule
+\textbf{Step / Field} & \textbf{Algorithm 6: Multi-Threaded Consumer-Producer Queue Synchronization} \\
+\midrule
+\textbf{Input:} & Video Capture object \texttt{cv2.VideoCapture}, Shared Queue buffer $\mathbf{Q}_{\text{frame}}$ (Max Size = 2), Mutex Lock $\mathbf{L}_{\text{mutex}}$ \\
+\textbf{Output:} & Thread-safe Frame Stream Buffer \\
+\midrule
+\textbf{1:} & \textbf{Worker Thread Function} \texttt{CameraCaptureLoop()}: \\
+\textbf{2:} & \textbf{while} Runtime flag \texttt{is\_running} is True \textbf{do} \\
+\textbf{3:} & \hspace{1em} Read raw video frame: $\text{ret}, \mathbf{I}_{\text{raw}} = \text{cap.read}()$. \\
+\textbf{4:} & \hspace{1em} \textbf{if} $\text{ret}$ is False \textbf{then} Continue. \\
+\textbf{5:} & \hspace{1em} Acquire Mutex Lock $\mathbf{L}_{\text{mutex}}$. \\
+\textbf{6:} & \hspace{1em} \textbf{if} Queue $\mathbf{Q}_{\text{frame}}$ is Full \textbf{then} \\
+\textbf{7:} & \hspace{2em} Discard oldest frame (Drop frame to prevent buffer bloat and lag). \\
+\textbf{8:} & \hspace{2em} $\mathbf{Q}_{\text{frame}}.\text{get\_nowait}()$. \\
+\textbf{9:} & \hspace{1em} \textbf{end if} \\
+\textbf{10:} & \hspace{1em} Push new frame $\mathbf{I}_{\text{raw}}$ to $\mathbf{Q}_{\text{frame}}$. \\
+\textbf{11:} & \hspace{1em} Release Mutex Lock $\mathbf{L}_{\text{mutex}}$. \\
+\textbf{12:} & \textbf{end while} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsubsection{Algorithm 7: Video Frame Downsampling and Quality Filtering Engine}
 The dataset pipeline (\texttt{mediapipeDetector/datacreator/resample\_12fps.py}) down-samples raw video recordings to a standard 12~FPS rate.
 
 Algorithm~\ref{alg:resample_12fps} presents formal pseudocode for frame sub-sampling and blur filtering.
 
-\begin{figure}[htbp]
+\begin{table}[htbp]
 \centering
-\begin{minipage}{0.92\textwidth}
-\small
-\setlength{\extrarowheight}{2pt}
-\begin{tabular}{|p{0.96\linewidth}|}
-\hline
-\textbf{Algorithm 7: Video Frame Downsampling and Quality Filtering Engine} \\
-\hline
-{\small\sffamily \textbf{Input:} Raw video file path $S_{\text{video}}$, Source Frame Rate $R_{\text{src}}$ (30/60 FPS), Target Frame Rate $R_{\text{target}} = 12\text{ FPS}$} \\
-{\small\sffamily \textbf{Output:} Downsampled video frame sequence matrix $\mathbf{V}_{\text{down}}$} \\
-{\small 1: Open video stream \texttt{cap = cv2.VideoCapture(S\_video)}.} \\
-{\small 2: Calculate frame step sampling ratio: $k_{\text{step}} = \text{round}(R_{\text{src}} / R_{\text{target}})$.} \\
-{\small 3: Initialize frame index $n = 0$, sampled buffer array $\mathbf{V}_{\text{down}} = []$.} \\
-{\small 4: \textbf{while} \texttt{cap.isOpened()} \textbf{do}} \\
-{\small 5: \hspace{1em} Read frame $\text{ret}, \mathbf{I}_n = \text{cap.read}()$.} \\
-{\small 6: \hspace{1em} \textbf{if} $\text{ret}$ is False \textbf{then} Break loop.} \\
-{\small 7: \hspace{1em} \textbf{if} $n \pmod{k_{\text{step}}} == 0$ \textbf{then}} \\
-{\small 8: \hspace{2em} Compute Laplacian blur metric: $b = \text{cv2.Laplacian}(\mathbf{I}_n, \text{cv2.CV\_64F}).\text{var}()$.} \\
-{\small 9: \hspace{2em} \textbf{if} Blur score $b \ge \theta_{\text{blur}}$ ($100.0$) \textbf{then}} \\
-{\small 10: \hspace{2em} \hspace{1em} Append frame $\mathbf{I}_n$ to sequence array $\mathbf{V}_{\text{down}}$.} \\
-{\small 11: \hspace{2em} \textbf{end if}} \\
-{\small 12: \hspace{1em} \textbf{end if}} \\
-{\small 13: \hspace{1em} Increment frame index $n = n + 1$.} \\
-{\small 14: \textbf{end while}} \\
-{\small 15: \textbf{return} Frame sequence matrix $\mathbf{V}_{\text{down}}$} \\
-\hline
-\end{tabular}
-\end{minipage}
 \caption{Formal algorithmic specification for video frame downsampling and quality filtering.}
 \label{alg:resample_12fps}
-\end{figure}
+\begin{tabular}{l p{13.5cm}}
+\toprule
+\textbf{Step / Field} & \textbf{Algorithm 7: Video Frame Downsampling and Quality Filtering Engine} \\
+\midrule
+\textbf{Input:} & Raw video file path $S_{\text{video}}$, Source Frame Rate $R_{\text{src}}$ (30/60 FPS), Target Frame Rate $R_{\text{target}} = 12\text{ FPS}$ \\
+\textbf{Output:} & Downsampled video frame sequence matrix $\mathbf{V}_{\text{down}}$ \\
+\midrule
+\textbf{1:} & Open video stream \texttt{cap = cv2.VideoCapture(S\_video)}. \\
+\textbf{2:} & Calculate frame step sampling ratio: $k_{\text{step}} = \text{round}(R_{\text{src}} / R_{\text{target}})$. \\
+\textbf{3:} & Initialize frame index $n = 0$, sampled buffer array $\mathbf{V}_{\text{down}} = []$. \\
+\textbf{4:} & \textbf{while} \texttt{cap.isOpened()} \textbf{do} \\
+\textbf{5:} & \hspace{1em} Read frame $\text{ret}, \mathbf{I}_n = \text{cap.read}()$. \\
+\textbf{6:} & \hspace{1em} \textbf{if} $\text{ret}$ is False \textbf{then} Break loop. \\
+\textbf{7:} & \hspace{1em} \textbf{if} $n \pmod{k_{\text{step}}} == 0$ \textbf{then} \\
+\textbf{8:} & \hspace{2em} Compute Laplacian blur metric: $b = \text{cv2.Laplacian}(\mathbf{I}_n, \text{cv2.CV\_64F}).\text{var}()$. \\
+\textbf{9:} & \hspace{2em} \textbf{if} Blur score $b \ge \theta_{\text{blur}}$ ($100.0$) \textbf{then} \\
+\textbf{10:} & \hspace{2em} \hspace{1em} Append frame $\mathbf{I}_n$ to sequence array $\mathbf{V}_{\text{down}}$. \\
+\textbf{11:} & \hspace{2em} \textbf{end if} \\
+\textbf{12:} & \hspace{1em} \textbf{end if} \\
+\textbf{13:} & \hspace{1em} Increment frame index $n = n + 1$. \\
+\textbf{14:} & \textbf{end while} \\
+\textbf{15:} & \textbf{return} Frame sequence matrix $\mathbf{V}_{\text{down}}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsubsection{Algorithm 8: Intrinsic Camera Matrix Calibration Engine}
 Camera calibration (\texttt{aprilTag/main.py}) calculates the intrinsic camera parameters $K$ and radial distortion vector $\mathbf{D}$.
 
 Algorithm~\ref{alg:camera_calibration} presents formal pseudocode for checkerboard corner extraction and pinhole camera calibration.
 
-\begin{figure}[htbp]
+\begin{table}[htbp]
 \centering
-\begin{minipage}{0.92\textwidth}
-\small
-\setlength{\extrarowheight}{2pt}
-\begin{tabular}{|p{0.96\linewidth}|}
-\hline
-\textbf{Algorithm 8: Intrinsic Camera Matrix Calibration and Lens Correction} \\
-\hline
-{\small\sffamily \textbf{Input:} Calibration checkerboard images $\{\mathbf{I}_m\}_{m=1}^K$, Grid dimensions $(W_{\text{board}}, H_{\text{board}})$, Square size $s_{\text{square}} = 25.0\text{ mm}$} \\
-{\small\sffamily \textbf{Output:} Intrinsic matrix $K \in \mathbb{R}^{3 \times 3}$, Lens distortion vector $\mathbf{D} \in \mathbb{R}^5$} \\
-{\small 1: Define 3D object grid points $\mathbf{P}_{\text{obj}} = \{(i \cdot s, j \cdot s, 0)\}_{i=0, j=0}^{W_{\text{board}}-1, H_{\text{board}}-1}$.} \\
-{\small 2: Initialize empty object point list $\mathcal{O}_{\text{pts}}$ and image point list $\mathcal{I}_{\text{pts}}$.} \\
-{\small 3: \textbf{for} each calibration image $\mathbf{I}_m$ \textbf{do}} \\
-{\small 4: \hspace{1em} Convert $\mathbf{I}_m$ to grayscale $\mathbf{I}_{\text{gray}}$.} \\
-{\small 5: \hspace{1em} Find checkerboard corners: $\text{found}, \mathbf{C}_{\text{raw}} = \text{cv2.findChessboardCorners}(\mathbf{I}_{\text{gray}}, (W_{\text{board}}, H_{\text{board}}))$.} \\
-{\small 6: \hspace{1em} \textbf{if} $\text{found}$ is True \textbf{then}} \\
-{\small 7: \hspace{2em} Refine corners: $\mathbf{C}_{\text{sub}} = \text{cv2.cornerSubPix}(\mathbf{I}_{\text{gray}}, \mathbf{C}_{\text{raw}}, \text{winSize}=(11,11))$.} \\
-{\small 8: \hspace{2em} Append $\mathbf{P}_{\text{obj}}$ to $\mathcal{O}_{\text{pts}}$ and $\mathbf{C}_{\text{sub}}$ to $\mathcal{I}_{\text{pts}}$.} \\
-{\small 9: \hspace{1em} \textbf{end if}} \\
-{\small 10: \textbf{end for}} \\
-{\small 11: Execute Tsai pinhole camera calibration: $\text{RMS}, K, \mathbf{D}, \mathbf{R}_{\text{vecs}}, \mathbf{T}_{\text{vecs}} = \text{cv2.calibrateCamera}(\mathcal{O}_{\text{pts}}, \mathcal{I}_{\text{pts}})$.} \\
-{\small 12: \textbf{return} Intrinsic matrix $K$, Lens distortion vector $\mathbf{D}$} \\
-\hline
-\end{tabular}
-\end{minipage}
 \caption{Formal algorithmic specification for camera intrinsic calibration and lens correction.}
 \label{alg:camera_calibration}
-\end{figure}
+\begin{tabular}{l p{13.5cm}}
+\toprule
+\textbf{Step / Field} & \textbf{Algorithm 8: Intrinsic Camera Matrix Calibration and Lens Correction} \\
+\midrule
+\textbf{Input:} & Calibration checkerboard images $\{\mathbf{I}_m\}_{m=1}^K$, Grid dimensions $(W_{\text{board}}, H_{\text{board}})$, Square size $s_{\text{square}} = 25.0\text{ mm}$ \\
+\textbf{Output:} & Intrinsic matrix $K \in \mathbb{R}^{3 \times 3}$, Lens distortion vector $\mathbf{D} \in \mathbb{R}^5$ \\
+\midrule
+\textbf{1:} & Define 3D object grid points $\mathbf{P}_{\text{obj}} = \{(i \cdot s, j \cdot s, 0)\}_{i=0, j=0}^{W_{\text{board}}-1, H_{\text{board}}-1}$. \\
+\textbf{2:} & Initialize empty object point list $\mathcal{O}_{\text{pts}}$ and image point list $\mathcal{I}_{\text{pts}}$. \\
+\textbf{3:} & \textbf{for} each calibration image $\mathbf{I}_m$ \textbf{do} \\
+\textbf{4:} & \hspace{1em} Convert $\mathbf{I}_m$ to grayscale $\mathbf{I}_{\text{gray}}$. \\
+\textbf{5:} & \hspace{1em} Find checkerboard corners: $\text{found}, \mathbf{C}_{\text{raw}} = \text{cv2.findChessboardCorners}(\mathbf{I}_{\text{gray}}, (W_{\text{board}}, H_{\text{board}}))$. \\
+\textbf{6:} & \hspace{1em} \textbf{if} $\text{found}$ is True \textbf{then} \\
+\textbf{7:} & \hspace{2em} Refine corners: $\mathbf{C}_{\text{sub}} = \text{cv2.cornerSubPix}(\mathbf{I}_{\text{gray}}, \mathbf{C}_{\text{raw}}, \text{winSize}=(11,11))$. \\
+\textbf{8:} & \hspace{2em} Append $\mathbf{P}_{\text{obj}}$ to $\mathcal{O}_{\text{pts}}$ and $\mathbf{C}_{\text{sub}}$ to $\mathcal{I}_{\text{pts}}$. \\
+\textbf{9:} & \hspace{1em} \textbf{end if} \\
+\textbf{10:} & \textbf{end for} \\
+\textbf{11:} & Execute Tsai pinhole camera calibration: $\text{RMS}, K, \mathbf{D}, \mathbf{R}_{\text{vecs}}, \mathbf{T}_{\text{vecs}} = \text{cv2.calibrateCamera}(\mathcal{O}_{\text{pts}}, \mathcal{I}_{\text{pts}})$. \\
+\textbf{12:} & \textbf{return} Intrinsic matrix $K$, Lens distortion vector $\mathbf{D}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsubsection{Computational Latency Budget and Timing Formulation for 12~FPS CPU-Only Execution}
 \label{subsubsec:imp_cpu_latency_budget}

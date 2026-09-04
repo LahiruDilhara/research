@@ -9,6 +9,7 @@
 >   - Avoid robotic AI clichés and buzzwords (e.g., "delve", "testament", "tapestry", "pivotal", "beacon", "furthermore/moreover" spam, "it is worth noting that").
 >   - Write naturally like a real human student explaining their project and experimental findings.
 >   - Use active and clear descriptions.
+>   - **Humanizer CLI Tool Integration (`humanizer/client.py`):** Use `client.py` as a specialized tool to convert drafted text into natural human writing. Follow the batching, placement, and server guidelines in Section 4.
 > - **Strict Punctuation Rule (No Long Dashes / Em-Dashes "—"):** NEVER use the long dash character "—" (em-dash, en-dash "–", or LaTeX `---` in sentences) in running text. AI often overuses "—" to insert side thoughts. Instead, use simple commas, parentheses `(...)`, or write two separate sentences. (Note: technical CLI command flags like `--option` or markdown formatting lines are fine, but long punctuation dashes "—" in text are strictly forbidden).
 
 > [!IMPORTANT]
@@ -135,6 +136,7 @@ Below is the layout of the project workspace:
 | [`mediapipeDetector/realtimeprocess/`](file:///home/lahirukasunidilhara/Documents/university/research/mediapipeDetector/realtimeprocess) | Live real-time evaluation suite (`main_realtime_ui.py`, `camera_thread.py`, `model_manager.py`) to test live camera latency and windowing responsiveness.                                                                                                                      | **Real-Time Evaluation Engine**                  |
 | [`aprilTag/`](file:///home/lahirukasunidilhara/Documents/university/research/aprilTag)                                                | Calibration and tracking scripts for AprilTag fiducial markers to compute $3 \times 3$ Homography matrix ($H$).                                                                                                                                                                | **Active Marker System**                         |
 | [`opencvAruco/`](file:///home/lahirukasunidilhara/Documents/university/research/opencvAruco)                                          | Legacy ArUco marker testing scripts used during marker evaluation.                                                                                                                                                                                                             | Legacy                                           |
+| [`humanizer/`](file:///home/lahirukasunidilhara/Documents/university/research/humanizer)                                              | Specialized text humanizer tool (`client.py`) to convert drafted thesis text into natural human writing.                                                                                                       | **Writing / Humanizing Tool**                     |
 | [`sources/chapter-breakdown.md`](file:///home/lahirukasunidilhara/Documents/university/research/sources/chapter-breakdown.md)        | Detailed thesis chapter breakdown & section outline to follow when writing thesis chapters.                                                                                                                                                                                     | Active thesis guideline                          |
 | [`sources/old_breakdown_of_chapter1_chapter2_chapter3.pdf`](file:///home/lahirukasunidilhara/Documents/university/research/sources/old_breakdown_of_chapter1_chapter2_chapter3.pdf) | Previous draft breakdown for Chapters 1, 2, and 3. Used for reference/context only (internal mechanisms updated; **do not cite**).                                                                                                                                           | Contextual draft reference                       |
 | [`pdf-sources/`](file:///home/lahirukasunidilhara/Documents/university/research/pdf-sources)                                          | Repository storing PDF research papers and literature references.                                                                                                                                                                                                              | Paper storage                                    |
@@ -179,6 +181,46 @@ When instructed to draft, research, or revise thesis chapters:
    - Once a relevant paper is identified, the agent **MUST locate and read the actual research paper PDF in `./pdf-sources/`** to extract and verify the true methodology, empirical findings, and technical context before writing about it or citing it in any thesis chapter.
 9. **Figures and Visual Assets**:
    - Save all diagrams, charts, plots, and figures into [`figures/`](file:///home/lahirukasunidilhara/Documents/university/research/figures) and include them using standard LaTeX `\includegraphics` syntax.
+10. **Mandatory Humanizer Tool Protocol (`humanizer/client.py`)**:
+    - **Purpose & CLI Usage:** The `humanizer/` directory contains `client.py`. This is a specialized tool to humanize drafted thesis text into natural human-style writing.
+      - Execute directly by passing text:
+        `humanizer/.venv/bin/python humanizer/client.py "Text to humanize"`
+        or from the `humanizer/` directory:
+        `uv run client.py "Text to humanize"`
+    - **Single-Line Strings Only (No Internal Newlines `\n`):** NEVER pass multi-line strings or strings containing newline characters (`\n`) into the CLI command. Always format input text as a single, continuous line without newline breaks (`\n`).
+    - **Server Management & Troubleshooting:** The user runs and manages the humanizer backend server. You do NOT need to run or fix the server. You only run `client.py`. If `client.py` cannot connect to the server (e.g., connection refused or network error), inform the user immediately so they can fix it. Do NOT attempt to run or fix the server yourself.
+    - **Strict Zero Post-Editing Rule (100% Verbatim Placement):** NEVER edit, tweak, or modify the text returned by `client.py`. Even small word changes or grammatical polishing will re-introduce AI writing patterns. Place the returned text exactly as received into the LaTeX document.
+    - **Validation Process & Semantic Integrity Check:**
+      - After receiving the humanized text from `client.py`, perform a semantic check to ensure the core technical meaning and critical facts are preserved.
+      - A slight change or shift in wording style is completely acceptable.
+      - If 80% to 90% of the core meaning is lost, or if key technical details have been omitted/distorted by the tool, DO NOT edit the returned text manually. Instead, adjust the input draft text to be more explicit/structured and resubmit it to `client.py` for re-humanization until the output accurately preserves the intended technical meaning.
+      - Once an accurate output is obtained, place it 100% verbatim into LaTeX.
+    - **Citation Tracking & Re-insertion:** Keep track of all citation keys (`\cite{Key1, Key2}`) before passing text to the humanizer. Once the humanized text is returned, re-insert the exact citation macros into their appropriate logical places in the text.
+    - **Target Text Scope (What to Humanize vs. Exclude):**
+      - **DO NOT humanize:** High-level structural chapter/section/subsection commands used for LaTeX navigation and cross-referencing (e.g., `\chapter{...}`, `\section{...}`), table of contents, reference list / bibliography (`\bibliography`, `references.bib`), figure/graph vector code (TikZ diagrams), and figure/table captions.
+      - **MUST humanize:** Body paragraphs, bullet point items and their bold sub-titles (`\item \textbf{...}`), paragraph headings (`\paragraph{...}`), and textual cell contents in tables.
+    - **Preserve Styling & Formatting (Zero Word Changes):**
+      - All original document styling, structural LaTeX environments, and semantic formatting MUST be carefully preserved and re-applied to the text:
+        - List environments (`\begin{enumerate}`, `\begin{itemize}`, `\item`)
+        - Formatting tags (`\textbf{...}`, `\textit{...}`, `\paragraph{...}`)
+        - Mathematical notation and variables (`$...$`)
+        - Blockquotes (`\begin{quote} ... \end{quote}`)
+        - Cross-references (`\ref{...}`, `\label{...}`) and citations (`\cite{...}`)
+      - **CRITICAL:** When applying or restoring formatting around humanized text, **NEVER change, add, delete, or rewrite any word returned by the humanizer**. The words must remain 100% untouched; only LaTeX structural markup and formatting tags should be wrapped around them.
+    - **Humanizing Item Titles & Bold Headings:**
+      - All inline item headers, bold bullet labels, and sub-point titles must be humanized together with their body text.
+      - Send the title combined with the body to `client.py` (e.g. `"Single-finger limitation and multi-finger tracking. Traditional methods..."`).
+      - When `client.py` returns the humanized text, wrap the resulting title clause/phrase in `\textbf{...}` or appropriate LaTeX formatting.
+      - **DO NOT modify or alter any word returned by the humanizer.** Only apply LaTeX formatting tags around the exact returned text.
+    - **Text Units, Chunking & Minimum Thresholds (Minimum 20 Words):**
+      - Give complete, full paragraphs whenever possible. Do not break standard paragraphs down into isolated sentences.
+      - Keep paragraph batches within the 200 to 300 word range.
+      - For bullet points or standalone sentences: if the sentence/bullet has 20 or more words, you can send it directly to the humanizer.
+      - If a sentence or bullet point is shorter than 20 words, extend it or combine it with the next sentence to meet the minimum threshold of 20 words before humanizing. When the humanized text is returned, split the sentences back into their proper bullet points or positions, but do not change a single word of the returned text.
+    - **Section-Wise Progress Log File (`humanizer/progress_log.md`):**
+      - Maintain and check [`humanizer/progress_log.md`](file:///home/lahirukasunidilhara/Documents/university/research/humanizer/progress_log.md) to track humanization progress section by section.
+      - Update the log file immediately whenever a section is completed.
+      - Always consult the log before starting work to avoid redoing completed sections.
 
 ---
 

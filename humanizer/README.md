@@ -5,9 +5,10 @@ A FastAPI web service powered by Playwright running in **head mode (visible brow
 ## Features
 
 - **Continuous Listening Route**: The FastAPI server keeps running indefinitely, listening for requests.
-- **Persistent Tab in Head Mode**: Chromium opens with the tab visible and **keeps the tab open** across all requests.
+- **Persistent Tab in Head Mode**: Chromium opens with the tab visible and stays open across requests.
+- **Automatic Session & Cookie Reset Every 2 Requests**: Every 2 requests, the server destroys the old context, wipes cookies/storage, and initializes a completely brand new browser context and session to prevent tracking, rate limits, or stale fingerprints.
 - **Simple Payload**: Accepts `{"text": "..."}` (or `{"message": "..."}`).
-- **Internal JavaScript Context Execution**: Executes in-page `fetch('https://www.humanizeai.pro/api/process', ...)` inside the already open, authenticated browser tab.
+- **Internal JavaScript Context Execution**: Executes in-page `fetch('https://www.humanizeai.pro/api/process', ...)` inside the authenticated browser tab.
 - **Interactive CAPTCHA / Challenge Handling**: If Cloudflare or a CAPTCHA appears, the browser window is brought to front and the service waits until you solve it in the browser window, then automatically retries and returns the result.
 
 ---

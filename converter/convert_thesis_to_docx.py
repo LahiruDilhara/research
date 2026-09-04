@@ -150,6 +150,56 @@ def extract_and_render_tikz(tex_content: str, chapter_name: str, fig_tracker: di
 
     return pattern.sub(replacer, tex_content)
 
+def convert_algorithms_to_tables(text: str) -> str:
+    """Converts figure-minipage single-cell algorithm boxes into structured 2-column LaTeX tables."""
+    pattern = re.compile(
+        r"\\begin\{figure\}\[htbp\]\s*\\centering\s*\\begin\{minipage\}\{0\.92\\textwidth\}.*?"
+        r"\\begin\{tabular\}\{\|p\{0\.96\\linewidth\}\|\}.*?\\hline\s*\\textbf\{Algorithm\s*(\d+):\s*(.*?)\}\s*\\\\\s*\\hline\s*(.*?)\\hline\s*"
+        r"\\end\{tabular\}\s*\\end\{minipage\}\s*\\caption\{(.*?)\}\s*\\label\{(.*?)\}\s*\\end\{figure\}",
+        re.DOTALL
+    )
+    
+    def replacer(m):
+        alg_num, title, body, caption, label = m.groups()
+        lines = [l.strip() for l in body.split(r"\\") if l.strip()]
+        
+        out = []
+        out.append(r"\begin{table}[htbp]")
+        out.append(r"\centering")
+        out.append(f"\\caption{{{caption.strip()}}}")
+        out.append(f"\\label{{{label.strip()}}}")
+        out.append(r"\begin{tabular}{l p{13.5cm}}")
+        out.append(r"\toprule")
+        out.append(f"\\textbf{{Step / Field}} & \\textbf{{Algorithm {alg_num}: {title.strip()}}} \\\\")
+        out.append(r"\midrule")
+        
+        for line in lines:
+            line_clean = re.sub(r"^\{?\\small(?:\\sffamily)?\s*", "", line)
+            if line_clean.endswith("}"):
+                line_clean = line_clean[:-1].strip()
+            
+            if line_clean.startswith(r"\textbf{Input:}"):
+                content = line_clean[len(r"\textbf{Input:}"):].strip()
+                out.append(f"\\textbf{{Input:}} & {content} \\\\")
+            elif line_clean.startswith(r"\textbf{Output:}"):
+                content = line_clean[len(r"\textbf{Output:}"):].strip()
+                out.append(f"\\textbf{{Output:}} & {content} \\\\")
+                out.append(r"\midrule")
+            else:
+                match_step = re.match(r"^(\d+:)\s*(.*)$", line_clean)
+                if match_step:
+                    s_num, s_desc = match_step.groups()
+                    out.append(f"\\textbf{{{s_num}}} & {s_desc} \\\\")
+                elif line_clean:
+                    out.append(f" & {line_clean} \\\\")
+                    
+        out.append(r"\bottomrule")
+        out.append(r"\end{tabular}")
+        out.append(r"\end{table}")
+        return "\n".join(out)
+        
+    return pattern.sub(replacer, text)
+
 def clean_for_pandoc(content: str) -> str:
     """Preprocess LaTeX quirks for clean Pandoc conversion."""
     content = re.sub(r"\\endfirsthead.*?\\endhead", "", content, flags=re.DOTALL)
@@ -180,9 +230,11 @@ def main():
             
         # Step 1: Strip \resizebox
         content_no_resize = strip_resizebox(content)
-        # Step 2: Render TikZ diagrams to PNG
-        content_with_figs = extract_and_render_tikz(content_no_resize, chapter_name, fig_tracker)
-        # Step 3: Clean LaTeX artifacts
+        # Step 2: Convert single-cell Algorithm minipages to clean 2-column tables
+        content_with_algs = convert_algorithms_to_tables(content_no_resize)
+        # Step 3: Render TikZ diagrams to PNG
+        content_with_figs = extract_and_render_tikz(content_with_algs, chapter_name, fig_tracker)
+        # Step 4: Clean LaTeX artifacts
         cleaned_content = clean_for_pandoc(content_with_figs)
         
         target_file = build_chapters_dir / tex_file.name
@@ -195,7 +247,8 @@ def main():
         main_content = f.read()
         
     main_content_no_resize = strip_resizebox(main_content)
-    main_content_with_figs = extract_and_render_tikz(main_content_no_resize, "main", fig_tracker)
+    main_content_with_algs = convert_algorithms_to_tables(main_content_no_resize)
+    main_content_with_figs = extract_and_render_tikz(main_content_with_algs, "main", fig_tracker)
     cleaned_main_content = clean_for_pandoc(main_content_with_figs)
     
     # Ensure explicit References heading before bibliography
@@ -236,17 +289,25 @@ def main():
     res = subprocess.run(cmd_pandoc, capture_output=True, text=True, cwd=str(BUILD_DIR))
     
     if res.returncode == 0:
-        print(f"\n[SUCCESS] Thesis DOCX successfully generated at:\n{output_docx}")
-        size_mb = output_docx.stat().st_size / (1024*1024)
-        print(f"File size: {size_mb:.2f} MB")
-        
-        # Verify media files inside DOCX
-        with zipfile.ZipFile(output_docx) as docx:
-            media = [n for n in docx.namelist() if n.startswith("word/media/")]
-            print(f"Embedded figures in DOCX: {len(media)}")
+        print(f"\n[SUCCESS] Pandoc exported initial DOCX.")
     else:
         print(f"\n[ERROR] Pandoc failed with exit code {res.returncode}:\n{res.stderr}")
         sys.exit(1)
+
+    # Step 5: Run OpenXML Styler
+    styler_script = WORKSPACE_ROOT / "converter" / "docx_styler.py"
+    print(f"\n=== Applying OpenXML Professional Academic Styling ({styler_script.name}) ===")
+    res_style = subprocess.run(
+        ["uv", "run", "--with", "python-docx", "python3", str(styler_script), str(output_docx)],
+        capture_output=True, text=True
+    )
+    if res_style.returncode != 0:
+        print(f"[ERROR] Styler failed:\n{res_style.stderr}")
+        sys.exit(1)
+        
+    print(res_style.stdout)
+    size_mb = output_docx.stat().st_size / (1024*1024)
+    print(f"\n[COMPLETED] Polished Thesis DOCX ready at:\n{output_docx} ({size_mb:.2f} MB)")
 
 if __name__ == "__main__":
     main()
