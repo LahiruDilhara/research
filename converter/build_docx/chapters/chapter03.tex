@@ -71,30 +71,9 @@ Figure~\ref{fig:dsrm_process_flow} shows the six stages of the DSRM framework us
 
 \begin{figure}[htbp]
 \centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-    phase/.style = {rectangle, draw=blue!80!black, fill=blue!10!white, thick, rounded corners=4pt, align=center, font=\sffamily\bfseries\footnotesize, text width=2.5cm, minimum height=1.4cm, inner sep=5pt},
-    arrow/.style = {draw=blue!80!black, ->, >=Stealth, thick}
-]
 
-\node (p1) [phase] at (0,0) {Phase 1\\Problem\\Identification};
-\node (p2) [phase] at (3.1,0) {Phase 2\\Define Objective\\of Solution};
-\node (p3) [phase] at (6.2,0) {Phase 3\\Design and\\Development};
-\node (p4) [phase] at (9.3,0) {Phase 4\\Demonstration};
-\node (p5) [phase] at (12.4,0) {Phase 5\\Evaluation};
-\node (p6) [phase] at (15.5,0) {Phase 6\\Communication};
+\includegraphics[width=0.85\textwidth]{figures/chapter03_fig01.png}
 
-\draw [arrow] (p1) -- (p2);
-\draw [arrow] (p2) -- (p3);
-\draw [arrow] (p3) -- (p4);
-\draw [arrow] (p4) -- (p5);
-\draw [arrow] (p5) -- (p6);
-
-% Clean Orthogonal Loop Arrow (No Overlap)
-\draw [arrow] (p5.south) -- ++(0,-0.7) -| node[below,midway,font=\sffamily\scriptsize]{Iterative Refinement} (p3.south);
-
-\end{tikzpicture}%
-}
 \caption{Design Science Research Methodology (DSRM) execution framework.}
 \label{fig:dsrm_process_flow}
 \end{figure}
@@ -126,7 +105,6 @@ Table~\ref{tab:partitioned_strategy_matrix} summarizes the five research partiti
 \centering
 \caption{Partitioned research strategy, component modules, and validation criteria.}
 \label{tab:partitioned_strategy_matrix}
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{l l l l}
 \toprule
 \textbf{Research Partition} & \textbf{Codebase Directory} & \textbf{Core Technical Tasks} & \textbf{Validation Criteria} \\
@@ -155,7 +133,6 @@ Table~\ref{tab:partitioned_strategy_matrix} summarizes the five research partiti
  & & - Real-time homography estimation (\texttt{homography.py}) & - Robust tracking under $75^\circ$ planar tilt \\
 \bottomrule
 \end{tabular}%
-}
 \end{table}
 
 \subsection{Detailed Partition Specifications and Technological Frameworks}
@@ -260,7 +237,6 @@ To show how each research objective defined in Chapter 1 is systematically fulfi
 \centering
 \caption{Comprehensive research methodology execution workflow mapping research objectives to technical activities, engineered artifacts, and evaluation metrics.}
 \label{tab:methodology_execution_workflow}
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{l l l l l}
 \toprule
 \textbf{Research Objective} & \textbf{DSRM Phase} & \textbf{Technical Research Activities} & \textbf{Engineered Artifacts / Code} & \textbf{Quantitative Evaluation Metrics} \\
@@ -291,7 +267,6 @@ Integrated Two-Application & Phase 5: Evaluation & - Multi-threaded camera watch
 Virtual Keyboard Suite & Phase 6: Comm. & - Empirical latency and throughput test & - XML Action Mapper & - Keystroke trigger accuracy ($> 96\%$) \\
 \bottomrule
 \end{tabular}%
-}
 \end{table}
 
 \subsection{Detailed Sub-Phase Execution Breakdown}
@@ -323,44 +298,9 @@ The project was conducted over a 9-month timeframe divided into sequential resea
 
 \begin{figure}[htbp]
 \centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-    xscale=0.85,
-    yscale=0.7,
-    task/.style={rectangle, draw=blue!80!black, fill=blue!30!white, thick, rounded corners=2pt, minimum height=0.5cm, font=\sffamily\tiny\bfseries},
-    gridline/.style={draw=gray!30, dashed}
-]
 
-% Grid Lines for Months M1 to M9
-\foreach \m [count=\i] in {M1, M2, M3, M4, M5, M6, M7, M8, M9} {
-    \draw[gridline] (\i*1.3, 0) -- (\i*1.3, -7.5);
-    \node at (\i*1.3 - 0.65, 0.4) [font=\sffamily\scriptsize\bfseries] {\m};
-}
+\includegraphics[width=0.85\textwidth]{figures/chapter03_fig02.png}
 
-% Task Rows
-\node [left, font=\sffamily\scriptsize\bfseries] at (0, -1.0) {Phase 1: Lit. Review and Gap ID};
-\node [task, minimum width=2.4cm] at (1.3, -1.0) {};
-
-\node [left, font=\sffamily\scriptsize\bfseries] at (0, -2.0) {Phase 2: Partition 1 Layout Designer};
-\node [task, minimum width=2.4cm] at (3.25, -2.0) {};
-
-\node [left, font=\sffamily\scriptsize\bfseries] at (0, -3.0) {Phase 3: Partition 2 Dataset and Norm};
-\node [task, minimum width=2.4cm] at (4.55, -3.0) {};
-
-\node [left, font=\sffamily\scriptsize\bfseries] at (0, -4.0) {Phase 4: Partition 3 Model Benchmark};
-\node [task, minimum width=2.4cm] at (5.85, -4.0) {};
-
-\node [left, font=\sffamily\scriptsize\bfseries] at (0, -5.0) {Phase 5: Partition 4/5 AprilTag and UI};
-\node [task, minimum width=2.4cm] at (7.15, -5.0) {};
-
-\node [left, font=\sffamily\scriptsize\bfseries] at (0, -6.0) {Phase 6: App Suite Integration};
-\node [task, minimum width=2.4cm] at (8.45, -6.0) {};
-
-\node [left, font=\sffamily\scriptsize\bfseries] at (0, -7.0) {Phase 7: Thesis Writing and Review};
-\node [task, minimum width=2.4cm] at (10.4, -7.0) {};
-
-\end{tikzpicture}%
-}
 \caption{Project execution Gantt chart schedule across 9 monthly research milestones.}
 \label{fig:gantt_chart}
 \end{figure}
@@ -372,7 +312,6 @@ To ensure the project was completed on time, potential technical risks were iden
 \centering
 \caption{Technical risk management, impact assessment, and mitigation matrix.}
 \label{tab:risk_mitigation_matrix}
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{l c c l}
 \toprule
 \textbf{Identified Technical Risk} & \textbf{Probability} & \textbf{Impact} & \textbf{Proactive Risk Mitigation Strategy} \\
@@ -393,7 +332,6 @@ Diverse Hand Sizes and Distances & & & - Avoid fixed pixel limits and use scale-
 High-End GPUs or Fast Sensors & & & - Standardize pipeline at 12~FPS for CPU execution with any standard webcam. \\
 \bottomrule
 \end{tabular}%
-}
 \end{table}
 
 \subsection{Ethical Considerations and Data Privacy Protocols}

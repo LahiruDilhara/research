@@ -25,56 +25,9 @@ The complete system is split into two synchronized application tools working tog
 
 \begin{figure}[htbp]
 \centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-    node distance = 0.8cm and 0.5cm,
-    block/.style = {rectangle, draw=blue!80!black, fill=blue!10!white, thick, rounded corners=4pt, align=center, font=\sffamily\bfseries\tiny, minimum height=1.1cm, text width=2.4cm, inner sep=4pt},
-    artblock/.style = {rectangle, draw=orange!80!black, fill=orange!10!white, thick, rounded corners=4pt, align=center, font=\sffamily\bfseries\tiny, minimum height=1.1cm, text width=2.4cm, inner sep=4pt},
-    engineblock/.style = {rectangle, draw=green!80!black, fill=green!10!white, thick, rounded corners=4pt, align=center, font=\sffamily\bfseries\tiny, minimum height=1.1cm, text width=2.4cm, inner sep=4pt},
-    arrow/.style = {draw=blue!80!black, ->, >=Stealth, thick}
-]
 
-% Column 1
-\node (b1) [block] at (0, 0) {Application 1\\PySide6 Designer\\(\texttt{designer\_app.py})};
+\includegraphics[width=0.85\textwidth]{figures/chapter05_fig01.png}
 
-% Column 2
-\node (b2) [artblock] at (3.5, 0) {Printable PDF Sheet\\(AprilTag Anchors)};
-\node (b3) [artblock] at (3.5, -1.6) {Layout XML File\\(Bounding Boxes)};
-
-% Column 3
-\node (b4) [block] at (7.0, 0) {Application 2\\Setup and Mapper GUI\\(Component A)};
-\node (b5) [block] at (7.0, -1.6) {Camera Stream\\Selector and Preview};
-\node (b6) [block] at (7.0, -3.2) {Action Mapping\\Table (Keystrokes/Shell)};
-
-% Column 4
-\node (b7) [engineblock] at (10.5, 0) {Background Camera Thread\\(\texttt{camera\_thread.py})};
-\node (b8) [engineblock] at (10.5, -1.6) {MediaPipe 21 Pose and\\Unitless Scale Norm ($L_{\text{hand}}$)};
-\node (b9) [engineblock] at (10.5, -3.2) {5-Frame Window Matrix\\($\mathbf{X}_W \in \mathbb{R}^{5 \times 84}$)};
-\node (b10) [engineblock] at (10.5, -4.8) {PyTorch LSTM Classifier\\(Touch Model)};
-
-% Column 5
-\node (b11) [engineblock] at (14.0, -1.6) {AprilTag Tracker and SVD\\Homography Engine ($H$)};
-\node (b12) [engineblock] at (14.0, -4.8) {Planar Transformation\\($P_{\text{XML}} = H \cdot P_{\text{pixel}}$) and Dispatch};
-
-% Arrows
-\draw [arrow] (b1) -- (b2);
-\draw [arrow] (b1) -- (b3);
-\draw [arrow] (b2) -- (b4);
-\draw [arrow] (b3) -- (b4);
-\draw [arrow] (b4) -- (b5);
-\draw [arrow] (b5) -- (b6);
-\draw [arrow] (b6) -- (b7);
-
-\draw [arrow] (b7) -- (b8);
-\draw [arrow] (b8) -- (b9);
-\draw [arrow] (b9) -- (b10);
-\draw [arrow] (b10) -- (b12);
-
-\draw [arrow] (b7) -- (b11);
-\draw [arrow] (b11) -- (b12);
-
-\end{tikzpicture}%
-}
 \caption{End-to-End multi-module dataflow pipeline block diagram.}
 \label{fig:imp_block_diagram}
 \end{figure}
@@ -489,7 +442,6 @@ Table~\ref{tab:tech_selection_matrix} presents a comparison of the selected tech
 \centering
 \caption{Comparative technology selection justification matrix.}
 \label{tab:tech_selection_matrix}
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{l l l l}
 \toprule
 \textbf{Technology Domain} & \textbf{Selected Technology} & \textbf{Evaluated Alternatives} & \textbf{Selection Rationale and Performance Trade-offs} \\
@@ -515,7 +467,6 @@ Table~\ref{tab:tech_selection_matrix} presents a comparison of the selected tech
  & & - Electron.js & - Dual exporter engine support for vector PDF and XML \\
 \bottomrule
 \end{tabular}%
-}
 \end{table}
 
 \subsubsection{Programming Language Selection (Python 3.10 vs C++17 vs Java)}
@@ -762,7 +713,6 @@ Table~\ref{tab:implementation_challenges} summarizes five key technical challeng
 \centering
 \caption{Technical implementation challenges, root cause analyses, and engineered software solutions.}
 \label{tab:implementation_challenges}
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{l p{4.5cm} p{4.5cm} p{5cm}}
 \toprule
 \textbf{Technical Challenge} & \textbf{Observed Operational Symptom} & \textbf{Root Cause Analysis} & \textbf{Engineered Software Solution} \\
@@ -786,7 +736,6 @@ Table~\ref{tab:implementation_challenges} summarizes five key technical challeng
 \textbf{Single-Threaded Loop} & model evaluation executed. & capture thread loop. & in \texttt{camera\_thread.py} separating capture from inference. \\
 \bottomrule
 \end{tabular}%
-}
 \end{table}
 
 \subsection{Deep Technical Challenge Analysis}

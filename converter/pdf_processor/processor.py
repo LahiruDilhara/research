@@ -25,7 +25,7 @@ def _process_single_page_worker(task_args: Tuple[str, int, Dict[str, float], Dic
     if page_seed is not None:
         random.seed(page_seed)
 
-    renderer = WordImageRenderer(font_path=config.get("font_path"), dpi_scale=config.get("dpi_scale", 2.5))
+    renderer = WordImageRenderer(font_path=config.get("font_path"), dpi_scale=config.get("dpi_scale", 2.0))
     homo_substitutor = HomoglyphSubstitutor(seed=page_seed)
     zw_injector = ZeroWidthInjector(seed=page_seed)
     disruptor = LayoutDisruptor(seed=page_seed)
@@ -275,7 +275,7 @@ def _process_single_page_worker(task_args: Tuple[str, int, Dict[str, float], Dic
 
     single_doc = fitz.open()
     single_doc.insert_pdf(doc, from_page=page_idx, to_page=page_idx)
-    page_bytes = single_doc.tobytes(garbage=3, deflate=True)
+    page_bytes = single_doc.tobytes(garbage=0, deflate=True)
     single_doc.close()
     doc.close()
 
@@ -306,7 +306,7 @@ class PDFPostProcessor:
         stage: str = "all",
         seed: Optional[int] = None,
         min_word_len: int = 3,
-        dpi_scale: float = 2.5,
+        dpi_scale: float = 2.0,
         max_images_per_page: int = 0,
         max_images_per_para: int = 0,
         zw_count: int = 2,
@@ -420,7 +420,7 @@ class PDFPostProcessor:
             final_doc.insert_pdf(page_doc)
             page_doc.close()
 
-        final_doc.save(self.output_path, garbage=3, deflate=True)
+        final_doc.save(self.output_path, garbage=1, deflate=True)
         final_doc.close()
 
         summary = {

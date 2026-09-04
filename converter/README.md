@@ -57,7 +57,7 @@ uv sync
 | | `--stage` | Execution mode: `all`, `stage1`, `stage2`, `stage3`, `stage4` | `all` |
 | | `--seed` | Integer random seed for reproducible output runs | `None` |
 | | `--min-word-len` | Minimum character length of words to consider for processing | `3` |
-| | `--dpi-scale` | Resolution DPI multiplier for text-to-image rendering quality | `3.0` |
+| | `--dpi-scale` | Resolution DPI multiplier for text-to-image rendering quality (`2.0` = optimal 144 DPI for lightweight file size) | `2.0` |
 | | `--font-path` | Optional path to custom TrueType (`.ttf`/`.otf`) font file | `None` |
 | `-v` | `--verbose` | Print detailed execution log output per page | `False` |
 

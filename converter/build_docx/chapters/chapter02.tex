@@ -23,72 +23,9 @@ To help the reader understand the organization of prior work, Figure~\ref{fig:li
 
 \begin{figure}[htbp]
 \centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-    header/.style = {rectangle, draw=blue!80!black, fill=blue!25!white, thick, rounded corners=5pt, align=center, font=\sffamily\bfseries\small, inner sep=8pt, text width=16.5cm},
-    box/.style = {rectangle, draw=blue!70!black, fill=blue!10!white, thick, rounded corners=4pt, align=center, font=\sffamily\bfseries\footnotesize, inner sep=6pt, text width=3.6cm, minimum height=1.2cm},
-    subbox/.style = {rectangle, draw=gray!70, fill=gray!5!white, rounded corners=3pt, align=center, font=\sffamily\scriptsize, inner sep=5pt, text width=3.6cm},
-    arrow/.style = {draw=blue!80!black, ->, >=Stealth, thick}
-]
 
-% Root Node
-\node (root) [header, at={(0, 0)}] {\textbf{Monocular Vision-Based Virtual Keyboard Literature Taxonomy}};
+\includegraphics[width=0.85\textwidth]{figures/chapter02_fig01.png}
 
-% Level 1 Nodes - Perfectly leveled at y = -2.0cm across 4 distinct columns
-\node (l1_domain) [box, at={(-6.5, -2.0)}] {1. HCI and Input Paradigms\\(\S\ref{sec:lit_domain_overview})};
-\node (l1_systems) [box, at={(-2.15, -2.0)}] {2. Sensing Modalities\\(\S\ref{sec:lit_existing_systems})};
-\node (l1_tech) [box, at={(2.15, -2.0)}] {3. Technological Analysis\\(\S\ref{sec:lit_technological_analysis})};
-\node (l1_reflect) [box, at={(6.5, -2.0)}] {4. Research Synthesis\\(\S\ref{sec:lit_reflection})};
-
-% Connections to Level 1
-\draw [arrow] (root.south -| l1_domain.north) -- (l1_domain.north);
-\draw [arrow] (root.south -| l1_systems.north) -- (l1_systems.north);
-\draw [arrow] (root.south -| l1_tech.north) -- (l1_tech.north);
-\draw [arrow] (root.south -| l1_reflect.north) -- (l1_reflect.north);
-
-% Column 1: Domain Overview
-\node (l2_history) [subbox, below=0.5cm of l1_domain] {Evolution of Input Hardware\\\cite{ReviewVirtualKeyboard2020, Lee2022Virtual}};
-\node (l2_drivers) [subbox, below=0.35cm of l2_history] {Paper Rationale and Ergonomics\\\cite{Zhang2001Visual, Srivastava2012RealTime, Khare2019QWERTY}};
-
-% Column 2: Existing Systems
-\node (l2_proj) [subbox, below=0.5cm of l1_systems] {Projection and IR Sensors\\\cite{Cheng2015Fingertip, Kudale2016RealTime}};
-\node (l2_shadow) [subbox, below=0.35cm of l2_proj] {Shadow Analysis Methods\\\cite{Thomas2013Camera, Posner2012Single, Yue2014Blind}};
-\node (l2_depth) [subbox, below=0.35cm of l2_shadow] {RGB-D / ToF Depth Sensing\\\cite{Lee2019Virtual, Toshpulatov2024RealTime}};
-\node (l2_air) [subbox, below=0.35cm of l2_depth] {3D Mid-Air Typing / VR\\\cite{Boletsis2019TextInput, Enkhbat2020HandKey, Lee2022Virtual, Yoo2026WordLevel}};
-\node (l2_paper) [subbox, below=0.35cm of l2_air] {Paper / Monocular RGB\\\cite{Zhang2001Visual, Srivastava2012RealTime, Khare2019QWERTY, Maman2023TypeNet}};
-\node (l2_attack) [subbox, below=0.35cm of l2_paper] {Video Attack Side-Channels\\\cite{Yue2014Blind, Yang2022Towards}};
-
-% Column 3: Technological Analysis
-\node (l2_pose) [subbox, below=0.5cm of l1_tech] {MediaPipe Hand Landmarker\\\cite{Zhang2020MediaPipe, GilMartin2023Hand, Andriyanov2025Improving}};
-\node (l2_scale) [subbox, below=0.35cm of l2_pose] {Hand Scale Normalization\\\cite{Doan2022Efficient, Kumar2026Hybrid}};
-\node (l2_fiducial) [subbox, below=0.35cm of l2_scale] {AprilTag Homography $H$\\\cite{Wang2016AprilTag2, Kallwies2020Determining, Pirchheim2011Homography}};
-\node (l2_deep) [subbox, below=0.35cm of l2_fiducial] {PyTorch LSTM Classifiers\\\cite{Hochreiter1997LSTM, Nunez2018Convolutional, Gammulle2021TMMF}};
-
-% Column 4: Research Synthesis
-\node (l2_gap) [subbox, below=0.5cm of l1_reflect] {Prior Art Limitations\\\cite{Thomas2013Camera, Lee2019Virtual, Maman2023TypeNet}};
-\node (l2_solution) [subbox, below=0.35cm of l2_gap] {Proposed Architecture\\Synthesis (\S\ref{sec:lit_reflection})};
-
-% Vertical Column Connections
-\draw [arrow] (l1_domain) -- (l2_history);
-\draw [arrow] (l2_history) -- (l2_drivers);
-
-\draw [arrow] (l1_systems) -- (l2_proj);
-\draw [arrow] (l2_proj) -- (l2_shadow);
-\draw [arrow] (l2_shadow) -- (l2_depth);
-\draw [arrow] (l2_depth) -- (l2_air);
-\draw [arrow] (l2_air) -- (l2_paper);
-\draw [arrow] (l2_paper) -- (l2_attack);
-
-\draw [arrow] (l1_tech) -- (l2_pose);
-\draw [arrow] (l2_pose) -- (l2_scale);
-\draw [arrow] (l2_scale) -- (l2_fiducial);
-\draw [arrow] (l2_fiducial) -- (l2_deep);
-
-\draw [arrow] (l1_reflect) -- (l2_gap);
-\draw [arrow] (l2_gap) -- (l2_solution);
-
-\end{tikzpicture}%
-}
 \caption{Conceptual taxonomy and structural organization of the literature review.}
 \label{fig:lit_conceptual_map_diagram}
 \end{figure}
@@ -291,7 +228,6 @@ To summarize the literature, Table~\ref{tab:lit_comparative_matrix} presents a c
 \centering
 \caption{Comparative analysis of existing virtual keyboard frameworks and sensing methodologies.}
 \label{tab:lit_comparative_matrix}
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{l l l l l l l l l}
 \toprule
 \textbf{Study and Year} & \textbf{Sensing Modality} & \textbf{Hardware Req.} & \textbf{Surface Tracking} & \textbf{Scale Normalization} & \textbf{Temporal Filter} & \textbf{Touch Classifier} & \textbf{Latency / FPS} & \textbf{Layout Customization} \\
@@ -340,7 +276,6 @@ Kumar (2026) \cite{Kumar2026Hybrid} & Monocular RGB & Commodity Camera & Canvas 
 Garrido-Jurado et al. (2026) \cite{GarridoJurado2026ArUco} & Monocular RGB & Commodity Camera & ArUco Nano Tags & Metric Tag Scale & Sub-pixel Sampling & Visited-Aware Contours & Edge High ($> 100$ FPS) & Robotics Targets \\
 \bottomrule
 \end{tabular}%
-}
 \end{table}
 
 The comparative evaluation in Table~\ref{tab:lit_comparative_matrix} shows how virtual input technology has progressed over time: moving from early image thresholding \cite{Zhang2001Visual, Srivastava2012RealTime} and fragile shadow methods \cite{Thomas2013Camera, Posner2012Single} toward modern deep learning models using scale-normalized hand joint keypoints \cite{Zhang2020MediaPipe, GilMartin2023Hand, Maman2023TypeNet} and visual marker tracking \cite{Wang2016AprilTag2, GarridoJurado2026ArUco}.
@@ -365,55 +300,9 @@ Google MediaPipe Hands \cite{Zhang2020MediaPipe} uses a two-stage detection and 
 
 \begin{figure}[htbp]
 \centering
-\begin{tikzpicture}[
-    joint/.style = {circle, draw=red!80!black, fill=red!60!white, inner sep=0pt, minimum size=5pt},
-    tip/.style = {circle, draw=blue!80!black, fill=blue!60!white, inner sep=0pt, minimum size=6pt},
-    wrist/.style = {circle, draw=black, fill=gray!80, inner sep=0pt, minimum size=7pt},
-    bone/.style = {draw=black!70, thick}
-]
 
-% Wrist
-\node (J0) [wrist, label=below:{\scriptsize 0: Wrist}] at (0, 0) {};
+\includegraphics[width=0.85\textwidth]{figures/chapter02_fig02.png}
 
-% Thumb
-\node (J1) [joint] at (-1.8, 0.6) {};
-\node (J2) [joint] at (-2.4, 1.2) {};
-\node (J3) [joint] at (-3.0, 1.8) {};
-\node (J4) [tip, label=left:{\scriptsize 4: Thumb Tip}] at (-3.6, 2.4) {};
-
-% Index Finger
-\node (J5) [joint] at (-0.9, 2.0) {};
-\node (J6) [joint] at (-1.1, 3.0) {};
-\node (J7) [joint] at (-1.3, 4.0) {};
-\node (J8) [tip, label=above left:{\scriptsize 8: Index Tip}] at (-1.5, 5.0) {};
-
-% Middle Finger
-\node (J9) [joint] at (0.0, 2.2) {};
-\node (J10) [joint] at (0.0, 3.3) {};
-\node (J11) [joint] at (0.0, 4.4) {};
-\node (J12) [tip, label=above:{\scriptsize 12: Middle Tip}] at (0.0, 5.5) {};
-
-% Ring Finger
-\node (J13) [joint] at (0.9, 2.0) {};
-\node (J14) [joint] at (1.1, 3.0) {};
-\node (J15) [joint] at (1.3, 4.0) {};
-\node (J16) [tip, label=above right:{\scriptsize 16: Ring Tip}] at (1.5, 5.0) {};
-
-% Pinky Finger
-\node (J17) [joint] at (1.8, 1.6) {};
-\node (J18) [joint] at (2.2, 2.4) {};
-\node (J19) [joint] at (2.6, 3.2) {};
-\node (J20) [tip, label=right:{\scriptsize 20: Pinky Tip}] at (3.0, 4.0) {};
-
-% Bones Connections
-\draw [bone] (J0) -- (J1) -- (J2) -- (J3) -- (J4);
-\draw [bone] (J0) -- (J5) -- (J6) -- (J7) -- (J8);
-\draw [bone] (J0) -- (J9) -- (J10) -- (J11) -- (J12);
-\draw [bone] (J0) -- (J13) -- (J14) -- (J15) -- (J16);
-\draw [bone] (J0) -- (J17) -- (J18) -- (J19) -- (J20);
-\draw [bone] (J5) -- (J9) -- (J13) -- (J17);
-
-\end{tikzpicture}
 \caption{MediaPipe 21 hand landmark anatomical topology.}
 \label{fig:mediapipe_hand_topology}
 \end{figure}
@@ -579,7 +468,6 @@ Table~\ref{tab:lit_sensing_tradeoffs} summarizes the key engineering trade-offs 
 \centering
 \caption{System architecture design trade-offs across sensing modalities.}
 \label{tab:lit_sensing_tradeoffs}
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{l l l l l}
 \toprule
 \textbf{Architectural Dimension} & \textbf{Monocular RGB + AprilTag (Proposed)} & \textbf{RGB-D / ToF Depth Sensing} & \textbf{Laser Projection + IR} & \textbf{3D Mid-Air Typing (VR)} \\
@@ -592,7 +480,6 @@ Table~\ref{tab:lit_sensing_tradeoffs} summarizes the key engineering trade-offs 
 \textbf{Edge Compute Latency} & Low ($> 60$ FPS on CPU) & Medium (Point Cloud Compute) & Low (Hardware IR Processing) & High (Heavy HMD Pipeline) \\
 \bottomrule
 \end{tabular}%
-}
 \end{table}
 
 As shown in Table~\ref{tab:lit_sensing_tradeoffs}, using a single monocular RGB webcam with AprilTag markers gives a good combination of low equipment cost, reliable surface tracking using homography matrix $H$, physical touch feedback from the desk, and easy layout customization.
@@ -619,7 +506,6 @@ Table~\ref{tab:latency_breakdown} shows the per-frame processing time for each s
 \centering
 \caption{Runtime execution latency breakdown per frame on standard CPU hardware.}
 \label{tab:latency_breakdown}
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{l l r}
 \toprule
 \textbf{Pipeline Component} & \textbf{Underlying Execution Module} & \textbf{Execution Time (ms)} \\
@@ -636,7 +522,6 @@ Key Lookup and Execution & XML Action Dispatcher & 0.05 ms \\
 \textbf{Total Pipeline Latency} & \textbf{End-to-End Latency per Frame} & \textbf{29.09 ms ($\approx 34.4$ FPS)} \\
 \bottomrule
 \end{tabular}%
-}
 \end{table}
 
 As shown in Table~\ref{tab:latency_breakdown}, the complete end-to-end processing time per frame is $29.09$~ms. This allows the system to run at approximately 34.4~FPS on a standard CPU without requiring an external GPU.
@@ -652,39 +537,9 @@ Figure~\ref{fig:workflow_dataset_pipeline} shows the step-by-step data processin
 
 \begin{figure}[htbp]
 \centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-    block/.style = {rectangle, draw=blue!80!black, fill=blue!10!white, thick, rounded corners=4pt, align=center, font=\sffamily\footnotesize, text width=3.3cm, minimum height=1.35cm, inner sep=5pt},
-    arrow/.style = {draw=blue!80!black, ->, >=Stealth, thick}
-]
 
-% Row 1: Steps 1 to 4 (Generous 4.2cm column spacing)
-\node (step1) [block] at (0, 0) {\textbf{1. Video Capture}\\[2pt]Raw RGB Video Feed};
-\node (step2) [block] at (4.2, 0) {\textbf{2. 12 FPS Resampling}\\[2pt]{\tiny\texttt{resample\_12fps.py}}};
-\node (step3) [block] at (8.4, 0) {\textbf{3. MediaPipe Pose}\\[2pt]21 Keypoint Extraction};
-\node (step4) [block] at (12.6, 0) {\textbf{4. Scale Normalization}\\[2pt]{\tiny\texttt{normalize\_landmarks.py}}\\[1pt]{\scriptsize Unitless $L_{\text{hand}}$}};
+\includegraphics[width=0.85\textwidth]{figures/chapter02_fig03.png}
 
-% Row 2: Steps 5 to 8 (Generous 3.0cm row spacing, 1.6cm clear gap between boxes)
-\node (step5) [block] at (12.6, -3.0) {\textbf{5. Velocity Derivation}\\[2pt]{\tiny\texttt{calculate\_velocities.py}}\\[1pt]{\scriptsize Spatial Joint Kinematics}};
-\node (step6) [block] at (8.4, -3.0) {\textbf{6. Temporal Windowing}\\[2pt]{\tiny\texttt{create\_windows.py}}\\[1pt]{\scriptsize 5 Frames, 2-Frame Overlap}};
-\node (step7) [block] at (4.2, -3.0) {\textbf{7. Quality Filtering}\\[2pt]{\tiny\texttt{filter\_window\_quality.py}}\\[1pt]{\scriptsize Quality Validation}};
-\node (step8) [block] at (0, -3.0) {\textbf{8. PyTorch LSTM}\\[2pt]\texttt{run\_all.py} Benchmark\\[1pt]{\tiny\texttt{best\_finger\_touch\_lstm.pth}}};
-
-% Row 1 Forward Flow
-\draw [arrow] (step1.east) -- (step2.west);
-\draw [arrow] (step2.east) -- (step3.west);
-\draw [arrow] (step3.east) -- (step4.west);
-
-% Transition Down to Row 2 (Clear 1.6cm vertical arrow, zero overlap)
-\draw [arrow] (step4.south) -- (step5.north);
-
-% Row 2 Reverse Flow
-\draw [arrow] (step5.west) -- (step6.east);
-\draw [arrow] (step6.west) -- (step7.east);
-\draw [arrow] (step7.west) -- (step8.east);
-
-\end{tikzpicture}%
-}
 \caption{Data creation, feature engineering, and model training workflow pipeline.}
 \label{fig:workflow_dataset_pipeline}
 \end{figure}
@@ -696,58 +551,9 @@ Figure~\ref{fig:workflow_runtime_pipeline} illustrates the real-time processing 
 
 \begin{figure}[htbp]
 \centering
-\resizebox{0.90\textwidth}{!}{%
-\begin{tikzpicture}[
-    block/.style = {rectangle, draw=green!60!black, fill=green!10!white, thick, rounded corners=4pt, align=center, font=\sffamily\footnotesize, text width=3.4cm, minimum height=1.3cm, inner sep=5pt},
-    decision/.style = {diamond, draw=orange!80!black, fill=orange!10!white, thick, align=center, font=\sffamily\scriptsize, inner sep=3pt, aspect=1.7},
-    arrow/.style = {draw=green!70!black, ->, >=Stealth, thick}
-]
 
-% Row 1 (y = 0): Camera Feed in Center (x = 5.0), branching Left (x = 0) and Right (x = 10.0)
-\node (cam) [block] at (5.0, 0) {\textbf{Live RGB Camera Feed}\\[2pt]\texttt{camera\_thread.py}};
-\node (april) [block] at (0, 0) {\textbf{AprilTag Tracker}\\[2pt]Sub-Pixel Corner Points};
-\node (mp) [block] at (10.0, 0) {\textbf{MediaPipe Hand Pose}\\[2pt]21 Joint Coordinates};
+\includegraphics[width=0.85\textwidth]{figures/chapter02_fig04.png}
 
-% Row 2 (y = -2.6): Left = Homography, Right = Scale Normalization (Center is open)
-\node (homog) [block] at (0, -2.6) {\textbf{SVD Homography}\\[2pt]Compute Matrix $H \in \mathbb{R}^{3 \times 3}$};
-\node (norm) [block] at (10.0, -2.6) {\textbf{Scale Normalization}\\[2pt]{\scriptsize Unitless $L_{\text{hand}}$}};
-
-% Row 3 (y = -5.2): Right = PyTorch LSTM Evaluator
-\node (lstm) [block] at (10.0, -5.2) {\textbf{PyTorch LSTM Evaluator}\\[2pt]5-Frame Window Classifier};
-
-% Row 4 (y = -7.8): Left/Center = Coordinate Mapping, Right = Touch Decision Diamond
-\node (map_coord) [block] at (5.0, -7.8) {\textbf{Planar Point Mapping}\\[2pt]$\mathbf{P}_{\text{XML}} = H \cdot \mathbf{P}_{\text{pixel}}$};
-\node (touch_dec) [decision] at (10.0, -7.8) {\textbf{Touch Event?}\\[1pt]{\scriptsize $p_k > 0.90$}};
-
-% Row 5 (y = -10.2): Center = XML Key Lookup & Dispatch
-\node (lookup) [block] at (5.0, -10.2) {\textbf{XML Key Lookup}\\[2pt]and Action Dispatch};
-
-% Connections: Camera Distribution
-\draw [arrow] (cam.west) -- (april.east);
-\draw [arrow] (cam.east) -- (mp.west);
-
-% Left Track: AprilTag to Homography
-\draw [arrow] (april.south) -- (homog.north);
-
-% Right Track: MediaPipe to Normalization to LSTM to Decision
-\draw [arrow] (mp.south) -- (norm.north);
-\draw [arrow] (norm.south) -- (lstm.north);
-\draw [arrow] (lstm.south) -- (touch_dec.north);
-
-% Hover Loop (routes cleanly around right side of LSTM)
-\draw [arrow] (touch_dec.east) -- ++(1.0, 0) |- node[near start,right,font=\sffamily\scriptsize]{\textbf{No (Hover)}} (lstm.east);
-
-% Touch Confirmed (generous 1.8cm clearance between boxes)
-\draw [arrow] (touch_dec.west) -- node[above,font=\sffamily\scriptsize]{\textbf{Yes}} (map_coord.east);
-
-% Homography Matrix Feed (drops vertically through open space, then turns into map_coord)
-\draw [arrow] (homog.south) |- node[near start,left,font=\sffamily\scriptsize]{Matrix $H$} (map_coord.west);
-
-% Dispatch Execution (straight vertical arrow down)
-\draw [arrow] (map_coord.south) -- (lookup.north);
-
-\end{tikzpicture}%
-}
 \caption{Real-time runtime vision, touch classification, homography mapping, and key execution workflow.}
 \label{fig:workflow_runtime_pipeline}
 \end{figure}
