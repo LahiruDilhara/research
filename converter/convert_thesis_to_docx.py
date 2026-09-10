@@ -202,11 +202,55 @@ def convert_algorithms_to_tables(text: str) -> str:
 
 def clean_for_pandoc(content: str) -> str:
     """Preprocess LaTeX quirks for clean Pandoc conversion."""
+    # Convert longtable specs to simple columns for Pandoc table parsing
+    content = re.sub(r"\\begin\{longtable\}\{.*?\}\s*p\{.*?\}\s*p\{.*?\}@?\}?", r"\\begin{longtable}{l p{13.5cm}}", content)
+    content = re.sub(r"\\begin\{longtable\}\{.*?\}", r"\\begin{longtable}{l p{13.5cm}}", content)
     content = re.sub(r"\\endfirsthead.*?\\endhead", "", content, flags=re.DOTALL)
     content = re.sub(r"\\endhead", "", content)
     content = re.sub(r"\\endfoot.*?\\endlastfoot", "", content, flags=re.DOTALL)
     content = re.sub(r"\\endfoot", "", content)
     content = re.sub(r"\\endlastfoot", "", content)
+    content = re.sub(r"\\multicolumn\{2\}\{r@?\{\}\}\{\\scriptsize Continued on next page\\dots\}", "", content)
+    
+    # Handle titlepage: Convert \begin{titlepage}...\end{titlepage} into explicit centered blocks + pagebreak
+    if r"\begin{titlepage}" in content:
+        titlepage_pattern = re.compile(r"\\begin\{titlepage\}(.*?)\\end\{titlepage\}", re.DOTALL)
+        def titlepage_replacer(m):
+            out_tp = [
+                r"\begin{center}",
+                r"{\Huge \textbf{Customizable Paper-Based Virtual Keyboard System Using Computer Vision and Deep Learning}}",
+                r"",
+                r"\vspace*{2.0cm}",
+                r"",
+                r"{\Large \textbf{G A Lahiru Dilhara}}",
+                r"",
+                r"{\large ( Student No: 29096 )}",
+                r"",
+                r"\vspace*{1.5cm}",
+                r"",
+                r"{\large \textbf{Supervised by:}}",
+                r"",
+                r"{\large Prof. Chaminda Wijesinghe}",
+                r"",
+                r"\vspace*{2.5cm}",
+                r"",
+                r"{\large Degree of Bachelor of Science (Honours) in Computer Science}",
+                r"",
+                r"\vspace*{2.0cm}",
+                r"",
+                r"{\large \textbf{Department of Computer Science}}",
+                r"",
+                r"{\large \textbf{Faculty of Computing}}",
+                r"",
+                r"{\large \textbf{National School of Business Management}}",
+                r"\end{center}",
+                r"",
+                r"\pagebreak"
+            ]
+            return "\n".join(out_tp)
+        
+        content = titlepage_pattern.sub(titlepage_replacer, content)
+        
     return content
 
 def main():
@@ -267,7 +311,9 @@ def main():
     shutil.copy(WORKSPACE_ROOT / "research-db" / "references.bib", build_research_db / "references.bib")
     
     csl_file = WORKSPACE_ROOT / "converter" / "ieee.csl"
-    output_docx = WORKSPACE_ROOT / "thesis.docx"
+    out_dir = WORKSPACE_ROOT / "out"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    output_docx = out_dir / "thesis.docx"
     
     print("\n=== Running Pandoc ===")
     cmd_pandoc = [
@@ -276,6 +322,7 @@ def main():
         "--from=latex",
         "--to=docx",
         "--citeproc",
+        "--metadata=link-citations:true",
         f"--bibliography={build_research_db / 'references.bib'}",
         f"--csl={csl_file}",
         "--toc",
