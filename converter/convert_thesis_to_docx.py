@@ -212,6 +212,9 @@ def clean_for_pandoc(content: str) -> str:
     content = re.sub(r"\\endlastfoot", "", content)
     content = re.sub(r"\\multicolumn\{2\}\{r@?\{\}\}\{\\scriptsize Continued on next page\\dots\}", "", content)
     
+    # Convert \paragraph{...} to inline bold lead-in \textbf{...} to prevent weird heading numbers (e.g. 1.3.2.0.1)
+    content = re.sub(r"\\paragraph\{(.*?)\}", r"\n\n\\textbf{\1} ", content)
+    
     # Handle titlepage: Convert \begin{titlepage}...\end{titlepage} into explicit centered blocks + pagebreak
     if r"\begin{titlepage}" in content:
         titlepage_pattern = re.compile(r"\\begin\{titlepage\}(.*?)\\end\{titlepage\}", re.DOTALL)
@@ -295,6 +298,9 @@ def main():
     main_content_with_figs = extract_and_render_tikz(main_content_with_algs, "main", fig_tracker)
     cleaned_main_content = clean_for_pandoc(main_content_with_figs)
     
+    # Strip \tableofcontents from main.tex to avoid duplicate TOC generation by Pandoc
+    cleaned_main_content = cleaned_main_content.replace(r"\tableofcontents", "")
+    
     # Ensure explicit References heading before bibliography
     cleaned_main_content = cleaned_main_content.replace(
         r"\printbibliography[title={References}]",
@@ -325,8 +331,6 @@ def main():
         "--metadata=link-citations:true",
         f"--bibliography={build_research_db / 'references.bib'}",
         f"--csl={csl_file}",
-        "--toc",
-        "--toc-depth=3",
         "--number-sections",
         f"--resource-path={BUILD_DIR}:{BUILD_FIGURES_DIR}:{WORKSPACE_ROOT}:{FIGURES_DIR}",
         "-o", str(output_docx)

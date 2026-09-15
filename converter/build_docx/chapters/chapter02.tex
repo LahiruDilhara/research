@@ -311,7 +311,9 @@ According to the 21-point framework model, it is feasible for the system to be a
 \subsubsection{Spatial Kinematic Scale Normalization vs. Temporal Smoothing}
 Coordinates determined based on the use of the landmarks would vary according to whether or not there is a change in the distance between the hand and the camera \cite{Doan2022Efficient, Kumar2026Hybrid}. This is because the distance between the camera will affect the size of the pixels that would be created. When the raw pixel coordinates are used to make a tap on the screen, the tap done by the larger hand that is closer to the camera would be much bigger than that of the smaller hand.
 
-\paragraph{Mathematical Proof of Perspective Scale Invariance:}
+
+
+\textbf{Mathematical Proof of Perspective Scale Invariance:} 
 The projection of 3D coordinates into 2D pixel coordinates is accomplished by use of the standard pinhole camera projection model through the use of the focal length $f$ of the camera:
 \begin{equation}
 x_{\text{pixel}} = f \frac{X}{Z}, \quad y_{\text{pixel}} = f \frac{Y}{Z}
@@ -356,7 +358,9 @@ Numerical velocity between two consecutive frames is found from these normalized
 \label{eq:joint_velocity_def}
 \end{equation}
 
-\paragraph{Direct Raw Kinematic Feature Propagation and Information Value:}
+
+
+\textbf{Direct Raw Kinematic Feature Propagation and Information Value:} 
 In the context of the applications for contactless interaction, including air drawing and gestures in mid-air, the application of the low pass or moving average filter is employed to remove hand tremors \cite{Kumar2026Hybrid}.
 
 But when typing is being done through the activity on the surface, there is a need that the coordinates and the velocities be directly sent to the model without doing any temporal filtering. The reasons for doing feature propagation directly in touch recognition include:
@@ -402,7 +406,9 @@ y_{\text{XML}} = \frac{h_{21} x_{\text{pixel}} + h_{22} y_{\text{pixel}} + h_{23
 \label{eq:homography_cartesian_def}
 \end{equation}
 
-\paragraph{Direct Linear Transform (DLT) Matrix Formulation:}
+
+
+\textbf{Direct Linear Transform (DLT) Matrix Formulation:} 
 Equations generated using four or more pairs of corresponding points $(x_k, y_k) \leftrightarrow (x'_k, y'_k)$ ($N \ge 4$) will be:
 \begin{align}
 -x_k h_{11} - y_k h_{12} - h_{13} + 0 + 0 + 0 + x_k x'_k h_{31} + y_k x'_k h_{32} + x'_k h_{33} &= 0 \label{eq:dlt_row1} \\
@@ -411,7 +417,9 @@ Equations generated using four or more pairs of corresponding points $(x_k, y_k)
 
 When these two equations are combined, we get the system matrix equation $\mathbf{A}_{2N \times 9} \mathbf{h} = \mathbf{0}$. In order to solve the system using the SVD technique ($\mathbf{A} = \mathbf{U} \mathbf{\Sigma} \mathbf{V}^T$), we obtain the homography vector $\mathbf{h}$ from the column in $\mathbf{V}$ that has the smallest singular value.
 
-\paragraph{Comparative Analysis of Visual Fiducial Marker Systems:}
+
+
+\textbf{Comparative Analysis of Visual Fiducial Marker Systems:} 
 The fiducials must be placed at the corners of the printed image in order for them to act as references during homography \cite{Fiala2010Designing, Wang2016AprilTag2, Kallwies2020Determining, Shabalina2018ARTag, Kalaitzakis2021Fiducial, GarridoJurado2026ArUco, Zhang2022DeepTag}. There have been three main stages in the evolution of fiducial marker tracking on a plane surface:
 \begin{enumerate}
     \item \textbf{Foundational Edge-Based Digital Tags (ARTag):} ARTag architecture concept was introduced by Fiala \cite{Fiala2010Designing} and it consisted of two phases; one was the candidate quads generation using edge gradient method and second was digital validation using forward error correction. It solved the problems of poor lighting condition and false positives in template-correlation based methods.
@@ -436,7 +444,9 @@ RNNs, particularly LSTM (Long Short-Term Memory) networks \cite{Hochreiter1997LS
 \mathbf{h}_t &= \mathbf{o}_t \odot \tanh(\mathbf{C}_t) \quad &&\text{(Hidden Output)} \label{eq:lstm_hidden_def}
 \end{align}
 
-\paragraph{Comparative Deep Neural Architecture Evaluation:}
+
+
+\textbf{Comparative Deep Neural Architecture Evaluation:} 
 While designing one-dimensional time series models for hand skeleton, the following five deep learning models have been considered \cite{Lai2018CNN, Ikram2020Skeleton, Nunez2018Convolutional, Doan2022Efficient, Gammulle2021TMMF}:
 \begin{enumerate}
     \item \textbf{Unidirectional LSTM Networks:} Data processing takes place sequentially from the current frame to the previous frame ($\mathbf{X} = (\mathbf{x}_1, \dots, \mathbf{x}_T)$), making them suitable for real-time streaming since the future frames cannot be accessed yet.
@@ -448,7 +458,9 @@ While designing one-dimensional time series models for hand skeleton, the follow
 
 Our uni-directional LSTM PyTorch model for training five frames of scale-normalized input data turned out to be the perfect choice for this experiment thanks to its high accuracy and minimal CPU latency (\texttt{run\_all.py}).
 
-\paragraph{Temporal Windowing Architecture:}
+
+
+\textbf{Temporal Windowing Architecture:} 
 The sliding windows technique strikes an optimal balance between computation efficiency and accuracy due to the processing of information received on landmarks by partitioning the input features in time windows \cite{Simao2016Unsupervised, Doan2022Efficient, Gammulle2021TMMF}:
 \begin{itemize}
     \item \textbf{5 Frames Window with 2 Frames Overlapping (Stride of 3 Frames):} For example, for 5 frames, the total time period is 416.6~ms ($T = 416.6$~ms) for 12~FPS video. But when there are 2 frames with stride of 3 frames, it implies that PyTorch LSTM processes after touching every 250~ms. From experimental observations, it was concluded that 5 frames provided sufficient time period for the process of finger's descent, touch on surface, and rebound while keeping latency low.
