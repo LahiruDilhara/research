@@ -84,43 +84,98 @@ class DesignerViewModel(QObject):
             self.dirty_changed.emit(False)
 
 
+    def _update_counters_from_layout(self) -> None:
+        """Scan layout buttons and markers to set counters past highest existing numeric IDs."""
+        import re
+        max_btn_num = 0
+        for b in self._layout.buttons:
+            match = re.search(r'\d+', b.id)
+            if match:
+                num = int(match.group())
+                if num > max_btn_num:
+                    max_btn_num = num
+
+        self._button_counter = max_btn_num + 1
+
+        max_marker_id = -1
+        for m in self._layout.custom_markers:
+            if m.id > max_marker_id:
+                max_marker_id = m.id
+        self._marker_counter = max_marker_id + 1
+
+    def get_next_available_button_id(self) -> str:
+        """Find next unique button ID guaranteed not to collide with existing button IDs."""
+        used_ids = {b.id for b in self._layout.buttons}
+        while f"btn_{self._button_counter}" in used_ids:
+            self._button_counter += 1
+        b_id = f"btn_{self._button_counter}"
+        self._button_counter += 1
+        return b_id
+
     def _find_next_available_position(self, width_mm: float, height_mm: float, is_marker: bool = False) -> tuple[float, float]:
         """Calculate a non-overlapping position within the active surface region."""
-        margin_x = self.config.interior_x_min + 5.0
-        margin_y = self.config.interior_y_min + 5.0
-        max_x = self.config.interior_x_max - width_mm - 2.0
-        max_y = self.config.interior_y_max - height_mm - 2.0
+        margin_x = self.config.interior_x_min
+        margin_y = self.config.interior_y_min
+        max_x = self.config.interior_x_max - width_mm
+        max_y = self.config.interior_y_max - height_mm
 
-        required_gap = max(5.0, self.config.button_min_gap_mm)
-        gap_mm = required_gap + 2.0
-        step_x = width_mm + gap_mm
-        step_y = height_mm + gap_mm
+        button_gap = self.config.button_min_gap_mm
+        marker_gap = self.config.marker_min_gap_mm
+        req_gap = max(button_gap, marker_gap) if is_marker else button_gap
 
+        # Grid search with fine 5.0 mm step increments
+        step_mm = 5.0
         curr_y = margin_y
-        while curr_y <= max_y:
+        while curr_y <= max_y + 1e-4:
             curr_x = margin_x
-            while curr_x <= max_x:
+            while curr_x <= max_x + 1e-4:
                 cand_rect = (curr_x, curr_y, width_mm, height_mm)
 
                 has_collision = False
                 for btn in self._layout.buttons:
-                    if rects_overlap(cand_rect, btn.rect_tuple, gap_mm=required_gap):
+                    if rects_overlap(cand_rect, btn.rect_tuple, gap_mm=req_gap):
                         has_collision = True
                         break
 
+                if not has_collision and self.config.show_outer_markers:
+                    from core.geometry.marker_generator import generate_marker_layout
+                    outer_markers = generate_marker_layout(self.config)
+                    for om in outer_markers:
+                        if rects_overlap(cand_rect, om.rect_tuple, gap_mm=marker_gap):
+                            has_collision = True
+                            break
+
                 if not has_collision and self._layout.use_custom_markers:
+                    cand_marker_gap = max(button_gap, marker_gap) if not is_marker else marker_gap
                     for m in self._layout.custom_markers:
-                        if rects_overlap(cand_rect, m.rect_tuple, gap_mm=required_gap):
+                        if rects_overlap(cand_rect, m.rect_tuple, gap_mm=cand_marker_gap):
                             has_collision = True
                             break
 
                 if not has_collision:
                     return (round(curr_x, 1), round(curr_y, 1))
 
-                curr_x += step_x
-            curr_y += step_y
+                curr_x += step_mm
+            curr_y += step_mm
 
-        return (margin_x, margin_y)
+        # Fallback non-overlapping offset search if fine grid search is full
+        offset = 0.0
+        while offset < 150.0:
+            cand_x = min(max_x, margin_x + offset)
+            cand_y = min(max_y, margin_y + offset)
+            cand_rect = (cand_x, cand_y, width_mm, height_mm)
+
+            has_collision = False
+            for btn in self._layout.buttons:
+                if rects_overlap(cand_rect, btn.rect_tuple, gap_mm=0.0):
+                    has_collision = True
+                    break
+
+            if not has_collision:
+                return (round(cand_x, 1), round(cand_y, 1))
+            offset += 5.0
+
+        return (round(margin_x, 1), round(margin_y, 1))
 
     def update_project_name(self, name: str) -> None:
         """Update layout project name and notify view canvas and window components."""
@@ -159,8 +214,7 @@ class DesignerViewModel(QObject):
 
     def add_button(self) -> None:
         """Add a new key button to the design canvas at a non-overlapping position."""
-        b_id = f"btn_{self._button_counter}"
-        self._button_counter += 1
+        b_id = self.get_next_available_button_id()
 
         w_mm = max(25.0, self.config.button_min_width_mm)
         h_mm = max(18.0, self.config.button_min_height_mm)
@@ -306,7 +360,7 @@ class DesignerViewModel(QObject):
     def update_button_properties(self, updated_button: ButtonModel) -> None:
         """Update property values for a button in the layout."""
         for idx, b in enumerate(self._layout.buttons):
-            if b.id == updated_button.id:
+            if b is updated_button or b.id == updated_button.id:
                 self._layout.buttons[idx] = updated_button
                 break
         self.button_updated.emit(updated_button)
@@ -316,7 +370,7 @@ class DesignerViewModel(QObject):
     def update_marker_properties(self, updated_marker: MarkerModel) -> None:
         """Update property values for a marker in the layout."""
         for idx, m in enumerate(self._layout.custom_markers):
-            if m.id == updated_marker.id:
+            if m is updated_marker or m.id == updated_marker.id:
                 self._layout.custom_markers[idx] = updated_marker
                 break
         self.marker_updated.emit(updated_marker)
@@ -332,6 +386,7 @@ class DesignerViewModel(QObject):
         self._layout.marker_spacing_mm = self.config.marker_spacing_mm
         self._layout.marker_family = self.config.marker_family
         self._layout.marker_min_gap_ratio = self.config.marker_min_gap_ratio
+        self._layout.marker_min_gap_mm = self.config.marker_min_gap_mm
         self._layout.show_outer_markers = self.config.show_outer_markers
         self._layout.button_stroke_width_mm = self.config.button_stroke_width_mm
         self._layout.button_corner_radius_mm = self.config.button_corner_radius_mm
@@ -342,6 +397,27 @@ class DesignerViewModel(QObject):
         self._layout.grid_snap_enabled = self.config.grid_snap_enabled
         self._layout.grid_size_mm = self.config.grid_size_mm
 
+    def _repair_duplicate_marker_ids(self) -> None:
+        """Ensure all custom markers have unique IDs that do not conflict with outer perimeter markers."""
+        if not self._layout.use_custom_markers or not self._layout.custom_markers:
+            return
+
+        used_ids = set()
+        if self.config.show_outer_markers:
+            from core.geometry.marker_generator import generate_marker_layout
+            outer_markers = generate_marker_layout(self.config)
+            used_ids.update(m.id for m in outer_markers)
+
+        for m in self._layout.custom_markers:
+            if m.id in used_ids:
+                next_id = 0
+                while next_id in used_ids:
+                    next_id += 1
+                m.id = next_id
+                used_ids.add(next_id)
+            else:
+                used_ids.add(m.id)
+
     def load_project_xml(self, filepath: str) -> None:
         """Load layout design from target XML project file."""
         try:
@@ -351,12 +427,18 @@ class DesignerViewModel(QObject):
             self.config.paper_height_mm = self._layout.paper_height_mm
             self.config.paper_margin_mm = self._layout.paper_margin_mm
             self.config.marker_size_mm = self._layout.marker_size_mm
+            self.config.marker_min_gap_mm = self._layout.marker_min_gap_mm
             self.config.button_stroke_width_mm = self._layout.button_stroke_width_mm
             self.config.button_corner_radius_mm = self._layout.button_corner_radius_mm
+            self.config.button_min_width_mm = self._layout.button_min_width_mm
+            self.config.button_min_height_mm = self._layout.button_min_height_mm
             self.config.button_min_gap_mm = self._layout.button_min_gap_mm
+            self.config.default_font_size_pt = self._layout.default_font_size_pt
             self.config.grid_snap_enabled = self._layout.grid_snap_enabled
             self.config.grid_size_mm = self._layout.grid_size_mm
             self.config.show_outer_markers = self._layout.show_outer_markers
+            self._repair_duplicate_marker_ids()
+            self._update_counters_from_layout()
             self.selected_button = None
             self.selected_marker = None
             self.selection_changed.emit(None)
@@ -371,11 +453,9 @@ class DesignerViewModel(QObject):
     def save_project_xml(self, filepath: str) -> None:
         """Save layout design directly into target XML project file."""
         self.sync_layout_config()
-        if not validate_layout_geometry(self._layout, self.config):
-            self.error_message.emit(
-                "Cannot Save Layout",
-                "One or more key buttons or custom markers are placed outside the active surface zone or overlapping. Please move red-highlighted elements into valid positions.",
-            )
+        is_valid, err_msg = validate_layout_geometry(self._layout, self.config)
+        if not is_valid:
+            self.error_message.emit("Cannot Save Layout", err_msg)
             return
         try:
             self.xml_repo.save(filepath, self._layout)
@@ -385,17 +465,12 @@ class DesignerViewModel(QObject):
         except Exception as e:
             self.error_message.emit("Error Saving Project", str(e))
 
-        except Exception as e:
-            self.error_message.emit("Error Saving Project", str(e))
-
     def sync_to_database(self) -> None:
         """Synchronize current layout model with SQLite database."""
         self.sync_layout_config()
-        if not validate_layout_geometry(self._layout, self.config):
-            self.error_message.emit(
-                "Cannot Sync Database",
-                "One or more key buttons or custom markers are placed outside the active surface zone or overlapping. Please move red-highlighted elements into valid positions.",
-            )
+        is_valid, err_msg = validate_layout_geometry(self._layout, self.config)
+        if not is_valid:
+            self.error_message.emit("Cannot Sync Database", err_msg)
             return
         try:
             self.db_repo.save("default_layout", self._layout)
@@ -405,11 +480,9 @@ class DesignerViewModel(QObject):
 
     def export_pdf(self, filepath: str) -> None:
         """Export printable PDF layout sheet."""
-        if not validate_layout_geometry(self._layout, self.config):
-            self.error_message.emit(
-                "Cannot Export PDF",
-                "One or more key buttons or custom markers are placed outside the active surface zone or overlapping. Please move red-highlighted elements into valid positions.",
-            )
+        is_valid, err_msg = validate_layout_geometry(self._layout, self.config)
+        if not is_valid:
+            self.error_message.emit("Cannot Export PDF", err_msg)
             return
         try:
             self.pdf_exporter.export(filepath, self._layout, self.config)
@@ -419,11 +492,9 @@ class DesignerViewModel(QObject):
 
     def export_png(self, filepath: str) -> None:
         """Export high-resolution PNG image layout sheet."""
-        if not validate_layout_geometry(self._layout, self.config):
-            self.error_message.emit(
-                "Cannot Export PNG",
-                "One or more key buttons or custom markers are placed outside the active surface zone or overlapping. Please move red-highlighted elements into valid positions.",
-            )
+        is_valid, err_msg = validate_layout_geometry(self._layout, self.config)
+        if not is_valid:
+            self.error_message.emit("Cannot Export PNG", err_msg)
             return
         try:
             pil_img = self.preview_service.render_preview(self._layout, self.config, scale=4.0)
@@ -432,9 +503,9 @@ class DesignerViewModel(QObject):
         except Exception as e:
             self.error_message.emit("Export Error", str(e))
 
-
     def _validate_and_notify_stats(self) -> None:
         """Recalculate layout geometry validity and emit stats_changed signal."""
-        valid = validate_layout_geometry(self._layout, self.config)
+        valid, _ = validate_layout_geometry(self._layout, self.config)
         num_markers = len(self._layout.custom_markers) if self._layout.use_custom_markers else 0
         self.stats_changed.emit(len(self._layout.buttons), num_markers, valid)
+

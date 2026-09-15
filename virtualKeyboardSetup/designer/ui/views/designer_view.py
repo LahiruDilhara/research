@@ -272,18 +272,34 @@ class DesignerView(QWidget):
 
 
     def _on_button_updated_from_vm(self, button: ButtonModel) -> None:
-        if button.id in self.canvas.button_items:
-            item = self.canvas.button_items[button.id]
-            item.prepareGeometryChange()
-            item.setPos(button.x_mm, button.y_mm)
-            item.update()
+        target_item = None
+        for item in self.canvas.button_items.values():
+            if item.button is button:
+                target_item = item
+                break
+        if target_item is None and button.id in self.canvas.button_items:
+            target_item = self.canvas.button_items[button.id]
+
+        if target_item is not None:
+            target_item.prepareGeometryChange()
+            target_item.setPos(button.x_mm, button.y_mm)
+            target_item.update()
+            self.canvas.button_items = {item.button.id: item for item in self.canvas.button_items.values()}
             self.canvas.validate_layout()
 
     def _on_marker_updated_from_vm(self, marker: MarkerModel) -> None:
-        if marker.id in self.canvas.marker_items:
-            item = self.canvas.marker_items[marker.id]
-            item.set_tag_id(marker.id)
-            item.setPos(marker.x_mm, marker.y_mm)
-            item.update()
+        target_item = None
+        for item in self.canvas.marker_items.values():
+            if item.marker is marker:
+                target_item = item
+                break
+        if target_item is None and marker.id in self.canvas.marker_items:
+            target_item = self.canvas.marker_items[marker.id]
+
+        if target_item is not None:
+            target_item.set_tag_id(marker.id)
+            target_item.setPos(marker.x_mm, marker.y_mm)
+            target_item.update()
+            self.canvas.marker_items = {item.marker.id: item for item in self.canvas.marker_items.values()}
             self.canvas.validate_layout()
 

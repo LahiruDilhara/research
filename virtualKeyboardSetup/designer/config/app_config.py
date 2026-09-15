@@ -21,6 +21,7 @@ from .constants import (
     BUTTON_MIN_WIDTH_MM,
     BUTTON_MIN_HEIGHT_MM,
     BUTTON_MIN_GAP_MM,
+    MARKER_MIN_GAP_MM,
     DEFAULT_FONT_SIZE_PT,
     INTERIOR_BUFFER_MM,
     DEFAULT_GRID_SIZE_MM,
@@ -58,6 +59,7 @@ class AppConfig:
         self._grid_snap_enabled = os.getenv("GRID_SNAP_ENABLED", "true").lower() in ("true", "1", "yes")
         # AprilTag Marker Settings
         self._marker_min_gap_ratio = float(os.getenv("MARKER_MIN_GAP_RATIO", DEFAULT_MARKER_MIN_GAP_RATIO))
+        self._marker_min_gap_mm = float(os.getenv("MARKER_MIN_GAP_MM", MARKER_MIN_GAP_MM))
         self._show_outer_markers = os.getenv("SHOW_OUTER_MARKERS", "true").lower() in ("true", "1", "yes")
         self._grid_size_mm = float(os.getenv("GRID_SIZE_MM", DEFAULT_GRID_SIZE_MM))
 
@@ -99,6 +101,14 @@ class AppConfig:
         return self._marker_min_gap_ratio
 
     @property
+    def marker_min_gap_mm(self) -> float:
+        return self._marker_min_gap_mm
+
+    @marker_min_gap_mm.setter
+    def marker_min_gap_mm(self, value: float) -> None:
+        self._marker_min_gap_mm = max(0.0, float(value))
+
+    @property
     def show_outer_markers(self) -> bool:
         return self._show_outer_markers
 
@@ -135,9 +145,17 @@ class AppConfig:
     def button_min_width_mm(self) -> float:
         return self._button_min_width_mm
 
+    @button_min_width_mm.setter
+    def button_min_width_mm(self, value: float) -> None:
+        self._button_min_width_mm = max(1.0, float(value))
+
     @property
     def button_min_height_mm(self) -> float:
         return self._button_min_height_mm
+
+    @button_min_height_mm.setter
+    def button_min_height_mm(self, value: float) -> None:
+        self._button_min_height_mm = max(1.0, float(value))
 
     @property
     def button_min_gap_mm(self) -> float:
@@ -151,6 +169,10 @@ class AppConfig:
     @property
     def default_font_size_pt(self) -> int:
         return self._default_font_size_pt
+
+    @default_font_size_pt.setter
+    def default_font_size_pt(self, value: int) -> None:
+        self._default_font_size_pt = max(4, int(value))
 
     @property
     def db_path(self) -> str:

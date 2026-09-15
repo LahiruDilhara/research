@@ -20,11 +20,13 @@ class PreviewService:
         img = Image.new("RGB", (width_px, height_px), "#FFFFFF")
         draw = ImageDraw.Draw(img)
 
-        # 1. Draw AprilTag Markers
+        # 1. Draw AprilTag Markers (Outer perimeter anchors + custom interior markers)
+        markers: list[MarkerModel] = []
+        if layout.show_outer_markers:
+            markers.extend(generate_marker_layout(config))
         if layout.use_custom_markers and layout.custom_markers:
-            markers = layout.custom_markers
-        else:
-            markers = generate_marker_layout(config)
+            markers.extend(layout.custom_markers)
+
         marker_size_px = int(config.marker_size_mm * scale)
         tag_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_APRILTAG_36h11)
 
@@ -38,6 +40,7 @@ class PreviewService:
             img.paste(marker_pil, (x0, y0))
 
         # 2. Draw Buttons
+
         stroke_px = max(1, int(config.button_stroke_width_mm * scale))
         radius_px = int(config.button_corner_radius_mm * scale)
 

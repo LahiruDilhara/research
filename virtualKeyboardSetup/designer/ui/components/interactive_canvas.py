@@ -177,7 +177,17 @@ class InteractiveCanvas(QGraphicsView):
 
 
     def add_button(self, button: ButtonModel) -> ButtonGraphicsItem:
-        self.layout_model.add_button(button)
+        if not any(b.id == button.id for b in self.layout_model.buttons):
+            self.layout_model.add_button(button)
+
+        if button.id in self.button_items:
+            item = self.button_items[button.id]
+            item.prepareGeometryChange()
+            item.setPos(button.x_mm, button.y_mm)
+            item.update()
+            self.validate_layout()
+            return item
+
         item = ButtonGraphicsItem(button, self.config)
 
         item.signals.selected_changed.connect(self._on_button_selected)
@@ -194,7 +204,17 @@ class InteractiveCanvas(QGraphicsView):
         return item
 
     def add_user_marker(self, marker: MarkerModel) -> MarkerGraphicsItem:
-        self.layout_model.add_custom_marker(marker)
+        if not any(m.id == marker.id for m in self.layout_model.custom_markers):
+            self.layout_model.add_custom_marker(marker)
+
+        if marker.id in self.marker_items:
+            item = self.marker_items[marker.id]
+            item.set_tag_id(marker.id)
+            item.setPos(marker.x_mm, marker.y_mm)
+            item.update()
+            self.validate_layout()
+            return item
+
         item = MarkerGraphicsItem(marker, self.config, is_interactive=True)
 
         item.signals.selected_changed.connect(self._on_marker_selected)
@@ -208,6 +228,7 @@ class InteractiveCanvas(QGraphicsView):
         self.validate_layout()
         self.layout_updated.emit(self.layout_model)
         return item
+
 
 
     def remove_selected_button(self) -> ButtonModel | None:
@@ -291,6 +312,17 @@ class InteractiveCanvas(QGraphicsView):
         """Check all buttons and markers for paper bounds and mutual collision overlaps."""
         all_valid = True
         buttons = [item.button for item in self.button_items.values()]
+        button_gap = self.config.button_min_gap_mm
+        marker_gap = self.config.marker_min_gap_mm
+
+        outer_markers = []
+        outer_ids = set()
+        if self.config.show_outer_markers:
+            outer_markers = generate_marker_layout(self.config)
+            outer_ids = {om.id for om in outer_markers}
+
+        custom_items = [item for item in self.marker_items.values() if item.is_interactive]
+        custom_ids = [item.marker.id for item in custom_items]
 
         # 1. Validate Buttons (must fit in interior active surface zone and not overlap)
         for i, item in enumerate(self.button_items.values()):
@@ -301,14 +333,15 @@ class InteractiveCanvas(QGraphicsView):
 
             has_overlap = False
             for j, other_btn in enumerate(buttons):
-                if i != j and rects_overlap(rect, other_btn.rect_tuple, self.config.button_min_gap_mm):
+                if i != j and rects_overlap(rect, other_btn.rect_tuple, gap_mm=button_gap):
                     has_overlap = True
                     break
 
             # Check overlap with custom markers
             if self.layout_model.use_custom_markers:
-                for m_item in self.marker_items.values():
-                    if rects_overlap(rect, m_item.marker.rect_tuple, 2.0):
+                btn_marker_gap = max(button_gap, marker_gap)
+                for m_item in custom_items:
+                    if rects_overlap(rect, m_item.marker.rect_tuple, gap_mm=btn_marker_gap):
                         has_overlap = True
                         break
 
@@ -318,28 +351,36 @@ class InteractiveCanvas(QGraphicsView):
 
             item.update()
 
-        # Collect all used marker IDs to check for duplicates
-        outer_ids = set()
-        if self.config.show_outer_markers and hasattr(self, "outer_markers"):
-            outer_ids = {m.id for m in self.outer_markers}
-        custom_ids = [m_item.marker.id for m_item in self.marker_items.values()]
-
-        # 2. Validate Custom Markers (must fit within paper margins, not overlap key buttons, and have unique Tag IDs)
-        for m_item in self.marker_items.values():
+        # 2. Validate Custom Markers (must fit within paper margins, not overlap key buttons/markers, and have unique Tag IDs)
+        for m_item in custom_items:
             m_id = m_item.marker.id
             m_rect = m_item.marker.rect_tuple
             in_bounds = (
-                m_rect[0] >= self.config.paper_margin_mm
-                and m_rect[1] >= self.config.paper_margin_mm
-                and m_rect[0] + m_rect[2] <= self.config.paper_width_mm - self.config.paper_margin_mm
-                and m_rect[1] + m_rect[3] <= self.config.paper_height_mm - self.config.paper_margin_mm
+                m_rect[0] + 1e-4 >= self.config.paper_margin_mm
+                and m_rect[1] + 1e-4 >= self.config.paper_margin_mm
+                and m_rect[0] + m_rect[2] - 1e-4 <= self.config.paper_width_mm - self.config.paper_margin_mm
+                and m_rect[1] + m_rect[3] - 1e-4 <= self.config.paper_height_mm - self.config.paper_margin_mm
             )
 
             has_overlap = False
+            btn_marker_gap = max(button_gap, marker_gap)
             for btn in buttons:
-                if rects_overlap(m_rect, btn.rect_tuple, 2.0):
+                if rects_overlap(m_rect, btn.rect_tuple, gap_mm=btn_marker_gap):
                     has_overlap = True
                     break
+
+            if not has_overlap:
+                for other_item in custom_items:
+                    if other_item.marker.id != m_id:
+                        if rects_overlap(m_rect, other_item.marker.rect_tuple, gap_mm=marker_gap):
+                            has_overlap = True
+                            break
+
+            if not has_overlap and outer_markers:
+                for om in outer_markers:
+                    if rects_overlap(m_rect, om.rect_tuple, gap_mm=marker_gap):
+                        has_overlap = True
+                        break
 
             is_duplicate_id = (custom_ids.count(m_id) > 1) or (m_id in outer_ids)
 

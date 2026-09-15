@@ -12,6 +12,7 @@ from config.constants import (
     MARKER_SPACING_MM,
     MARKER_FAMILY,
     DEFAULT_MARKER_MIN_GAP_RATIO,
+    MARKER_MIN_GAP_MM,
     BUTTON_STROKE_WIDTH_MM,
     BUTTON_CORNER_RADIUS_MM,
     BUTTON_MIN_WIDTH_MM,
@@ -35,6 +36,7 @@ class PaperLayoutModel:
     marker_spacing_mm: float = MARKER_SPACING_MM
     marker_family: str = MARKER_FAMILY
     marker_min_gap_ratio: float = DEFAULT_MARKER_MIN_GAP_RATIO
+    marker_min_gap_mm: float = MARKER_MIN_GAP_MM
     show_outer_markers: bool = True
     use_custom_markers: bool = False
     button_stroke_width_mm: float = BUTTON_STROKE_WIDTH_MM
@@ -51,7 +53,8 @@ class PaperLayoutModel:
     custom_markers: list[MarkerModel] = field(default_factory=list)
 
     def add_button(self, button: ButtonModel) -> None:
-        self.buttons.append(button)
+        if not any(b.id == button.id for b in self.buttons):
+            self.buttons.append(button)
 
     def remove_button(self, button_id: str) -> None:
         self.buttons = [b for b in self.buttons if b.id != button_id]
@@ -63,8 +66,10 @@ class PaperLayoutModel:
         return None
 
     def add_custom_marker(self, marker: MarkerModel) -> None:
-        self.custom_markers.append(marker)
+        if not any(m.id == marker.id for m in self.custom_markers):
+            self.custom_markers.append(marker)
         self.use_custom_markers = True
+
 
     def remove_custom_marker(self, marker_id: int) -> None:
         self.custom_markers = [m for m in self.custom_markers if m.id != marker_id]

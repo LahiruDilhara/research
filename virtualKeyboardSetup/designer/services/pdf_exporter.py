@@ -72,10 +72,12 @@ class PdfExporter(IExportService):
         return lines
 
     def export(self, filepath: str | Path, layout: PaperLayoutModel, config: AppConfig) -> None:
+        markers: list[MarkerModel] = []
+        if layout.show_outer_markers:
+            markers.extend(generate_marker_layout(config))
         if layout.use_custom_markers and layout.custom_markers:
-            markers = layout.custom_markers
-        else:
-            markers = generate_marker_layout(config)
+            markers.extend(layout.custom_markers)
+
         path = Path(filepath)
 
         page_width = config.paper_width_mm * mm
@@ -94,6 +96,7 @@ class PdfExporter(IExportService):
 
             reader = self._generate_marker_image_reader(m.id)
             c.drawImage(reader, pdf_x, pdf_y, width=marker_size_pt, height=marker_size_pt)
+
 
         # 2. Draw Buttons
         stroke_pt = config.button_stroke_width_mm * mm

@@ -39,6 +39,10 @@ class SettingsViewModel(QObject):
         return self.config.marker_size_mm
 
     @property
+    def marker_min_gap_mm(self) -> float:
+        return self.config.marker_min_gap_mm
+
+    @property
     def show_outer_markers(self) -> bool:
         return self.config.show_outer_markers
 
@@ -88,6 +92,7 @@ class SettingsViewModel(QObject):
         grid_size: float,
         paper_margin_mm: float = 10.0,
         button_min_gap_mm: float = 5.0,
+        marker_min_gap_mm: float = 5.0,
         button_corner_radius_mm: float = 0.0,
         button_stroke_width_mm: float = 1.5,
     ) -> None:
@@ -100,13 +105,14 @@ class SettingsViewModel(QObject):
         self.config.grid_size_mm = grid_size
         self.config.paper_margin_mm = paper_margin_mm
         self.config.button_min_gap_mm = button_min_gap_mm
+        self.config.marker_min_gap_mm = marker_min_gap_mm
         self.config.button_corner_radius_mm = button_corner_radius_mm
         self.config.button_stroke_width_mm = button_stroke_width_mm
 
         self.paper_dimensions_changed.emit(width_mm, height_mm)
         self.status_message.emit(
             "Settings Updated",
-            f"Updated paper layout settings: margin ({paper_margin_mm:.1f} mm), button gap ({button_min_gap_mm:.1f} mm), stroke width ({button_stroke_width_mm:.1f} mm), and surface dimensions.",
+            f"Updated paper layout settings: margin ({paper_margin_mm:.1f} mm), button gap ({button_min_gap_mm:.1f} mm), marker gap ({marker_min_gap_mm:.1f} mm), stroke width ({button_stroke_width_mm:.1f} mm), and surface dimensions.",
         )
 
 

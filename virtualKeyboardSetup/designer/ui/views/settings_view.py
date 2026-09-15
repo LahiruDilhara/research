@@ -142,10 +142,16 @@ class SettingsView(QWidget):
         self.spin_marker_size.setSingleStep(1.0)
         self.spin_marker_size.setValue(self.viewmodel.marker_size_mm)
 
+        self.spin_marker_gap = DoubleSpinBox(marker_card)
+        self.spin_marker_gap.setRange(0.0, 50.0)
+        self.spin_marker_gap.setSingleStep(1.0)
+        self.spin_marker_gap.setValue(self.viewmodel.marker_min_gap_mm)
+
         self.switch_outer_markers = SwitchButton(marker_card)
         self.switch_outer_markers.setChecked(self.viewmodel.show_outer_markers)
 
         marker_layout.addWidget(create_setting_row("AprilTag Marker Size (mm)", "Dimension of AprilTag fiducial square anchors", self.spin_marker_size, marker_card))
+        marker_layout.addWidget(create_setting_row("Minimum Marker Spacing / Gap (mm)", "Required clearance gap between markers and elements", self.spin_marker_gap, marker_card))
         marker_layout.addWidget(create_setting_row("Show Outer Perimeter Markers", "Display default corner AprilTag fiducial anchors on canvas", self.switch_outer_markers, marker_card))
 
         layout.addWidget(marker_card)
@@ -242,6 +248,7 @@ class SettingsView(QWidget):
         self.spin_height.setValue(self.viewmodel.paper_height_mm)
         self.spin_paper_margin.setValue(self.viewmodel.paper_margin_mm)
         self.spin_marker_size.setValue(self.viewmodel.marker_size_mm)
+        self.spin_marker_gap.setValue(self.viewmodel.marker_min_gap_mm)
         self.switch_outer_markers.setChecked(self.viewmodel.show_outer_markers)
         self.switch_grid.setChecked(self.viewmodel.grid_snap_enabled)
         self.spin_grid_size.setValue(self.viewmodel.grid_size_mm)
@@ -253,6 +260,7 @@ class SettingsView(QWidget):
         w = self.spin_width.value()
         h = self.spin_height.value()
         m_size = self.spin_marker_size.value()
+        marker_gap = self.spin_marker_gap.value()
         show_outer = self.switch_outer_markers.isChecked()
         grid_snap = self.switch_grid.isChecked()
         grid_size = self.spin_grid_size.value()
@@ -262,7 +270,7 @@ class SettingsView(QWidget):
         stroke_width = self.spin_stroke_width.value()
 
         self.viewmodel.apply_settings(
-            w, h, m_size, show_outer, grid_snap, grid_size, paper_margin, button_gap, corner_radius, stroke_width
+            w, h, m_size, show_outer, grid_snap, grid_size, paper_margin, button_gap, marker_gap, corner_radius, stroke_width
         )
 
 

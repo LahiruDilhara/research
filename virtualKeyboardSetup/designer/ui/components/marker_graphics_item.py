@@ -118,7 +118,7 @@ class MarkerGraphicsItem(QGraphicsItem):
             new_x = new_pos.x()
             new_y = new_pos.y()
 
-            # Clamp position strictly within interior active surface zone
+            # Clamp position strictly within active surface region
             half = self.marker.size_mm / 2.0
             min_x = self.config.interior_x_min + half
             max_x = self.config.interior_x_max - half
@@ -129,8 +129,10 @@ class MarkerGraphicsItem(QGraphicsItem):
             new_y = max(min_y, min(new_y, max_y))
 
             if self.config.grid_snap_enabled:
-                new_x = snap_to_grid(new_x, self.config.grid_size_mm)
-                new_y = snap_to_grid(new_y, self.config.grid_size_mm)
+                top_left_x = snap_to_grid(new_x - half, self.config.grid_size_mm)
+                top_left_y = snap_to_grid(new_y - half, self.config.grid_size_mm)
+                new_x = top_left_x + half
+                new_y = top_left_y + half
                 new_x = max(min_x, min(new_x, max_x))
                 new_y = max(min_y, min(new_y, max_y))
 

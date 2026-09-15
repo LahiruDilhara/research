@@ -94,6 +94,34 @@ class TestDesignerViewModel(unittest.TestCase):
             self.assertIn('target_camera_fps="12"', xml_content)
             self.assertIn('touch_model_architecture="LSTM"', xml_content)
 
+    def test_load_xml_restores_all_configured_settings(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            xml_path = str(Path(tmpdir) / "configured_settings_test.xml")
+            self.config.button_stroke_width_mm = 2.8
+            self.config.button_corner_radius_mm = 4.5
+            self.config.button_min_gap_mm = 12.0
+            self.config.grid_size_mm = 8.0
+            self.config.paper_margin_mm = 15.0
+            self.config.marker_size_mm = 20.0
+            self.config.show_outer_markers = False
+
+            self.vm.add_button()
+            self.vm.save_project_xml(xml_path)
+
+            # Load into fresh ViewModel with default AppConfig
+            fresh_config = AppConfig()
+            vm_loaded = DesignerViewModel(fresh_config)
+            vm_loaded.load_project_xml(xml_path)
+
+            # Verify that fresh_config was fully updated with loaded settings
+            self.assertAlmostEqual(fresh_config.button_stroke_width_mm, 2.8)
+            self.assertAlmostEqual(fresh_config.button_corner_radius_mm, 4.5)
+            self.assertAlmostEqual(fresh_config.button_min_gap_mm, 12.0)
+            self.assertAlmostEqual(fresh_config.grid_size_mm, 8.0)
+            self.assertAlmostEqual(fresh_config.paper_margin_mm, 15.0)
+            self.assertAlmostEqual(fresh_config.marker_size_mm, 20.0)
+            self.assertFalse(fresh_config.show_outer_markers)
+
     def test_xml_all_button_locations_and_coordinates_persisted(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             xml_path = str(Path(tmpdir) / "coordinates_test.xml")
@@ -131,6 +159,71 @@ class TestDesignerViewModel(unittest.TestCase):
             loaded_m = vm_loaded.layout.custom_markers[0]
             self.assertAlmostEqual(loaded_m.x_mm, 120.0)
             self.assertAlmostEqual(loaded_m.y_mm, 140.0)
+
+    def test_add_button_on_loaded_project_creates_new_unique_button(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            xml_path = str(Path(tmpdir) / "counter_test.xml")
+            # Create a layout with 3 buttons
+            self.vm.add_button()  # btn_1
+            self.vm.add_button()  # btn_2
+            self.vm.add_button()  # btn_3
+            self.vm.save_project_xml(xml_path)
+
+            # Load into fresh ViewModel
+            vm_loaded = DesignerViewModel(AppConfig())
+            vm_loaded.load_project_xml(xml_path)
+
+            self.assertEqual(len(vm_loaded.layout.buttons), 3)
+
+            # Add a 4th button
+            vm_loaded.add_button()
+            self.assertEqual(len(vm_loaded.layout.buttons), 4)
+            added_btn = vm_loaded.layout.buttons[3]
+            self.assertEqual(added_btn.id, "btn_4")
+
+            # Verify existing buttons were not overwritten or moved
+            self.assertEqual(vm_loaded.layout.buttons[0].id, "btn_1")
+            self.assertEqual(vm_loaded.layout.buttons[1].id, "btn_2")
+            self.assertEqual(vm_loaded.layout.buttons[2].id, "btn_3")
+
+    def test_custom_marker_overlap_and_gap_validation(self):
+        from core.geometry.layout_geometry import validate_layout_geometry
+        from core.models.marker_model import MarkerModel
+
+        # Create two overlapping custom markers
+        self.vm.layout.use_custom_markers = True
+        m1 = MarkerModel(id=20, x_mm=50.0, y_mm=50.0, size_mm=15.0)
+        m2 = MarkerModel(id=21, x_mm=55.0, y_mm=50.0, size_mm=15.0)  # Overlaps m1
+        self.vm.layout.custom_markers = [m1, m2]
+
+        is_valid, msg = validate_layout_geometry(self.vm.layout, self.config)
+        self.assertFalse(is_valid)
+        self.assertIn("overlaps or is too close", msg)
+
+        # Separate markers with proper gap (> 2.0 mm gap)
+        m2.x_mm = 70.0  # m1 right edge = 57.5, m2 left edge = 62.5 -> gap = 5.0 mm
+        is_valid, msg = validate_layout_geometry(self.vm.layout, self.config)
+        self.assertTrue(is_valid)
+        self.assertEqual(msg, "")
+
+    def test_button_overlap_and_gap_validation(self):
+        from core.geometry.layout_geometry import validate_layout_geometry
+        from core.models.button_model import ButtonModel
+
+        # Create two buttons touching on border (b1 right edge = 60.0, b2 left edge = 60.0 -> gap = 0 mm)
+        b1 = ButtonModel(id="btn_1", x_mm=35.0, y_mm=35.0, width_mm=25.0, height_mm=18.0)
+        b2 = ButtonModel(id="btn_2", x_mm=60.0, y_mm=35.0, width_mm=25.0, height_mm=18.0)
+        self.vm.layout.buttons = [b1, b2]
+
+        is_valid, msg = validate_layout_geometry(self.vm.layout, self.config)
+        self.assertFalse(is_valid)
+        self.assertIn("overlaps or is too close", msg)
+
+        # Separate buttons with required gap (gap >= config.button_min_gap_mm)
+        b2.x_mm = 72.0  # gap = 12.0 mm >= 10.0 mm
+        is_valid, msg = validate_layout_geometry(self.vm.layout, self.config)
+        self.assertTrue(is_valid)
+        self.assertEqual(msg, "")
 
 
 

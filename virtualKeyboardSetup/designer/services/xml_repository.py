@@ -17,6 +17,7 @@ from config.constants import (
     MARKER_SIZE_MM,
     MARKER_SPACING_MM,
     DEFAULT_MARKER_MIN_GAP_RATIO,
+    MARKER_MIN_GAP_MM,
     MARKER_FAMILY,
     BUTTON_STROKE_WIDTH_MM,
     BUTTON_CORNER_RADIUS_MM,
@@ -81,6 +82,7 @@ class XmlRepository(IProjectRepository):
         root.set("marker_spacing_mm", f"{layout.marker_spacing_mm:.3f}")
         root.set("marker_family", layout.marker_family)
         root.set("marker_min_gap_ratio", f"{layout.marker_min_gap_ratio:.3f}")
+        root.set("marker_min_gap_mm", f"{layout.marker_min_gap_mm:.3f}")
         root.set("use_custom_markers", str(use_custom))
         root.set("show_outer_markers", str(1 if layout.show_outer_markers else 0))
         root.set("coordinate_origin", "top_left_paper_corner (x_right, y_down)")
@@ -116,6 +118,7 @@ class XmlRepository(IProjectRepository):
         marker_zone_el.set("marker_family", layout.marker_family)
         marker_zone_el.set("marker_spacing_mm", f"{layout.marker_spacing_mm:.3f}")
         marker_zone_el.set("marker_min_gap_ratio", f"{layout.marker_min_gap_ratio:.3f}")
+        marker_zone_el.set("marker_min_gap_mm", f"{layout.marker_min_gap_mm:.3f}")
 
         # 4. Interior Active Region
         interior_el = ET.SubElement(root, "InteriorRegion")
@@ -211,8 +214,14 @@ class XmlRepository(IProjectRepository):
         marker_spacing = float(root.attrib.get("marker_spacing_mm", MARKER_SPACING_MM))
         marker_family = root.attrib.get("marker_family", MARKER_FAMILY)
         marker_min_gap_ratio = float(root.attrib.get("marker_min_gap_ratio", DEFAULT_MARKER_MIN_GAP_RATIO))
+        marker_min_gap = float(root.attrib.get("marker_min_gap_mm", MARKER_MIN_GAP_MM))
         use_custom = bool(int(root.attrib.get("use_custom_markers", "0")))
         show_outer = bool(int(root.attrib.get("show_outer_markers", "1")))
+
+        # Check MarkerRingZone for marker_min_gap_mm override
+        mz_el = root.find("MarkerRingZone")
+        if mz_el is not None and "marker_min_gap_mm" in mz_el.attrib:
+            marker_min_gap = float(mz_el.attrib["marker_min_gap_mm"])
 
         # Parse ButtonStylingRules
         button_stroke = BUTTON_STROKE_WIDTH_MM
@@ -298,6 +307,7 @@ class XmlRepository(IProjectRepository):
             marker_spacing_mm=marker_spacing,
             marker_family=marker_family,
             marker_min_gap_ratio=marker_min_gap_ratio,
+            marker_min_gap_mm=marker_min_gap,
             show_outer_markers=show_outer,
             use_custom_markers=bool(custom_markers) or use_custom,
             button_stroke_width_mm=button_stroke,
