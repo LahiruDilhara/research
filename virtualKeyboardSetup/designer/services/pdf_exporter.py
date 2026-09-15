@@ -124,5 +124,13 @@ class PdfExporter(IExportService):
                     line_y = start_y - (idx * line_height)
                     c.drawString(line_x, line_y, line)
 
+        # 3. Draw Project Name Title on Top Outer Margin Ring (Outside tags with gap)
+        if getattr(layout, "project_name", None):
+            c.setFont("Helvetica-Bold", 5.5)
+            c.setFillColorRGB(0.3, 0.3, 0.3)
+            pdf_title_x = (config.paper_width_mm / 2.0) * mm
+            pdf_title_y = (config.paper_height_mm - (config.paper_margin_mm / 3.0)) * mm
+            c.drawCentredString(pdf_title_x, pdf_title_y, f"PROJECT: {layout.project_name.upper()}")
+
         c.showPage()
         c.save()

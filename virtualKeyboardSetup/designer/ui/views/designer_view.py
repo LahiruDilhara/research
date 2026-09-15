@@ -213,6 +213,7 @@ class DesignerView(QWidget):
 
         self.side_panel.button_updated.connect(self.viewmodel.update_button_properties)
         self.side_panel.marker_updated.connect(self.viewmodel.update_marker_properties)
+        self.side_panel.project_name_updated.connect(self.viewmodel.update_project_name)
 
         self.canvas.selection_changed.connect(self.viewmodel.select_button)
         self.canvas.marker_selection_changed.connect(self.viewmodel.select_marker)
@@ -230,7 +231,12 @@ class DesignerView(QWidget):
         self.viewmodel.marker_selection_changed.connect(self.side_panel.set_selected_marker)
 
         self.viewmodel.stats_changed.connect(self.side_panel.update_stats)
-        self.viewmodel.layout_changed.connect(self.canvas.load_layout)
+        self.viewmodel.layout_changed.connect(self._on_layout_changed_from_vm)
+
+    def _on_layout_changed_from_vm(self, layout) -> None:
+        self.canvas.load_layout(layout)
+        if hasattr(layout, "project_name"):
+            self.side_panel.set_project_name(layout.project_name)
 
     def _on_canvas_layout_updated(self, layout) -> None:
         valid = self.canvas.validate_layout()

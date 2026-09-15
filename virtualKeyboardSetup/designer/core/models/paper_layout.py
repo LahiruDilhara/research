@@ -27,6 +27,7 @@ from .marker_model import MarkerModel
 
 @dataclass
 class PaperLayoutModel:
+    project_name: str = "My Paper Keyboard"
     paper_width_mm: float = DEFAULT_PAPER_WIDTH_MM
     paper_height_mm: float = DEFAULT_PAPER_HEIGHT_MM
     paper_margin_mm: float = PAPER_MARGIN_MM

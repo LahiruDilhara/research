@@ -72,6 +72,7 @@ class XmlRepository(IProjectRepository):
         int_h = max(0.0, int_y_max - int_y_min)
 
         root = ET.Element("PaperLayout")
+        root.set("project_name", layout.project_name)
         root.set("paper_width_mm", f"{layout.paper_width_mm:.3f}")
         root.set("paper_height_mm", f"{layout.paper_height_mm:.3f}")
         root.set("paper_margin_mm", f"{layout.paper_margin_mm:.3f}")
@@ -87,6 +88,7 @@ class XmlRepository(IProjectRepository):
 
         # 1. System Config metadata
         sys_config_el = ET.SubElement(root, "SystemConfig")
+        sys_config_el.set("project_name", layout.project_name)
         sys_config_el.set("app_title", "Virtual Keyboard Paper Layout Designer")
         sys_config_el.set("version", "1.0.0")
         sys_config_el.set("schema_version", "2.0")
@@ -201,6 +203,7 @@ class XmlRepository(IProjectRepository):
         tree = ET.parse(path)
         root = tree.getroot()
 
+        project_name = root.attrib.get("project_name", "My Paper Keyboard")
         paper_width = float(root.attrib.get("paper_width_mm", DEFAULT_PAPER_WIDTH_MM))
         paper_height = float(root.attrib.get("paper_height_mm", DEFAULT_PAPER_HEIGHT_MM))
         paper_margin = float(root.attrib.get("paper_margin_mm", root.attrib.get("marker_margin_mm", PAPER_MARGIN_MM)))
@@ -287,6 +290,7 @@ class XmlRepository(IProjectRepository):
                     )
 
         return PaperLayoutModel(
+            project_name=project_name,
             paper_width_mm=paper_width,
             paper_height_mm=paper_height,
             paper_margin_mm=paper_margin,

@@ -97,6 +97,13 @@ class DesignerViewModel(QObject):
 
         return (margin_x, margin_y)
 
+    def update_project_name(self, name: str) -> None:
+        """Update layout project name and notify view canvas and window components."""
+        clean_name = name.strip() if name and name.strip() else "My Paper Keyboard"
+        self._layout.project_name = clean_name
+        self.layout_changed.emit(self._layout)
+        self._validate_and_notify_stats()
+
     def update_paper_dimensions(self, width_mm: float, height_mm: float) -> None:
         """Update layout paper dimensions and notify subscribers."""
         self._layout.paper_width_mm = width_mm
@@ -104,8 +111,9 @@ class DesignerViewModel(QObject):
         self._layout.marker_size_mm = self.config.marker_size_mm
         self._validate_and_notify_stats()
 
-    def create_new_layout(self) -> None:
+    def create_new_layout(self, project_name: str = "My Paper Keyboard") -> None:
         """Clear active design layout for a new design."""
+        self._layout.project_name = project_name
         self._layout.buttons.clear()
         self._layout.custom_markers.clear()
         self.selected_button = None
@@ -116,7 +124,7 @@ class DesignerViewModel(QObject):
         self.marker_selection_changed.emit(None)
         self.layout_changed.emit(self._layout)
         self._validate_and_notify_stats()
-        self.status_message.emit("New Layout", "Canvas cleared for new layout design.")
+        self.status_message.emit("New Layout", f"Canvas initialized for '{project_name}'.")
 
     def add_button(self) -> None:
         """Add a new key button to the design canvas at a non-overlapping position."""

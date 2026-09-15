@@ -103,6 +103,26 @@ class PreviewService:
                     ly = start_y + (idx * line_height)
                     draw.text((lx, ly), line, fill="#1A1A1A", font=font)
 
+        # 3. Draw Project Name on Top Outer Margin Ring
+        proj_name = getattr(layout, "project_name", "")
+        if proj_name:
+            font_size_px = max(7, int(4.5 * scale))
+            font = None
+            for font_name in ["Helvetica-Bold.ttf", "LiberationSans-Bold.ttf", "FreeSansBold.ttf", "Arial.ttf"]:
+                try:
+                    font = ImageFont.truetype(font_name, font_size_px)
+                    break
+                except Exception:
+                    continue
+            if font is None:
+                font = ImageFont.load_default()
+            title_text = f"PROJECT: {proj_name.upper()}"
+            bbox = draw.textbbox((0, 0), title_text, font=font)
+            tw = bbox[2] - bbox[0]
+            tx = (width_px - tw) / 2.0
+            ty = int((config.paper_margin_mm / 3.0) * scale)
+            draw.text((tx, ty), title_text, fill="#333333", font=font)
+
         return img
 
     @staticmethod

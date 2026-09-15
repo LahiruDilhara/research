@@ -38,6 +38,7 @@ class SidePanel(QWidget):
     collapse_requested = Signal()
     button_updated = Signal(object)  # ButtonModel
     marker_updated = Signal(object)  # MarkerModel
+    project_name_updated = Signal(str)
 
     def __init__(self, config: AppConfig, parent: QWidget | None = None):
         super().__init__(parent)
@@ -208,6 +209,18 @@ class SidePanel(QWidget):
         stats_title.setStyleSheet("color: #009FEF; font-size: 13px; font-weight: bold;")
         stats_layout.addWidget(stats_title)
 
+        lbl_proj_caption = CaptionLabel("Project Name:", stats_card)
+        lbl_proj_caption.setStyleSheet("color: #CBD5E1; font-weight: 500;")
+        self.input_project_name = LineEdit(stats_card)
+        self.input_project_name.setPlaceholderText("Enter project name...")
+        self.input_project_name.setText("My Paper Keyboard")
+
+        form_proj = QFormLayout()
+        form_proj.setContentsMargins(0, 2, 0, 4)
+        form_proj.setSpacing(6)
+        form_proj.addRow(lbl_proj_caption, self.input_project_name)
+        stats_layout.addLayout(form_proj)
+
         self.lbl_stats_count = BodyLabel("Total Keys: 0", stats_card)
         self.lbl_stats_markers = BodyLabel("Total Custom Markers: 0", stats_card)
         self.lbl_stats_status = BodyLabel("Status: Valid", stats_card)
@@ -238,6 +251,8 @@ class SidePanel(QWidget):
         self.btn_clear.clicked.connect(self.clear_all_requested)
         self.btn_fit_view.clicked.connect(self.fit_view_requested)
         self.btn_collapse.clicked.connect(self.collapse_requested)
+
+        self.input_project_name.textChanged.connect(self._on_project_name_input_changed)
 
         self.input_id.textChanged.connect(self._on_property_changed)
         self.input_text.textChanged.connect(self._on_property_changed)
@@ -331,6 +346,15 @@ class SidePanel(QWidget):
         self.lbl_stats_markers.setText(f"Total Custom Markers: {marker_count}")
         status_str = "Valid" if is_valid else "Invalid Bounds / Overlap"
         self.lbl_stats_status.setText(f"Status: {status_str}")
+
+    def set_project_name(self, project_name: str) -> None:
+        self._is_updating = True
+        self.input_project_name.setText(project_name)
+        self._is_updating = False
+
+    def _on_project_name_input_changed(self, text: str) -> None:
+        if not self._is_updating:
+            self.project_name_updated.emit(text)
 
     def _on_property_changed(self) -> None:
         if self._is_updating or self._current_button is None:

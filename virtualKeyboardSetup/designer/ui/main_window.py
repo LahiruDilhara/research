@@ -80,7 +80,7 @@ class MainWindow(FluentWindow):
         self.config.paper_width_mm = width_mm
         self.config.paper_height_mm = height_mm
         self.config.paper_margin_mm = margin_mm
-        self.designer_vm.create_new_layout()
+        self.designer_vm.create_new_layout(name)
         self.designer_vm.update_paper_dimensions(width_mm, height_mm)
         self.designer_view.canvas.update_paper_dimensions(width_mm, height_mm)
         self.settings_view.sync_from_config()

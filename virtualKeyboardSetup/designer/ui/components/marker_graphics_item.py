@@ -64,14 +64,16 @@ class MarkerGraphicsItem(QGraphicsItem):
 
     def boundingRect(self) -> QRectF:
         half = self.marker.size_mm / 2.0
-        gap_mm = 2.0
-        badge_h = 2.4
-        return QRectF(
-            -half,
-            -half - gap_mm - badge_h,
-            self.marker.size_mm,
-            self.marker.size_mm + gap_mm + badge_h,
-        )
+        if self.is_interactive:
+            gap_mm = 2.0
+            badge_h = 2.4
+            return QRectF(
+                -half,
+                -half - gap_mm - badge_h,
+                self.marker.size_mm,
+                self.marker.size_mm + gap_mm + badge_h,
+            )
+        return QRectF(-half, -half, self.marker.size_mm, self.marker.size_mm)
 
     def paint(self, painter: QPainter, option, widget=None) -> None:
         painter.setRenderHint(QPainter.SmoothPixmapTransform)
@@ -92,22 +94,23 @@ class MarkerGraphicsItem(QGraphicsItem):
             painter.setPen(QPen(QColor(100, 100, 100), 0.5))
             painter.drawRect(rect)
 
-        # Subtle, Crisp Tag ID Overlay with 2.0mm gap above marker top border
-        painter.setRenderHint(QPainter.TextAntialiasing)
-        font = QFont("Helvetica")
-        font.setPointSizeF(2.2)
-        font.setWeight(QFont.Normal)
-        painter.setFont(font)
-        painter.setPen(QPen(QColor(100, 100, 100, 220)))
-        gap_mm = 2.0
-        badge_h = 2.4
-        badge_rect = QRectF(
-            rect.left(),
-            rect.top() - gap_mm - badge_h,
-            self.marker.size_mm,
-            badge_h,
-        )
-        painter.drawText(badge_rect, Qt.AlignCenter, f"#{self.marker.id}")
+        # Subtle Tag ID Overlay ONLY for interactive custom interior markers (never on outer perimeter ring tags)
+        if self.is_interactive:
+            painter.setRenderHint(QPainter.TextAntialiasing)
+            font = QFont("Helvetica")
+            font.setPointSizeF(2.2)
+            font.setWeight(QFont.Normal)
+            painter.setFont(font)
+            painter.setPen(QPen(QColor(100, 100, 100, 220)))
+            gap_mm = 2.0
+            badge_h = 2.4
+            badge_rect = QRectF(
+                rect.left(),
+                rect.top() - gap_mm - badge_h,
+                self.marker.size_mm,
+                badge_h,
+            )
+            painter.drawText(badge_rect, Qt.AlignCenter, f"#{self.marker.id}")
 
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value):
         if change == QGraphicsItem.ItemPositionChange and self.scene() and self.is_interactive:

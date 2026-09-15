@@ -141,6 +141,24 @@ class InteractiveCanvas(QGraphicsView):
         painter.setPen(interior_pen)
         painter.drawRect(interior_rect)
 
+        # 5. Project Name Text on Outer Margin Ring (Outside tags with gap)
+        proj_name = getattr(self.layout_model, "project_name", "")
+        if proj_name:
+            top_ring_rect = QRectF(
+                self.config.paper_margin_mm,
+                1.0,
+                self.config.paper_width_mm - (2 * self.config.paper_margin_mm),
+                max(3.5, self.config.paper_margin_mm - 2.5),
+            )
+            name_font = QFont("Helvetica", 4.5, QFont.Bold)
+            painter.setFont(name_font)
+            painter.setPen(QPen(QColor(120, 125, 140)))
+            painter.drawText(
+                top_ring_rect,
+                Qt.AlignCenter,
+                f"PROJECT: {proj_name.upper()}",
+            )
+
         # Draw "Active Surface Zone" text label in the middle of canvas ONLY if canvas has zero elements
         has_elements = bool(
             self.button_items
