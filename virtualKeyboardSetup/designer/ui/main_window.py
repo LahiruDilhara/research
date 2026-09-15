@@ -4,15 +4,18 @@ Subclasses PySide6-Fluent-Widgets FluentWindow with sidebar navigation,
 toolbar actions, theme customization, and ViewModel orchestration.
 """
 
+import re
 from pathlib import Path
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QFileDialog
+from PySide6.QtWidgets import QFileDialog, QDialog
 from qfluentwidgets import (
     Action,
     FluentIcon,
     FluentWindow,
     InfoBar,
+    MessageBox,
     NavigationItemPosition,
+    PushButton,
     setTheme,
     Theme,
 )
@@ -69,8 +72,95 @@ class MainWindow(FluentWindow):
         if hasattr(self, "splash_overlay") and self.splash_overlay and self.splash_overlay.isVisible():
             self.splash_overlay.raise_()
 
+    def _get_default_filename(self) -> str:
+        """Derive default XML filename from existing open file path or project name."""
+        if self.designer_vm.current_filepath:
+            return Path(self.designer_vm.current_filepath).name
+        proj_name = self.designer_vm.layout.project_name if self.designer_vm.layout else "My Paper Keyboard"
+        clean_name = re.sub(r'[^\w\-]+', '_', proj_name.strip()).strip('_').lower()
+        return f"{clean_name if clean_name else 'paper_layout'}.xml"
+
+    def _show_save_confirmation_dialog(self) -> str:
+        """Show 3-option confirmation dialog when closing or opening a new file with unsaved changes."""
+        title = "Unsaved Changes"
+        content = "You have unsaved changes in the layout. Do you want to save changes before closing?"
+        box = MessageBox(title, content, self)
+        box.yesButton.setText("Save")
+        box.cancelButton.setText("Cancel")
+
+        dont_save_btn = PushButton("Don't Save", box)
+        box.buttonLayout.insertWidget(1, dont_save_btn)
+
+        buttons = [box.yesButton, dont_save_btn, box.cancelButton]
+        max_w = max(110, max(b.sizeHint().width() + 20 for b in buttons))
+        for b in buttons:
+            b.setFixedWidth(max_w)
+
+        result = "cancel"
+
+        def on_save():
+            nonlocal result
+            result = "save"
+            box.done(QDialog.Accepted)
+
+        def on_dont_save():
+            nonlocal result
+            result = "dont_save"
+            box.done(2)
+
+        def on_cancel():
+            nonlocal result
+            result = "cancel"
+            box.done(QDialog.Rejected)
+
+        box.yesButton.clicked.disconnect()
+        box.cancelButton.clicked.disconnect()
+        box.yesButton.clicked.connect(on_save)
+        dont_save_btn.clicked.connect(on_dont_save)
+        box.cancelButton.clicked.connect(on_cancel)
+
+        box.exec()
+        return result
+
+    def _save_current_layout(self) -> bool:
+        """Save current layout directly if filepath exists, or prompt file dialog using project name."""
+        if self.designer_vm.current_filepath:
+            self.designer_vm.save_project_xml(self.designer_vm.current_filepath)
+            return not self.designer_vm.is_dirty
+        else:
+            default_name = self._get_default_filename()
+            filepath, _ = QFileDialog.getSaveFileName(
+                self, "Save Layout", default_name, "XML Files (*.xml)"
+            )
+            if filepath:
+                self.designer_vm.save_project_xml(filepath)
+                return not self.designer_vm.is_dirty
+            return False
+
+    def _prompt_save_if_dirty(self) -> bool:
+        """Check if layout has unsaved changes and prompt user. Returns True if safe to proceed."""
+        if not self.designer_vm.is_dirty:
+            return True
+
+        choice = self._show_save_confirmation_dialog()
+        if choice == "save":
+            return self._save_current_layout()
+        elif choice == "dont_save":
+            return True
+        else:  # "cancel" or closed dialog
+            return False
+
+    def closeEvent(self, event) -> None:
+        """Intercept application close event to prompt for unsaved changes."""
+        if self._prompt_save_if_dirty():
+            event.accept()
+        else:
+            event.ignore()
+
     def show_start_window(self) -> None:
         """Show full application dark splash screen overlay on user request."""
+        if not self._prompt_save_if_dirty():
+            return
         self._update_splash_geometry()
         self.splash_overlay.show()
         self.splash_overlay.raise_()
@@ -84,7 +174,7 @@ class MainWindow(FluentWindow):
         self.designer_vm.update_paper_dimensions(width_mm, height_mm)
         self.designer_view.canvas.update_paper_dimensions(width_mm, height_mm)
         self.settings_view.sync_from_config()
-        self.setWindowTitle(f"{self.config.app_title} - [{name}]")
+        self._update_window_title()
         self.splash_overlay.hide()
 
     def _on_splash_open_project(self, filepath: str) -> None:
@@ -92,8 +182,17 @@ class MainWindow(FluentWindow):
         self.designer_vm.load_project_xml(filepath)
         self.settings_view.sync_from_config()
         self.designer_view.canvas.update_paper_dimensions(self.config.paper_width_mm, self.config.paper_height_mm)
-        self.setWindowTitle(f"{self.config.app_title} - [{Path(filepath).name}]")
+        self._update_window_title()
         self.splash_overlay.hide()
+
+    def _update_window_title(self) -> None:
+        proj_name = self.designer_vm.layout.project_name if self.designer_vm.layout else ""
+        file_name = Path(self.designer_vm.current_filepath).name if self.designer_vm.current_filepath else proj_name
+        dirty_suffix = " *" if self.designer_vm.is_dirty else ""
+        if file_name:
+            self.setWindowTitle(f"{self.config.app_title} - [{file_name}]{dirty_suffix}")
+        else:
+            self.setWindowTitle(f"{self.config.app_title}{dirty_suffix}")
 
     def _bind_viewmodel_messages(self) -> None:
         """Bind ViewModel status and error signals to InfoBar notifications."""
@@ -103,6 +202,7 @@ class MainWindow(FluentWindow):
         self.designer_vm.error_message.connect(
             lambda title, content: InfoBar.error(title, content, parent=self)
         )
+        self.designer_vm.dirty_changed.connect(self._update_window_title)
         self.settings_vm.status_message.connect(
             lambda title, content: InfoBar.success(title, content, parent=self)
         )
@@ -153,7 +253,12 @@ class MainWindow(FluentWindow):
         action_open.triggered.connect(self._on_action_open)
 
         action_save = Action(FluentIcon.SAVE, "Save", self)
+        action_save.setShortcut("Ctrl+S")
         action_save.triggered.connect(self._on_action_save)
+
+        action_save_as = Action(FluentIcon.SAVE_AS, "Save As...", self)
+        action_save_as.setShortcut("Ctrl+Shift+S")
+        action_save_as.triggered.connect(self._on_action_save_as)
 
         action_db_save = Action(FluentIcon.SYNC, "DB Sync", self)
         action_db_save.triggered.connect(self.designer_vm.sync_to_database)
@@ -171,23 +276,39 @@ class MainWindow(FluentWindow):
         action_preview.triggered.connect(self._on_action_preview)
 
     def _on_action_open(self) -> None:
+        if not self._prompt_save_if_dirty():
+            return
+        default_name = self._get_default_filename()
         filepath, _ = QFileDialog.getOpenFileName(
             self, "Open Layout", "", "XML Files (*.xml)"
         )
         if filepath:
             self.designer_vm.load_project_xml(filepath)
             self.settings_view.sync_from_config()
+            self._update_window_title()
 
     def _on_action_save(self) -> None:
+        """Save current layout directly to existing open file path, or invoke Save As if new."""
+        if self.designer_vm.current_filepath:
+            self.designer_vm.save_project_xml(self.designer_vm.current_filepath)
+            self._update_window_title()
+        else:
+            self._on_action_save_as()
+
+    def _on_action_save_as(self) -> None:
+        """Prompt file dialog to save layout under a target file path, defaulting to project_name.xml."""
+        default_name = self._get_default_filename()
         filepath, _ = QFileDialog.getSaveFileName(
-            self, "Save Layout", "layout.xml", "XML Files (*.xml)"
+            self, "Save Layout As", default_name, "XML Files (*.xml)"
         )
         if filepath:
             self.designer_vm.save_project_xml(filepath)
+            self._update_window_title()
 
     def _on_action_export_pdf(self) -> None:
+        default_name = f"{Path(self._get_default_filename()).stem}.pdf"
         filepath, _ = QFileDialog.getSaveFileName(
-            self, "Export Printable PDF", "layout.pdf", "PDF Files (*.pdf)"
+            self, "Export Printable PDF", default_name, "PDF Files (*.pdf)"
         )
         if filepath:
             self.designer_vm.export_pdf(filepath)
@@ -195,3 +316,5 @@ class MainWindow(FluentWindow):
     def _on_action_preview(self) -> None:
         dlg = PreviewDialog(self.designer_vm.layout, self.config, self)
         dlg.exec()
+
+

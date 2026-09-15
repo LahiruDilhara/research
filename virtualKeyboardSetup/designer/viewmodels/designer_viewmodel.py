@@ -32,6 +32,7 @@ class DesignerViewModel(QObject):
     stats_changed = Signal(int, int, bool)       # key_count, marker_count, is_valid
     status_message = Signal(str, str)            # title, message
     error_message = Signal(str, str)             # title, message
+    dirty_changed = Signal(bool)                 # is_dirty
 
     def __init__(self, config: AppConfig, parent: QObject | None = None):
         super().__init__(parent)
@@ -49,6 +50,9 @@ class DesignerViewModel(QObject):
         self._button_counter = 1
         self._marker_counter = 0
 
+        self._is_dirty = False
+        self._current_filepath: str | None = None
+
         # Repositories & Exporters
         self.xml_repo = XmlRepository(self.config)
         self.db_repo = DbRepository()
@@ -58,6 +62,27 @@ class DesignerViewModel(QObject):
     @property
     def layout(self) -> PaperLayoutModel:
         return self._layout
+
+    @property
+    def is_dirty(self) -> bool:
+        return self._is_dirty
+
+    @property
+    def current_filepath(self) -> str | None:
+        return self._current_filepath
+
+    def mark_dirty(self) -> None:
+        """Mark layout state as unsaved/modified."""
+        if not self._is_dirty:
+            self._is_dirty = True
+            self.dirty_changed.emit(True)
+
+    def mark_clean(self) -> None:
+        """Mark layout state as clean/saved."""
+        if self._is_dirty:
+            self._is_dirty = False
+            self.dirty_changed.emit(False)
+
 
     def _find_next_available_position(self, width_mm: float, height_mm: float, is_marker: bool = False) -> tuple[float, float]:
         """Calculate a non-overlapping position within the active surface region."""
@@ -100,14 +125,18 @@ class DesignerViewModel(QObject):
     def update_project_name(self, name: str) -> None:
         """Update layout project name and notify view canvas and window components."""
         clean_name = name.strip() if name and name.strip() else "My Paper Keyboard"
-        self._layout.project_name = clean_name
+        if self._layout.project_name != clean_name:
+            self._layout.project_name = clean_name
+            self.mark_dirty()
         self.layout_changed.emit(self._layout)
         self._validate_and_notify_stats()
 
     def update_paper_dimensions(self, width_mm: float, height_mm: float) -> None:
         """Update layout paper dimensions and notify subscribers."""
-        self._layout.paper_width_mm = width_mm
-        self._layout.paper_height_mm = height_mm
+        if self._layout.paper_width_mm != width_mm or self._layout.paper_height_mm != height_mm:
+            self._layout.paper_width_mm = width_mm
+            self._layout.paper_height_mm = height_mm
+            self.mark_dirty()
         self._layout.marker_size_mm = self.config.marker_size_mm
         self._validate_and_notify_stats()
 
@@ -120,10 +149,12 @@ class DesignerViewModel(QObject):
         self.selected_marker = None
         self._button_counter = 1
         self._marker_counter = 0
+        self._current_filepath = None
         self.selection_changed.emit(None)
         self.marker_selection_changed.emit(None)
         self.layout_changed.emit(self._layout)
         self._validate_and_notify_stats()
+        self.mark_clean()
         self.status_message.emit("New Layout", f"Canvas initialized for '{project_name}'.")
 
     def add_button(self) -> None:
@@ -147,12 +178,29 @@ class DesignerViewModel(QObject):
         self._layout.buttons.append(button)
         self.select_button(button)
         self.button_added.emit(button)
+        self.mark_dirty()
         self._validate_and_notify_stats()
 
+    def get_used_marker_ids(self) -> set[int]:
+        """Collect all assigned AprilTag IDs across custom markers and outer perimeter anchors."""
+        used = {m.id for m in self._layout.custom_markers}
+        if self.config.show_outer_markers:
+            from core.geometry.marker_generator import generate_marker_layout
+            outer_markers = generate_marker_layout(self.config)
+            used.update(m.id for m in outer_markers)
+        return used
+
+    def get_next_available_marker_id(self) -> int:
+        """Find the lowest available non-conflicting AprilTag ID."""
+        used_ids = self.get_used_marker_ids()
+        next_id = 0
+        while next_id in used_ids:
+            next_id += 1
+        return next_id
+
     def add_custom_marker(self) -> None:
-        """Add a new custom interior AprilTag fiducial marker at a non-overlapping position."""
-        tag_id = self._marker_counter
-        self._marker_counter += 1
+        """Add a new custom interior AprilTag fiducial marker with a guaranteed unique Tag ID."""
+        tag_id = self.get_next_available_marker_id()
 
         m_size = self.config.marker_size_mm
         half = m_size / 2.0
@@ -177,7 +225,9 @@ class DesignerViewModel(QObject):
         self._layout.use_custom_markers = True
         self.select_marker(marker)
         self.marker_added.emit(marker)
+        self.mark_dirty()
         self._validate_and_notify_stats()
+
 
 
     def duplicate_selected_button(self) -> None:
@@ -200,6 +250,7 @@ class DesignerViewModel(QObject):
         )
         self._layout.buttons.append(new_button)
         self.button_added.emit(new_button)
+        self.mark_dirty()
         self._validate_and_notify_stats()
 
     def remove_selected_button(self) -> None:
@@ -212,6 +263,7 @@ class DesignerViewModel(QObject):
         self.selected_button = None
         self.selection_changed.emit(None)
         self.button_removed.emit(btn_id)
+        self.mark_dirty()
         self._validate_and_notify_stats()
 
     def remove_selected_marker(self) -> None:
@@ -226,6 +278,7 @@ class DesignerViewModel(QObject):
         self.selected_marker = None
         self.marker_selection_changed.emit(None)
         self.marker_removed.emit(tag_id)
+        self.mark_dirty()
         self._validate_and_notify_stats()
 
     def remove_selected_element(self) -> None:
@@ -257,6 +310,7 @@ class DesignerViewModel(QObject):
                 self._layout.buttons[idx] = updated_button
                 break
         self.button_updated.emit(updated_button)
+        self.mark_dirty()
         self._validate_and_notify_stats()
 
     def update_marker_properties(self, updated_marker: MarkerModel) -> None:
@@ -266,6 +320,7 @@ class DesignerViewModel(QObject):
                 self._layout.custom_markers[idx] = updated_marker
                 break
         self.marker_updated.emit(updated_marker)
+        self.mark_dirty()
         self._validate_and_notify_stats()
 
     def sync_layout_config(self) -> None:
@@ -291,6 +346,7 @@ class DesignerViewModel(QObject):
         """Load layout design from target XML project file."""
         try:
             self._layout = self.xml_repo.load(filepath)
+            self._current_filepath = str(Path(filepath).resolve())
             self.config.paper_width_mm = self._layout.paper_width_mm
             self.config.paper_height_mm = self._layout.paper_height_mm
             self.config.paper_margin_mm = self._layout.paper_margin_mm
@@ -307,6 +363,7 @@ class DesignerViewModel(QObject):
             self.marker_selection_changed.emit(None)
             self.layout_changed.emit(self._layout)
             self._validate_and_notify_stats()
+            self.mark_clean()
             self.status_message.emit("Project Loaded", f"Loaded layout from {Path(filepath).name}")
         except Exception as e:
             self.error_message.emit("Error Loading Project", str(e))
@@ -322,7 +379,12 @@ class DesignerViewModel(QObject):
             return
         try:
             self.xml_repo.save(filepath, self._layout)
+            self._current_filepath = str(Path(filepath).resolve())
+            self.mark_clean()
             self.status_message.emit("Project Saved", f"Saved layout to {Path(filepath).name}")
+        except Exception as e:
+            self.error_message.emit("Error Saving Project", str(e))
+
         except Exception as e:
             self.error_message.emit("Error Saving Project", str(e))
 

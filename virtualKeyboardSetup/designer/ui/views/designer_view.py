@@ -50,8 +50,12 @@ class DesignerView(QWidget):
         self.btn_tool_open.clicked.connect(self._on_open_layout)
 
         self.btn_tool_save = TransparentToolButton(FluentIcon.SAVE, self.toolbar_card)
-        self.btn_tool_save.setToolTip("Save Layout")
+        self.btn_tool_save.setToolTip("Save Layout (Overwrite / Quick Save)")
         self.btn_tool_save.clicked.connect(self._on_save_layout)
+
+        self.btn_tool_save_as = TransparentToolButton(FluentIcon.SAVE_AS, self.toolbar_card)
+        self.btn_tool_save_as.setToolTip("Save Layout As...")
+        self.btn_tool_save_as.clicked.connect(self._on_save_layout_as)
 
         self.btn_tool_markers = TransparentToolButton(FluentIcon.TAG, self.toolbar_card)
         self.btn_tool_markers.setToolTip("Toggle Outer AprilTag Markers (Editor View Only)")
@@ -75,11 +79,13 @@ class DesignerView(QWidget):
 
         self.toolbar_layout.addWidget(self.btn_tool_open)
         self.toolbar_layout.addWidget(self.btn_tool_save)
+        self.toolbar_layout.addWidget(self.btn_tool_save_as)
         self.toolbar_layout.addWidget(self.btn_tool_markers)
         self.toolbar_layout.addWidget(self.btn_tool_fit)
         self.toolbar_layout.addWidget(self.btn_tool_zoomin)
         self.toolbar_layout.addWidget(self.btn_tool_zoomout)
         self.toolbar_layout.addWidget(self.btn_tool_grid)
+
 
         self.toolbar_card.setFixedHeight(38)
         self.toolbar_card.adjustSize()
@@ -136,20 +142,40 @@ class DesignerView(QWidget):
             )
 
     def _on_open_layout(self) -> None:
-        from PySide6.QtWidgets import QFileDialog
-        filepath, _ = QFileDialog.getOpenFileName(
-            self, "Open Layout", "", "XML Files (*.xml)"
-        )
-        if filepath:
-            self.viewmodel.load_project_xml(filepath)
+        if hasattr(self.window(), "_on_action_open"):
+            self.window()._on_action_open()
+        else:
+            from PySide6.QtWidgets import QFileDialog
+            filepath, _ = QFileDialog.getOpenFileName(
+                self, "Open Layout", "", "XML Files (*.xml)"
+            )
+            if filepath:
+                self.viewmodel.load_project_xml(filepath)
 
     def _on_save_layout(self) -> None:
-        from PySide6.QtWidgets import QFileDialog
-        filepath, _ = QFileDialog.getSaveFileName(
-            self, "Save Layout", "layout.xml", "XML Files (*.xml)"
-        )
-        if filepath:
-            self.viewmodel.save_project_xml(filepath)
+        if hasattr(self.window(), "_on_action_save"):
+            self.window()._on_action_save()
+        else:
+            if self.viewmodel.current_filepath:
+                self.viewmodel.save_project_xml(self.viewmodel.current_filepath)
+            else:
+                self._on_save_layout_as()
+
+    def _on_save_layout_as(self) -> None:
+        if hasattr(self.window(), "_on_action_save_as"):
+            self.window()._on_action_save_as()
+        else:
+            import re
+            from PySide6.QtWidgets import QFileDialog
+            proj_name = self.viewmodel.layout.project_name if self.viewmodel.layout else "My Paper Keyboard"
+            clean_name = re.sub(r'[^\w\-]+', '_', proj_name.strip()).strip('_').lower()
+            default_name = f"{clean_name if clean_name else 'paper_layout'}.xml"
+            filepath, _ = QFileDialog.getSaveFileName(
+                self, "Save Layout As", default_name, "XML Files (*.xml)"
+            )
+            if filepath:
+                self.viewmodel.save_project_xml(filepath)
+
 
     def _on_toggle_outer_markers_view(self) -> None:
         visible = self.canvas.toggle_view_outer_markers()
@@ -242,6 +268,8 @@ class DesignerView(QWidget):
         valid = self.canvas.validate_layout()
         custom_marker_count = len(layout.custom_markers) if layout.use_custom_markers else 0
         self.side_panel.update_stats(len(layout.buttons), custom_marker_count, valid)
+        self.viewmodel.mark_dirty()
+
 
     def _on_button_updated_from_vm(self, button: ButtonModel) -> None:
         if button.id in self.canvas.button_items:

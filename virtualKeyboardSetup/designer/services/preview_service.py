@@ -77,23 +77,18 @@ class PreviewService:
 
                 max_w = max(10, w_px - int(4.0 * scale))
                 max_h = max(10, h_px - int(3.0 * scale))
+                line_height = font_px * 1.2
 
-                lines = PreviewService._wrap_text(
+                lines = PreviewService._wrap_and_truncate_text(
                     b.text,
                     max_w,
+                    max_h,
+                    line_height,
                     lambda s: draw.textbbox((0, 0), s, font=font)[2]
                     - draw.textbbox((0, 0), s, font=font)[0],
                 )
 
-                line_height = font_px * 1.2
                 total_h = len(lines) * line_height
-
-                if total_h > max_h:
-                    max_lines = max(1, int(max_h / line_height))
-                    lines = lines[:max_lines]
-                    if not lines[-1].endswith("…"):
-                        lines[-1] = lines[-1][: max(1, len(lines[-1]) - 1)] + "…"
-                    total_h = len(lines) * line_height
 
                 start_y = y0 + (h_px - total_h) / 2.0
                 for idx, line in enumerate(lines):
@@ -126,30 +121,45 @@ class PreviewService:
         return img
 
     @staticmethod
-    def _wrap_text(text: str, max_w: float, width_fn) -> list[str]:
+    def _wrap_and_truncate_text(
+        text: str, max_w: float, max_h: float, line_height: float, width_fn
+    ) -> list[str]:
+        if not text:
+            return []
+
         words = text.split(" ")
         lines = []
-        current_line = []
+        current_line = ""
 
         for word in words:
             if width_fn(word) > max_w:
-                trunc_word = word
-                while len(trunc_word) > 1 and width_fn(trunc_word + "…") > max_w:
-                    trunc_word = trunc_word[:-1]
-                word = trunc_word + "…" if len(trunc_word) < len(word) else word
-
-            test_line = " ".join(current_line + [word])
-            if width_fn(test_line) <= max_w:
-                current_line.append(word)
+                for char in word:
+                    test_str = current_line + char
+                    if width_fn(test_str) <= max_w:
+                        current_line = test_str
+                    else:
+                        if current_line:
+                            lines.append(current_line)
+                        current_line = char
             else:
-                if current_line:
-                    lines.append(" ".join(current_line))
-                    current_line = [word]
+                test_str = f"{current_line} {word}".strip() if current_line else word
+                if width_fn(test_str) <= max_w:
+                    current_line = test_str
                 else:
-                    lines.append(word)
-                    current_line = []
+                    if current_line:
+                        lines.append(current_line)
+                    current_line = word
 
         if current_line:
-            lines.append(" ".join(current_line))
+            lines.append(current_line)
 
-        return lines if lines else [text]
+        max_lines = max(1, int(max_h / line_height))
+        if len(lines) > max_lines:
+            lines = lines[:max_lines]
+            last_line = lines[-1]
+            while last_line and width_fn(last_line + "..") > max_w:
+                last_line = last_line[:-1]
+            lines[-1] = (last_line + "..") if last_line else ".."
+
+        return lines
+

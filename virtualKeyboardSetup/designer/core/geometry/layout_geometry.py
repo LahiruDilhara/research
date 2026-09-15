@@ -54,7 +54,7 @@ def snap_to_grid(value_mm: float, grid_size_mm: float = 5.0) -> float:
 
 
 def validate_layout_geometry(layout, config: AppConfig) -> bool:
-    """Validate entire layout geometry for active surface zone bounds and mutual button/marker overlaps."""
+    """Validate layout geometry for active surface bounds, button/marker overlaps, and unique AprilTag marker IDs."""
     buttons = layout.buttons
     for i, b in enumerate(buttons):
         rect = b.rect_tuple
@@ -71,6 +71,16 @@ def validate_layout_geometry(layout, config: AppConfig) -> bool:
                     return False
 
     if layout.use_custom_markers:
+        custom_ids = [m.id for m in layout.custom_markers]
+        if len(custom_ids) != len(set(custom_ids)):
+            return False
+
+        if config.show_outer_markers:
+            from core.geometry.marker_generator import generate_marker_layout
+            outer_ids = {m.id for m in generate_marker_layout(config)}
+            if any(m_id in outer_ids for m_id in custom_ids):
+                return False
+
         for m in layout.custom_markers:
             m_rect = m.rect_tuple
             if (
@@ -82,4 +92,5 @@ def validate_layout_geometry(layout, config: AppConfig) -> bool:
                 return False
 
     return True
+
 

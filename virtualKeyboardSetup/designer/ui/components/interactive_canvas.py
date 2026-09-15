@@ -318,8 +318,15 @@ class InteractiveCanvas(QGraphicsView):
 
             item.update()
 
-        # 2. Validate Custom Markers (must fit within paper margins and not overlap key buttons)
+        # Collect all used marker IDs to check for duplicates
+        outer_ids = set()
+        if self.config.show_outer_markers and hasattr(self, "outer_markers"):
+            outer_ids = {m.id for m in self.outer_markers}
+        custom_ids = [m_item.marker.id for m_item in self.marker_items.values()]
+
+        # 2. Validate Custom Markers (must fit within paper margins, not overlap key buttons, and have unique Tag IDs)
         for m_item in self.marker_items.values():
+            m_id = m_item.marker.id
             m_rect = m_item.marker.rect_tuple
             in_bounds = (
                 m_rect[0] >= self.config.paper_margin_mm
@@ -334,12 +341,15 @@ class InteractiveCanvas(QGraphicsView):
                     has_overlap = True
                     break
 
-            m_item.is_valid = in_bounds and not has_overlap
+            is_duplicate_id = (custom_ids.count(m_id) > 1) or (m_id in outer_ids)
+
+            m_item.is_valid = in_bounds and not has_overlap and not is_duplicate_id
             if not m_item.is_valid:
                 all_valid = False
             m_item.update()
 
         return all_valid
+
 
     def _on_button_selected(self, button: ButtonModel | None) -> None:
         self.selection_changed.emit(button)

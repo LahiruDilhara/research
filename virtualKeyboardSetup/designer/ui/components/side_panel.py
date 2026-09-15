@@ -177,7 +177,8 @@ class SidePanel(QWidget):
         form_marker.setSpacing(6)
 
         self.spin_marker_id = SpinBox(marker_card)
-        self.spin_marker_id.setRange(0, 100)
+        self.spin_marker_id.setRange(0, 586)
+
 
         self.spin_marker_x = DoubleSpinBox(marker_card)
         self.spin_marker_x.setRange(0.0, 1000.0)

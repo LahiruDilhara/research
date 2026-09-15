@@ -29,33 +29,47 @@ class PdfExporter(IExportService):
         return ImageReader(buf)
 
     @staticmethod
-    def _wrap_text_to_width(text: str, max_w: float, string_width_fn) -> list[str]:
+    def _wrap_and_truncate_text(
+        text: str, max_w: float, max_h: float, line_height: float, string_width_fn
+    ) -> list[str]:
+        if not text:
+            return []
+
         words = text.split(" ")
         lines = []
-        current_line = []
+        current_line = ""
 
         for word in words:
             if string_width_fn(word) > max_w:
-                trunc_word = word
-                while len(trunc_word) > 1 and string_width_fn(trunc_word + "…") > max_w:
-                    trunc_word = trunc_word[:-1]
-                word = trunc_word + "…" if len(trunc_word) < len(word) else word
-
-            test_line = " ".join(current_line + [word])
-            if string_width_fn(test_line) <= max_w:
-                current_line.append(word)
+                for char in word:
+                    test_str = current_line + char
+                    if string_width_fn(test_str) <= max_w:
+                        current_line = test_str
+                    else:
+                        if current_line:
+                            lines.append(current_line)
+                        current_line = char
             else:
-                if current_line:
-                    lines.append(" ".join(current_line))
-                    current_line = [word]
+                test_str = f"{current_line} {word}".strip() if current_line else word
+                if string_width_fn(test_str) <= max_w:
+                    current_line = test_str
                 else:
-                    lines.append(word)
-                    current_line = []
+                    if current_line:
+                        lines.append(current_line)
+                    current_line = word
 
         if current_line:
-            lines.append(" ".join(current_line))
+            lines.append(current_line)
 
-        return lines if lines else [text]
+        max_lines = max(1, int(max_h / line_height))
+        if len(lines) > max_lines:
+            lines = lines[:max_lines]
+            last_line = lines[-1]
+            while last_line and string_width_fn(last_line + "..") > max_w:
+                last_line = last_line[:-1]
+            lines[-1] = (last_line + "..") if last_line else ".."
+
+        return lines
 
     def export(self, filepath: str | Path, layout: PaperLayoutModel, config: AppConfig) -> None:
         if layout.use_custom_markers and layout.custom_markers:
@@ -101,21 +115,13 @@ class PdfExporter(IExportService):
                 c.setFont("Helvetica", font_size)
                 max_w = max(10, pdf_w - (4 * mm))
                 max_h = max(10, pdf_h - (3 * mm))
+                line_height = font_size * 1.2
 
-                lines = self._wrap_text_to_width(
-                    b.text, max_w, lambda s: c.stringWidth(s, "Helvetica", font_size)
+                lines = self._wrap_and_truncate_text(
+                    b.text, max_w, max_h, line_height, lambda s: c.stringWidth(s, "Helvetica", font_size)
                 )
 
-                line_height = font_size * 1.2
                 total_text_h = len(lines) * line_height
-
-                if total_text_h > max_h:
-                    max_lines = max(1, int(max_h / line_height))
-                    lines = lines[:max_lines]
-                    if not lines[-1].endswith("…"):
-                        lines[-1] = lines[-1][: max(1, len(lines[-1]) - 1)] + "…"
-                    total_text_h = len(lines) * line_height
-
                 c.setFillColorRGB(0.1, 0.1, 0.1)
                 start_y = pdf_y + (pdf_h / 2.0) + (total_text_h / 2.0) - (font_size * 0.8)
                 for idx, line in enumerate(lines):

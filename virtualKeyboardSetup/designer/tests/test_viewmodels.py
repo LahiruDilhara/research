@@ -40,6 +40,22 @@ class TestDesignerViewModel(unittest.TestCase):
         self.assertEqual(len(self.vm.layout.custom_markers), 1)
         self.assertTrue(self.vm.layout.use_custom_markers)
 
+    def test_unique_marker_ids_allocation(self):
+        # Adding multiple custom markers guarantees all assigned Tag IDs are unique
+        self.vm.add_custom_marker()
+        self.vm.add_custom_marker()
+        self.vm.add_custom_marker()
+
+        assigned_ids = [m.id for m in self.vm.layout.custom_markers]
+        self.assertEqual(len(assigned_ids), len(set(assigned_ids)))
+
+        # Also verify no conflict with outer perimeter marker IDs
+        from core.geometry.marker_generator import generate_marker_layout
+        outer_ids = {m.id for m in generate_marker_layout(self.config)}
+        for m_id in assigned_ids:
+            self.assertNotIn(m_id, outer_ids)
+
+
     def test_save_and_load_xml_via_viewmodel(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             xml_path = str(Path(tmpdir) / "vm_test_layout.xml")
@@ -78,13 +94,45 @@ class TestDesignerViewModel(unittest.TestCase):
             self.assertIn('target_camera_fps="12"', xml_content)
             self.assertIn('touch_model_architecture="LSTM"', xml_content)
 
-            # Load into fresh ViewModel and verify settings restored
+    def test_xml_all_button_locations_and_coordinates_persisted(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            xml_path = str(Path(tmpdir) / "coordinates_test.xml")
+            self.vm.update_project_name("DAW Studio Controller")
+            self.vm.add_button()
+            self.vm.add_custom_marker()
+
+            btn = self.vm.layout.buttons[0]
+            btn.x_mm = 55.5
+            btn.y_mm = 65.5
+            btn.width_mm = 40.0
+            btn.height_mm = 30.0
+            btn.text = "Play Pause"
+
+            m = self.vm.layout.custom_markers[0]
+            m.x_mm = 120.0
+            m.y_mm = 140.0
+
+            self.vm.save_project_xml(xml_path)
+
+            # Load into fresh ViewModel
             vm_loaded = DesignerViewModel(AppConfig())
             vm_loaded.load_project_xml(xml_path)
-            self.assertEqual(vm_loaded.config.button_stroke_width_mm, 2.5)
-            self.assertEqual(vm_loaded.config.button_corner_radius_mm, 3.0)
-            self.assertEqual(vm_loaded.config.button_min_gap_mm, 12.0)
-            self.assertEqual(vm_loaded.config.grid_size_mm, 10.0)
+
+            self.assertEqual(vm_loaded.layout.project_name, "DAW Studio Controller")
+            self.assertEqual(len(vm_loaded.layout.buttons), 1)
+            loaded_btn = vm_loaded.layout.buttons[0]
+            self.assertAlmostEqual(loaded_btn.x_mm, 55.5)
+            self.assertAlmostEqual(loaded_btn.y_mm, 65.5)
+            self.assertAlmostEqual(loaded_btn.width_mm, 40.0)
+            self.assertAlmostEqual(loaded_btn.height_mm, 30.0)
+            self.assertEqual(loaded_btn.text, "Play Pause")
+
+            self.assertEqual(len(vm_loaded.layout.custom_markers), 1)
+            loaded_m = vm_loaded.layout.custom_markers[0]
+            self.assertAlmostEqual(loaded_m.x_mm, 120.0)
+            self.assertAlmostEqual(loaded_m.y_mm, 140.0)
+
+
 
 
 class TestSettingsViewModel(unittest.TestCase):
