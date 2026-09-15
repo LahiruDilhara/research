@@ -22,6 +22,7 @@ from ui.views.settings_view import SettingsView
 from ui.views.about_view import AboutView
 from ui.views.preview_view import PreviewView
 from ui.components.preview_dialog import PreviewDialog
+from ui.components.splash_overlay import SplashOverlayWidget
 from config.app_config import AppConfig
 from viewmodels.designer_viewmodel import DesignerViewModel
 from viewmodels.settings_viewmodel import SettingsViewModel
@@ -48,6 +49,51 @@ class MainWindow(FluentWindow):
         self._bind_viewmodel_messages()
         self._setup_views()
         self._setup_actions()
+
+        # Full-Screen Dark Splash Overlay (Positioned below titleBar to keep close buttons visible)
+        self.splash_overlay = SplashOverlayWidget(self.config, self)
+        self.splash_overlay.create_project_requested.connect(self._on_splash_create_project)
+        self.splash_overlay.open_project_requested.connect(self._on_splash_open_project)
+        self._update_splash_geometry()
+        self.splash_overlay.show()
+        self.splash_overlay.raise_()
+
+    def _update_splash_geometry(self) -> None:
+        if hasattr(self, "splash_overlay") and self.splash_overlay is not None:
+            tb_height = self.titleBar.height() if hasattr(self, "titleBar") and self.titleBar else 36
+            self.splash_overlay.setGeometry(0, tb_height, self.width(), max(0, self.height() - tb_height))
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._update_splash_geometry()
+        if hasattr(self, "splash_overlay") and self.splash_overlay and self.splash_overlay.isVisible():
+            self.splash_overlay.raise_()
+
+    def show_start_window(self) -> None:
+        """Show full application dark splash screen overlay on user request."""
+        self._update_splash_geometry()
+        self.splash_overlay.show()
+        self.splash_overlay.raise_()
+
+    def _on_splash_create_project(self, name: str, width_mm: float, height_mm: float, margin_mm: float) -> None:
+        """Handle project creation from full app splash screen overlay."""
+        self.config.paper_width_mm = width_mm
+        self.config.paper_height_mm = height_mm
+        self.config.paper_margin_mm = margin_mm
+        self.designer_vm.create_new_layout()
+        self.designer_vm.update_paper_dimensions(width_mm, height_mm)
+        self.designer_view.canvas.update_paper_dimensions(width_mm, height_mm)
+        self.settings_view.sync_from_config()
+        self.setWindowTitle(f"{self.config.app_title} - [{name}]")
+        self.splash_overlay.hide()
+
+    def _on_splash_open_project(self, filepath: str) -> None:
+        """Handle project open from full app splash screen overlay."""
+        self.designer_vm.load_project_xml(filepath)
+        self.settings_view.sync_from_config()
+        self.designer_view.canvas.update_paper_dimensions(self.config.paper_width_mm, self.config.paper_height_mm)
+        self.setWindowTitle(f"{self.config.app_title} - [{Path(filepath).name}]")
+        self.splash_overlay.hide()
 
     def _bind_viewmodel_messages(self) -> None:
         """Bind ViewModel status and error signals to InfoBar notifications."""
@@ -101,7 +147,7 @@ class MainWindow(FluentWindow):
         self.titleBar.titleLabel.setContentsMargins(15, 0, 0, 0)
 
         action_new = Action(FluentIcon.ADD, "New Layout", self)
-        action_new.triggered.connect(self.designer_vm.create_new_layout)
+        action_new.triggered.connect(self.show_start_window)
 
         action_open = Action(FluentIcon.FOLDER, "Open", self)
         action_open.triggered.connect(self._on_action_open)

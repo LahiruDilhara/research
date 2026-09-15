@@ -40,7 +40,7 @@ def main() -> None:
     font.setPointSizeF(9.5)
     app.setFont(font)
 
-    # 4. Launch Main Window
+    # 4. Launch Main Window UI (Hosts full-screen dark splash overlay on launch)
     window = MainWindow(config)
     window.show()
     logger.info("Application main window launched.")
