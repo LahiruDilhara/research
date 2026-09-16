@@ -177,6 +177,7 @@ class ActionConfigView(QWidget):
     def _connect_vm(self) -> None:
         self._vm.config_saved.connect(self._on_saved)
         self._vm.error_occurred.connect(self._on_error)
+        self._vm.duplicate_rejected.connect(self._on_duplicate_rejected)
         self._vm.action_changed.connect(self._on_vm_action_changed)
         self._vm.button_selected.connect(self._on_vm_button_selected)
 
@@ -237,6 +238,22 @@ class ActionConfigView(QWidget):
             card._update_input_mode(action_type, value)
             card._combo.blockSignals(False)
 
+    def _on_duplicate_rejected(
+        self,
+        button_id: str,
+        action_type: str,
+        value: str,
+        conflict_label: str,
+        conflict_id: str,
+    ) -> None:
+        InfoBar.error(
+            title="Duplicate Action Conflict",
+            content=f"Cannot bind '{value}' ({action_type}). It is already assigned to '{conflict_label}' ({conflict_id}).",
+            position=InfoBarPosition.TOP,
+            parent=self,
+            duration=5000,
+        )
+
     # ── Save & Continue ────────────────────────────────────────────────────────
 
     def _on_save(self) -> None:
@@ -257,7 +274,7 @@ class ActionConfigView(QWidget):
 
     def _on_error(self, msg: str) -> None:
         InfoBar.error(
-            title="Save Error",
+            title="Action Error",
             content=msg,
             position=InfoBarPosition.TOP,
             parent=self,
