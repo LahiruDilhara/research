@@ -31,9 +31,15 @@ _PLACEHOLDERS = {
 }
 
 _CARD_STYLE = (
-    f"background-color: {UI_BG_CARD}; "
-    "border: 1px solid rgba(255,255,255,0.06); "
-    "border-radius: 10px;"
+    f"CardWidget {{ "
+    f"  background-color: {UI_BG_CARD}; "
+    "  border: 1px solid rgba(255, 255, 255, 0.06); "
+    "  border-radius: 10px; "
+    "} "
+    "QLabel { "
+    "  background-color: transparent; "
+    "  border: none; "
+    "}"
 )
 
 
@@ -48,7 +54,11 @@ class KeyActionCard(QWidget):
         self._building  = True
 
         card = CardWidget(self)
-        card.setStyleSheet(_CARD_STYLE)
+        card.setObjectName("keyCard")
+        card.setStyleSheet(
+            f"#keyCard {{ background-color: {UI_BG_CARD}; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; }} "
+            "QLabel { background-color: transparent; border: none; }"
+        )
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -61,10 +71,10 @@ class KeyActionCard(QWidget):
         # Key label
         key_lbl = StrongBodyLabel(label)
         key_lbl.setStyleSheet(
-            f"color: {UI_ACCENT}; font-size: 13px; font-weight: bold;"
+            f"background: transparent; color: {UI_ACCENT}; font-size: 13px; font-weight: bold;"
         )
         id_lbl = BodyLabel(f"id: {button_id}")
-        id_lbl.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 10px;")
+        id_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 10px;")
 
         header = QHBoxLayout()
         header.addWidget(key_lbl)

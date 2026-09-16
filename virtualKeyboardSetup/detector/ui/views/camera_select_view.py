@@ -25,14 +25,26 @@ from services.camera_discovery import CameraInfo
 from viewmodels.camera_select_viewmodel import CameraSelectViewModel
 
 _CARD_STYLE = (
-    f"background-color: {UI_BG_CARD}; "
-    "border: 1px solid rgba(255,255,255,0.08); "
-    "border-radius: 12px;"
+    f"#cameraCard {{ "
+    f"  background-color: {UI_BG_CARD}; "
+    "  border: 1px solid rgba(255, 255, 255, 0.06); "
+    "  border-radius: 12px; "
+    "} "
+    "QLabel { "
+    "  background-color: transparent; "
+    "  border: none; "
+    "}"
 )
 _CARD_SELECTED = (
-    f"background-color: #0D2A40; "
-    f"border: 2px solid {UI_ACCENT}; "
-    "border-radius: 12px;"
+    f"#cameraCard {{ "
+    "  background-color: #0D2A40; "
+    f"  border: 2px solid {UI_ACCENT}; "
+    "  border-radius: 12px; "
+    "} "
+    "QLabel { "
+    "  background-color: transparent; "
+    "  border: none; "
+    "}"
 )
 
 
@@ -58,9 +70,9 @@ class CameraSelectView(QWidget):
         root.setSpacing(20)
 
         title = SubtitleLabel("Select Camera")
-        title.setStyleSheet(f"color: {UI_ACCENT}; font-size: 20px; font-weight: bold;")
+        title.setStyleSheet(f"background: transparent; color: {UI_ACCENT}; font-size: 20px; font-weight: bold;")
         hint = CaptionLabel("Select the camera to use for real-time detection.")
-        hint.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 12px;")
+        hint.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 12px;")
         root.addWidget(title)
         root.addWidget(hint)
 
@@ -106,7 +118,7 @@ class CameraSelectView(QWidget):
 
         if not cameras:
             lbl = BodyLabel("No cameras detected. Connect a camera and click Refresh.")
-            lbl.setStyleSheet(f"color: {UI_TEXT_SEC};")
+            lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC};")
             self._cards_row.addWidget(lbl)
             return
 
@@ -120,6 +132,7 @@ class CameraSelectView(QWidget):
 
     def _make_camera_card(self, cam: CameraInfo) -> CardWidget:
         card = CardWidget()
+        card.setObjectName("cameraCard")
         card.setStyleSheet(_CARD_STYLE)
         card.setFixedSize(200, 140)
         card.setCursor(Qt.PointingHandCursor)
@@ -129,12 +142,12 @@ class CameraSelectView(QWidget):
         inner.setSpacing(8)
 
         icon_lbl = StrongBodyLabel("📷")
-        icon_lbl.setStyleSheet("font-size: 28px;")
+        icon_lbl.setStyleSheet("background: transparent; font-size: 28px;")
         name_lbl = StrongBodyLabel(cam.name)
-        name_lbl.setStyleSheet(f"color: {UI_TEXT_PRI}; font-size: 11px;")
+        name_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-size: 11px;")
         name_lbl.setWordWrap(True)
         res_lbl = CaptionLabel(f"{cam.width}×{cam.height}  {cam.fps:.0f} fps")
-        res_lbl.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 10px;")
+        res_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 10px;")
 
         inner.addWidget(icon_lbl)
         inner.addWidget(name_lbl)

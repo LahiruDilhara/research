@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import numpy as np
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 from qfluentwidgets import (
     BodyLabel,
     CaptionLabel,
@@ -31,6 +31,18 @@ from ui.components.touch_event_log import TouchEventLog
 from viewmodels.detector_viewmodel import DetectorViewModel
 
 _SIDEBAR_W = 320
+
+_CARD_STYLE = (
+    f"CardWidget {{ "
+    f"  background-color: {UI_BG_CARD}; "
+    "  border: 1px solid rgba(255, 255, 255, 0.06); "
+    "  border-radius: 10px; "
+    "} "
+    "QLabel { "
+    "  background-color: transparent; "
+    "  border: none; "
+    "}"
+)
 
 
 class DetectorView(QWidget):
@@ -62,7 +74,7 @@ class DetectorView(QWidget):
         sidebar = QWidget()
         sidebar.setFixedWidth(_SIDEBAR_W)
         sidebar.setStyleSheet(
-            f"QWidget {{ background-color: #18181C; border-left: 1px solid rgba(255,255,255,0.06); }}"
+            "QWidget { background-color: #18181C; border-left: 1px solid rgba(255,255,255,0.06); }"
         )
         sb_layout = QVBoxLayout(sidebar)
         sb_layout.setContentsMargins(16, 20, 16, 16)
@@ -70,7 +82,7 @@ class DetectorView(QWidget):
 
         # Title
         title_lbl = StrongBodyLabel("DETECTOR HUD")
-        title_lbl.setStyleSheet(f"color: {UI_TEXT_PRI}; font-size: 15px; letter-spacing: 1px;")
+        title_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-size: 15px; letter-spacing: 1px;")
         sb_layout.addWidget(title_lbl)
 
         # ── Model info card ───────────────────────────────────────────────────
@@ -84,16 +96,20 @@ class DetectorView(QWidget):
         # ── Performance stats ─────────────────────────────────────────────────
         sb_layout.addWidget(self._make_section_label("Pipeline"))
         perf = CardWidget()
-        perf.setStyleSheet(self._card_style())
+        perf.setObjectName("perfCard")
+        perf.setStyleSheet(
+            f"#perfCard {{ background-color: {UI_BG_CARD}; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; }} "
+            "QLabel { background-color: transparent; border: none; }"
+        )
         perf_inner = QHBoxLayout(perf)
         perf_inner.setContentsMargins(14, 10, 14, 10)
 
         self.lbl_fps = StrongBodyLabel("FPS: —")
-        self.lbl_fps.setStyleSheet("color: #00DC64; font-size: 12px;")
+        self.lbl_fps.setStyleSheet("background: transparent; color: #00DC64; font-size: 12px;")
         self.lbl_layout_status = CaptionLabel("Layout: Searching...")
-        self.lbl_layout_status.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 11px;")
+        self.lbl_layout_status.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px;")
         self.lbl_hand_status = CaptionLabel("Hand: —")
-        self.lbl_hand_status.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 11px;")
+        self.lbl_hand_status.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px;")
 
         perf_inner.addWidget(self.lbl_fps)
         perf_inner.addStretch(1)
@@ -147,7 +163,7 @@ class DetectorView(QWidget):
             "Layout: ✓ Found" if layout_found else "Layout: Searching..."
         )
         self.lbl_layout_status.setStyleSheet(
-            f"color: {'#00DC64' if layout_found else UI_TEXT_SEC}; font-size: 11px;"
+            f"background: transparent; color: {'#00DC64' if layout_found else UI_TEXT_SEC}; font-size: 11px;"
         )
         self.lbl_hand_status.setText(
             "Hand: ✓ Detected" if hand_detected else "Hand: Not visible"
@@ -192,35 +208,29 @@ class DetectorView(QWidget):
         self._layout_data = layout_data
 
     @staticmethod
-    def _card_style() -> str:
-        return (
-            f"CardWidget {{ background-color: {UI_BG_CARD}; "
-            "border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; }}"
-        )
-
-    @staticmethod
     def _make_section_label(text: str) -> BodyLabel:
         lbl = BodyLabel(text)
         lbl.setStyleSheet(
-            f"color: {UI_TEXT_SEC}; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;"
+            f"background: transparent; color: {UI_TEXT_SEC}; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;"
         )
         return lbl
 
     @staticmethod
     def _make_info_card(title: str, subtitle: str) -> CardWidget:
         card = CardWidget()
+        card.setObjectName("infoCard")
         card.setStyleSheet(
-            f"CardWidget {{ background-color: {UI_BG_CARD}; "
-            "border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; }}"
+            f"#infoCard {{ background-color: {UI_BG_CARD}; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; }} "
+            "QLabel { background-color: transparent; border: none; }"
         )
         inner = QVBoxLayout(card)
         inner.setContentsMargins(14, 10, 14, 10)
         inner.setSpacing(3)
         t = StrongBodyLabel(title)
-        t.setStyleSheet(f"color: {UI_ACCENT}; font-size: 12px; font-weight: bold;")
+        t.setStyleSheet(f"background: transparent; color: {UI_ACCENT}; font-size: 12px; font-weight: bold;")
         t.setWordWrap(True)
         s = CaptionLabel(subtitle)
-        s.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 10px;")
+        s.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 10px;")
         s.setWordWrap(True)
         inner.addWidget(t)
         inner.addWidget(s)

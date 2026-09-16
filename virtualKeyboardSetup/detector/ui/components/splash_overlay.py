@@ -2,7 +2,7 @@
 ui/components/splash_overlay.py
 
 Full-screen startup overlay for the detector app.
-Matches the designer's dark theme (#202020 background, #009FEF accent).
+Clean dark theme without contrasting black patches or un-scoped cascades.
 
 Layout
 ──────
@@ -19,7 +19,6 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QFileDialog,
     QHBoxLayout,
     QSizePolicy,
     QVBoxLayout,
@@ -45,9 +44,15 @@ from utils.logger import setup_logger
 logger = setup_logger("SplashOverlay")
 
 _CARD_STYLE = (
-    f"background-color: {UI_BG_CARD}; "
-    "border: 1px solid rgba(255, 255, 255, 0.08); "
-    "border-radius: 12px;"
+    f"CardWidget {{ "
+    f"  background-color: {UI_BG_CARD}; "
+    "  border: 1px solid rgba(255, 255, 255, 0.06); "
+    "  border-radius: 12px; "
+    "} "
+    "QLabel { "
+    "  background-color: transparent; "
+    "  border: none; "
+    "}"
 )
 
 
@@ -112,14 +117,14 @@ class SplashOverlayWidget(QWidget):
 
         title = SubtitleLabel("Paper Virtual Keyboard Detector", content)
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet(f"color: {UI_ACCENT}; font-size: 26px; font-weight: bold;")
+        title.setStyleSheet(f"background: transparent; color: {UI_ACCENT}; font-size: 26px; font-weight: bold;")
 
         subtitle = CaptionLabel(
             "Load a designer layout, assign key actions, then run real-time touch detection.",
             content,
         )
         subtitle.setAlignment(Qt.AlignCenter)
-        subtitle.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 13px;")
+        subtitle.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 13px;")
         subtitle.setWordWrap(True)
 
         header.addWidget(title)
@@ -161,16 +166,21 @@ class SplashOverlayWidget(QWidget):
 
     def _build_layout_card(self, parent: QWidget) -> CardWidget:
         card = CardWidget(parent)
+        card.setObjectName("layoutCard")
+        card.setStyleSheet(
+            f"#layoutCard {{ background-color: {UI_BG_CARD}; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; }} "
+            "QLabel { background-color: transparent; border: none; }"
+        )
         layout = QVBoxLayout(card)
         layout.setContentsMargins(28, 28, 28, 28)
         layout.setSpacing(16)
 
         lbl_title = StrongBodyLabel("Load Layout", card)
-        lbl_title.setStyleSheet(f"color: {UI_ACCENT}; font-size: 16px; font-weight: bold;")
+        lbl_title.setStyleSheet(f"background: transparent; color: {UI_ACCENT}; font-size: 16px; font-weight: bold;")
         lbl_desc = CaptionLabel(
             "Browse for a designer-exported XML layout file.", card
         )
-        lbl_desc.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 12px;")
+        lbl_desc.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 12px;")
         lbl_desc.setWordWrap(True)
 
         layout.addWidget(lbl_title)
@@ -178,8 +188,7 @@ class SplashOverlayWidget(QWidget):
 
         self.lbl_xml_path = BodyLabel("No file selected", card)
         self.lbl_xml_path.setStyleSheet(
-            f"color: {UI_TEXT_SEC}; font-size: 11px; "
-            "background: rgba(255,255,255,0.04); border-radius: 6px; padding: 6px;"
+            f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px; font-weight: 500;"
         )
         self.lbl_xml_path.setWordWrap(True)
         layout.addWidget(self.lbl_xml_path)
@@ -194,23 +203,28 @@ class SplashOverlayWidget(QWidget):
 
     def _build_model_card(self, parent: QWidget) -> CardWidget:
         card = CardWidget(parent)
+        card.setObjectName("modelCard")
+        card.setStyleSheet(
+            f"#modelCard {{ background-color: {UI_BG_CARD}; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; }} "
+            "QLabel { background-color: transparent; border: none; }"
+        )
         layout = QVBoxLayout(card)
         layout.setContentsMargins(28, 28, 28, 28)
         layout.setSpacing(16)
 
         lbl_title = StrongBodyLabel("Select Model", card)
-        lbl_title.setStyleSheet(f"color: {UI_ACCENT}; font-size: 16px; font-weight: bold;")
+        lbl_title.setStyleSheet(f"background: transparent; color: {UI_ACCENT}; font-size: 16px; font-weight: bold;")
         lbl_desc = CaptionLabel(
             "Choose the touch-detection model plugin to use.", card
         )
-        lbl_desc.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 12px;")
+        lbl_desc.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 12px;")
         lbl_desc.setWordWrap(True)
 
         layout.addWidget(lbl_title)
         layout.addWidget(lbl_desc)
 
         lbl_model = BodyLabel("Model Plugin", card)
-        lbl_model.setStyleSheet(f"color: {UI_TEXT_PRI}; font-weight: 600; font-size: 12px;")
+        lbl_model.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-weight: 600; font-size: 12px;")
         self.combo_model = ComboBox(card)
         self.combo_model.setFixedHeight(36)
         self.combo_model.setPlaceholderText("No models found")
@@ -221,7 +235,7 @@ class SplashOverlayWidget(QWidget):
         layout.addStretch(1)
 
         self.lbl_model_desc = CaptionLabel("", card)
-        self.lbl_model_desc.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 11px;")
+        self.lbl_model_desc.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px;")
         self.lbl_model_desc.setWordWrap(True)
         layout.addWidget(self.lbl_model_desc)
 
@@ -244,17 +258,17 @@ class SplashOverlayWidget(QWidget):
         self._xml_path = xml_path
         name = Path(xml_path).name
         btn_count = len(layout_data.buttons)
-        self.lbl_xml_path.setText(f"{name}\n{btn_count} buttons")
+        self.lbl_xml_path.setText(f"{name} ({btn_count} keys)")
+        self.lbl_xml_path.setStyleSheet(
+            f"background: transparent; color: #00DC64; font-size: 11px; font-weight: 600;"
+        )
         self._update_buttons()
 
     # ── Slots ──────────────────────────────────────────────────────────────────
 
     def _on_browse_clicked(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Open Layout XML", "", "XML Files (*.xml)"
-        )
-        if path:
-            self.xml_browse_requested.emit()   # MainWindow handles actual parsing
+        # Emit directly so MainWindow opens the file dialog once
+        self.xml_browse_requested.emit()
 
     def _on_configure_clicked(self) -> None:
         if self._layout_data and self._xml_path:

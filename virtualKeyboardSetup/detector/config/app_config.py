@@ -57,7 +57,35 @@ class AppConfig:
             os.getenv("APRILTAG_SMOOTHING_ALPHA", str(APRILTAG_SMOOTHING_ALPHA))
         )
 
+        self._env_path = env_path or (Path(__file__).resolve().parent.parent / ".env")
+        self._last_xml_path = os.getenv("LAST_XML_PATH", "")
+
     # ── Read-only properties ───────────────────────────────────────────────────
+
+    @property
+    def last_xml_path(self) -> str:
+        return self._last_xml_path
+
+    def set_last_xml_path(self, path: str) -> None:
+        """Persist the last chosen XML layout path into .env."""
+        self._last_xml_path = str(path)
+        os.environ["LAST_XML_PATH"] = str(path)
+        env_file = Path(self._env_path)
+        try:
+            lines: list[str] = []
+            found = False
+            if env_file.exists():
+                for line in env_file.read_text(encoding="utf-8").splitlines():
+                    if line.startswith("LAST_XML_PATH="):
+                        lines.append(f"LAST_XML_PATH={path}")
+                        found = True
+                    else:
+                        lines.append(line)
+            if not found:
+                lines.append(f"LAST_XML_PATH={path}")
+            env_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        except Exception:
+            pass
 
     @property
     def app_title(self) -> str:
@@ -102,3 +130,4 @@ class AppConfig:
     @property
     def apriltag_smoothing(self) -> float:
         return self._apriltag_smoothing
+

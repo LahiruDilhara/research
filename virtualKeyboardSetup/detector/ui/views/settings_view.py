@@ -82,9 +82,12 @@ class SettingsView(QWidget):
 
     def _make_card(self, section: str, rows: list[tuple]) -> CardWidget:
         card = CardWidget()
+        obj_name = f"settingsCard_{section.replace(' ', '_').lower()}"
+        card.setObjectName(obj_name)
         card.setStyleSheet(
-            f"CardWidget {{ background-color: {UI_BG_CARD}; "
-            "border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; }}"
+            f"#{obj_name} {{ background-color: {UI_BG_CARD}; "
+            "border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; } "
+            "QLabel { background-color: transparent; border: none; }"
         )
         layout = QVBoxLayout(card)
         layout.setContentsMargins(24, 20, 24, 20)

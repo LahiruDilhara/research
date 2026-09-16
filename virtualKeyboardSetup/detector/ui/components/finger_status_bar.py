@@ -17,14 +17,22 @@ from qfluentwidgets import (
 
 from config.constants import FINGERS, UI_ACCENT, UI_BG_CARD, UI_TEXT_PRI, UI_TEXT_SEC
 
-_CARD_BASE = (
-    f"background-color: {UI_BG_CARD}; "
-    "border: 1px solid rgba(255,255,255,0.06); "
-    "border-radius: 10px;"
-)
+_NO_HAND_BG  = UI_BG_CARD
 _TOUCH_BG    = "#183C24"
 _NO_TOUCH_BG = "#22223A"
-_NO_HAND_BG  = UI_BG_CARD
+
+def _card_css(bg_color: str, border_color: str = "rgba(255,255,255,0.06)") -> str:
+    return (
+        f"#fingerCard {{ "
+        f"  background-color: {bg_color}; "
+        f"  border: 1px solid {border_color}; "
+        "  border-radius: 10px; "
+        "} "
+        "QLabel { "
+        "  background-color: transparent; "
+        "  border: none; "
+        "}"
+    )
 
 
 class FingerStatusBar(QWidget):
@@ -37,7 +45,7 @@ class FingerStatusBar(QWidget):
         layout.setSpacing(6)
 
         title = StrongBodyLabel("Per-Finger Touch Status")
-        title.setStyleSheet(f"color: {UI_TEXT_PRI}; font-size: 12px;")
+        title.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-size: 12px;")
         layout.addWidget(title)
 
         self._cards: dict[str, dict] = {}
@@ -72,25 +80,26 @@ class FingerStatusBar(QWidget):
         is_touch = hand_present and prob >= 0.5
 
         if not hand_present:
-            card.setStyleSheet(f"background-color: {_NO_HAND_BG}; border-radius: 10px;")
+            card.setStyleSheet(_card_css(_NO_HAND_BG))
             status_lbl.setText("NO HAND")
-            status_lbl.setStyleSheet("color: #606070;")
+            status_lbl.setStyleSheet("background: transparent; color: #606070;")
             pbar.setValue(0)
         elif is_touch:
-            card.setStyleSheet(f"background-color: {_TOUCH_BG}; border-radius: 10px;")
+            card.setStyleSheet(_card_css(_TOUCH_BG, "#00DC64"))
             status_lbl.setText(f"TOUCH  {prob*100:.0f}%")
-            status_lbl.setStyleSheet("color: #00DC64; font-weight: bold;")
+            status_lbl.setStyleSheet("background: transparent; color: #00DC64; font-weight: bold;")
             pbar.setValue(int(prob * 100))
         else:
-            card.setStyleSheet(f"background-color: {_NO_TOUCH_BG}; border-radius: 10px;")
+            card.setStyleSheet(_card_css(_NO_TOUCH_BG))
             status_lbl.setText(f"{prob*100:.0f}%")
-            status_lbl.setStyleSheet(f"color: {UI_TEXT_SEC};")
+            status_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC};")
             pbar.setValue(int(prob * 100))
 
     @staticmethod
     def _make_finger_card(finger: str) -> tuple[CardWidget, dict]:
         card = CardWidget()
-        card.setStyleSheet(_CARD_BASE)
+        card.setObjectName("fingerCard")
+        card.setStyleSheet(_card_css(_NO_HAND_BG))
         card.setFixedHeight(68)
 
         inner = QVBoxLayout(card)
@@ -99,9 +108,9 @@ class FingerStatusBar(QWidget):
 
         header = QHBoxLayout()
         name_lbl = BodyLabel(finger.upper())
-        name_lbl.setStyleSheet(f"color: {UI_TEXT_PRI}; font-weight: bold; font-size: 11px;")
+        name_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-weight: bold; font-size: 11px;")
         status_lbl = BodyLabel("NO HAND")
-        status_lbl.setStyleSheet("color: #606070; font-size: 11px;")
+        status_lbl.setStyleSheet("background: transparent; color: #606070; font-size: 11px;")
         header.addWidget(name_lbl)
         header.addStretch(1)
         header.addWidget(status_lbl)

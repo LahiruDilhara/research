@@ -5,19 +5,13 @@ FluentWindow shell for the detector app.
 
 Navigation
 ──────────
-  Splash (startup) → shown as full-screen overlay over the home view.
-  Home             → startup splash view (overlaid).
+  Home             → hosts a QStackedWidget (Splash → Action Config → Camera Select → Detector).
   Settings         → settings view.
 
-Routing (internal stack widget transitions)
-──────────────────────────────────────────
-  splash "Configure Actions"  → action_config_view
-  splash "Quick Start"        → camera_select_view
-  action_config "Back"        → splash
-  action_config "Start"       → camera_select_view
-  camera_select "Back"        → previous view
-  camera_select "Start"       → detector_view
-  detector_view "Stop"        → splash (resets state)
+View Routing
+────────────
+  All screen transitions happen cleanly inside the Home stacked widget without creating
+  any extra navigation tabs in the sidebar.
 """
 
 from __future__ import annotations
@@ -25,11 +19,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QFileDialog, QStackedWidget, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFileDialog, QStackedWidget, QWidget
 from qfluentwidgets import FluentIcon, FluentWindow, NavigationItemPosition
 
 from config.app_config import AppConfig
-from config.constants import UI_BG_DARK, UI_ACCENT
+from config.constants import UI_BG_DARK
 from core.action.action_executor import ActionData
 from core.interfaces.touch_model import ModelEntry, ModelRegistry
 from services.action_config_service import ActionConfigService
@@ -48,7 +42,7 @@ logger = setup_logger("MainWindow")
 
 
 class MainWindow(FluentWindow):
-    """Application shell — dark FluentWindow with stacked view routing."""
+    """Application shell — dark FluentWindow with internal stacked view routing."""
 
     def __init__(self, config: AppConfig) -> None:
         super().__init__()
@@ -57,7 +51,6 @@ class MainWindow(FluentWindow):
         self._active_det_vm: DetectorViewModel | None = None
         self._env_path = str(Path(__file__).resolve().parent.parent / ".env")
 
-
         # ViewModels
         plugins_dir = str(Path(__file__).resolve().parent.parent / config.plugins_dir)
         self._startup_vm = StartupViewModel(plugins_dir, parent=self)
@@ -65,7 +58,12 @@ class MainWindow(FluentWindow):
         self._setup_window()
         self._build_pages()
         self._connect_startup_vm()
+
+        # Discover plugins & auto-load last XML layout if available
         self._startup_vm.discover_models()
+        if self._config.last_xml_path and Path(self._config.last_xml_path).exists():
+            logger.info("Auto-loading last used XML layout: %s", self._config.last_xml_path)
+            self._startup_vm.load_layout(self._config.last_xml_path)
 
     # ── Window setup ───────────────────────────────────────────────────────────
 
@@ -73,7 +71,6 @@ class MainWindow(FluentWindow):
         self.setWindowTitle(self._config.app_title)
         self.setMinimumSize(1100, 720)
         self.resize(1280, 800)
-        # Dark background on the window
         self.setStyleSheet(
             f"FluentWindow {{ background-color: {UI_BG_DARK}; }}"
         )
@@ -82,15 +79,21 @@ class MainWindow(FluentWindow):
     # ── Pages ──────────────────────────────────────────────────────────────────
 
     def _build_pages(self) -> None:
-        # ── Home / Splash page ─────────────────────────────────────────────────
-        self._splash = SplashOverlayWidget()
-        self._splash.setObjectName("homeView")
+        # ── Home stacked container ─────────────────────────────────────────────
+        self._home_stack = QStackedWidget(self)
+        self._home_stack.setObjectName("homeView")
+        self._home_stack.setStyleSheet(f"QStackedWidget {{ background-color: {UI_BG_DARK}; border: none; }}")
+
+        # Startup Splash View
+        self._splash = SplashOverlayWidget(self._home_stack)
+        self._splash.setObjectName("splashView")
         self._splash.xml_browse_requested.connect(self._on_browse_xml)
         self._splash.configure_actions_requested.connect(self._on_configure_requested)
         self._splash.quick_start_requested.connect(self._on_quick_start)
+        self._home_stack.addWidget(self._splash)
 
         self.addSubInterface(
-            self._splash,
+            self._home_stack,
             FluentIcon.HOME,
             "Home",
             position=NavigationItemPosition.TOP,
@@ -107,11 +110,14 @@ class MainWindow(FluentWindow):
         )
 
     def _connect_startup_vm(self) -> None:
-        self._startup_vm.layout_loaded.connect(
-            lambda layout: self._splash.set_layout_loaded(layout, self._startup_vm.layout_path)
-        )
+        self._startup_vm.layout_loaded.connect(self._on_layout_loaded)
         self._startup_vm.models_ready.connect(self._splash.set_model_entries)
         self._startup_vm.error_occurred.connect(self._show_error)
+
+    def _on_layout_loaded(self, layout) -> None:
+        xml_path = self._startup_vm.layout_path
+        self._splash.set_layout_loaded(layout, xml_path)
+        self._config.set_last_xml_path(xml_path)
 
     # ── Navigation / routing ───────────────────────────────────────────────────
 
@@ -127,13 +133,13 @@ class MainWindow(FluentWindow):
     ) -> None:
         self._current_model_entry = self._get_model_entry(model_name)
         vm = ActionConfigViewModel(layout_data, xml_path, parent=self)
-        view = ActionConfigView(vm)
-        view.setObjectName(f"actionConfigView")
-        view.back_requested.connect(lambda: self._go_home())
+        view = ActionConfigView(vm, parent=self._home_stack)
+        view.setObjectName("actionConfigView")
+        view.back_requested.connect(self._go_home)
         view.start_requested.connect(
             lambda: self._go_to_camera_select(layout_data, xml_path, vm.config)
         )
-        self._push_view(view, "Configure Actions", FluentIcon.EDIT)
+        self._push_view(view)
 
     def _on_quick_start(
         self, layout_data, xml_path: str, model_name: str
@@ -149,13 +155,13 @@ class MainWindow(FluentWindow):
         self, layout_data, xml_path: str, action_config: dict[str, ActionData]
     ) -> None:
         cam_vm = CameraSelectViewModel(parent=self)
-        cam_view = CameraSelectView(cam_vm)
+        cam_view = CameraSelectView(cam_vm, parent=self._home_stack)
         cam_view.setObjectName("cameraSelectView")
-        cam_view.back_requested.connect(lambda: self._go_home())
+        cam_view.back_requested.connect(self._go_home)
         cam_view.start_requested.connect(
             lambda cam_idx: self._start_detector(layout_data, action_config, cam_idx)
         )
-        self._push_view(cam_view, "Select Camera", FluentIcon.CAMERA)
+        self._push_view(cam_view)
 
     def _start_detector(
         self,
@@ -182,33 +188,32 @@ class MainWindow(FluentWindow):
         det_vm.set_model(self._current_model_entry)
         self._active_det_vm = det_vm
 
-        det_view = DetectorView(det_vm, self._current_model_entry)
+        det_view = DetectorView(det_vm, self._current_model_entry, parent=self._home_stack)
         det_view.setObjectName("detectorView")
         det_view.set_layout_data(layout_data)
         det_view.stop_requested.connect(self._go_home)
 
-        self._push_view(det_view, "Detector", FluentIcon.PLAY)
+        self._push_view(det_view)
         det_vm.start()
 
     def _go_home(self) -> None:
         if self._active_det_vm is not None:
             self._active_det_vm.stop()
             self._active_det_vm = None
-        self.stackedWidget.setCurrentWidget(self._splash)
-        self.navigationInterface.setCurrentItem(self._splash.objectName())
+        self._home_stack.setCurrentWidget(self._splash)
+        self.switchTo(self._home_stack)
 
-    def _push_view(self, view: QWidget, label: str, icon) -> None:
-        """Add a transient sub-interface and navigate to it."""
-        # If already added (same objectName), reuse it
-        for i in range(self.stackedWidget.count()):
-            w = self.stackedWidget.widget(i)
-            if w is None:
-                continue
-            if w.objectName() == view.objectName():
-                self.stackedWidget.removeWidget(w)
+    def _push_view(self, view: QWidget) -> None:
+        """Switch to view inside the Home stacked widget without touching the sidebar."""
+        # Clean up existing instance with same objectName in the stack
+        for i in range(self._home_stack.count() - 1, -1, -1):
+            w = self._home_stack.widget(i)
+            if w is not None and w is not self._splash and w.objectName() == view.objectName():
+                self._home_stack.removeWidget(w)
                 w.deleteLater()
-        self.addSubInterface(view, icon, label)
-        self.switchTo(view)
+        self._home_stack.addWidget(view)
+        self._home_stack.setCurrentWidget(view)
+        self.switchTo(self._home_stack)
 
     def closeEvent(self, event) -> None:
         """Ensure threads and camera workers are cleanly shut down on exit."""
@@ -231,4 +236,3 @@ class MainWindow(FluentWindow):
             parent=self,
             duration=5000,
         )
-

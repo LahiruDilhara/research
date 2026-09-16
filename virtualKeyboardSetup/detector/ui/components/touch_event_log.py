@@ -10,9 +10,8 @@ from __future__ import annotations
 from datetime import datetime
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 from qfluentwidgets import (
-    BodyLabel,
     CaptionLabel,
     SingleDirectionScrollArea,
     StrongBodyLabel,
@@ -21,6 +20,18 @@ from qfluentwidgets import (
 from config.constants import UI_ACCENT, UI_BG_CARD, UI_TEXT_PRI, UI_TEXT_SEC
 
 _MAX_EVENTS = 30
+
+_ROW_STYLE = (
+    f"QWidget#eventRow {{ "
+    f"  background-color: {UI_BG_CARD}; "
+    "  border: 1px solid rgba(255, 255, 255, 0.04); "
+    "  border-radius: 6px; "
+    "} "
+    "QLabel { "
+    "  background-color: transparent; "
+    "  border: none; "
+    "}"
+)
 
 
 class TouchEventLog(QWidget):
@@ -33,13 +44,13 @@ class TouchEventLog(QWidget):
         layout.setSpacing(6)
 
         title = StrongBodyLabel("Recent Touch Events")
-        title.setStyleSheet(f"color: {UI_TEXT_PRI}; font-size: 12px;")
+        title.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-size: 12px;")
         layout.addWidget(title)
 
         self._scroll = SingleDirectionScrollArea(orient=Qt.Vertical)
         self._scroll.setWidgetResizable(True)
         self._scroll.setStyleSheet(
-            f"QScrollArea {{ border: none; background-color: transparent; }}"
+            "QScrollArea { border: none; background-color: transparent; }"
         )
         self._scroll.setFixedHeight(200)
 
@@ -81,27 +92,26 @@ class TouchEventLog(QWidget):
     @staticmethod
     def _make_entry(key_label: str, finger: str, prob: float) -> QWidget:
         row = QWidget()
-        row.setStyleSheet(
-            f"QWidget {{ background-color: {UI_BG_CARD}; "
-            "border-radius: 6px; }}"
-        )
+        row.setObjectName("eventRow")
+        row.setAttribute(Qt.WA_StyledBackground, True)
+        row.setStyleSheet(_ROW_STYLE)
         inner = QVBoxLayout(row)
         inner.setContentsMargins(10, 6, 10, 6)
         inner.setSpacing(2)
 
         ts = datetime.now().strftime("%H:%M:%S")
 
-        top_row_layout = __import__("PySide6.QtWidgets", fromlist=["QHBoxLayout"]).QHBoxLayout()
+        top_row_layout = QHBoxLayout()
         key_lbl = StrongBodyLabel(f'"{key_label}"')
-        key_lbl.setStyleSheet(f"color: {UI_ACCENT}; font-size: 12px;")
+        key_lbl.setStyleSheet(f"background: transparent; color: {UI_ACCENT}; font-size: 12px;")
         ts_lbl = CaptionLabel(ts)
-        ts_lbl.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 10px;")
+        ts_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 10px;")
         top_row_layout.addWidget(key_lbl)
         top_row_layout.addStretch(1)
         top_row_layout.addWidget(ts_lbl)
 
         detail_lbl = CaptionLabel(f"{finger}  •  {prob*100:.1f}%")
-        detail_lbl.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 10px;")
+        detail_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 10px;")
 
         inner.addLayout(top_row_layout)
         inner.addWidget(detail_lbl)
