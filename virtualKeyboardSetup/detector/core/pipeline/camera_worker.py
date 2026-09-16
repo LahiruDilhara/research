@@ -80,7 +80,7 @@ from config.constants import (
 from config.app_config import AppConfig
 from core.layout.layout_parser import LayoutData
 from core.pipeline.apriltag_tracker import AprilTagTracker
-from core.pipeline.normalizer import HandScaleNormalizer
+from services.touch_pipeline_service import TouchPipelineService
 from utils.logger import setup_logger
 
 logger = setup_logger("CameraWorker")
@@ -241,11 +241,8 @@ class CameraWorker(QThread):
             smoothing_alpha=self._config.apriltag_smoothing,
         )
 
-        # 5. Pipeline state
-        normalizer = HandScaleNormalizer()
-        landmark_buffer: deque[dict[str, float]] = deque(maxlen=WINDOW_SIZE)
-        pixel_buffer: deque[list[tuple[float, float]]] = deque(maxlen=WINDOW_SIZE)
-        shift_counter = 0
+        # 5. Service Layer Pipeline (Manages 5 dedicated finger queues and hand identity)
+        pipeline_service = TouchPipelineService(window_size=WINDOW_SIZE, shift_size=SHIFT_SIZE)
 
         frame_interval = 1.0 / TARGET_FPS
         last_capture_t = time.perf_counter()
@@ -296,46 +293,35 @@ class CameraWorker(QThread):
                     result and result.hand_landmarks and len(result.hand_landmarks) > 0
                 )
 
-                if hand_detected:
-                    raw_lm = result.hand_landmarks[0]   # single-hand mode
+                raw_lm = result.hand_landmarks[0] if hand_detected else None
+                hand_label = (
+                    result.handedness[0][0].category_name
+                    if (result and result.handedness and len(result.handedness) > 0 and len(result.handedness[0]) > 0)
+                    else None
+                )
 
-                    # Pixel coordinates (mirrored frame space)
+                # ── Service Layer Queue & Hand Ingestion ───────────────────
+                win_ready, norm_window, pixel_window = pipeline_service.process_frame(
+                    raw_landmarks=raw_lm,
+                    hand_label=hand_label,
+                    frame_w=frame_w,
+                    frame_h=frame_h,
+                )
+
+                if hand_detected and raw_lm:
                     pts_pixel = [
                         (lm.x * frame_w, lm.y * frame_h, lm.z * frame_w)
                         for lm in raw_lm
                     ]
-
-                    # Scale-normalise (matches stage1_normalizer.py exactly)
-                    norm_pts = normalizer.normalize(pts_pixel, center_wrist=True)
-                    norm_dict = normalizer.build_norm_dict(norm_pts)
-
-                    # Pixel list for touch resolver (only x, y needed)
-                    pixel_list: list[tuple[float, float]] = [
-                        (px, py) for px, py, _ in pts_pixel
-                    ]
-
-                    # Ring buffer update
-                    landmark_buffer.append(norm_dict)
-                    pixel_buffer.append(pixel_list)
-                    shift_counter += 1
-
-                    # Trigger: buffer full AND shift_size reached
-                    if len(landmark_buffer) == WINDOW_SIZE and shift_counter >= SHIFT_SIZE:
-                        shift_counter = 0
-                        self.window_ready.emit(
-                            list(landmark_buffer),
-                            list(pixel_buffer),
-                            frame_w,
-                            frame_h,
-                        )
-
-                    # Draw skeleton on frame
                     self._draw_skeleton(frame, pts_pixel)
-                else:
-                    # Hand lost — reset all buffers immediately
-                    landmark_buffer.clear()
-                    pixel_buffer.clear()
-                    shift_counter = 0
+
+                if win_ready and norm_window and pixel_window:
+                    self.window_ready.emit(
+                        norm_window,
+                        pixel_window,
+                        frame_w,
+                        frame_h,
+                    )
 
                 # ── AprilTag tracking + key overlay ────────────────────────
                 apriltag.update(frame)

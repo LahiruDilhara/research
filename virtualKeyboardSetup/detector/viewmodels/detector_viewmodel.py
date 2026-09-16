@@ -25,6 +25,7 @@ from core.interfaces.touch_model import ITouchModel, ModelEntry
 from core.layout.layout_parser import LayoutData
 from core.pipeline.camera_worker import CameraWorker
 from core.pipeline.touch_resolver import TouchResolver
+from services.touch_pipeline_service import TouchPipelineService
 from utils.logger import setup_logger
 
 logger = setup_logger("DetectorViewModel")
@@ -63,6 +64,7 @@ class DetectorViewModel(QObject):
         self._current_H: np.ndarray | None = None
         self._layout_found = False
 
+        self._pipeline_service = TouchPipelineService()
         self._resolver = TouchResolver(layout)
         self._executor = ActionExecutor()
         self._worker: CameraWorker | None = None
@@ -145,15 +147,8 @@ class DetectorViewModel(QObject):
         if self._active_model is None:
             return
 
-        # ── Model inference ──────────────────────────────────────────────────
-        try:
-            probs: dict[str, float] = self._active_model.predict(norm_window)
-        except Exception as exc:
-            logger.error("Model predict() error: %s", exc)
-            return
-
-        # Ensure all 5 fingers present with float values
-        probs = {f: float(probs.get(f, 0.0)) for f in FINGERS}
+        # ── Parallel 5-Finger Model Inference (Service Layer) ───────────────
+        probs = self._pipeline_service.run_parallel_inference(self._active_model, norm_window)
         self.finger_probs_updated.emit(probs)
 
         # ── Touch resolution ─────────────────────────────────────────────────
