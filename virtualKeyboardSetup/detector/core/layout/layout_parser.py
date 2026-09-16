@@ -60,6 +60,7 @@ class LayoutData:
     paper_height_mm: float
     marker_size_mm: float
     marker_family: str
+    project_name: str = "Paper Virtual Keyboard"
     markers: list[MarkerData] = field(default_factory=list)
     buttons: list[ButtonData] = field(default_factory=list)
     source_path: str = ""
@@ -94,16 +95,29 @@ class LayoutParser:
         if root.tag != "PaperLayout":
             raise ValueError(f"Expected root <PaperLayout>, got <{root.tag}>")
 
+        proj_name = root.attrib.get("project_name", "")
+        if not proj_name:
+            sys_cfg = root.find(".//SystemConfig")
+            if sys_cfg is not None and "project_name" in sys_cfg.attrib:
+                proj_name = sys_cfg.attrib["project_name"]
+        if not proj_name:
+            proj_name = path.stem.replace("_", " ").title()
+
         layout = LayoutData(
             paper_width_mm  = float(root.attrib["paper_width_mm"]),
             paper_height_mm = float(root.attrib["paper_height_mm"]),
             marker_size_mm  = float(root.attrib.get("marker_size_mm", "15.0")),
             marker_family   = root.attrib.get("marker_family", "DICT_APRILTAG_36h11"),
+            project_name    = proj_name,
             source_path     = str(path),
         )
 
+        designer_el = root.find("DesignerLayout")
+        if designer_el is None:
+            designer_el = root
+
         # ── Parse markers ─────────────────────────────────────────────────────
-        markers_el = root.find("Markers")
+        markers_el = designer_el.find("Markers")
         if markers_el is not None:
             for m_el in markers_el.findall("Marker"):
                 corners_el = m_el.find("Corners")
@@ -121,7 +135,7 @@ class LayoutParser:
                 ))
 
         # ── Parse buttons ─────────────────────────────────────────────────────
-        buttons_el = root.find("Buttons")
+        buttons_el = designer_el.find("Buttons")
         if buttons_el is not None:
             for b_el in buttons_el.findall("Button"):
                 text_el = b_el.find("Text")

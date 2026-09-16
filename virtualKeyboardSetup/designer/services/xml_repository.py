@@ -2,7 +2,7 @@
 XML Project Repository Service.
 Implements IProjectRepository for unified XML project file persistence and runtime export.
 Saves complete project details, system constants, grid config, styling rules, runtime specs,
-and marker/button geometry into structured XML.
+marker/button geometry into <DesignerLayout>, and preserves key action bindings in <DetectorActions>.
 """
 
 import xml.etree.ElementTree as ET
@@ -41,6 +41,25 @@ class XmlRepository(IProjectRepository):
 
     def save(self, filepath_or_id: str | Path, layout: PaperLayoutModel) -> None:
         path = Path(filepath_or_id)
+
+        # Preserve existing detector actions if the file already exists
+        existing_actions: dict[str, dict[str, str]] = {}
+        if path.exists():
+            try:
+                existing_tree = ET.parse(path)
+                existing_root = existing_tree.getroot()
+                det_actions_el = existing_root.find("DetectorActions")
+                if det_actions_el is not None:
+                    actions_container = det_actions_el.find("Actions") or det_actions_el
+                    for a_el in actions_container.findall("Action"):
+                        b_id = a_el.attrib.get("button_id") or a_el.attrib.get("id")
+                        if b_id:
+                            existing_actions[b_id] = {
+                                "type": a_el.attrib.get("type", "none"),
+                                "value": a_el.attrib.get("value", ""),
+                            }
+            except Exception:
+                pass
 
         # Active markers: either custom placed markers or auto perimeter markers
         if layout.use_custom_markers and layout.custom_markers:
@@ -88,8 +107,11 @@ class XmlRepository(IProjectRepository):
         root.set("coordinate_origin", "top_left_paper_corner (x_right, y_down)")
         root.set("units", "millimeters")
 
+        # ── SUB-SECTION 1: DesignerLayout (Geometry & Physical Layout) ─────────
+        designer_layout_el = ET.SubElement(root, "DesignerLayout")
+
         # 1. System Config metadata
-        sys_config_el = ET.SubElement(root, "SystemConfig")
+        sys_config_el = ET.SubElement(designer_layout_el, "SystemConfig")
         sys_config_el.set("project_name", layout.project_name)
         sys_config_el.set("app_title", "Virtual Keyboard Paper Layout Designer")
         sys_config_el.set("version", "1.0.0")
@@ -97,7 +119,7 @@ class XmlRepository(IProjectRepository):
         sys_config_el.set("research_suite", "Application 1 Layout Designer & Application 2 Runtime Engine")
 
         # 2. Paper Margin
-        margin_el = ET.SubElement(root, "PaperMargin")
+        margin_el = ET.SubElement(designer_layout_el, "PaperMargin")
         margin_el.set("margin_mm", f"{p_margin:.3f}")
         margin_el.set("top_mm", f"{p_margin:.3f}")
         margin_el.set("bottom_mm", f"{p_margin:.3f}")
@@ -105,7 +127,7 @@ class XmlRepository(IProjectRepository):
         margin_el.set("right_mm", f"{p_margin:.3f}")
 
         # 3. Marker Ring Zone
-        marker_zone_el = ET.SubElement(root, "MarkerRingZone")
+        marker_zone_el = ET.SubElement(designer_layout_el, "MarkerRingZone")
         marker_zone_el.set("outer_x_min_mm", f"{outer_x_min:.3f}")
         marker_zone_el.set("outer_y_min_mm", f"{outer_y_min:.3f}")
         marker_zone_el.set("outer_x_max_mm", f"{outer_x_max:.3f}")
@@ -121,7 +143,7 @@ class XmlRepository(IProjectRepository):
         marker_zone_el.set("marker_min_gap_mm", f"{layout.marker_min_gap_mm:.3f}")
 
         # 4. Interior Active Region
-        interior_el = ET.SubElement(root, "InteriorRegion")
+        interior_el = ET.SubElement(designer_layout_el, "InteriorRegion")
         interior_el.set("x_min_mm", f"{int_x_min:.3f}")
         interior_el.set("y_min_mm", f"{int_y_min:.3f}")
         interior_el.set("x_max_mm", f"{int_x_max:.3f}")
@@ -131,7 +153,7 @@ class XmlRepository(IProjectRepository):
         interior_el.set("interior_buffer_mm", f"{buf:.3f}")
 
         # 5. Button Styling Rules & System Constants
-        style_rules_el = ET.SubElement(root, "ButtonStylingRules")
+        style_rules_el = ET.SubElement(designer_layout_el, "ButtonStylingRules")
         style_rules_el.set("button_stroke_width_mm", f"{layout.button_stroke_width_mm:.3f}")
         style_rules_el.set("button_corner_radius_mm", f"{layout.button_corner_radius_mm:.3f}")
         style_rules_el.set("button_min_width_mm", f"{layout.button_min_width_mm:.3f}")
@@ -140,12 +162,12 @@ class XmlRepository(IProjectRepository):
         style_rules_el.set("default_font_size_pt", str(layout.default_font_size_pt))
 
         # 6. Grid Alignment Config
-        grid_el = ET.SubElement(root, "GridConfig")
+        grid_el = ET.SubElement(designer_layout_el, "GridConfig")
         grid_el.set("grid_snap_enabled", str(1 if layout.grid_snap_enabled else 0))
         grid_el.set("grid_size_mm", f"{layout.grid_size_mm:.3f}")
 
         # 7. Runtime Touch Detection Specs
-        runtime_el = ET.SubElement(root, "RuntimePipelineSpecs")
+        runtime_el = ET.SubElement(designer_layout_el, "RuntimePipelineSpecs")
         runtime_el.set("target_camera_fps", "12")
         runtime_el.set("temporal_window_frames", "5")
         runtime_el.set("temporal_window_stride", "3")
@@ -156,7 +178,7 @@ class XmlRepository(IProjectRepository):
         runtime_el.set("end_to_end_latency_ms", "29.09")
 
         # 8. Markers Section
-        markers_el = ET.SubElement(root, "Markers", count=str(len(markers)), use_custom_markers=str(use_custom))
+        markers_el = ET.SubElement(designer_layout_el, "Markers", count=str(len(markers)), use_custom_markers=str(use_custom))
         for m in markers:
             me = ET.SubElement(markers_el, "Marker")
             me.set("id", str(m.id))
@@ -173,7 +195,7 @@ class XmlRepository(IProjectRepository):
                 ce.set("y_mm", f"{cy:.3f}")
 
         # 9. Buttons Section
-        buttons_el = ET.SubElement(root, "Buttons", count=str(len(layout.buttons)))
+        buttons_el = ET.SubElement(designer_layout_el, "Buttons", count=str(len(layout.buttons)))
         for b in layout.buttons:
             be = ET.SubElement(buttons_el, "Button")
             be.set("id", str(b.id))
@@ -194,6 +216,17 @@ class XmlRepository(IProjectRepository):
             text_el = ET.SubElement(be, "Text")
             text_el.text = b.text
 
+        # ── SUB-SECTION 2: DetectorActions (Digital Action Semantics) ──────────
+        detector_actions_el = ET.SubElement(root, "DetectorActions")
+        actions_el = ET.SubElement(detector_actions_el, "Actions", count=str(len(layout.buttons)))
+        for b in layout.buttons:
+            act_el = ET.SubElement(actions_el, "Action")
+            act_el.set("button_id", str(b.id))
+            act_el.set("label", b.text or str(b.id))
+            act_data = existing_actions.get(str(b.id), {})
+            act_el.set("type", act_data.get("type", "none"))
+            act_el.set("value", act_data.get("value", ""))
+
         rough_string = ET.tostring(root, "utf-8")
         pretty = minidom.parseString(rough_string).toprettyxml(indent="  ")
 
@@ -205,6 +238,11 @@ class XmlRepository(IProjectRepository):
         path = Path(filepath_or_id)
         tree = ET.parse(path)
         root = tree.getroot()
+
+        # Check if wrapped in <DesignerLayout> or flat legacy <PaperLayout>
+        designer_el = root.find("DesignerLayout")
+        if designer_el is None:
+            designer_el = root
 
         project_name = root.attrib.get("project_name", "My Paper Keyboard")
         paper_width = float(root.attrib.get("paper_width_mm", DEFAULT_PAPER_WIDTH_MM))
@@ -219,7 +257,7 @@ class XmlRepository(IProjectRepository):
         show_outer = bool(int(root.attrib.get("show_outer_markers", "1")))
 
         # Check MarkerRingZone for marker_min_gap_mm override
-        mz_el = root.find("MarkerRingZone")
+        mz_el = designer_el.find("MarkerRingZone")
         if mz_el is not None and "marker_min_gap_mm" in mz_el.attrib:
             marker_min_gap = float(mz_el.attrib["marker_min_gap_mm"])
 
@@ -231,7 +269,7 @@ class XmlRepository(IProjectRepository):
         button_min_gap = BUTTON_MIN_GAP_MM
         default_font_size = DEFAULT_FONT_SIZE_PT
 
-        rules_el = root.find("ButtonStylingRules")
+        rules_el = designer_el.find("ButtonStylingRules")
         if rules_el is not None:
             button_stroke = float(rules_el.attrib.get("button_stroke_width_mm", BUTTON_STROKE_WIDTH_MM))
             button_radius = float(rules_el.attrib.get("button_corner_radius_mm", BUTTON_CORNER_RADIUS_MM))
@@ -243,20 +281,20 @@ class XmlRepository(IProjectRepository):
         # Parse GridConfig
         grid_snap = True
         grid_size = DEFAULT_GRID_SIZE_MM
-        grid_el = root.find("GridConfig")
+        grid_el = designer_el.find("GridConfig")
         if grid_el is not None:
             grid_snap = bool(int(grid_el.attrib.get("grid_snap_enabled", "1")))
             grid_size = float(grid_el.attrib.get("grid_size_mm", DEFAULT_GRID_SIZE_MM))
 
         # Parse InteriorRegion
         interior_buf = INTERIOR_BUFFER_MM
-        int_el = root.find("InteriorRegion")
+        int_el = designer_el.find("InteriorRegion")
         if int_el is not None and "interior_buffer_mm" in int_el.attrib:
             interior_buf = float(int_el.attrib["interior_buffer_mm"])
 
         # Parse Buttons
         buttons: list[ButtonModel] = []
-        buttons_el = root.find("Buttons")
+        buttons_el = designer_el.find("Buttons")
         if buttons_el is not None:
             for be in buttons_el.findall("Button"):
                 btn_id = be.attrib["id"]
@@ -285,7 +323,7 @@ class XmlRepository(IProjectRepository):
 
         # Parse Custom Markers
         custom_markers: list[MarkerModel] = []
-        markers_el = root.find("Markers")
+        markers_el = designer_el.find("Markers")
         if markers_el is not None:
             marker_use_custom = bool(int(markers_el.attrib.get("use_custom_markers", str(int(use_custom)))))
             if marker_use_custom or use_custom:
@@ -298,7 +336,7 @@ class XmlRepository(IProjectRepository):
                         MarkerModel(id=m_id, x_mm=cx_mm, y_mm=cy_mm, size_mm=m_sz)
                     )
 
-        return PaperLayoutModel(
+        layout = PaperLayoutModel(
             project_name=project_name,
             paper_width_mm=paper_width,
             paper_height_mm=paper_height,
@@ -308,17 +346,19 @@ class XmlRepository(IProjectRepository):
             marker_family=marker_family,
             marker_min_gap_ratio=marker_min_gap_ratio,
             marker_min_gap_mm=marker_min_gap,
-            show_outer_markers=show_outer,
-            use_custom_markers=bool(custom_markers) or use_custom,
+            interior_buffer_mm=interior_buf,
             button_stroke_width_mm=button_stroke,
             button_corner_radius_mm=button_radius,
             button_min_width_mm=button_min_w,
             button_min_height_mm=button_min_h,
             button_min_gap_mm=button_min_gap,
             default_font_size_pt=default_font_size,
-            interior_buffer_mm=interior_buf,
             grid_snap_enabled=grid_snap,
             grid_size_mm=grid_size,
+            use_custom_markers=use_custom,
+            show_outer_markers=show_outer,
             buttons=buttons,
             custom_markers=custom_markers,
         )
+
+        return layout
