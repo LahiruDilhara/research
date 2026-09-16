@@ -9,10 +9,12 @@ dependencies = [
     "mediapipe>=1.0.1",
     "numpy>=2.5.3",
     "opencv-python>=5.0.0.93",
+    "pandas>=3.0.5",
     "pillow>=12.3.0",
     "pynput>=1.8.2",
     "pyside6>=6.11.2",
     "pyside6-fluent-widgets>=1.11.3",
     "python-dotenv>=1.2.3",
+    "scikit-learn>=1.9.1",
     "torch==2.6.0",
 ]

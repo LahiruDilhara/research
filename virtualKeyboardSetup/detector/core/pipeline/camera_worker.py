@@ -42,12 +42,14 @@ Signals
 
 import os
 import sys
+import threading
 import time
 import urllib.request
 import zipfile
 from collections import deque
 from contextlib import contextmanager
 from pathlib import Path
+
 
 import cv2
 import mediapipe as mp
@@ -122,6 +124,39 @@ def _suppress_c_stderr():
         yield
 
 
+class _FrameGrabber(threading.Thread):
+    """
+    Dedicated background thread continuously reading from the camera.
+    Drains the driver buffer so CameraWorker always samples the freshest real-time frame
+    without backlog lag.
+    """
+
+    def __init__(self, cap: cv2.VideoCapture) -> None:
+        super().__init__(daemon=True)
+        self._cap = cap
+        self._running = True
+        self._lock = threading.Lock()
+        self._latest_frame: np.ndarray | None = None
+
+    def run(self) -> None:
+        while self._running:
+            ret, frame = self._cap.read()
+            if not ret or frame is None:
+                time.sleep(0.005)
+                continue
+            with self._lock:
+                self._latest_frame = frame
+
+    def get_latest_frame(self) -> np.ndarray | None:
+        with self._lock:
+            if self._latest_frame is not None:
+                return self._latest_frame.copy()
+            return None
+
+    def stop(self) -> None:
+        self._running = False
+
+
 class CameraWorker(QThread):
     """
     Background QThread: 12 FPS camera capture, MediaPipe, AprilTag, window emission.
@@ -175,6 +210,10 @@ class CameraWorker(QThread):
             self._running = False
             return
 
+        # Start low-latency frame grabber
+        grabber = _FrameGrabber(cap)
+        grabber.start()
+
         # 3. Create MediaPipe HandLandmarker (VIDEO mode)
         try:
             options = HandLandmarkerOptions(
@@ -189,6 +228,8 @@ class CameraWorker(QThread):
         except Exception as exc:
             logger.error("Failed to initialize HandLandmarker: %s", exc)
             self.error.emit(f"Failed to initialize HandLandmarker: {exc}")
+            grabber.stop()
+            grabber.join(timeout=0.5)
             cap.release()
             self._running = False
             return
@@ -219,15 +260,15 @@ class CameraWorker(QThread):
                 now = time.perf_counter()
                 elapsed = now - last_capture_t
 
-                # Enforce 12 FPS — sleep the remaining slice if ahead of schedule
+                # Enforce 12 FPS interval precisely
                 if elapsed < frame_interval:
                     time.sleep(max(0.001, frame_interval - elapsed))
                     continue
 
                 last_capture_t = time.perf_counter()
-                ret, raw_frame = cap.read()
-                if not ret:
-                    time.sleep(0.01)
+                raw_frame = grabber.get_latest_frame()
+                if raw_frame is None:
+                    time.sleep(0.005)
                     continue
 
                 frame_h, frame_w = raw_frame.shape[:2]
@@ -313,12 +354,15 @@ class CameraWorker(QThread):
             logger.exception("CameraWorker loop error: %s", exc)
             self.error.emit(str(exc))
         finally:
+            grabber.stop()
+            grabber.join(timeout=0.5)
             cap.release()
             try:
                 landmarker.close()
             except Exception:
                 pass
             logger.info("CameraWorker stopped.")
+
 
     def stop(self) -> None:
         """Request the worker loop to exit cleanly."""
