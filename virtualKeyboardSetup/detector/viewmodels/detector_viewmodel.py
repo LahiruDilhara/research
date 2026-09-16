@@ -1,0 +1,185 @@
+"""
+viewmodels/detector_viewmodel.py
+
+Orchestrates the full live detection pipeline.
+
+Responsibilities
+────────────────
+- Creates and manages the CameraWorker QThread.
+- Receives window_ready signal → calls active model's predict() → resolves touch.
+- Receives frame_ready signal → forwards to UI.
+- Calls ActionExecutor when a key press is confirmed.
+- Exposes signals consumed by DetectorView (frame updates, finger probs, touch events).
+- Supports hot-swapping the active model without restarting the camera thread.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+from PySide6.QtCore import QObject, Signal, Slot
+
+from config.app_config import AppConfig
+from config.constants import FINGERS, TOUCH_PROBABILITY_THRESHOLD
+from core.action.action_executor import ActionData, ActionExecutor
+from core.interfaces.touch_model import ITouchModel, ModelEntry
+from core.layout.layout_parser import LayoutData
+from core.pipeline.camera_worker import CameraWorker
+from core.pipeline.touch_resolver import TouchResolver
+from utils.logger import setup_logger
+
+logger = setup_logger("DetectorViewModel")
+
+
+class DetectorViewModel(QObject):
+    """ViewModel for the live detector view."""
+
+    # ── Signals ────────────────────────────────────────────────────────────────
+    frame_updated       = Signal(object, float, bool, bool)
+    # (frame: np.ndarray, fps: float, hand_detected: bool, layout_found: bool)
+
+    finger_probs_updated = Signal(dict)
+    # {"Thumb": 0.0..1.0, "Index": ..., ...}
+
+    touch_event         = Signal(str, str, float)
+    # (key_id: str, finger: str, probability: float)
+
+    pipeline_error      = Signal(str)
+
+    def __init__(
+        self,
+        layout: LayoutData,
+        action_config: dict[str, ActionData],
+        config: AppConfig,
+        camera_index: int,
+        parent: QObject | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._layout       = layout
+        self._action_config = action_config
+        self._config       = config
+        self._camera_index = camera_index
+
+        self._active_model: ITouchModel | None = None
+        self._current_H: np.ndarray | None = None
+        self._layout_found = False
+
+        self._resolver = TouchResolver(layout)
+        self._executor = ActionExecutor()
+        self._worker: CameraWorker | None = None
+
+    # ── Lifecycle ──────────────────────────────────────────────────────────────
+
+    def start(self) -> None:
+        """Start the camera worker thread."""
+        if self._worker and self._worker.isRunning():
+            return
+        self._worker = CameraWorker(
+            camera_index=self._camera_index,
+            layout=self._layout,
+            config=self._config,
+            parent=None,
+        )
+        self._worker.frame_ready.connect(self._on_frame_ready)
+        self._worker.window_ready.connect(self._on_window_ready)
+        self._worker.error.connect(self._on_error)
+        self._worker.start()
+        logger.info("Detection pipeline started (camera=%d).", self._camera_index)
+
+    def stop(self) -> None:
+        """Stop the camera worker thread cleanly."""
+        if self._worker:
+            self._worker.stop()
+            self._worker.wait(3000)
+            self._worker = None
+        logger.info("Detection pipeline stopped.")
+
+    # ── Model hot-swap ─────────────────────────────────────────────────────────
+
+    def set_model(self, entry: ModelEntry) -> None:
+        """
+        Instantiate and load the given model entry as the active model.
+        Can be called while the camera is running — the swap is atomic
+        at the Python object level (GIL).
+        """
+        if not entry.weights_path:
+            logger.warning("Model '%s' has no resolved weights path.", entry.name)
+            return
+        try:
+            instance = entry.cls()
+            instance.load(entry.weights_path)
+            self._active_model = instance
+            entry.instance = instance
+            logger.info("Active model set: %s", entry.name)
+        except Exception as exc:
+            logger.error("Failed to load model '%s': %s", entry.name, exc)
+            self.pipeline_error.emit(f"Failed to load model '{entry.name}':\n{exc}")
+
+    def set_model_by_name(self, name: str, registry_entries: list[ModelEntry]) -> None:
+        entry = next((e for e in registry_entries if e.name == name), None)
+        if entry:
+            self.set_model(entry)
+
+    # ── Slots ──────────────────────────────────────────────────────────────────
+
+    @Slot(object, float, bool, object, bool)
+    def _on_frame_ready(
+        self,
+        frame: np.ndarray,
+        fps: float,
+        hand_detected: bool,
+        H,
+        layout_found: bool,
+    ) -> None:
+        self._current_H = H
+        self._layout_found = layout_found
+        self.frame_updated.emit(frame, fps, hand_detected, layout_found)
+
+    @Slot(list, list, int, int)
+    def _on_window_ready(
+        self,
+        norm_window: list[dict],
+        pixel_window: list[list],
+        frame_w: int,
+        frame_h: int,
+    ) -> None:
+        if self._active_model is None:
+            return
+
+        # ── Model inference ──────────────────────────────────────────────────
+        try:
+            probs: dict[str, float] = self._active_model.predict(norm_window)
+        except Exception as exc:
+            logger.error("Model predict() error: %s", exc)
+            return
+
+        # Ensure all 5 fingers present with float values
+        probs = {f: float(probs.get(f, 0.0)) for f in FINGERS}
+        self.finger_probs_updated.emit(probs)
+
+        # ── Touch resolution ─────────────────────────────────────────────────
+        if not self._layout_found or self._current_H is None:
+            return
+
+        touch_fingers = [f for f, p in probs.items() if p >= TOUCH_PROBABILITY_THRESHOLD]
+        if not touch_fingers:
+            return
+
+        result = self._resolver.resolve(
+            touch_fingers, probs, pixel_window, self._current_H
+        )
+        if result is None:
+            return
+
+        key_id, finger, prob = result
+
+        # ── Action execution ─────────────────────────────────────────────────
+        action = self._action_config.get(key_id)
+        if action and action.is_active:
+            self._executor.execute(action)
+
+        self.touch_event.emit(key_id, finger, prob)
+
+    @Slot(str)
+    def _on_error(self, message: str) -> None:
+        logger.error("Pipeline error: %s", message)
+        self.pipeline_error.emit(message)
