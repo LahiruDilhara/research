@@ -140,20 +140,14 @@ class SplashOverlayWidget(QWidget):
 
         # ── Action buttons ─────────────────────────────────────────────────────
         btn_row = QHBoxLayout()
-        btn_row.setSpacing(12)
+        btn_row.setContentsMargins(0, 0, 0, 0)
 
-        self.btn_configure = PrimaryPushButton(FluentIcon.EDIT, "Configure Actions", content)
-        self.btn_configure.setFixedHeight(42)
-        self.btn_configure.setEnabled(False)
-        self.btn_configure.clicked.connect(self._on_configure_clicked)
+        self.btn_continue = PrimaryPushButton(FluentIcon.PLAY, "Configure Key Actions", content)
+        self.btn_continue.setFixedHeight(44)
+        self.btn_continue.setEnabled(False)
+        self.btn_continue.clicked.connect(self._on_continue_clicked)
 
-        self.btn_quick_start = PushButton(FluentIcon.PLAY, "Quick Start (No Actions)", content)
-        self.btn_quick_start.setFixedHeight(42)
-        self.btn_quick_start.setEnabled(False)
-        self.btn_quick_start.clicked.connect(self._on_quick_start_clicked)
-
-        btn_row.addWidget(self.btn_configure, 2)
-        btn_row.addWidget(self.btn_quick_start, 1)
+        btn_row.addWidget(self.btn_continue)
         content_layout.addLayout(btn_row)
 
         hbox.addWidget(content)
@@ -167,28 +161,29 @@ class SplashOverlayWidget(QWidget):
     def _build_layout_card(self, parent: QWidget) -> CardWidget:
         card = CardWidget(parent)
         card.setObjectName("layoutCard")
+        card.setFixedHeight(230)
         card.setStyleSheet(
             f"#layoutCard {{ background-color: {UI_BG_CARD}; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; }} "
             "QLabel { background-color: transparent; border: none; }"
         )
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(28, 28, 28, 28)
-        layout.setSpacing(16)
+        layout.setContentsMargins(24, 22, 24, 22)
+        layout.setSpacing(12)
 
         lbl_title = StrongBodyLabel("Load Layout", card)
-        lbl_title.setStyleSheet(f"background: transparent; color: {UI_ACCENT}; font-size: 16px; font-weight: bold;")
+        lbl_title.setStyleSheet(f"background: transparent; color: {UI_ACCENT}; font-size: 16px; font-weight: bold; border: none;")
         lbl_desc = CaptionLabel(
             "Browse for a designer-exported XML layout file.", card
         )
-        lbl_desc.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 12px;")
+        lbl_desc.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 12px; border: none;")
         lbl_desc.setWordWrap(True)
 
         layout.addWidget(lbl_title)
         layout.addWidget(lbl_desc)
 
-        self.lbl_xml_path = BodyLabel("No file selected", card)
+        self.lbl_xml_path = BodyLabel("No layout selected", card)
         self.lbl_xml_path.setStyleSheet(
-            f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px; font-weight: 500;"
+            f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px; font-weight: 500; border: none;"
         )
         self.lbl_xml_path.setWordWrap(True)
         layout.addWidget(self.lbl_xml_path)
@@ -204,40 +199,37 @@ class SplashOverlayWidget(QWidget):
     def _build_model_card(self, parent: QWidget) -> CardWidget:
         card = CardWidget(parent)
         card.setObjectName("modelCard")
+        card.setFixedHeight(230)
         card.setStyleSheet(
             f"#modelCard {{ background-color: {UI_BG_CARD}; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; }} "
             "QLabel { background-color: transparent; border: none; }"
         )
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(28, 28, 28, 28)
-        layout.setSpacing(16)
+        layout.setContentsMargins(24, 22, 24, 22)
+        layout.setSpacing(12)
 
         lbl_title = StrongBodyLabel("Select Model", card)
-        lbl_title.setStyleSheet(f"background: transparent; color: {UI_ACCENT}; font-size: 16px; font-weight: bold;")
+        lbl_title.setStyleSheet(f"background: transparent; color: {UI_ACCENT}; font-size: 16px; font-weight: bold; border: none;")
         lbl_desc = CaptionLabel(
             "Choose the touch-detection model plugin to use.", card
         )
-        lbl_desc.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 12px;")
+        lbl_desc.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 12px; border: none;")
         lbl_desc.setWordWrap(True)
 
         layout.addWidget(lbl_title)
         layout.addWidget(lbl_desc)
 
-        lbl_model = BodyLabel("Model Plugin", card)
-        lbl_model.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-weight: 600; font-size: 12px;")
         self.combo_model = ComboBox(card)
         self.combo_model.setFixedHeight(36)
         self.combo_model.setPlaceholderText("No models found")
         self.combo_model.currentTextChanged.connect(self._update_buttons)
-
-        layout.addWidget(lbl_model)
         layout.addWidget(self.combo_model)
-        layout.addStretch(1)
 
         self.lbl_model_desc = CaptionLabel("", card)
-        self.lbl_model_desc.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px;")
+        self.lbl_model_desc.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px; border: none;")
         self.lbl_model_desc.setWordWrap(True)
         layout.addWidget(self.lbl_model_desc)
+        layout.addStretch(1)
 
         return card
 
@@ -254,38 +246,46 @@ class SplashOverlayWidget(QWidget):
         self._update_buttons()
 
     def set_layout_loaded(self, layout_data, xml_path: str) -> None:
-        self._layout_data = layout_data
-        self._xml_path = xml_path
-        name = Path(xml_path).name
-        btn_count = len(layout_data.buttons)
-        self.lbl_xml_path.setText(f"{name} ({btn_count} keys)")
-        self.lbl_xml_path.setStyleSheet(
-            f"background: transparent; color: #00DC64; font-size: 11px; font-weight: 600;"
-        )
+        if layout_data and hasattr(layout_data, "buttons") and len(layout_data.buttons) > 0:
+            self._layout_data = layout_data
+            self._xml_path = xml_path
+            name = Path(xml_path).name
+            btn_count = len(layout_data.buttons)
+            self.lbl_xml_path.setText(f"{name} ({btn_count} keys)")
+            self.lbl_xml_path.setStyleSheet(
+                f"background: transparent; color: #00DC64; font-size: 11px; font-weight: 600; border: none;"
+            )
+        else:
+            self._layout_data = None
+            self._xml_path = ""
+            self.lbl_xml_path.setText("Invalid layout: 0 keys detected")
+            self.lbl_xml_path.setStyleSheet(
+                f"background: transparent; color: #EF4444; font-size: 11px; font-weight: 600; border: none;"
+            )
         self._update_buttons()
 
     # ── Slots ──────────────────────────────────────────────────────────────────
 
     def _on_browse_clicked(self) -> None:
-        # Emit directly so MainWindow opens the file dialog once
         self.xml_browse_requested.emit()
 
-    def _on_configure_clicked(self) -> None:
-        if self._layout_data and self._xml_path:
+    def _on_continue_clicked(self) -> None:
+        if self._layout_data and self._xml_path and self.combo_model.currentText():
             self.configure_actions_requested.emit(
                 self._layout_data, self._xml_path, self.combo_model.currentText()
             )
 
-    def _on_quick_start_clicked(self) -> None:
-        if self._layout_data and self._xml_path:
-            self.quick_start_requested.emit(
-                self._layout_data, self._xml_path, self.combo_model.currentText()
-            )
-
     def _update_buttons(self) -> None:
-        ready = bool(self._layout_data and self._xml_path and self.combo_model.currentText())
-        self.btn_configure.setEnabled(ready)
-        self.btn_quick_start.setEnabled(ready)
+        has_valid_layout = bool(
+            self._layout_data
+            and hasattr(self._layout_data, "buttons")
+            and len(self._layout_data.buttons) > 0
+            and self._xml_path
+            and Path(self._xml_path).exists()
+        )
+        has_valid_model = bool(self.combo_model.currentText())
+        ready = has_valid_layout and has_valid_model
+        self.btn_continue.setEnabled(ready)
 
         name = self.combo_model.currentText()
         if hasattr(self, "_model_entries") and name in self._model_entries:

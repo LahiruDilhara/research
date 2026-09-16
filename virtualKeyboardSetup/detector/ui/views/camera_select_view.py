@@ -133,26 +133,32 @@ class CameraSelectView(QWidget):
     def _make_camera_card(self, cam: CameraInfo) -> CardWidget:
         card = CardWidget()
         card.setObjectName("cameraCard")
+        card.setBorderRadius(12)
         card.setStyleSheet(_CARD_STYLE)
-        card.setFixedSize(200, 140)
+        card.setFixedSize(220, 145)
         card.setCursor(Qt.PointingHandCursor)
 
         inner = QVBoxLayout(card)
-        inner.setContentsMargins(18, 18, 18, 18)
-        inner.setSpacing(8)
+        inner.setContentsMargins(18, 16, 18, 16)
+        inner.setSpacing(6)
+        inner.setAlignment(Qt.AlignCenter)
 
         icon_lbl = StrongBodyLabel("📷")
-        icon_lbl.setStyleSheet("background: transparent; font-size: 28px;")
+        icon_lbl.setAlignment(Qt.AlignCenter)
+        icon_lbl.setStyleSheet("background: transparent; font-size: 26px; border: none;")
+        
         name_lbl = StrongBodyLabel(cam.name)
-        name_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-size: 11px;")
+        name_lbl.setAlignment(Qt.AlignCenter)
+        name_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-size: 12px; font-weight: bold; border: none;")
         name_lbl.setWordWrap(True)
-        res_lbl = CaptionLabel(f"{cam.width}×{cam.height}  {cam.fps:.0f} fps")
-        res_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 10px;")
+        
+        res_lbl = CaptionLabel(f"{cam.width}×{cam.height}  •  {cam.fps:.0f} fps")
+        res_lbl.setAlignment(Qt.AlignCenter)
+        res_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px; border: none;")
 
         inner.addWidget(icon_lbl)
         inner.addWidget(name_lbl)
         inner.addWidget(res_lbl)
-        inner.addStretch(1)
 
         card.mousePressEvent = lambda _e, idx=cam.index: self._select_camera(idx)
         return card

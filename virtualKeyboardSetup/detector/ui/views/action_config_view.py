@@ -66,10 +66,11 @@ class ActionConfigView(QWidget):
 
         # ── Header Toolbar ────────────────────────────────────────────────────
         header_row = QHBoxLayout()
+        header_row.setContentsMargins(0, 0, 0, 0)
         header_row.setSpacing(16)
 
         title_col = QVBoxLayout()
-        title_col.setSpacing(2)
+        title_col.setSpacing(3)
         title = SubtitleLabel("Configure Key Actions", self)
         title.setStyleSheet(f"background: transparent; color: {UI_ACCENT}; font-size: 20px; font-weight: bold;")
         hint = CaptionLabel(
@@ -87,7 +88,7 @@ class ActionConfigView(QWidget):
         self.mode_switcher.addItem("gridMode", "All Keys Grid")
         self.mode_switcher.setCurrentItem("visualMode")
         self.mode_switcher.currentItemChanged.connect(self._on_mode_changed)
-        header_row.addWidget(self.mode_switcher)
+        header_row.addWidget(self.mode_switcher, 0, Qt.AlignVCenter)
 
         root.addLayout(header_row)
 
@@ -99,7 +100,7 @@ class ActionConfigView(QWidget):
         visual_page = QWidget(self.stack)
         visual_page.setStyleSheet("background: transparent;")
         v_layout = QHBoxLayout(visual_page)
-        v_layout.setContentsMargins(0, 0, 0, 0)
+        v_layout.setContentsMargins(0, 4, 0, 4)
         v_layout.setSpacing(16)
 
         self.layout_map = InteractiveLayoutMapWidget(visual_page)
@@ -120,7 +121,7 @@ class ActionConfigView(QWidget):
         grid_page = QWidget(self.stack)
         grid_page.setStyleSheet("background: transparent;")
         g_layout = QVBoxLayout(grid_page)
-        g_layout.setContentsMargins(0, 0, 0, 0)
+        g_layout.setContentsMargins(0, 4, 0, 4)
 
         scroll = SingleDirectionScrollArea(orient=Qt.Vertical)
         scroll.setWidgetResizable(True)
@@ -129,8 +130,12 @@ class ActionConfigView(QWidget):
         grid_container = QWidget()
         grid_container.setStyleSheet("background-color: transparent;")
         self._grid = QGridLayout(grid_container)
-        self._grid.setContentsMargins(0, 4, 0, 4)
-        self._grid.setSpacing(12)
+        self._grid.setContentsMargins(4, 8, 12, 16)
+        self._grid.setSpacing(14)
+        self._grid.setAlignment(Qt.AlignTop)
+        self._grid.setColumnStretch(0, 1)
+        self._grid.setColumnStretch(1, 1)
+        self._grid.setColumnStretch(2, 1)
 
         for idx, btn in enumerate(self._vm.buttons):
             action = self._vm.get_action(btn.id)
@@ -148,6 +153,7 @@ class ActionConfigView(QWidget):
 
         # ── Footer Toolbar ────────────────────────────────────────────────────
         btn_row = QHBoxLayout()
+        btn_row.setContentsMargins(0, 4, 0, 0)
         btn_row.setSpacing(12)
 
         self.btn_back = PushButton(FluentIcon.RETURN, "Back", self)

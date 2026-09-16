@@ -59,11 +59,8 @@ class MainWindow(FluentWindow):
         self._build_pages()
         self._connect_startup_vm()
 
-        # Discover plugins & auto-load last XML layout if available
+        # Discover plugins
         self._startup_vm.discover_models()
-        if self._config.last_xml_path and Path(self._config.last_xml_path).exists():
-            logger.info("Auto-loading last used XML layout: %s", self._config.last_xml_path)
-            self._startup_vm.load_layout(self._config.last_xml_path)
 
     # ── Window setup ───────────────────────────────────────────────────────────
 

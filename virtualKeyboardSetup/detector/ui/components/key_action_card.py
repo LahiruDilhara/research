@@ -8,10 +8,11 @@ Emits changed(button_id, type, value) whenever the user edits.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QStackedLayout, QVBoxLayout, QWidget
 from qfluentwidgets import (
     BodyLabel,
+    CaptionLabel,
     CardWidget,
     ComboBox,
     LineEdit,
@@ -24,11 +25,11 @@ from ui.components.key_capture_edit import KeyCaptureButton
 
 _ACTION_TYPES = ["none", "keystroke", "shortcut", "shell", "macro"]
 _PLACEHOLDERS = {
-    "none":      "—",
+    "none":      "No action",
     "keystroke": "Click to press key...",
     "shortcut":  "Click to press shortcut...",
-    "shell":     "e.g.  xdotool key XF86AudioPlay",
-    "macro":     "e.g.  ctrl+c:200:ctrl+v",
+    "shell":     "e.g. xdotool key XF86AudioPlay",
+    "macro":     "e.g. ctrl+c:200:ctrl+v",
 }
 
 
@@ -40,11 +41,13 @@ class KeyActionCard(QWidget):
     def __init__(self, button_id: str, label: str, action: ActionData, parent=None) -> None:
         super().__init__(parent)
         self._button_id = button_id
-        self._building  = True
+        self._building = True
+        self.setFixedHeight(104)
 
         card = CardWidget(self)
         card.setObjectName("keyCard")
         card.setBorderRadius(10)
+        card.setFixedHeight(104)
         card.setStyleSheet(
             f"#keyCard {{ background-color: {UI_BG_CARD}; border: 1px solid rgba(255, 255, 255, 0.06); }} "
             "QLabel { background-color: transparent; border: none; }"
@@ -55,28 +58,34 @@ class KeyActionCard(QWidget):
         outer.addWidget(card)
 
         inner = QVBoxLayout(card)
-        inner.setContentsMargins(16, 12, 16, 14)
+        inner.setContentsMargins(14, 12, 14, 12)
         inner.setSpacing(10)
 
-        # Key label
-        key_lbl = StrongBodyLabel(label)
-        key_lbl.setStyleSheet(
-            f"background: transparent; color: {UI_ACCENT}; font-size: 13px; font-weight: bold;"
-        )
-        id_lbl = BodyLabel(f"id: {button_id}")
-        id_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 10px;")
-
+        # Header: Key label + ID
         header = QHBoxLayout()
-        header.addWidget(key_lbl)
+        header.setContentsMargins(0, 0, 0, 0)
+        header.setSpacing(8)
+
+        key_lbl = StrongBodyLabel(label, card)
+        key_lbl.setStyleSheet(
+            f"background: transparent; color: {UI_ACCENT}; font-size: 14px; font-weight: bold;"
+        )
+        id_lbl = CaptionLabel(f"id: {button_id}", card)
+        id_lbl.setStyleSheet(
+            f"background: transparent; color: {UI_TEXT_SEC}; border: none; font-size: 11px;"
+        )
+
+        header.addWidget(key_lbl, 0, Qt.AlignVCenter)
         header.addStretch(1)
-        header.addWidget(id_lbl)
+        header.addWidget(id_lbl, 0, Qt.AlignVCenter)
         inner.addLayout(header)
 
-        # Action type + value row
+        # Controls row: Action type combo + input container
         row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(10)
 
-        self._combo = ComboBox()
+        self._combo = ComboBox(card)
         self._combo.addItems(_ACTION_TYPES)
         self._combo.setFixedWidth(115)
         self._combo.setFixedHeight(34)
@@ -84,8 +93,8 @@ class KeyActionCard(QWidget):
         self._combo.setCurrentIndex(idx)
         self._combo.currentTextChanged.connect(self._on_type_changed)
 
-        # Input container
-        self._input_container = QWidget()
+        # Input container with stacked layout
+        self._input_container = QWidget(card)
         self._input_container.setStyleSheet("background: transparent;")
         self._stack = QStackedLayout(self._input_container)
         self._stack.setContentsMargins(0, 0, 0, 0)
@@ -102,8 +111,8 @@ class KeyActionCard(QWidget):
 
         self._update_input_mode(action.type, action.value)
 
-        row.addWidget(self._combo)
-        row.addWidget(self._input_container, 1)
+        row.addWidget(self._combo, 0, Qt.AlignVCenter)
+        row.addWidget(self._input_container, 1, Qt.AlignVCenter)
         inner.addLayout(row)
 
         self._building = False
@@ -151,3 +160,4 @@ class KeyActionCard(QWidget):
     def get_action(self) -> ActionData:
         val = self._capture_btn.value if self._stack.currentIndex() == 0 else self._value_edit.text()
         return ActionData(type=self._combo.currentText(), value=val)
+

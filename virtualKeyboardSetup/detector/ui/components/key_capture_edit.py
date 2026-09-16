@@ -168,21 +168,21 @@ class KeyCaptureButton(QPushButton):
 
     def _update_style(self) -> None:
         if self._recording:
-            self.setText("⌨️ Press key or combo now...")
+            self.setText("Listening... Press key or combo")
             self.setStyleSheet(
-                f"background-color: #0E3A5A; color: #00DC64; "
-                f"border: 2px solid {UI_ACCENT}; border-radius: 6px; font-weight: bold; font-size: 11px; padding: 4px;"
+                "background-color: #1A2433; color: #38BDF8; "
+                f"border: 1px solid {UI_ACCENT}; border-radius: 6px; font-weight: 600; font-size: 11px; padding: 4px;"
             )
         elif self._value:
-            prefix = "⚡ " if self._mode == "shortcut" else "🔤 "
-            self.setText(f"{prefix}{self._value} (Click to change)")
+            display_val = self._value.upper() if self._mode == "shortcut" else self._value
+            self.setText(f"{display_val} (Click to rebind)")
             self.setStyleSheet(
-                "background-color: #1E293B; color: #FFFFFF; "
-                f"border: 1px solid rgba(0, 159, 239, 0.5); border-radius: 6px; font-weight: bold; font-size: 12px; padding: 4px;"
+                "background-color: #1E1E28; color: #F1F5F9; "
+                "border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 6px; font-weight: 600; font-size: 12px; padding: 4px;"
             )
         else:
-            self.setText("⌨️ Click to record keypress...")
+            self.setText("Click to record key...")
             self.setStyleSheet(
-                f"background-color: rgba(255, 255, 255, 0.04); color: {UI_TEXT_SEC}; "
-                "border: 1px dashed rgba(255, 255, 255, 0.15); border-radius: 6px; font-size: 11px; padding: 4px;"
+                f"background-color: rgba(255, 255, 255, 0.03); color: {UI_TEXT_SEC}; "
+                "border: 1px dashed rgba(255, 255, 255, 0.12); border-radius: 6px; font-size: 11px; padding: 4px;"
             )

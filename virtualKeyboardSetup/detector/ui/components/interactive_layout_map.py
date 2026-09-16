@@ -25,6 +25,15 @@ from core.action.action_executor import ActionData
 from core.layout.layout_parser import ButtonData, LayoutData, MarkerData
 
 
+_ACTION_COLORS: dict[str, QColor] = {
+    "keystroke": QColor("#38BDF8"),  # Soft Sky Blue
+    "shortcut":  QColor("#A78BFA"),  # Soft Purple / Lavender
+    "shell":     QColor("#FBBF24"),  # Soft Amber
+    "macro":     QColor("#34D399"),  # Soft Emerald
+    "none":      QColor("#64748B"),  # Subtle Slate
+}
+
+
 class InteractiveLayoutMapWidget(QWidget):
     """Interactive paper layout canvas where users can visually inspect and click buttons to configure."""
 
@@ -149,25 +158,19 @@ class InteractiveLayoutMapWidget(QWidget):
         painter.setBrush(QColor("#1A1A24"))
         painter.drawRoundedRect(self._paper_rect, 8, 8)
 
-        # Layout Title / Project Name at top of canvas
+        # Layout Title / Project Name at top of canvas (Centered)
         title_text = self._layout.project_name or "Paper Virtual Keyboard"
-        painter.setPen(QColor("#009FEF"))
-        painter.setFont(QFont("Segoe UI", 13, QFont.Bold))
-        painter.drawText(
-            QRectF(self._paper_rect.left() + 12, self._paper_rect.top() - 26, self._paper_rect.width() - 24, 22),
-            Qt.AlignLeft | Qt.AlignVCenter,
-            f"📄 {title_text}",
-        )
+        painter.setPen(QColor("#E2E8F0"))
+        painter.setFont(QFont("Segoe UI", 12, QFont.Bold))
+        title_rect = QRectF(self._paper_rect.left(), self._paper_rect.top() - 28, self._paper_rect.width(), 22)
+        painter.drawText(title_rect, Qt.AlignCenter, title_text)
 
-        # Dimension watermark & Button count at bottom
+        # Dimension watermark & Button count at bottom (Centered)
         dim_text = f"{self._layout.paper_width_mm:.0f} × {self._layout.paper_height_mm:.0f} mm  •  {len(self._layout.buttons)} keys  •  {len(self._layout.markers)} anchors"
         painter.setPen(QColor("#64748B"))
         painter.setFont(QFont("Segoe UI", 9, QFont.Medium))
-        painter.drawText(
-            QRectF(self._paper_rect.left() + 10, self._paper_rect.bottom() + 4, self._paper_rect.width() - 20, 20),
-            Qt.AlignLeft | Qt.AlignVCenter,
-            dim_text,
-        )
+        dim_rect = QRectF(self._paper_rect.left(), self._paper_rect.bottom() + 6, self._paper_rect.width(), 20)
+        painter.drawText(dim_rect, Qt.AlignCenter, dim_text)
 
     def _draw_markers(self, painter: QPainter) -> None:
         for m in self._layout.markers:
@@ -192,6 +195,9 @@ class InteractiveLayoutMapWidget(QWidget):
             painter.setBrush(QColor("#000000"))
             painter.drawRect(core_rect)
 
+        # Reset brush after drawing all markers
+        painter.setBrush(Qt.NoBrush)
+
     def _draw_buttons(self, painter: QPainter) -> None:
         for b in self._layout.buttons:
             px_x, px_y = self._mm_to_px(b.x_mm, b.y_mm)
@@ -204,38 +210,39 @@ class InteractiveLayoutMapWidget(QWidget):
 
             act = self._actions.get(b.id, ActionData(type="none", value=""))
             has_action = (act.type != "none" and bool(act.value))
+            tint = _ACTION_COLORS.get(act.type, _ACTION_COLORS["none"])
 
             # Button background path
             path = QPainterPath()
-            path.addRoundedRect(btn_rect, 6, 6)
+            path.addRoundedRect(btn_rect, 5, 5)
+
+            # All buttons share the exact same clean base background
+            painter.fillPath(path, QColor("#1E1E28"))
 
             if is_selected:
-                painter.fillPath(path, QColor("#0D2A40"))
-                painter.setPen(QPen(QColor(UI_ACCENT), 2.2))
+                border_pen = QPen(QColor(UI_ACCENT), 1.8)
             elif is_hovered:
-                painter.fillPath(path, QColor("#222A3A"))
-                painter.setPen(QPen(QColor(UI_ACCENT).lighter(120), 1.6))
+                border_pen = QPen(QColor(255, 255, 255, 90), 1.2)
             elif has_action:
-                painter.fillPath(path, QColor("#16202A"))
-                painter.setPen(QPen(QColor("#00DC64"), 1.2))
+                border_pen = QPen(QColor(tint.red(), tint.green(), tint.blue(), 80), 1.0)
             else:
-                painter.fillPath(path, QColor("#232330"))
-                painter.setPen(QPen(QColor(255, 255, 255, 45), 1.0))
+                border_pen = QPen(QColor(255, 255, 255, 30), 1.0)
 
-            painter.drawPath(path)
+            # Stroke border only (no brush fill leakage)
+            painter.strokePath(path, border_pen)
 
-            # Prominent Key Label
+            # Standardized Key Label (moderated font size)
             label_text = b.label if b.label.strip() else b.id
-            font_sz = max(9, int(min(px_h * 0.38, px_w * 0.26, 16)))
+            font_sz = max(8, int(min(px_h * 0.28, px_w * 0.20, 12)))
             font = QFont("Segoe UI", font_sz, QFont.Bold)
             painter.setFont(font)
-            painter.setPen(QColor("#FFFFFF" if (is_selected or is_hovered or has_action) else "#E2E8F0"))
+            painter.setPen(QColor("#FFFFFF" if (is_selected or is_hovered or has_action) else "#CBD5E1"))
 
             # Calculate label and subtitle boxes
-            has_sub = bool(has_action or px_h > 24)
+            has_sub = bool(has_action or px_h > 22)
             if has_sub:
-                lbl_box = QRectF(btn_rect.left() + 4, btn_rect.top() + 3, btn_rect.width() - 8, btn_rect.height() * 0.52)
-                sub_box = QRectF(btn_rect.left() + 4, btn_rect.top() + btn_rect.height() * 0.50, btn_rect.width() - 8, btn_rect.height() * 0.45)
+                lbl_box = QRectF(btn_rect.left() + 3, btn_rect.top() + 2, btn_rect.width() - 6, btn_rect.height() * 0.52)
+                sub_box = QRectF(btn_rect.left() + 3, btn_rect.top() + btn_rect.height() * 0.48, btn_rect.width() - 6, btn_rect.height() * 0.46)
             else:
                 lbl_box = btn_rect
                 sub_box = QRectF()
@@ -244,26 +251,27 @@ class InteractiveLayoutMapWidget(QWidget):
 
             # Action subtitle badge
             if has_action:
-                painter.setPen(QColor("#00DC64"))
-                sub_font = QFont("Segoe UI", max(7, font_sz - 3), QFont.DemiBold)
+                painter.setPen(tint)
+                sub_font = QFont("Segoe UI", max(7, font_sz - 2), QFont.Medium)
                 painter.setFont(sub_font)
-                act_str = f"[{act.value}]" if len(act.value) <= 10 else f"[{act.value[:8]}…]"
+                act_str = f"[{act.value}]" if len(act.value) <= 10 else f"[{act.value[:8]}...]"
                 painter.drawText(sub_box, Qt.AlignCenter, act_str)
             elif has_sub:
                 painter.setPen(QColor("#64748B"))
-                sub_font = QFont("Segoe UI", max(7, font_sz - 4))
+                sub_font = QFont("Segoe UI", max(7, font_sz - 3))
                 painter.setFont(sub_font)
                 painter.drawText(sub_box, Qt.AlignCenter, b.id)
 
-            # Status dot in top right
-            dot_r = 3.5
-            dot_center = QPointF(btn_rect.right() - 7, btn_rect.top() + 7)
+            # Small status dot in top right
+            dot_r = 3.0
+            dot_center = QPointF(btn_rect.right() - 6, btn_rect.top() + 6)
             painter.setPen(Qt.NoPen)
             if has_action:
-                painter.setBrush(QColor("#00DC64"))
+                painter.setBrush(tint)
             else:
-                painter.setBrush(QColor(255, 255, 255, 30))
+                painter.setBrush(QColor(255, 255, 255, 20))
             painter.drawEllipse(dot_center, dot_r, dot_r)
+            painter.setBrush(Qt.NoBrush)
 
     # ── Mouse Interaction ──────────────────────────────────────────────────────
 
@@ -284,13 +292,8 @@ class InteractiveLayoutMapWidget(QWidget):
             self._hovered_button_id = hovered_btn
             if hovered_btn:
                 self.setCursor(Qt.PointingHandCursor)
-                b_obj = next((b for b in self._layout.buttons if b.id == hovered_btn), None)
-                act = self._actions.get(hovered_btn, ActionData(type="none", value=""))
-                act_desc = f"{act.type}: {act.value}" if act.type != "none" else "No action"
-                self.setToolTip(f"{b_obj.label if b_obj else hovered_btn} ({hovered_btn})\nAction: {act_desc}")
             else:
                 self.setCursor(Qt.ArrowCursor)
-                self.setToolTip("")
             self.update()
 
     def mousePressEvent(self, event) -> None:

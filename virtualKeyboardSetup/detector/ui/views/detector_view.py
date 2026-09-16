@@ -20,6 +20,7 @@ from qfluentwidgets import (
     CardWidget,
     FluentIcon,
     PushButton,
+    SingleDirectionScrollArea,
     StrongBodyLabel,
 )
 
@@ -76,14 +77,25 @@ class DetectorView(QWidget):
         sidebar.setStyleSheet(
             "QWidget { background-color: #18181C; border-left: 1px solid rgba(255,255,255,0.06); }"
         )
-        sb_layout = QVBoxLayout(sidebar)
-        sb_layout.setContentsMargins(16, 20, 16, 16)
-        sb_layout.setSpacing(14)
+        sb_outer_layout = QVBoxLayout(sidebar)
+        sb_outer_layout.setContentsMargins(14, 16, 14, 16)
+        sb_outer_layout.setSpacing(12)
 
         # Title
         title_lbl = StrongBodyLabel("DETECTOR HUD")
         title_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-size: 15px; letter-spacing: 1px;")
-        sb_layout.addWidget(title_lbl)
+        sb_outer_layout.addWidget(title_lbl)
+
+        # Scrollable container for sidebar metrics & controls
+        sb_scroll = SingleDirectionScrollArea(orient=Qt.Vertical)
+        sb_scroll.setWidgetResizable(True)
+        sb_scroll.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
+
+        sb_content = QWidget()
+        sb_content.setStyleSheet("background-color: transparent;")
+        sb_layout = QVBoxLayout(sb_content)
+        sb_layout.setContentsMargins(0, 0, 6, 0)
+        sb_layout.setSpacing(12)
 
         # ── Model info card ───────────────────────────────────────────────────
         sb_layout.addWidget(self._make_section_label("Active Model"))
@@ -104,11 +116,11 @@ class DetectorView(QWidget):
         perf_inner = QHBoxLayout(perf)
         perf_inner.setContentsMargins(14, 10, 14, 10)
 
-        self.lbl_fps = StrongBodyLabel("FPS: —")
+        self.lbl_fps = StrongBodyLabel("FPS: 0.0")
         self.lbl_fps.setStyleSheet("background: transparent; color: #00DC64; font-size: 12px;")
         self.lbl_layout_status = CaptionLabel("Layout: Searching...")
         self.lbl_layout_status.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px;")
-        self.lbl_hand_status = CaptionLabel("Hand: —")
+        self.lbl_hand_status = CaptionLabel("Hand: Not visible")
         self.lbl_hand_status.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px;")
 
         perf_inner.addWidget(self.lbl_fps)
@@ -129,13 +141,14 @@ class DetectorView(QWidget):
         self.event_log = TouchEventLog()
         sb_layout.addWidget(self.event_log)
 
-        sb_layout.addStretch(1)
+        sb_scroll.setWidget(sb_content)
+        sb_outer_layout.addWidget(sb_scroll, 1)
 
         # ── Stop button ───────────────────────────────────────────────────────
         self.btn_stop = PushButton(FluentIcon.CLOSE, "Stop Detector")
         self.btn_stop.setFixedHeight(40)
         self.btn_stop.clicked.connect(self._on_stop)
-        sb_layout.addWidget(self.btn_stop)
+        sb_outer_layout.addWidget(self.btn_stop)
 
         main_row.addWidget(sidebar)
 
@@ -157,16 +170,18 @@ class DetectorView(QWidget):
         hand_detected: bool,
         layout_found: bool,
     ) -> None:
-        self.feed.update_frame(frame)
+        if frame is not None and isinstance(frame, np.ndarray) and frame.size > 0:
+            self.feed.update_frame(frame)
+
         self.lbl_fps.setText(f"FPS: {fps:.1f}")
         self.lbl_layout_status.setText(
-            "Layout: ✓ Found" if layout_found else "Layout: Searching..."
+            "Layout: Tracked" if layout_found else "Layout: Searching..."
         )
         self.lbl_layout_status.setStyleSheet(
             f"background: transparent; color: {'#00DC64' if layout_found else UI_TEXT_SEC}; font-size: 11px;"
         )
         self.lbl_hand_status.setText(
-            "Hand: ✓ Detected" if hand_detected else "Hand: Not visible"
+            "Hand: Detected" if hand_detected else "Hand: Not visible"
         )
 
         if not hand_detected:

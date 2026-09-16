@@ -69,38 +69,44 @@ class ActionInspectorCard(QWidget):
 
         card = CardWidget(self)
         card.setBorderRadius(12)
-        card.setStyleSheet(f"background-color: {UI_BG_CARD}; border: 1px solid rgba(255, 255, 255, 0.06);")
+        card.setStyleSheet(
+            f"background-color: {UI_BG_CARD}; border: 1px solid rgba(255, 255, 255, 0.06); "
+            "QLabel { background: transparent; border: none; }"
+        )
 
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(14)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(12)
 
         # ── Header ────────────────────────────────────────────────────────────
         header_row = QHBoxLayout()
+        header_row.setContentsMargins(0, 0, 0, 0)
         self.lbl_title = StrongBodyLabel("Key Inspector", card)
-        self.lbl_title.setStyleSheet(f"background: transparent; color: {UI_ACCENT}; font-size: 15px; font-weight: bold;")
+        self.lbl_title.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-size: 15px; font-weight: bold; border: none;")
         
-        self.lbl_status_badge = CaptionLabel("No Key Selected", card)
-        self.lbl_status_badge.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px;")
+        self.lbl_status_badge = CaptionLabel("Unbound", card)
+        self.lbl_status_badge.setStyleSheet(
+            f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px; border: none;"
+        )
 
         header_row.addWidget(self.lbl_title)
         header_row.addStretch(1)
         header_row.addWidget(self.lbl_status_badge)
         layout.addLayout(header_row)
 
-        # Key dimensions & ID info
-        self.lbl_id_info = BodyLabel("Select a key from the visual map", card)
-        self.lbl_id_info.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-size: 12px; font-weight: 600;")
+        # Key details (direct transparent labels)
+        self.lbl_id_info = BodyLabel("Select a key from the map", card)
+        self.lbl_id_info.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-size: 13px; font-weight: 600; border: none;")
         
         self.lbl_geo_info = CaptionLabel("", card)
-        self.lbl_geo_info.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 10px;")
+        self.lbl_geo_info.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px; border: none;")
 
         layout.addWidget(self.lbl_id_info)
         layout.addWidget(self.lbl_geo_info)
 
         # ── Action Type ────────────────────────────────────────────────────────
         lbl_type = StrongBodyLabel("Action Type", card)
-        lbl_type.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-size: 11px;")
+        lbl_type.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px; font-weight: 600; border: none;")
         
         self.combo_type = ComboBox(card)
         self.combo_type.addItems(_ACTION_TYPES)
@@ -112,7 +118,7 @@ class ActionInspectorCard(QWidget):
 
         # ── Action Value / Input Container ─────────────────────────────────────
         self.lbl_value = StrongBodyLabel("Assigned Action / Key", card)
-        self.lbl_value.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-size: 11px;")
+        self.lbl_value.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px; font-weight: 600; border: none;")
         layout.addWidget(self.lbl_value)
 
         # Stacked inputs: index 0 = KeyCaptureButton (for keystroke/shortcut), index 1 = LineEdit (for shell/macro)
@@ -135,7 +141,9 @@ class ActionInspectorCard(QWidget):
         layout.addWidget(self._input_stack_widget)
 
         self.lbl_type_hint = CaptionLabel(_TYPE_DESCRIPTIONS["none"], card)
-        self.lbl_type_hint.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 10px;")
+        self.lbl_type_hint.setStyleSheet(
+            f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px; border: none; padding: 0px;"
+        )
         self.lbl_type_hint.setWordWrap(True)
         layout.addWidget(self.lbl_type_hint)
 
@@ -175,9 +183,9 @@ class ActionInspectorCard(QWidget):
         self._building = True
 
         self.lbl_title.setText(f'Key: "{button.label}"')
-        self.lbl_id_info.setText(f"Button ID: {button.id}")
+        self.lbl_id_info.setText(f"{button.label}  ({button.id})")
         self.lbl_geo_info.setText(
-            f"Size: {button.width_mm:.1f} × {button.height_mm:.1f} mm   Pos: ({button.x_mm:.1f}, {button.y_mm:.1f})"
+            f"Size: {button.width_mm:.1f} × {button.height_mm:.1f} mm  •  Pos: ({button.x_mm:.1f}, {button.y_mm:.1f})"
         )
 
         act = action or ActionData(type="none", value="")
@@ -196,10 +204,12 @@ class ActionInspectorCard(QWidget):
         self._building = True
         self._button = None
         self.lbl_title.setText("Key Inspector")
-        self.lbl_id_info.setText("Select a key from the visual map")
+        self.lbl_id_info.setText("Select a key from the map")
         self.lbl_geo_info.setText("")
-        self.lbl_status_badge.setText("No Key Selected")
-        self.lbl_status_badge.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px;")
+        self.lbl_status_badge.setText("Unbound")
+        self.lbl_status_badge.setStyleSheet(
+            f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px; border: none;"
+        )
         self.combo_type.setCurrentIndex(0)
         self.key_capture_btn.set_value("")
         self.edit_value.setText("")
@@ -265,8 +275,12 @@ class ActionInspectorCard(QWidget):
 
     def _update_badge(self, type_str: str, value_str: str) -> None:
         if type_str != "none" and value_str:
-            self.lbl_status_badge.setText(f"● {type_str.capitalize()}: {value_str}")
-            self.lbl_status_badge.setStyleSheet("background: transparent; color: #00DC64; font-size: 11px; font-weight: bold;")
+            self.lbl_status_badge.setText(f"{type_str.capitalize()}: {value_str}")
+            self.lbl_status_badge.setStyleSheet(
+                "background: transparent; color: #00DC64; font-size: 11px; font-weight: 600; border: none;"
+            )
         else:
-            self.lbl_status_badge.setText("○ Unbound")
-            self.lbl_status_badge.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px;")
+            self.lbl_status_badge.setText("Unbound")
+            self.lbl_status_badge.setStyleSheet(
+                f"background: transparent; color: {UI_TEXT_SEC}; font-size: 11px; border: none;"
+            )
