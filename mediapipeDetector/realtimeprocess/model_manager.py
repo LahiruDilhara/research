@@ -26,6 +26,7 @@ from deepLearningModels.model_arch import parse_variant_csv, get_data_paths
 from realtimeprocess.realtime_pipeline import (
     HandScaleNormalizer,
     compute_window_velocities,
+    validate_hand_movement,
     unroll_per_finger_window,
     extract_variant_tensor,
     ALL_21_LANDMARK_NAMES,
@@ -36,9 +37,10 @@ from realtimeprocess.realtime_pipeline import (
 class ModelManager:
     """Discovers, loads, and executes PyTorch models for real-time streaming touch inference."""
 
-    def __init__(self, weights_dir: Path = None, device: str = None):
+    def __init__(self, weights_dir: Path = None, device: str = None, hand_movement_threshold: float = 0.175):
         self.project_root = PROJECT_ROOT
         self.weights_dir = weights_dir or (self.project_root / "deepLearningModels" / "weights")
+        self.hand_movement_threshold = hand_movement_threshold
 
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -203,25 +205,57 @@ class ModelManager:
         6. Runs model inference and returns per-finger Touch status & probability dict.
         """
         if self.active_model is None:
-            return {f: {"touch": False, "prob": 0.0, "reason": "No Model"} for f in FINGERS}
+            return {
+                f: {
+                    "touch": False,
+                    "prob": 0.0,
+                    "reason": "No Model",
+                    "hand_moving": False,
+                    "disp": 0.0,
+                }
+                for f in FINGERS
+            }
 
-        # Step 1: Compute 4 velocity steps from normalized 5 frames
+        # Step 1: Check whole-hand transit movement (process.sh Step 7: stationary joint displacement <= threshold)
+        is_stationary, max_disp, hm_reason = validate_hand_movement(norm_frames_5, threshold=self.hand_movement_threshold)
+        if not is_stationary:
+            return {
+                f: {
+                    "touch": False,
+                    "prob": 0.0,
+                    "reason": hm_reason,
+                    "hand_moving": True,
+                    "disp": max_disp,
+                }
+                for f in FINGERS
+            }
+
+        # Step 2: Compute 4 velocity steps from normalized 5 frames
         v_steps_4 = compute_window_velocities(norm_frames_5)
 
-        # Step 2: Validate window quality & dataset cleaning rules (process.sh Steps 8 & 9)
+        # Step 3: Validate window quality & dataset cleaning rules (process.sh Steps 8 & 9)
         from realtimeprocess.realtime_pipeline import validate_realtime_window_quality
         is_valid, reason = validate_realtime_window_quality(v_steps_4, hand_scores_5, min_avg_score=0.65)
         if not is_valid:
-            return {f: {"touch": False, "prob": 0.0, "reason": reason} for f in FINGERS}
+            return {
+                f: {
+                    "touch": False,
+                    "prob": 0.0,
+                    "reason": reason,
+                    "hand_moving": False,
+                    "disp": max_disp,
+                }
+                for f in FINGERS
+            }
 
-        # Step 3: Unroll 5 fingers
+        # Step 4: Unroll 5 fingers
         finger_rows = unroll_per_finger_window(norm_frames_5, v_steps_4)
 
-        # Step 4: Extract feature tensor
+        # Step 5: Extract feature tensor
         variant_name = self.active_info["variant_name"]
         X_np = extract_variant_tensor(finger_rows, variant_name)
 
-        # Step 5: Apply StandardScaler matching training normalization (model_arch.py: normalize)
+        # Step 6: Apply StandardScaler matching training normalization (model_arch.py: normalize)
         scaler = self.get_scaler_for_variant(variant_name)
         if scaler is not None:
             N_b, T, C = X_np.shape
@@ -229,7 +263,7 @@ class ModelManager:
         else:
             X_scaled = X_np
 
-        # Step 6: PyTorch Inference
+        # Step 7: PyTorch Inference
         X_tensor = torch.from_numpy(X_scaled.astype(np.float32)).to(self.device)
 
         with torch.inference_mode():
@@ -242,6 +276,9 @@ class ModelManager:
             results[f_name] = {
                 "touch": bool(p >= 0.5),
                 "prob": p,
+                "reason": "OK",
+                "hand_moving": False,
+                "disp": max_disp,
             }
 
         return results

@@ -14,7 +14,8 @@ fi
 
 echo "========================================================================"
 echo "  STARTING REAL-TIME MEDIAPIPE TOUCH DETECTOR HUD"
-echo "  Python Binary : $PYTHON_BIN"
+echo "  Python Binary           : $PYTHON_BIN"
+echo "  Hand Movement Threshold : 0.175 L_hand (Step 7 Filter)"
 echo "========================================================================"
 
-exec "$PYTHON_BIN" "$SCRIPT_DIR/realtimeprocess/main_realtime_ui.py" "$@"
+exec "$PYTHON_BIN" "$SCRIPT_DIR/realtimeprocess/main_realtime_ui.py" --threshold 0.175 "$@"

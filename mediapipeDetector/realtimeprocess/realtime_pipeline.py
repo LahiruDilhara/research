@@ -93,8 +93,24 @@ def process_streaming_frame(
         for (nx, ny, _) in norm_pts
     ]
 
+    # Attach raw stationary coordinates for whole-hand transit movement filtering (Step 7)
+    f_dict["_raw_stationary"] = {
+        "wrist": (w_x, w_y),
+        "index_mcp": (i_x, i_y),
+        "middle_mcp": (m_x, m_y),
+        "ring_mcp": (r_x, r_y),
+        "pinky_mcp": (p_x, p_y),
+        "l_hand": l_hand,
+    }
+
     return f_dict, smooth_pts_px
 
+
+from realtimeprocess.stages.stage7_hand_movement import (
+    compute_hand_displacement,
+    validate_hand_movement,
+    STATIONARY_NAMES,
+)
 
 __all__ = [
     "ALL_21_LANDMARK_NAMES",
@@ -114,4 +130,7 @@ __all__ = [
     "validate_realtime_window_quality",
     "unroll_per_finger_window",
     "extract_variant_tensor",
+    "compute_hand_displacement",
+    "validate_hand_movement",
+    "STATIONARY_NAMES",
 ]

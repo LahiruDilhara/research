@@ -138,6 +138,45 @@ def run_model_manager_test():
     print("  ✅ Model Manager & Real-Time Inference Test PASSED!\n")
 
 
+def run_hand_movement_filter_test():
+    print("="*75)
+    print("  TEST 3: WHOLE-HAND TRANSIT MOVEMENT FILTER (THRESHOLD = 0.175 L_hand)")
+    print("="*75)
+
+    mm = ModelManager(hand_movement_threshold=0.175)
+    w_px, h_px = 640.0, 480.0
+    normalizer = HandScaleNormalizer()
+    scores_5 = [0.95] * 5
+
+    # Case A: Stationary hand with small finger movement
+    stat_window_5 = []
+    for t in range(5):
+        raw_pts = generate_synthetic_landmarks(t)
+        f_dict, _ = process_streaming_frame(raw_pts, w_px, h_px, float(t) * 0.083, normalizer)
+        stat_window_5.append(f_dict)
+
+    preds_stat = mm.predict_window(stat_window_5, scores_5, w_px, h_px)
+    assert not preds_stat["index"]["hand_moving"], "Expected stationary hand, but got moving!"
+    print(f"  ✓ Case A (Stationary): Disp = {preds_stat['index']['disp']:.4f} <= 0.175 | hand_moving = {preds_stat['index']['hand_moving']}")
+
+    # Case B: Moving hand across surface (e.g. wrist and knuckles shift by 40% of hand length)
+    moving_window_5 = []
+    for t in range(5):
+        raw_pts = generate_synthetic_landmarks(t)
+        # Shift entire hand across camera frame: dx = 0.05 * t
+        shifted_pts = [(x + 0.05 * t, y + 0.03 * t, z) for (x, y, z) in raw_pts]
+        f_dict, _ = process_streaming_frame(shifted_pts, w_px, h_px, float(t) * 0.083, normalizer)
+        moving_window_5.append(f_dict)
+
+    preds_moving = mm.predict_window(moving_window_5, scores_5, w_px, h_px)
+    assert preds_moving["index"]["hand_moving"], "Expected hand_moving=True, but was not detected!"
+    assert not preds_moving["index"]["touch"], "Touch should be suppressed when hand is moving!"
+    print(f"  ✓ Case B (Moving Hand): Disp = {preds_moving['index']['disp']:.4f} > 0.175 | hand_moving = {preds_moving['index']['hand_moving']} | reason = '{preds_moving['index']['reason']}'")
+
+    print("  ✅ Whole-Hand Movement Filter Test PASSED!\n")
+
+
 if __name__ == "__main__":
     run_pipeline_test()
     run_model_manager_test()
+    run_hand_movement_filter_test()

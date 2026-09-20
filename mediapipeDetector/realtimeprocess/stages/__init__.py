@@ -17,6 +17,7 @@ from .stage3_velocities import compute_window_velocities
 from .stage4_quality_filter import validate_realtime_window_quality
 from .stage5_finger_unroll import unroll_per_finger_window
 from .stage6_variant_extractor import extract_variant_tensor
+from .stage7_hand_movement import compute_hand_displacement, validate_hand_movement, STATIONARY_NAMES
 
 __all__ = [
     "HandScaleNormalizer",
@@ -26,4 +27,7 @@ __all__ = [
     "validate_realtime_window_quality",
     "unroll_per_finger_window",
     "extract_variant_tensor",
+    "compute_hand_displacement",
+    "validate_hand_movement",
+    "STATIONARY_NAMES",
 ]

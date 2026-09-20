@@ -37,11 +37,12 @@ ctk.set_default_color_theme("blue")
 class RealtimeTkApp(ctk.CTk):
     """Native CustomTkinter Desktop Application for Real-Time Touch Gesture Detection."""
 
-    def __init__(self, camera_src=0, device: str = None):
+    def __init__(self, camera_src=0, device: str = None, threshold: float = 0.175):
         super().__init__()
 
         print("\n" + "="*80)
         print("  REAL-TIME TOUCH GESTURE DETECTION NATIVE DESKTOP HUD")
+        print(f"  Hand Movement Filter Threshold : {threshold:.3f} L_hand")
         print("="*80)
 
         self.title("Real-Time MediaPipe Touch Gesture Detector")
@@ -49,8 +50,8 @@ class RealtimeTkApp(ctk.CTk):
         self.minsize(960, 540)
 
         # Model Manager & Async Window Shift State
-        self.model_manager = ModelManager(device=device)
-        self.last_predictions = {f: {"touch": False, "prob": 0.0} for f in ["thumb", "index", "middle", "ring", "pinky"]}
+        self.model_manager = ModelManager(device=device, hand_movement_threshold=threshold)
+        self.last_predictions = {f: {"touch": False, "prob": 0.0, "hand_moving": False, "disp": 0.0} for f in ["thumb", "index", "middle", "ring", "pinky"]}
         self.inference_latency_ms = 0.0
 
         # Camera Thread (12 FPS continuous capture)
@@ -143,7 +144,7 @@ class RealtimeTkApp(ctk.CTk):
 
         # Performance Stats Badge Panel (FPS & Latency)
         self.perf_frame = ctk.CTkFrame(self.sidebar, fg_color="#22222A", corner_radius=6)
-        self.perf_frame.pack(padx=20, pady=(0, 15), fill="x")
+        self.perf_frame.pack(padx=20, pady=(0, 10), fill="x")
 
         self.lbl_fps = ctk.CTkLabel(
             self.perf_frame,
@@ -160,6 +161,26 @@ class RealtimeTkApp(ctk.CTk):
             text_color="#CCCCCC"
         )
         self.lbl_latency.pack(side="right", padx=15, pady=8)
+
+        # Motion Filter Status Panel (process.sh Step 7)
+        self.motion_frame = ctk.CTkFrame(self.sidebar, fg_color="#22222A", corner_radius=6)
+        self.motion_frame.pack(padx=20, pady=(0, 15), fill="x")
+
+        self.lbl_motion_status = ctk.CTkLabel(
+            self.motion_frame,
+            text="Motion: STATIONARY",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#00FF80"
+        )
+        self.lbl_motion_status.pack(side="left", padx=15, pady=8)
+
+        self.lbl_motion_disp = ctk.CTkLabel(
+            self.motion_frame,
+            text=f"Disp: 0.000 / {self.model_manager.hand_movement_threshold:.3f}",
+            font=ctk.CTkFont(size=11),
+            text_color="#CCCCCC"
+        )
+        self.lbl_motion_disp.pack(side="right", padx=15, pady=8)
 
         # ── 3. Native Per-Finger Touch Status Dashboard ──────────────────────
         self.lbl_cards_title = ctk.CTkLabel(
@@ -301,21 +322,45 @@ class RealtimeTkApp(ctk.CTk):
             ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(new_w, new_h))
             self.video_label.configure(image=ctk_img)
 
-            # 2. Update Performance Badges
+            # 2. Update Performance & Motion Filter Badges
             self.lbl_fps.configure(text=f"FPS: {actual_fps:.1f}")
             self.lbl_latency.configure(text=f"Latency: {self.inference_latency_ms:.2f} ms")
+
+            sample_pred = next(iter(self.last_predictions.values()), {})
+            is_hand_moving = sample_pred.get("hand_moving", False)
+            disp = sample_pred.get("disp", 0.0)
+            thresh = self.model_manager.hand_movement_threshold
+
+            if not detected:
+                self.lbl_motion_status.configure(text="Motion: --", text_color="#808090")
+                self.lbl_motion_disp.configure(text=f"Disp: -- / {thresh:.3f}", text_color="#808090")
+                self.motion_frame.configure(fg_color="#22222A")
+            elif is_hand_moving:
+                self.lbl_motion_status.configure(text="Motion: HAND MOVING", text_color="#FFA500")
+                self.lbl_motion_disp.configure(text=f"Disp: {disp:.3f} > {thresh:.3f}", text_color="#FFA500")
+                self.motion_frame.configure(fg_color="#3A2810")
+            else:
+                self.lbl_motion_status.configure(text="Motion: STATIONARY", text_color="#00FF80")
+                self.lbl_motion_disp.configure(text=f"Disp: {disp:.3f} ≤ {thresh:.3f}", text_color="#CCCCCC")
+                self.motion_frame.configure(fg_color="#22222A")
 
             # 3. Update Native Per-Finger Touch Status Cards
             for finger in ["thumb", "index", "middle", "ring", "pinky"]:
                 card = self.finger_cards[finger]
-                p_data = self.last_predictions.get(finger, {"touch": False, "prob": 0.0})
-                is_touch = p_data["touch"]
-                prob = p_data["prob"]
+                p_data = self.last_predictions.get(finger, {"touch": False, "prob": 0.0, "hand_moving": False})
+                is_touch = p_data.get("touch", False)
+                prob = p_data.get("prob", 0.0)
+                hand_moving = p_data.get("hand_moving", False)
 
                 if not detected:
                     card["frame"].configure(fg_color="#22222A")
                     card["status"].configure(text="NO HAND", text_color="#808090")
                     card["pbar"].configure(progress_color="#505060")
+                    card["pbar"].set(0.0)
+                elif hand_moving:
+                    card["frame"].configure(fg_color="#3A2810")       # Dark Amber tint
+                    card["status"].configure(text="HAND MOVING", text_color="#FFA500")
+                    card["pbar"].configure(progress_color="#FF9000")   # Orange
                     card["pbar"].set(0.0)
                 elif is_touch:
                     card["frame"].configure(fg_color="#183C24")       # Dark Green tint
@@ -341,6 +386,7 @@ def main():
     parser = argparse.ArgumentParser(description="Real-Time MediaPipe Touch Gesture Detector Native Desktop Application.")
     parser.add_argument("--src", default=0, help="Camera index (e.g. 0) or video file path")
     parser.add_argument("--device", type=str, default=None, choices=["cuda", "cpu"], help="Target execution device")
+    parser.add_argument("--threshold", "-t", type=float, default=0.175, help="Hand movement displacement threshold relative to L_hand (default: 0.175)")
     args = parser.parse_args()
 
     try:
@@ -348,7 +394,7 @@ def main():
     except ValueError:
         src = args.src
 
-    app = RealtimeTkApp(camera_src=src, device=args.device)
+    app = RealtimeTkApp(camera_src=src, device=args.device, threshold=args.threshold)
     app.protocol("WM_DELETE_WINDOW", app.on_closing)
     app.mainloop()
 
