@@ -266,8 +266,8 @@ def filter_dataset_csv(
     # Save summary JSON for pipeline audit
     try:
         from summary_utils import save_step_summary
-        save_step_summary("step_8_filter_dataset.json", {
-            "step": 8,
+        save_step_summary("step_9_filter_dataset.json", {
+            "step": 9,
             "name": "filter_dataset",
             "total_input_windows": total_rows,
             "retained_windows": retained_cnt,

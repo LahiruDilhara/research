@@ -256,8 +256,8 @@ def split_fingers_csv(input_csv: str, output_csv: str = None) -> str:
     # Save summary JSON for pipeline audit
     try:
         from summary_utils import save_step_summary
-        save_step_summary("step_10_split_fingers.json", {
-            "step": 10,
+        save_step_summary("step_11_split_fingers.json", {
+            "step": 11,
             "name": "split_fingers",
             "input_window_rows": len(rows),
             "unrolled_rows": total_unrolled,

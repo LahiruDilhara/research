@@ -282,8 +282,8 @@ def create_train_test_split(
     # Save summary JSON for pipeline audit
     try:
         from summary_utils import save_step_summary
-        save_step_summary("step_12_train_test_split.json", {
-            "step": 12,
+        save_step_summary("step_13_train_test_split.json", {
+            "step": 13,
             "name": "create_train_test_split",
             "train_records": len(train_rows),
             "test_records": len(test_rows),

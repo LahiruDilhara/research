@@ -163,8 +163,8 @@ def split_touch_csv(
     # Save summary JSON for pipeline audit
     try:
         from summary_utils import save_step_summary
-        save_step_summary("step_11_split_touch.json", {
-            "step": 11,
+        save_step_summary("step_12_split_touch.json", {
+            "step": 12,
             "name": "split_touch",
             "total_input_rows": total_cnt,
             "touch_records": len(touch_rows),

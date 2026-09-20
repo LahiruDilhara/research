@@ -349,8 +349,9 @@ def get_data_paths(base_dir: Path):
     """Resolve train and test CSV file paths with robust fallback search."""
     candidates = [
         (base_dir / "training_testing_data" / "train_dataset.csv", base_dir / "training_testing_data" / "test_dataset.csv"),
-        (base_dir / "dataprocessing" / "11_train_test_split" / "training_dataset.csv", base_dir / "dataprocessing" / "11_train_test_split" / "testing_dataset.csv"),
+        (base_dir / "dataprocessing" / "13_train_test_split" / "training_dataset.csv", base_dir / "dataprocessing" / "13_train_test_split" / "testing_dataset.csv"),
         (base_dir / "dataprocessing" / "12_train_test_split" / "training_dataset.csv", base_dir / "dataprocessing" / "12_train_test_split" / "testing_dataset.csv"),
+        (base_dir / "dataprocessing" / "11_train_test_split" / "training_dataset.csv", base_dir / "dataprocessing" / "11_train_test_split" / "testing_dataset.csv"),
         (base_dir / "data" / "training_data.csv", base_dir / "data" / "test_data.csv"),
     ]
     for tr, te in candidates:

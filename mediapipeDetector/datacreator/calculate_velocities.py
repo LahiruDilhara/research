@@ -210,8 +210,8 @@ def calculate_window_velocities_csv(input_csv: str, output_csv: str = None) -> s
     # Save summary JSON for pipeline audit
     try:
         from summary_utils import save_step_summary
-        save_step_summary("step_7_calculate_velocities.json", {
-            "step": 7,
+        save_step_summary("step_8_calculate_velocities.json", {
+            "step": 8,
             "name": "calculate_velocities",
             "total_windows": len(output_rows),
             "speed_2d_stats": {"min": s2d_min, "max": s2d_max, "mean": s2d_mean},
@@ -338,8 +338,8 @@ def main():
     # Save summary JSON for pipeline audit
     try:
         from summary_utils import save_step_summary
-        save_step_summary("step_7_calculate_velocities.json", {
-            "step": 7,
+        save_step_summary("step_8_calculate_velocities.json", {
+            "step": 8,
             "name": "calculate_velocities",
             "total_files": len(input_files),
             "success_count": success_count,

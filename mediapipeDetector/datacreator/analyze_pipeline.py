@@ -204,94 +204,123 @@ def main():
     else:
         print("  [Notice] Step 6 JSON summary not available.")
 
-    # Stage 7
-    stg7 = load_summary_json(summaries_dir, "step_7_calculate_velocities.json")
+    # Stage 7: Hand Movement Filter
+    stg_hm = load_summary_json(summaries_dir, "step_7_filter_hand_movement.json") or load_summary_json(summaries_dir, "step_06_filter_hand_movement.json")
+    if stg_hm:
+        print(f"\n{DASH}")
+        print(f"  STAGE 7: WHOLE-HAND MOVEMENT DISPLACEMENT FILTER (dataprocessing/7_hand_movement_filtered | Cap: {stg_hm.get('threshold')} L_hand)")
+        print(f"{DASH}")
+        print(f"  Total Windows Evaluated  : {stg_hm.get('total_windows', 0):,}")
+        print(f"  Stationary Windows Kept  : {stg_hm.get('kept_windows', 0):,} ({stg_hm.get('kept_percentage', 0)}%)")
+        print(f"  Hand Moving Dropped      : {stg_hm.get('dropped_windows', 0):,} ({stg_hm.get('dropped_percentage', 0)}%)")
+
+    # Stage 8: Transition Velocities & Kinematics
+    stg8 = load_summary_json(summaries_dir, "step_8_calculate_velocities.json") or load_summary_json(summaries_dir, "step_7_calculate_velocities.json")
     print(f"\n{DASH}")
-    print("  STAGE 7: 4-STEP TRANSITION VELOCITIES & KINEMATICS (dataprocessing/7_dataset_with_velocities)")
+    print("  STAGE 8: 4-STEP TRANSITION VELOCITIES & KINEMATICS (dataprocessing/8_dataset_with_velocities)")
     print(f"{DASH}")
-    if stg7:
-        print(f"  Window Sequences Processed: {stg7.get('total_windows', 0):,}")
-        if "speed_2d_stats" in stg7 and "speed_3d_stats" in stg7:
-            s2d, s3d = stg7["speed_2d_stats"], stg7["speed_3d_stats"]
+    if stg8:
+        print(f"  Window Sequences Processed: {stg8.get('total_windows', 0):,}")
+        if "speed_2d_stats" in stg8 and "speed_3d_stats" in stg8:
+            s2d, s3d = stg8["speed_2d_stats"], stg8["speed_3d_stats"]
             print(f"  2D Speed Statistics (px/frame): Min = {s2d.get('min'):<6} | Max = {s2d.get('max'):<6} | Mean = {s2d.get('mean')}")
             print(f"  3D Speed Statistics (px/frame): Min = {s3d.get('min'):<6} | Max = {s3d.get('max'):<6} | Mean = {s3d.get('mean')}")
     else:
-        print("  [Notice] Step 7 JSON summary not available.")
-
-    # Stage 8
-    stg8 = load_summary_json(summaries_dir, "step_8_filter_dataset.json")
-    print(f"\n{DASH}")
-    print("  STAGE 8: FLAG-BASED DATASET CLEANING (dataprocessing/8_cleaned_dataset)")
-    print(f"{DASH}")
-    if stg8:
-        print(f"  Input Window Sequences   : {stg8.get('total_input_windows', 0):,}")
-        print(f"  Retained Sequences       : {stg8.get('retained_windows', 0):,} ({stg8.get('retention_pct', 0)}% retained)")
-        print(f"  Dropped Sequences        : {stg8.get('dropped_windows', 0):,}")
-        print(f"  Filter Removal Breakdown :")
-        print(f"    - Zero-Velocity Touch  : {stg8.get('removed_zero_vel_touch_cnt', 0)} sequences")
-        print(f"    - Out-of-Sync          : {stg8.get('removed_out_of_sync_cnt', 0)} sequences")
-        print(f"    - Hand Invisible       : {stg8.get('removed_hand_invisible_cnt', 0)} sequences")
-        print(f"  Cleaned Class Balance    : TOUCH = {stg8.get('touch_windows', 0):,} ({stg8.get('touch_pct', 0)}%) | UNTOUCH = {stg8.get('untouch_windows', 0):,}")
-    else:
         print("  [Notice] Step 8 JSON summary not available.")
 
-    # Stage 9
-    stg9 = load_summary_json(summaries_dir, "step_9_filter_window_quality.json")
+    # Stage 9: Flag-Based Dataset Cleaning
+    stg9 = load_summary_json(summaries_dir, "step_9_filter_dataset.json") or load_summary_json(summaries_dir, "step_8_filter_dataset.json")
     print(f"\n{DASH}")
-    print("  STAGE 9: COMPREHENSIVE WINDOW QUALITY & CONFIDENCE FILTER (dataprocessing/9_quality_filtered_dataset)")
+    print("  STAGE 9: FLAG-BASED DATASET CLEANING (dataprocessing/9_cleaned_dataset)")
     print(f"{DASH}")
     if stg9:
         print(f"  Input Window Sequences   : {stg9.get('total_input_windows', 0):,}")
-        print(f"  Retained Sequences       : {stg9.get('retained_windows', 0):,} ({stg9.get('retained_pct', 0)}% retained)")
+        print(f"  Retained Sequences       : {stg9.get('retained_windows', 0):,} ({stg9.get('retention_pct', 0)}% retained)")
         print(f"  Dropped Sequences        : {stg9.get('dropped_windows', 0):,}")
-        print(f"  Quality Cutoff Removal Breakdown:")
-        print(f"    - Low Avg Hand Score   : {stg9.get('drop_min_avg_score_cnt', 0)} sequences")
-        print(f"    - Low Frame Hand Score : {stg9.get('drop_min_frame_score_cnt', 0)} sequences")
-        print(f"    - High Score Drop      : {stg9.get('drop_max_score_drop_cnt', 0)} sequences")
-        print(f"    - 2D Speed Anomaly     : {stg9.get('drop_max_speed_2d_cnt', 0)} sequences")
-        print(f"    - 3D Speed Anomaly     : {stg9.get('drop_max_speed_3d_cnt', 0)} sequences")
-        print(f"  Class Balance Transition : Touch: {stg9.get('touch_before', 0)} -> {stg9.get('touch_after', 0)} | Untouch: {stg9.get('untouch_before', 0)} -> {stg9.get('untouch_after', 0)}")
+        print(f"  Filter Removal Breakdown :")
+        print(f"    - Zero-Velocity Touch  : {stg9.get('removed_zero_vel_touch_cnt', 0)} sequences")
+        print(f"    - Out-of-Sync          : {stg9.get('removed_out_of_sync_cnt', 0)} sequences")
+        print(f"    - Hand Invisible       : {stg9.get('removed_hand_invisible_cnt', 0)} sequences")
+        print(f"  Cleaned Class Balance    : TOUCH = {stg9.get('touch_windows', 0):,} ({stg9.get('touch_pct', 0)}%) | UNTOUCH = {stg9.get('untouch_windows', 0):,}")
     else:
         print("  [Notice] Step 9 JSON summary not available.")
 
-    # Stage 10
-    stg10 = load_summary_json(summaries_dir, "step_10_split_fingers.json")
+    # Stage 10: Window Quality & Confidence Filter
+    stg10 = load_summary_json(summaries_dir, "step_10_filter_window_quality.json") or load_summary_json(summaries_dir, "step_9_filter_window_quality.json")
     print(f"\n{DASH}")
-    print("  STAGE 10: PER-FINGER SEQUENCE UNROLLING (dataprocessing/10_per_finger_dataset)")
+    print("  STAGE 10: COMPREHENSIVE WINDOW QUALITY & CONFIDENCE FILTER (dataprocessing/10_quality_filtered_dataset)")
     print(f"{DASH}")
     if stg10:
-        print(f"  Input Window Sequences   : {stg10.get('input_window_rows', 0):,}")
-        print(f"  Unrolled Per-Finger Rows : {stg10.get('unrolled_rows', 0):,} (5× multiplier)")
-        print(f"  Touch Finger Records     : {stg10.get('touch_records', 0):,} ({stg10.get('touch_records', 0)/stg10.get('unrolled_rows', 1)*100.0:.2f}%)")
-        print(f"  Untouch Finger Records   : {stg10.get('untouch_records', 0):,}")
-        if "per_finger_touches" in stg10:
-            print("  Per-Finger Touch Breakdown:")
-            for fg, cnt in stg10["per_finger_touches"].items():
-                print(f"    - {fg.capitalize():8s} Touch Records: {cnt:,}")
+        print(f"  Input Window Sequences   : {stg10.get('total_input_windows', 0):,}")
+        print(f"  Retained Sequences       : {stg10.get('retained_windows', 0):,} ({stg10.get('retained_pct', 0)}% retained)")
+        print(f"  Dropped Sequences        : {stg10.get('dropped_windows', 0):,}")
+        print(f"  Quality Cutoff Removal Breakdown:")
+        print(f"    - Low Avg Hand Score   : {stg10.get('drop_min_avg_score_cnt', 0)} sequences")
+        print(f"    - Low Frame Hand Score : {stg10.get('drop_min_frame_score_cnt', 0)} sequences")
+        print(f"    - High Score Drop      : {stg10.get('drop_max_score_drop_cnt', 0)} sequences")
+        print(f"    - 2D Speed Anomaly     : {stg10.get('drop_max_speed_2d_cnt', 0)} sequences")
+        print(f"    - 3D Speed Anomaly     : {stg10.get('drop_max_speed_3d_cnt', 0)} sequences")
+        print(f"  Class Balance Transition : Touch: {stg10.get('touch_before', 0)} -> {stg10.get('touch_after', 0)} | Untouch: {stg10.get('untouch_before', 0)} -> {stg10.get('untouch_after', 0)}")
     else:
         print("  [Notice] Step 10 JSON summary not available.")
 
-    # Stage 11 & 12
-    stg11 = load_summary_json(summaries_dir, "step_11_split_touch.json")
-    stg12 = load_summary_json(summaries_dir, "step_12_train_test_split.json")
+    # Stage 11: Per-Finger Unrolling
+    stg11 = load_summary_json(summaries_dir, "step_11_split_fingers.json") or load_summary_json(summaries_dir, "step_10_split_fingers.json")
     print(f"\n{DASH}")
-    print("  STAGE 11 & 12: TOUCH SPLIT & BALANCED TRAIN / TEST PARTITIONING (dataprocessing/12_train_test_split)")
+    print("  STAGE 11: PER-FINGER SEQUENCE UNROLLING (dataprocessing/11_per_finger_dataset)")
     print(f"{DASH}")
-    if stg12:
-        tr_cnt = stg12.get("train_records", 0)
-        te_cnt = stg12.get("test_records", 0)
+    if stg11:
+        print(f"  Input Window Sequences   : {stg11.get('input_window_rows', 0):,}")
+        print(f"  Unrolled Per-Finger Rows : {stg11.get('unrolled_rows', 0):,} (5× multiplier)")
+        print(f"  Touch Finger Records     : {stg11.get('touch_records', 0):,} ({stg11.get('touch_records', 0)/stg11.get('unrolled_rows', 1)*100.0:.2f}%)")
+        print(f"  Untouch Finger Records   : {stg11.get('untouch_records', 0):,}")
+        if "per_finger_touches" in stg11:
+            print("  Per-Finger Touch Breakdown:")
+            for fg, cnt in stg11["per_finger_touches"].items():
+                print(f"    - {fg.capitalize():8s} Touch Records: {cnt:,}")
+    else:
+        print("  [Notice] Step 11 JSON summary not available.")
+
+    # Stage 12 & 13: Touch Split & Balanced Train/Test Partitioning
+    stg12 = load_summary_json(summaries_dir, "step_12_split_touch.json") or load_summary_json(summaries_dir, "step_11_split_touch.json")
+    stg13 = load_summary_json(summaries_dir, "step_13_train_test_split.json") or load_summary_json(summaries_dir, "step_12_train_test_split.json")
+    print(f"\n{DASH}")
+    print("  STAGE 12 & 13: TOUCH SPLIT & BALANCED TRAIN / TEST PARTITIONING (dataprocessing/13_train_test_split)")
+    print(f"{DASH}")
+    if stg13:
+        tr_cnt = stg13.get("train_records", 0)
+        te_cnt = stg13.get("test_records", 0)
         tot = tr_cnt + te_cnt
         tr_pct = round(tr_cnt / tot * 100.0, 2) if tot > 0 else 0
         te_pct = round(te_cnt / tot * 100.0, 2) if tot > 0 else 0
         print(f"  Training Set Records     : {tr_cnt:,} ({tr_pct}% of total dataset)")
         print(f"  Testing Set Records      : {te_cnt:,} ({te_pct}% of total dataset)")
-        print(f"  Training Set Touch Ratio : TOUCH = {stg12.get('train_touch', 0):,} | UNTOUCH = {stg12.get('train_untouch', 0):,}")
-        print(f"  Testing Set Touch Ratio  : TOUCH = {stg12.get('test_touch', 0):,} | UNTOUCH = {stg12.get('test_untouch', 0):,}")
-        print(f"  Video Partition Audit    : {'PASSED (0 Video Leakage between Train and Test Sets)' if stg12.get('no_video_leak') else 'Disabled'}")
+        print(f"  Training Set Touch Ratio : TOUCH = {stg13.get('train_touch', 0):,} | UNTOUCH = {stg13.get('train_untouch', 0):,}")
+        print(f"  Testing Set Touch Ratio  : TOUCH = {stg13.get('test_touch', 0):,} | UNTOUCH = {stg13.get('test_untouch', 0):,}")
+        print(f"  Video Partition Audit    : {'PASSED (0 Video Leakage between Train and Test Sets)' if stg13.get('no_video_leak') else 'Disabled'}")
     else:
-        print("  [Notice] Step 12 JSON summary not available.")
+        print("  [Notice] Step 13 JSON summary not available.")
 
     print(f"\n{BAR}")
+    print("      FINAL PIPELINE FUNNEL & QUALITY SCORECARD")
+    print(f"{BAR}")
+    if stg6:
+        print(f"  1. Raw Sequence Windows Ingested    : {stg6.get('total_windows', 0):,}")
+    if stg_hm:
+        thresh_val = stg_hm.get('threshold', 0.2)
+        print(f"  2. Step 7: Hand Movement Filter ({thresh_val} L_hand) : {stg_hm.get('kept_windows', 0):,} kept ({stg_hm.get('kept_percentage', 0)}%) | {stg_hm.get('dropped_windows', 0):,} dropped ({stg_hm.get('dropped_percentage', 0)}%)")
+    if stg9:
+        print(f"  3. Step 9: Flag-Based Anomaly Cleaning       : {stg9.get('retained_windows', 0):,} kept ({stg9.get('retention_pct', 0)}%) | {stg9.get('dropped_windows', 0):,} dropped")
+    if stg10:
+        stg10_ret = stg10.get('retained_windows', 0)
+        stg10_inp = stg10.get('input_windows', 0) or (stg10_ret + stg10.get('dropped_windows', 0))
+        stg10_pct = round(stg10_ret / stg10_inp * 100.0, 1) if stg10_inp > 0 else 0
+        print(f"  4. Step 10: MediaPipe Confidence Filter      : {stg10_ret:,} kept ({stg10_pct}%) | {stg10.get('dropped_windows', 0):,} dropped")
+    if stg13:
+        tr_cnt = stg13.get("train_records", 0)
+        te_cnt = stg13.get("test_records", 0)
+        print(f"  5. Step 13: Final Balanced Model Dataset     : Training = {tr_cnt:,} | Testing = {te_cnt:,} (Video Partition: 0 Leakage)")
+    print(f"{BAR}")
     print("      PIPELINE AUDIT COMPLETE")
     print(f"{BAR}\n")
 

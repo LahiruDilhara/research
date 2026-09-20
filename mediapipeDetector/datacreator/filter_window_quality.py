@@ -445,8 +445,8 @@ def filter_window_quality_csv(
     # Save summary JSON for pipeline audit
     try:
         from summary_utils import save_step_summary
-        save_step_summary("step_9_filter_window_quality.json", {
-            "step": 9,
+        save_step_summary("step_10_filter_window_quality.json", {
+            "step": 10,
             "name": "filter_window_quality",
             "total_input_windows": total_rows,
             "retained_windows": retained_rows,

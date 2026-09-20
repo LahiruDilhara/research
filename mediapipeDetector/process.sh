@@ -1,5 +1,19 @@
-rm -r dataprocessing
-rm -r training_testing_data
+#!/usr/bin/env bash
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_PYTHON="$SCRIPT_DIR/.venv/bin/python3"
+
+if [ -f "$VENV_PYTHON" ]; then
+    PYTHON_BIN="$VENV_PYTHON"
+elif [ -n "$VIRTUAL_ENV" ]; then
+    PYTHON_BIN="python3"
+else
+    PYTHON_BIN="python3"
+fi
+
+rm -rf dataprocessing
+rm -rf training_testing_data
 
 # Ensure all data processing directories exist
 mkdir -p dataprocessing/1_rawCSVFiles
@@ -8,12 +22,13 @@ mkdir -p dataprocessing/3_euroFilter_coordinates
 mkdir -p dataprocessing/4_filtered_coordinates_and_annotations
 mkdir -p dataprocessing/5_windowed_dataset
 mkdir -p dataprocessing/6_merged_windowed_dataset
-mkdir -p dataprocessing/7_dataset_with_velocities
-mkdir -p dataprocessing/8_cleaned_dataset
-mkdir -p dataprocessing/9_quality_filtered_dataset
-mkdir -p dataprocessing/10_per_finger_dataset
-mkdir -p dataprocessing/11_split_touch_dataset
-mkdir -p dataprocessing/12_train_test_split
+mkdir -p dataprocessing/7_hand_movement_filtered
+mkdir -p dataprocessing/8_dataset_with_velocities
+mkdir -p dataprocessing/9_cleaned_dataset
+mkdir -p dataprocessing/10_quality_filtered_dataset
+mkdir -p dataprocessing/11_per_finger_dataset
+mkdir -p dataprocessing/12_split_touch_dataset
+mkdir -p dataprocessing/13_train_test_split
 mkdir -p dataprocessing/summaries
 
 # Copy CSV files to data processing directory
@@ -21,45 +36,48 @@ cp -f -r ./dataset/*.raw_landmarks.* dataprocessing/1_rawCSVFiles/
 cp -f -r ./dataset/*.window_annotations.* dataprocessing/1_rawCSVFiles/
 
 # Normalize landmarks
-python3 datacreator/normalize_landmarks.py -i ./dataprocessing/1_rawCSVFiles/*.raw_landmarks.* -o ./dataprocessing/2_normalized_coordinates/
+"$PYTHON_BIN" datacreator/normalize_landmarks.py -i ./dataprocessing/1_rawCSVFiles/*.raw_landmarks.* -o ./dataprocessing/2_normalized_coordinates/
 
 # Filter landmarks (Default: --mode none for raw coordinates which yields 92.03% top model accuracy, or --mode euro -min 4.0 -beta 2.4 for light smoothing)
-python3 datacreator/filter_landmarks.py --mode none -i ./dataprocessing/2_normalized_coordinates/*.normalize_landmarks.* -o ./dataprocessing/3_euroFilter_coordinates/
+"$PYTHON_BIN" datacreator/filter_landmarks.py --mode none -i ./dataprocessing/2_normalized_coordinates/*.normalize_landmarks.* -o ./dataprocessing/3_euroFilter_coordinates/
 
 cp -f -r ./dataprocessing/1_rawCSVFiles/*.window_annotations.* ./dataprocessing/4_filtered_coordinates_and_annotations/
 cp -f -r ./dataprocessing/3_euroFilter_coordinates/*.filtered_landmarks.* ./dataprocessing/4_filtered_coordinates_and_annotations/
 
 # Create windowed sequence datasets
-python3 datacreator/create_windows.py -i ./dataprocessing/4_filtered_coordinates_and_annotations/ -o ./dataprocessing/5_windowed_dataset/
+"$PYTHON_BIN" datacreator/create_windows.py -i ./dataprocessing/4_filtered_coordinates_and_annotations/ -o ./dataprocessing/5_windowed_dataset/
 
 # Merge all windowed datasets into a single combined CSV dataset
-python3 datacreator/merge_windows.py -i ./dataprocessing/5_windowed_dataset/ -o ./dataprocessing/6_merged_windowed_dataset/all_windowed_dataset.csv
+"$PYTHON_BIN" datacreator/merge_windows.py -i ./dataprocessing/5_windowed_dataset/ -o ./dataprocessing/6_merged_windowed_dataset/all_windowed_dataset.csv
+
+# Filter whole-hand transit movement windows using stationary displacement threshold (0.2)
+"$PYTHON_BIN" datacreator/filter_hand_movement.py -i ./dataprocessing/6_merged_windowed_dataset/all_windowed_dataset.csv -o ./dataprocessing/7_hand_movement_filtered/hand_movement_filtered_dataset.csv --raw-dir ./dataprocessing/1_rawCSVFiles/ --threshold 0.2
 
 # Calculate 4-step velocities (vx, vy) & 2D speeds sqrt(vx^2 + vy^2) for all landmarks
-python3 datacreator/calculate_velocities.py -i ./dataprocessing/6_merged_windowed_dataset/all_windowed_dataset.csv -o ./dataprocessing/7_dataset_with_velocities/all_windowed_dataset_velocities.csv
+"$PYTHON_BIN" datacreator/calculate_velocities.py -i ./dataprocessing/7_hand_movement_filtered/hand_movement_filtered_dataset.csv -o ./dataprocessing/8_dataset_with_velocities/all_windowed_dataset_velocities.csv
 
 # Filter and clean windowed dataset based on configurable flags
-python3 datacreator/filter_dataset.py -i ./dataprocessing/7_dataset_with_velocities/all_windowed_dataset_velocities.csv -o ./dataprocessing/8_cleaned_dataset/cleaned_dataset.csv --remove-zero-vel-touch --remove-out-of-sync --remove-hand-invisible
+"$PYTHON_BIN" datacreator/filter_dataset.py -i ./dataprocessing/8_dataset_with_velocities/all_windowed_dataset_velocities.csv -o ./dataprocessing/9_cleaned_dataset/cleaned_dataset.csv --remove-zero-vel-touch --remove-out-of-sync --remove-hand-invisible
 
 # Filter windowed dataset based on comprehensive quality & confidence flags (hand score, score drop, 2D/3D speed anomalies)
-python3 datacreator/filter_window_quality.py -i ./dataprocessing/8_cleaned_dataset/cleaned_dataset.csv -o ./dataprocessing/9_quality_filtered_dataset/quality_cleaned_dataset.csv  --min-avg-score 0.65 #  --min-frame-score 0.45 --max-score-drop 0.30 --max-speed-2d 0.90 --max-speed-3d 1.10
+"$PYTHON_BIN" datacreator/filter_window_quality.py -i ./dataprocessing/9_cleaned_dataset/cleaned_dataset.csv -o ./dataprocessing/10_quality_filtered_dataset/quality_cleaned_dataset.csv  --min-avg-score 0.65 #  --min-frame-score 0.45 --max-score-drop 0.30 --max-speed-2d 0.90 --max-speed-3d 1.10
 
 # Unroll sequence windows into per-finger dataset records (thumb, index, middle, ring, pinky)
-python3 datacreator/split_fingers.py -i ./dataprocessing/9_quality_filtered_dataset/quality_cleaned_dataset.csv -o ./dataprocessing/10_per_finger_dataset/per_finger_dataset.csv
+"$PYTHON_BIN" datacreator/split_fingers.py -i ./dataprocessing/10_quality_filtered_dataset/quality_cleaned_dataset.csv -o ./dataprocessing/11_per_finger_dataset/per_finger_dataset.csv
 
 # Separate per-finger dataset into touch_dataset.csv and untouch_dataset.csv
-python3 datacreator/split_touch.py -i ./dataprocessing/10_per_finger_dataset/per_finger_dataset.csv -o ./dataprocessing/11_split_touch_dataset/
+"$PYTHON_BIN" datacreator/split_touch.py -i ./dataprocessing/11_per_finger_dataset/per_finger_dataset.csv -o ./dataprocessing/12_split_touch_dataset/
 
 # Create balanced training and testing datasets
-python3 datacreator/create_train_test_split.py --touch-in ./dataprocessing/11_split_touch_dataset/touch_dataset.csv --untouch-in ./dataprocessing/11_split_touch_dataset/untouch_dataset.csv --train-out ./dataprocessing/12_train_test_split/training_dataset.csv --test-out ./dataprocessing/12_train_test_split/testing_dataset.csv --touch-test-pct 20 --untouch-train-ratio-pct 120 --untouch-test-ratio-pct 100 --seed 50 --no-video-leak
+"$PYTHON_BIN" datacreator/create_train_test_split.py --touch-in ./dataprocessing/12_split_touch_dataset/touch_dataset.csv --untouch-in ./dataprocessing/12_split_touch_dataset/untouch_dataset.csv --train-out ./dataprocessing/13_train_test_split/training_dataset.csv --test-out ./dataprocessing/13_train_test_split/testing_dataset.csv --touch-test-pct 20 --untouch-train-ratio-pct 120 --untouch-test-ratio-pct 100 --seed 50 --no-video-leak
 
 # Copy training and testing data to root
 mkdir -p training_testing_data
-cp -f ./dataprocessing/12_train_test_split/training_dataset.csv training_testing_data/train_dataset.csv
-cp -f ./dataprocessing/12_train_test_split/testing_dataset.csv training_testing_data/test_dataset.csv
+cp -f ./dataprocessing/13_train_test_split/training_dataset.csv training_testing_data/train_dataset.csv
+cp -f ./dataprocessing/13_train_test_split/testing_dataset.csv training_testing_data/test_dataset.csv
 
 # Print comprehensive pipeline audit breakdown report from generated JSON summaries
-python3 datacreator/analyze_pipeline.py
+"$PYTHON_BIN" datacreator/analyze_pipeline.py
 
 # min 3.0, beta 2.4, d 1.0 90*3
 
