@@ -24,7 +24,7 @@ from realtimeprocess.realtime_pipeline import (
     ALL_21_LANDMARK_NAMES,
     FINGERS,
 )
-from realtimeprocess.model_manager import ModelManager
+from realtimeprocess.model_manager import ModelManager, DEFAULT_DISPLACEMENT_THRESHOLD
 
 
 def generate_synthetic_landmarks(t_step: int) -> list[tuple[float, float, float]]:
@@ -140,10 +140,10 @@ def run_model_manager_test():
 
 def run_hand_movement_filter_test():
     print("="*75)
-    print("  TEST 3: WHOLE-HAND TRANSIT MOVEMENT FILTER (THRESHOLD = 0.175 L_hand)")
+    print(f"  TEST 3: WHOLE-HAND TRANSIT MOVEMENT FILTER (THRESHOLD = {DEFAULT_DISPLACEMENT_THRESHOLD} L_hand)")
     print("="*75)
 
-    mm = ModelManager(hand_movement_threshold=0.175)
+    mm = ModelManager(hand_movement_threshold=DEFAULT_DISPLACEMENT_THRESHOLD)
     w_px, h_px = 640.0, 480.0
     normalizer = HandScaleNormalizer()
     scores_5 = [0.95] * 5

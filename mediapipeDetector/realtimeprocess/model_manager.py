@@ -34,10 +34,14 @@ from realtimeprocess.realtime_pipeline import (
 )
 
 
+# Default whole-hand transit movement displacement filter threshold (L_hand)
+DEFAULT_DISPLACEMENT_THRESHOLD = 0.175
+
+
 class ModelManager:
     """Discovers, loads, and executes PyTorch models for real-time streaming touch inference."""
 
-    def __init__(self, weights_dir: Path = None, device: str = None, hand_movement_threshold: float = 0.175):
+    def __init__(self, weights_dir: Path = None, device: str = None, hand_movement_threshold: float = DEFAULT_DISPLACEMENT_THRESHOLD):
         self.project_root = PROJECT_ROOT
         self.weights_dir = weights_dir or (self.project_root / "deepLearningModels" / "weights")
         self.hand_movement_threshold = hand_movement_threshold

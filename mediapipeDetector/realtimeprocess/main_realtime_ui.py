@@ -33,11 +33,14 @@ from realtimeprocess.camera_thread import CameraThread
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
+# Default whole-hand transit movement displacement filter threshold (L_hand)
+DEFAULT_DISPLACEMENT_THRESHOLD = 0.175
+
 
 class RealtimeTkApp(ctk.CTk):
     """Native CustomTkinter Desktop Application for Real-Time Touch Gesture Detection."""
 
-    def __init__(self, camera_src=0, device: str = None, threshold: float = 0.175):
+    def __init__(self, camera_src=0, device: str = None, threshold: float = DEFAULT_DISPLACEMENT_THRESHOLD):
         super().__init__()
 
         print("\n" + "="*80)
@@ -386,7 +389,7 @@ def main():
     parser = argparse.ArgumentParser(description="Real-Time MediaPipe Touch Gesture Detector Native Desktop Application.")
     parser.add_argument("--src", default=0, help="Camera index (e.g. 0) or video file path")
     parser.add_argument("--device", type=str, default=None, choices=["cuda", "cpu"], help="Target execution device")
-    parser.add_argument("--threshold", "-t", type=float, default=0.175, help="Hand movement displacement threshold relative to L_hand (default: 0.175)")
+    parser.add_argument("--threshold", "-t", type=float, default=DEFAULT_DISPLACEMENT_THRESHOLD, help=f"Hand movement displacement threshold relative to L_hand (default: {DEFAULT_DISPLACEMENT_THRESHOLD})")
     args = parser.parse_args()
 
     try:

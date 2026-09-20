@@ -16,6 +16,9 @@ Matches process.sh Step 7 and datacreator/filter_hand_movement.py 100%.
 
 import math
 
+# Default whole-hand transit movement displacement threshold (L_hand)
+DEFAULT_DISPLACEMENT_THRESHOLD = 0.175
+
 STATIONARY_NAMES = ["wrist", "index_mcp", "middle_mcp", "ring_mcp", "pinky_mcp"]
 
 
@@ -47,7 +50,7 @@ def compute_hand_displacement(norm_frames_5: list[dict]) -> float:
     return max_disp
 
 
-def validate_hand_movement(norm_frames_5: list[dict], threshold: float = 0.175) -> tuple[bool, float, str]:
+def validate_hand_movement(norm_frames_5: list[dict], threshold: float = DEFAULT_DISPLACEMENT_THRESHOLD) -> tuple[bool, float, str]:
     """
     Validates whether the hand is stationary or moving during the 5-frame window.
     Returns (is_stationary: bool, max_disp: float, reason: str).
