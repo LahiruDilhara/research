@@ -13,7 +13,7 @@ else
 fi
 
 echo "========================================================================"
-echo "  STARTING HAND MOVEMENT & VELOCITY THRESHOLD ANALYZER (12 FPS)"
+echo "  STARTING HAND MOVEMENT DISPLACEMENT THRESHOLD ANALYZER (12 FPS)"
 echo "  Python Binary : $PYTHON_BIN"
 echo "========================================================================"
 
