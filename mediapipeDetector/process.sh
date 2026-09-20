@@ -51,7 +51,7 @@ cp -f -r ./dataprocessing/3_euroFilter_coordinates/*.filtered_landmarks.* ./data
 "$PYTHON_BIN" datacreator/merge_windows.py -i ./dataprocessing/5_windowed_dataset/ -o ./dataprocessing/6_merged_windowed_dataset/all_windowed_dataset.csv
 
 # Filter whole-hand transit movement windows using stationary displacement threshold (0.2)
-"$PYTHON_BIN" datacreator/filter_hand_movement.py -i ./dataprocessing/6_merged_windowed_dataset/all_windowed_dataset.csv -o ./dataprocessing/7_hand_movement_filtered/hand_movement_filtered_dataset.csv --raw-dir ./dataprocessing/1_rawCSVFiles/ --threshold 0.2
+"$PYTHON_BIN" datacreator/filter_hand_movement.py -i ./dataprocessing/6_merged_windowed_dataset/all_windowed_dataset.csv -o ./dataprocessing/7_hand_movement_filtered/hand_movement_filtered_dataset.csv --raw-dir ./dataprocessing/1_rawCSVFiles/ --threshold 0.175
 
 # Calculate 4-step velocities (vx, vy) & 2D speeds sqrt(vx^2 + vy^2) for all landmarks
 "$PYTHON_BIN" datacreator/calculate_velocities.py -i ./dataprocessing/7_hand_movement_filtered/hand_movement_filtered_dataset.csv -o ./dataprocessing/8_dataset_with_velocities/all_windowed_dataset_velocities.csv

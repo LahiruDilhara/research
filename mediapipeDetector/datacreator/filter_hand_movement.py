@@ -185,7 +185,7 @@ def filter_hand_movement_csv(
 
         max_displacements.append(max_stationary_disp)
 
-        # Apply threshold filter
+        # Apply threshold filter on stationary joints
         if max_stationary_disp > threshold:
             dropped_count += 1
         else:
