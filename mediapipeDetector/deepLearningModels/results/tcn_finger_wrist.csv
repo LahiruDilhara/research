@@ -1,2 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,optimal_threshold,optimal_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-TCN_Finger_Wrist,1,32,2,0.2,0.0015,32,92.6101,90.7233,0.55,92.92,0.9248,0.9277,0.9262,294,24,23,295,GOOD FIT (OPTIMAL),13,1.08,13.0,TCN_Finger_Wrist_cfg01.pth
+TCN_Finger_Wrist,1,32,2,0.2,0.0015,32,92.6101,90.7233,0.53,92.77,0.9221,0.9308,0.9264,293,25,22,296,GOOD FIT (OPTIMAL),13,0.98,12.8,TCN_Finger_Wrist_cfg01.pth

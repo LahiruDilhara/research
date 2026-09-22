@@ -1,2 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,optimal_threshold,optimal_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-BiLSTM,1,32,2,0.25,0.0015,32,92.6101,90.2516,0.51,92.77,0.9144,0.9403,0.9271,290,28,19,299,GOOD FIT (OPTIMAL),9,-0.24,7.2,BiLSTM_cfg01.pth
+BiLSTM,1,32,2,0.25,0.0015,32,92.6101,90.2516,0.51,92.77,0.9144,0.9403,0.9271,290,28,19,299,GOOD FIT (OPTIMAL),9,-0.24,8.5,BiLSTM_cfg01.pth

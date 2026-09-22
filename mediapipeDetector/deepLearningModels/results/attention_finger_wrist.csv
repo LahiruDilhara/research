@@ -1,2 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,optimal_threshold,optimal_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-Attention_Finger_Wrist,1,32,2,0.2,0.001,32,93.0818,92.1384,0.45,93.4,0.9419,0.9182,0.9299,300,18,26,292,GOOD FIT (OPTIMAL),17,-1.08,11.2,Attention_Finger_Wrist_cfg01.pth
+Attention_Finger_Wrist,1,32,2,0.2,0.001,32,93.0818,92.1384,0.45,93.4,0.9419,0.9182,0.9299,300,18,26,292,GOOD FIT (OPTIMAL),17,-1.08,13.4,Attention_Finger_Wrist_cfg01.pth
