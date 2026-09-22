@@ -162,11 +162,11 @@ def analyze_fit_quality(history: dict) -> dict:
         onset_epoch = 1
         recommendation = "Increase model capacity (units/layers) or reduce regularization."
 
-    elif max_gap_pct > 5.0 or loss_increase_after_min > 0.03 or (min_te_loss_epoch < n_epochs - 3 and gaps[-1] > 4.0):
+    elif max_gap_pct > 5.0 or (loss_increase_after_min > 0.04 and (max_gap_pct > 3.0 or gaps[-1] > 2.5)) or (min_te_loss_epoch < n_epochs - 3 and gaps[-1] > 4.0):
         status = "OVERFITTING"
         onset_epoch = min_te_loss_epoch
         for ep_idx in range(min_te_loss_idx, n_epochs):
-            if gaps[ep_idx] > 4.0 or te_loss[ep_idx] > te_loss[min_te_loss_idx] + 0.015:
+            if gaps[ep_idx] > 3.5 or (te_loss[ep_idx] > te_loss[min_te_loss_idx] + 0.02 and gaps[ep_idx] > 2.5):
                 onset_epoch = ep_idx + 1
                 break
 
@@ -843,7 +843,7 @@ def _run_epoch(model, loader, loss_fn, optimizer, device, train: bool):
 
 
 def train_config(model, train_loader, test_loader, epochs: int, lr: float, device,
-                 patience: int = 12, verbose: bool = True):
+                 patience: int = 7, weight_decay: float = 5e-4, verbose: bool = True):
     """Full training loop with class-weighted loss, CosineAnnealingLR, and best-epoch weights preservation."""
     y_train = train_loader.dataset.y
     if not isinstance(y_train, torch.Tensor):
@@ -853,7 +853,7 @@ def train_config(model, train_loader, test_loader, epochs: int, lr: float, devic
     pos_weight = torch.tensor([n_neg / max(1.0, n_pos)], device=device) if n_pos > 0 else None
     loss_fn   = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-5)
 
     best_acc        = 0.0
@@ -998,7 +998,12 @@ def run_model_benchmark(
         model = create_model_fn(feature_dim, cfg).to(device)
 
         t0                        = time.time()
-        best_acc, final_acc, hist = train_config(model, train_loader, test_loader, args.epochs, cfg["lr"], device, verbose=True)
+        best_acc, final_acc, hist = train_config(
+            model, train_loader, test_loader, args.epochs, cfg["lr"], device,
+            patience=cfg.get("patience", 7),
+            weight_decay=cfg.get("weight_decay", 5e-4),
+            verbose=True
+        )
         elapsed                   = time.time() - t0
 
         print_terminal_curves(hist, title=arch_name)

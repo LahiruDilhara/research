@@ -1,0 +1,2 @@
+arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,optimal_threshold,optimal_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
+Attention_Tip_Vel_Ratios,1,32,2,0.2,0.001,32,90.2516,88.2075,0.64,90.88,0.8855,0.9245,0.9046,280,38,24,294,GOOD FIT (OPTIMAL),9,0.22,12.1,Attention_Tip_Vel_Ratios_cfg01.pth

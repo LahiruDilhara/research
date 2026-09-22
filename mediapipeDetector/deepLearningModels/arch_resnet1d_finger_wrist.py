@@ -16,10 +16,10 @@ from model_arch import (
 
 ARCH_NAME = "ResNet1D_Finger_Wrist"
 VARIANT   = "finger_wrist"
-CONFIGS   = [{'id': 1, 'hidden_dim': 32, 'dropout': 0.2, 'lr': 0.0015, 'bs': 32}]
+CONFIGS   = [{'id': 1, 'hidden_dim': 32, 'dropout': 0.25, 'lr': 0.0015, 'bs': 32}]
 
 def create_model(feature_dim, cfg):
-    return TouchResNet1D(input_features=feature_dim, hidden_dim=cfg.get("hidden_dim", 32), dropout=cfg.get("dropout", 0.2))
+    return TouchResNet1D(input_features=feature_dim, hidden_dim=cfg.get("hidden_dim", 32), dropout=cfg.get("dropout", 0.25))
 
 def main():
     run_model_benchmark(

@@ -16,10 +16,10 @@ from model_arch import (
 
 ARCH_NAME = "TCN_Finger_Wrist"
 VARIANT   = "finger_wrist"
-CONFIGS   = [{'id': 1, 'tcn_channels': 32, 'num_levels': 2, 'dropout': 0.15, 'lr': 0.0015, 'bs': 32}]
+CONFIGS   = [{'id': 1, 'tcn_channels': 32, 'num_levels': 2, 'dropout': 0.20, 'lr': 0.0015, 'bs': 32}]
 
 def create_model(feature_dim, cfg):
-    return TouchTCN(input_features=feature_dim, tcn_channels=cfg.get("tcn_channels", 32), num_levels=cfg.get("num_levels", 2), dropout=cfg.get("dropout", 0.15))
+    return TouchTCN(input_features=feature_dim, tcn_channels=cfg.get("tcn_channels", 32), num_levels=cfg.get("num_levels", 2), dropout=cfg.get("dropout", 0.20))
 
 def main():
     run_model_benchmark(

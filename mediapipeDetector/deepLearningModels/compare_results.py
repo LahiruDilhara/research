@@ -30,7 +30,8 @@ EXPERIMENT_LOG = RESULTS_DIR / "experiment_history.log"
 # Columns to display
 DISPLAY_COLS = [
     "rank", "arch", "config_id",
-    "best_test_acc", "f1_touch", "precision_touch", "recall_touch",
+    "best_test_acc", "optimal_test_acc", "optimal_threshold",
+    "f1_touch", "precision_touch", "recall_touch",
     "fit_status", "onset_epoch", "max_gap_pct",
     "train_time_s",
 ]
@@ -110,6 +111,10 @@ def fmt_row(df: pd.DataFrame) -> pd.DataFrame:
         df["best_test_acc"] = df["best_test_acc"].apply(lambda v: f"{_get_acc_pct(v):.2f}%")
     if "final_test_acc" in df.columns:
         df["final_test_acc"] = df["final_test_acc"].apply(lambda v: f"{_get_acc_pct(v):.2f}%")
+    if "optimal_test_acc" in df.columns:
+        df["optimal_test_acc"] = df["optimal_test_acc"].apply(lambda v: f"{_get_acc_pct(v):.2f}%")
+    if "optimal_threshold" in df.columns:
+        df["optimal_threshold"] = df["optimal_threshold"].apply(lambda v: f"T*={float(v):.2f}")
     for col in ["f1_touch", "precision_touch", "recall_touch"]:
         if col in df.columns:
             df[col] = df[col].apply(lambda v: f"{float(v):.4f}")

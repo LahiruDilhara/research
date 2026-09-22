@@ -1,0 +1,2 @@
+arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,optimal_threshold,optimal_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
+CNN1D_Finger_Wrist,1,32,2,0.2,0.0015,32,91.8239,90.8805,0.47,91.98,0.9156,0.9214,0.9185,291,27,25,293,GOOD FIT (OPTIMAL),7,0.7,5.4,CNN1D_Finger_Wrist_cfg01.pth

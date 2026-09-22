@@ -1,0 +1,2 @@
+arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,optimal_threshold,optimal_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
+ResNet1D_Tip_Vel_Ratios,1,32,2,0.25,0.0015,32,91.3522,90.566,0.5,91.35,0.8997,0.9308,0.915,285,33,22,296,GOOD FIT (OPTIMAL),5,-1.01,6.9,ResNet1D_Tip_Vel_Ratios_cfg01.pth

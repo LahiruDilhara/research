@@ -16,10 +16,10 @@ from model_arch import (
 
 ARCH_NAME = "CNN1D_Finger_Only"
 VARIANT   = "finger_only"
-CONFIGS   = [{'id': 1, 'conv_ch': 32, 'fc_hid': 32, 'dropout': 0.2, 'lr': 0.0015, 'bs': 32}]
+CONFIGS   = [{'id': 1, 'conv_ch': 32, 'fc_hid': 32, 'dropout': 0.25, 'lr': 0.0015, 'bs': 32}]
 
 def create_model(feature_dim, cfg):
-    return TouchCNN1D(input_features=feature_dim, conv_channels=cfg.get("conv_ch", 32), fc_hidden=cfg.get("fc_hid", 32), dropout=cfg.get("dropout", 0.2))
+    return TouchCNN1D(input_features=feature_dim, conv_channels=cfg.get("conv_ch", 32), fc_hidden=cfg.get("fc_hid", 32), dropout=cfg.get("dropout", 0.25))
 
 def main():
     run_model_benchmark(

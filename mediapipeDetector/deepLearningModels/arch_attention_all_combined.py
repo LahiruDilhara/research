@@ -16,10 +16,10 @@ from model_arch import (
 
 ARCH_NAME = "Attention_All_Combined"
 VARIANT   = "all_joints_coords_vel_speed"
-CONFIGS   = [{'id': 1, 'embed_dim': 48, 'num_heads': 2, 'dropout': 0.2, 'lr': 0.001, 'bs': 32}]
+CONFIGS   = [{'id': 1, 'embed_dim': 48, 'num_heads': 2, 'dropout': 0.25, 'lr': 0.001, 'bs': 32}]
 
 def create_model(feature_dim, cfg):
-    return TouchAttentionNet(input_features=feature_dim, embed_dim=cfg.get("embed_dim", 48), num_heads=cfg.get("num_heads", 2), dropout=cfg.get("dropout", 0.2))
+    return TouchAttentionNet(input_features=feature_dim, embed_dim=cfg.get("embed_dim", 48), num_heads=cfg.get("num_heads", 2), dropout=cfg.get("dropout", 0.25))
 
 def main():
     run_model_benchmark(

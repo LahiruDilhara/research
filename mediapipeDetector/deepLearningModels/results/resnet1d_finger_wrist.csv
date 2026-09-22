@@ -1,0 +1,2 @@
+arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,optimal_threshold,optimal_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
+ResNet1D_Finger_Wrist,1,32,2,0.25,0.0015,32,91.6667,91.0377,0.41,92.45,0.926,0.9057,0.9157,295,23,30,288,GOOD FIT (OPTIMAL),11,-0.95,6.0,ResNet1D_Finger_Wrist_cfg01.pth

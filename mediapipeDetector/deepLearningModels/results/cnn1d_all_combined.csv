@@ -1,0 +1,2 @@
+arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,optimal_threshold,optimal_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
+CNN1D_All_Combined,1,32,2,0.28,0.001,32,92.4528,91.9811,0.43,92.61,0.9066,0.9465,0.9262,287,31,17,301,GOOD FIT (OPTIMAL),12,1.35,5.2,CNN1D_All_Combined_cfg01.pth

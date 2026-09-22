@@ -1,0 +1,2 @@
+arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,optimal_threshold,optimal_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
+BiLSTM_Finger_Only,1,32,2,0.25,0.001,32,92.6101,91.0377,0.56,92.77,0.9221,0.9308,0.9264,293,25,22,296,GOOD FIT (OPTIMAL),20,0.89,11.0,BiLSTM_Finger_Only_cfg01.pth
