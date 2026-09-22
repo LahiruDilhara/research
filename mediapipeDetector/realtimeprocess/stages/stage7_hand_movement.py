@@ -16,8 +16,8 @@ Matches process.sh Step 7 and datacreator/filter_hand_movement.py 100%.
 
 import math
 
-# Default whole-hand transit movement displacement threshold (L_hand)
-DEFAULT_DISPLACEMENT_THRESHOLD = 0.175
+# Default whole-hand transit movement displacement threshold (L_hand matching process.sh Step 7)
+DEFAULT_DISPLACEMENT_THRESHOLD = 0.155
 
 STATIONARY_NAMES = ["wrist", "index_mcp", "middle_mcp", "ring_mcp", "pinky_mcp"]
 

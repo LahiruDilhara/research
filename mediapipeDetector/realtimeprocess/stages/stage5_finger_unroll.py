@@ -60,6 +60,8 @@ def unroll_per_finger_window(norm_frames_5: list[dict[str, float]], v_steps_4: l
                 row[f"{j}{v}_vx"] = v_data[f"{j}_vx"]
                 row[f"{j}{v}_vy"] = v_data[f"{j}_vy"]
                 row[f"{j}{v}_vz"] = v_data[f"{j}_vz"]
+                row[f"{j}{v}_speed_2d"] = v_data[f"{j}_speed_2d"]
+                row[f"{j}{v}_speed_3d"] = v_data[f"{j}_speed_3d"]
 
             # Mapped finger-specific joints (pip, dip, tip)
             for j_role, orig_name in j_map.items():

@@ -169,6 +169,108 @@ def extract_variant_tensor(finger_rows: dict[str, dict], variant_name: str) -> n
                 X[i, v - 1, :] = pos + vel
         return X
 
+    elif variant_name in ("all_joints_coords_vel_speed", "all_combined_speed"):
+        seq_len, feature_dim = 4, 45
+        X = np.zeros((5, seq_len, feature_dim), dtype=np.float32)
+        for i, f in enumerate(finger_list):
+            row = finger_rows[f]
+            for v in range(1, 5):
+                pos = [
+                    _g(row, f"wrist{v}_x"), _g(row, f"wrist{v}_y"),
+                    _g(row, f"thumb_cmc{v}_x"), _g(row, f"thumb_cmc{v}_y"),
+                    _g(row, f"index_mcp{v}_x"), _g(row, f"index_mcp{v}_y"),
+                    _g(row, f"middle_mcp{v}_x"), _g(row, f"middle_mcp{v}_y"),
+                    _g(row, f"ring_mcp{v}_x"), _g(row, f"ring_mcp{v}_y"),
+                    _g(row, f"pinky_mcp{v}_x"), _g(row, f"pinky_mcp{v}_y"),
+                    _g(row, f"pip{v}_x"), _g(row, f"pip{v}_y"),
+                    _g(row, f"dip{v}_x"), _g(row, f"dip{v}_y"),
+                    _g(row, f"tip{v}_x"), _g(row, f"tip{v}_y"),
+                ]
+                vel = [
+                    _g(row, f"wrist{v}_vx"), _g(row, f"wrist{v}_vy"),
+                    _g(row, f"thumb_cmc{v}_vx"), _g(row, f"thumb_cmc{v}_vy"),
+                    _g(row, f"index_mcp{v}_vx"), _g(row, f"index_mcp{v}_vy"),
+                    _g(row, f"middle_mcp{v}_vx"), _g(row, f"middle_mcp{v}_vy"),
+                    _g(row, f"ring_mcp{v}_vx"), _g(row, f"ring_mcp{v}_vy"),
+                    _g(row, f"pinky_mcp{v}_vx"), _g(row, f"pinky_mcp{v}_vy"),
+                    _g(row, f"pip{v}_vx"), _g(row, f"pip{v}_vy"),
+                    _g(row, f"dip{v}_vx"), _g(row, f"dip{v}_vy"),
+                    _g(row, f"tip{v}_vx"), _g(row, f"tip{v}_vy"),
+                ]
+                speeds = [
+                    _g(row, f"wrist{v}_speed_2d"),
+                    _g(row, f"thumb_cmc{v}_speed_2d"),
+                    _g(row, f"index_mcp{v}_speed_2d"),
+                    _g(row, f"middle_mcp{v}_speed_2d"),
+                    _g(row, f"ring_mcp{v}_speed_2d"),
+                    _g(row, f"pinky_mcp{v}_speed_2d"),
+                    _g(row, f"pip{v}_speed_2d"),
+                    _g(row, f"dip{v}_speed_2d"),
+                    _g(row, f"tip{v}_speed_2d"),
+                ]
+                X[i, v - 1, :] = pos + vel + speeds
+        return X
+
+    elif variant_name in ("finger_only", "finger_only_combined"):
+        seq_len, feature_dim = 4, 16
+        X = np.zeros((5, seq_len, feature_dim), dtype=np.float32)
+        base_map = {
+            "thumb": "thumb_cmc",
+            "index": "index_mcp",
+            "middle": "middle_mcp",
+            "ring": "ring_mcp",
+            "pinky": "pinky_mcp",
+        }
+        for i, f in enumerate(finger_list):
+            row = finger_rows[f]
+            base_prefix = base_map[f]
+            for v in range(1, 5):
+                pos = [
+                    _g(row, f"{base_prefix}{v}_x"), _g(row, f"{base_prefix}{v}_y"),
+                    _g(row, f"pip{v}_x"), _g(row, f"pip{v}_y"),
+                    _g(row, f"dip{v}_x"), _g(row, f"dip{v}_y"),
+                    _g(row, f"tip{v}_x"), _g(row, f"tip{v}_y"),
+                ]
+                vel = [
+                    _g(row, f"{base_prefix}{v}_vx"), _g(row, f"{base_prefix}{v}_vy"),
+                    _g(row, f"pip{v}_vx"), _g(row, f"pip{v}_vy"),
+                    _g(row, f"dip{v}_vx"), _g(row, f"dip{v}_vy"),
+                    _g(row, f"tip{v}_vx"), _g(row, f"tip{v}_vy"),
+                ]
+                X[i, v - 1, :] = pos + vel
+        return X
+
+    elif variant_name in ("finger_wrist", "finger_wrist_combined"):
+        seq_len, feature_dim = 4, 20
+        X = np.zeros((5, seq_len, feature_dim), dtype=np.float32)
+        base_map = {
+            "thumb": "thumb_cmc",
+            "index": "index_mcp",
+            "middle": "middle_mcp",
+            "ring": "ring_mcp",
+            "pinky": "pinky_mcp",
+        }
+        for i, f in enumerate(finger_list):
+            row = finger_rows[f]
+            base_prefix = base_map[f]
+            for v in range(1, 5):
+                pos = [
+                    _g(row, f"wrist{v}_x"), _g(row, f"wrist{v}_y"),
+                    _g(row, f"{base_prefix}{v}_x"), _g(row, f"{base_prefix}{v}_y"),
+                    _g(row, f"pip{v}_x"), _g(row, f"pip{v}_y"),
+                    _g(row, f"dip{v}_x"), _g(row, f"dip{v}_y"),
+                    _g(row, f"tip{v}_x"), _g(row, f"tip{v}_y"),
+                ]
+                vel = [
+                    _g(row, f"wrist{v}_vx"), _g(row, f"wrist{v}_vy"),
+                    _g(row, f"{base_prefix}{v}_vx"), _g(row, f"{base_prefix}{v}_vy"),
+                    _g(row, f"pip{v}_vx"), _g(row, f"pip{v}_vy"),
+                    _g(row, f"dip{v}_vx"), _g(row, f"dip{v}_vy"),
+                    _g(row, f"tip{v}_vx"), _g(row, f"tip{v}_vy"),
+                ]
+                X[i, v - 1, :] = pos + vel
+        return X
+
     elif variant_name == "z_kinematics":
         seq_len, feature_dim = 4, 8
         X = np.zeros((5, seq_len, feature_dim), dtype=np.float32)
@@ -212,14 +314,22 @@ def extract_variant_tensor(finger_rows: dict[str, dict], variant_name: str) -> n
         for i, f in enumerate(finger_list):
             row = finger_rows[f]
             for v in range(1, 5):
-                w_vx, w_vy, w_vz = _g(row, f"wrist{v}_vx"), _g(row, f"wrist{v}_vy"), _g(row, f"wrist{v}_vz")
-                t_vx, t_vy, t_vz = _g(row, f"tip{v}_vx"), _g(row, f"tip{v}_vy"), _g(row, f"tip{v}_vz")
-                rel_vx, rel_vy, rel_vz = t_vx - w_vx, t_vy - w_vy, t_vz - w_vz
-                tip_speed = _g(row, f"tip{v}_speed_3d")
-                wrist_speed = _g(row, f"wrist{v}_speed_3d")
+                w_vx, w_vy = _g(row, f"wrist{v}_vx"), _g(row, f"wrist{v}_vy")
+                t_vx, t_vy = _g(row, f"tip{v}_vx"), _g(row, f"tip{v}_vy")
+                rel_vx, rel_vy = t_vx - w_vx, t_vy - w_vy
+                tip_speed = _g(row, f"tip{v}_speed_2d")
+                wrist_speed = _g(row, f"wrist{v}_speed_2d")
+                pip_speed = _g(row, f"pip{v}_speed_2d")
+                dip_speed = _g(row, f"dip{v}_speed_2d")
                 speed_ratio = (tip_speed + 1e-5) / (wrist_speed + 1e-5)
-                vel = [_g(row, f"wrist{v}_vx"), _g(row, f"wrist{v}_vy"), _g(row, f"wrist{v}_vz"), _g(row, f"pip{v}_vx"), _g(row, f"pip{v}_vy"), _g(row, f"pip{v}_vz"), _g(row, f"dip{v}_vx"), _g(row, f"dip{v}_vy"), _g(row, f"dip{v}_vz"), _g(row, f"tip{v}_vx"), _g(row, f"tip{v}_vy"), _g(row, f"tip{v}_vz")]
-                X[i, v - 1, :] = vel + [rel_vx, rel_vy, rel_vz, speed_ratio]
+                vel = [
+                    _g(row, f"wrist{v}_vx"), _g(row, f"wrist{v}_vy"),
+                    _g(row, f"pip{v}_vx"), _g(row, f"pip{v}_vy"),
+                    _g(row, f"dip{v}_vx"), _g(row, f"dip{v}_vy"),
+                    _g(row, f"tip{v}_vx"), _g(row, f"tip{v}_vy")
+                ]
+                rel_kinematics = [rel_vx, rel_vy, wrist_speed, tip_speed, pip_speed, dip_speed, speed_ratio, 0.0]
+                X[i, v - 1, :] = vel + rel_kinematics
         return X
 
     else:

@@ -23,28 +23,54 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from deepLearningModels.run_all import ALL_SCRIPTS
 from deepLearningModels.model_arch import parse_variant_csv, get_data_paths
-from realtimeprocess.realtime_pipeline import (
-    HandScaleNormalizer,
-    compute_window_velocities,
-    validate_hand_movement,
+from realtimeprocess.stages.stage1_normalizer import HandScaleNormalizer
+from realtimeprocess.stages.stage3_velocities import compute_window_velocities
+from realtimeprocess.stages.stage4_quality_filter import (
+    validate_realtime_window_quality,
+    validate_finger_kinetic_motion,
+)
+from realtimeprocess.stages.stage5_finger_unroll import (
     unroll_per_finger_window,
-    extract_variant_tensor,
-    ALL_21_LANDMARK_NAMES,
     FINGERS,
+)
+from realtimeprocess.stages.stage6_variant_extractor import extract_variant_tensor
+from realtimeprocess.stages.stage7_hand_movement import (
+    validate_hand_movement,
+    DEFAULT_DISPLACEMENT_THRESHOLD,
 )
 
 
-# Default whole-hand transit movement displacement filter threshold (L_hand)
-DEFAULT_DISPLACEMENT_THRESHOLD = 0.175
+# Default whole-hand transit movement displacement filter threshold (L_hand matching process.sh Step 7)
+DEFAULT_DISPLACEMENT_THRESHOLD = 0.155
 
 
 class ModelManager:
     """Discovers, loads, and executes PyTorch models for real-time streaming touch inference."""
 
-    def __init__(self, weights_dir: Path = None, device: str = None, hand_movement_threshold: float = DEFAULT_DISPLACEMENT_THRESHOLD):
+    def __init__(
+        self,
+        weights_dir: Path = None,
+        device: str = None,
+        hand_movement_threshold: float = DEFAULT_DISPLACEMENT_THRESHOLD,
+        min_avg_score: float = 0.65,
+        min_frame_score: float = 0.45,
+        max_score_drop: float = 0.35,
+        default_model: str = "LSTM_All_Combined",
+        t_on: float = 0.55,
+        t_off: float = 0.40,
+    ):
         self.project_root = PROJECT_ROOT
         self.weights_dir = weights_dir or (self.project_root / "deepLearningModels" / "weights")
         self.hand_movement_threshold = hand_movement_threshold
+        self.min_avg_score = min_avg_score
+        self.min_frame_score = min_frame_score
+        self.max_score_drop = max_score_drop
+        self.default_model_name = default_model
+        self.t_on = t_on
+        self.t_off = t_off
+
+        # Per-finger touch state tracker for hysteresis debouncing
+        self.finger_touch_state = {f: False for f in FINGERS}
 
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -60,7 +86,8 @@ class ModelManager:
 
         self._discover_models()
         if self.available_models:
-            self.load_model_by_index(0)
+            if not self.load_model_by_name(self.default_model_name):
+                self.load_model_by_index(0)
 
     def get_scaler_for_variant(self, variant_name: str) -> StandardScaler:
         """Loads/fits and caches StandardScaler for the specified feature variant using training_dataset.csv."""
@@ -174,9 +201,23 @@ class ModelManager:
         self.active_info = info
         self.active_info["seq_len"] = dummy_X.shape[1]
         self.active_info["feature_dim"] = feature_dim
+        self.finger_touch_state = {f: False for f in FINGERS}
 
         print(f"[ModelManager] Loaded Active Model: '{info['arch_name']}' ({variant_name}) on {self.device}")
         return True
+
+    def load_model_by_name(self, name_or_arch: str) -> bool:
+        """Finds and loads a model by name, architecture, or script name."""
+        if not name_or_arch or not self.available_models:
+            return False
+        q = name_or_arch.strip().lower()
+        for idx, m in enumerate(self.available_models):
+            arch = m["arch_name"].lower()
+            title = m["display_title"].lower()
+            script = m["script_file"].lower()
+            if q == arch or q == title or q == script or q in arch:
+                return self.load_model_by_index(idx)
+        return False
 
     def switch_next_model(self):
         """Switches to the next available model in catalog."""
@@ -192,6 +233,80 @@ class ModelManager:
         prev_idx = (self.active_model_idx - 1) % len(self.available_models)
         self.load_model_by_index(prev_idx)
 
+    def reset_touch_states(self):
+        """Resets per-finger touch states."""
+        self.finger_touch_state = {f: False for f in FINGERS}
+
+    def predict_unrolled_fingers(
+        self,
+        finger_rows: dict[str, dict],
+        max_disp: float = 0.0,
+        v_steps_4: list[dict[str, float]] = None
+    ) -> dict[str, dict]:
+        """
+        Executes model forward pass directly on unrolled 5-finger dictionary rows.
+        Applies feature variant extraction, standard scaling, PyTorch inference,
+        and enforces process.sh Step 9 zero-velocity touch filtering with dual-threshold hysteresis.
+        """
+        if self.active_model is None:
+            return {
+                f: {
+                    "touch": False,
+                    "prob": 0.0,
+                    "reason": "No Model",
+                    "hand_moving": False,
+                    "disp": max_disp,
+                }
+                for f in FINGERS
+            }
+
+        variant_name = self.active_info["variant_name"]
+        X_np = extract_variant_tensor(finger_rows, variant_name)
+
+        scaler = self.get_scaler_for_variant(variant_name)
+        if scaler is not None:
+            N_b, T, C = X_np.shape
+            X_scaled = scaler.transform(X_np.reshape(N_b, -1)).reshape(N_b, T, C)
+        else:
+            X_scaled = X_np
+
+        X_tensor = torch.from_numpy(X_scaled.astype(np.float32)).to(self.device)
+
+        with torch.inference_mode():
+            logits = self.active_model(X_tensor)
+            probs  = torch.sigmoid(logits).cpu().numpy().ravel()
+
+        results = {}
+        for idx, f_name in enumerate(FINGERS):
+            p = float(probs[idx])
+
+            # Process.sh Step 9 (--remove-zero-vel-touch):
+            # Verify if fingertip has actual kinetic impact motion across the 5 frames
+            has_kinetic_motion = True
+            if v_steps_4 is not None:
+                has_kinetic_motion = validate_finger_kinetic_motion(v_steps_4, f_name)
+
+            # Dual-threshold hysteresis debounce:
+            was_touch = self.finger_touch_state.get(f_name, False)
+            if was_touch:
+                # Retain touch until probability falls below release cutoff
+                is_touch = bool(p >= self.t_off)
+            else:
+                # Trigger touch only if probability exceeds onset cutoff AND has kinetic motion
+                is_touch = bool(p >= self.t_on and has_kinetic_motion)
+
+            self.finger_touch_state[f_name] = is_touch
+
+            results[f_name] = {
+                "touch": is_touch,
+                "prob": p,
+                "reason": "OK",
+                "hand_moving": False,
+                "disp": max_disp,
+            }
+
+        return results
+
     def predict_window(
         self,
         norm_frames_5: list[dict[str, float]],
@@ -201,12 +316,11 @@ class ModelManager:
     ) -> dict[str, dict]:
         """
         Given a 5-frame sequence window of scale-normalized wrist-centered landmarks:
-        1. Computes 4 frame-to-frame velocity steps.
-        2. Validates quality & cleaning filters (process.sh steps 8 & 9: min_avg_score 0.65, zero vel check).
-        3. Unrolls 5 per-finger feature rows.
-        4. Builds input tensor (5, seq_len, feature_dim) matching active model.
-        5. Applies StandardScaler matching training normalization (model_arch.py: normalize).
-        6. Runs model inference and returns per-finger Touch status & probability dict.
+        1. Validates whole-hand transit movement (displacement <= threshold).
+        2. Computes 4 frame-to-frame velocity steps and 2D speed.
+        3. Validates quality filters (min_avg_score, min_frame_score, max_score_drop).
+        4. Unrolls 5 per-finger feature rows.
+        5. Runs model inference with zero-velocity touch filtering on unrolled finger records.
         """
         if self.active_model is None:
             return {
@@ -223,6 +337,7 @@ class ModelManager:
         # Step 1: Check whole-hand transit movement (process.sh Step 7: stationary joint displacement <= threshold)
         is_stationary, max_disp, hm_reason = validate_hand_movement(norm_frames_5, threshold=self.hand_movement_threshold)
         if not is_stationary:
+            self.finger_touch_state = {f: False for f in FINGERS}
             return {
                 f: {
                     "touch": False,
@@ -234,13 +349,19 @@ class ModelManager:
                 for f in FINGERS
             }
 
-        # Step 2: Compute 4 velocity steps from normalized 5 frames
+        # Step 2: Compute 4 velocity steps from normalized 5 frames (process.sh Step 8)
         v_steps_4 = compute_window_velocities(norm_frames_5)
 
-        # Step 3: Validate window quality & dataset cleaning rules (process.sh Steps 8 & 9)
-        from realtimeprocess.realtime_pipeline import validate_realtime_window_quality
-        is_valid, reason = validate_realtime_window_quality(v_steps_4, hand_scores_5, min_avg_score=0.65)
+        # Step 3: Validate window quality (process.sh Step 10)
+        is_valid, reason = validate_realtime_window_quality(
+            v_steps_4,
+            hand_scores_5,
+            min_avg_score=self.min_avg_score,
+            min_frame_score=self.min_frame_score,
+            max_score_drop=self.max_score_drop,
+        )
         if not is_valid:
+            self.finger_touch_state = {f: False for f in FINGERS}
             return {
                 f: {
                     "touch": False,
@@ -252,37 +373,7 @@ class ModelManager:
                 for f in FINGERS
             }
 
-        # Step 4: Unroll 5 fingers
+        # Step 4: Unroll 5 fingers and predict with kinetic motion filtering (process.sh Steps 9 & 11)
         finger_rows = unroll_per_finger_window(norm_frames_5, v_steps_4)
+        return self.predict_unrolled_fingers(finger_rows, max_disp=max_disp, v_steps_4=v_steps_4)
 
-        # Step 5: Extract feature tensor
-        variant_name = self.active_info["variant_name"]
-        X_np = extract_variant_tensor(finger_rows, variant_name)
-
-        # Step 6: Apply StandardScaler matching training normalization (model_arch.py: normalize)
-        scaler = self.get_scaler_for_variant(variant_name)
-        if scaler is not None:
-            N_b, T, C = X_np.shape
-            X_scaled = scaler.transform(X_np.reshape(N_b, -1)).reshape(N_b, T, C)
-        else:
-            X_scaled = X_np
-
-        # Step 7: PyTorch Inference
-        X_tensor = torch.from_numpy(X_scaled.astype(np.float32)).to(self.device)
-
-        with torch.inference_mode():
-            logits = self.active_model(X_tensor)
-            probs  = torch.sigmoid(logits).cpu().numpy().ravel()
-
-        results = {}
-        for idx, f_name in enumerate(FINGERS):
-            p = float(probs[idx])
-            results[f_name] = {
-                "touch": bool(p >= 0.5),
-                "prob": p,
-                "reason": "OK",
-                "hand_moving": False,
-                "disp": max_disp,
-            }
-
-        return results

@@ -33,19 +33,32 @@ from realtimeprocess.camera_thread import CameraThread
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
-# Default whole-hand transit movement displacement filter threshold (L_hand)
-DEFAULT_DISPLACEMENT_THRESHOLD = 0.175
+# Default whole-hand transit movement displacement filter threshold (L_hand matching process.sh Step 7)
+DEFAULT_DISPLACEMENT_THRESHOLD = 0.155
 
 
 class RealtimeTkApp(ctk.CTk):
     """Native CustomTkinter Desktop Application for Real-Time Touch Gesture Detection."""
 
-    def __init__(self, camera_src=0, device: str = None, threshold: float = DEFAULT_DISPLACEMENT_THRESHOLD):
+    def __init__(
+        self,
+        camera_src=0,
+        device: str = None,
+        threshold: float = DEFAULT_DISPLACEMENT_THRESHOLD,
+        min_avg_score: float = 0.65,
+        min_frame_score: float = 0.45,
+        max_score_drop: float = 0.35,
+        default_model: str = "LSTM_All_Combined",
+    ):
         super().__init__()
 
         print("\n" + "="*80)
         print("  REAL-TIME TOUCH GESTURE DETECTION NATIVE DESKTOP HUD")
-        print(f"  Hand Movement Filter Threshold : {threshold:.3f} L_hand")
+        print(f"  Defined Model Architecture     : {default_model}")
+        print(f"  Hand Movement Filter Threshold : {threshold:.3f} L_hand (Step 7)")
+        print(f"  Min Average Hand Score Cutoff  : {min_avg_score:.2f} (Step 10)")
+        print(f"  Min Per-Frame Hand Score Cutoff: {min_frame_score:.2f} (Step 10)")
+        print(f"  Max Hand Score Drop Cutoff     : {max_score_drop:.2f} (Step 10)")
         print("="*80)
 
         self.title("Real-Time MediaPipe Touch Gesture Detector")
@@ -53,15 +66,27 @@ class RealtimeTkApp(ctk.CTk):
         self.minsize(960, 540)
 
         # Model Manager & Async Window Shift State
-        self.model_manager = ModelManager(device=device, hand_movement_threshold=threshold)
+        self.model_manager = ModelManager(
+            device=device,
+            hand_movement_threshold=threshold,
+            min_avg_score=min_avg_score,
+            min_frame_score=min_frame_score,
+            max_score_drop=max_score_drop,
+            default_model=default_model,
+        )
         self.last_predictions = {f: {"touch": False, "prob": 0.0, "hand_moving": False, "disp": 0.0} for f in ["thumb", "index", "middle", "ring", "pinky"]}
         self.inference_latency_ms = 0.0
 
-        # Camera Thread (12 FPS continuous capture)
+        # Multi-Threaded 12 FPS Capture & 5-Queue Pipeline Worker
         self.camera_thread = CameraThread(
             src=camera_src,
             target_fps=12.0,
-            callback=self.on_window_shift_trigger
+            callback=self.on_predictions_ready,
+            model_manager=self.model_manager,
+            hand_movement_threshold=threshold,
+            min_avg_score=min_avg_score,
+            min_frame_score=min_frame_score,
+            max_score_drop=max_score_drop,
         )
 
         # ── Configure Grid Layout (Column 0: Video, Column 1: Native Sidebar) ─
@@ -249,14 +274,10 @@ class RealtimeTkApp(ctk.CTk):
         # Start GUI Loop
         self.after(20, self.update_gui_loop)
 
-    def on_window_shift_trigger(self, window_5_frames, scores_5, frame_w, frame_h):
-        """Triggered asynchronously whenever a 2-frame shift occurs on a full 5-frame buffer."""
-        t0 = time.perf_counter()
-        preds = self.model_manager.predict_window(window_5_frames, scores_5, frame_w, frame_h)
-        latency = (time.perf_counter() - t0) * 1000.0
-
+    def on_predictions_ready(self, preds, latency_ms):
+        """Called asynchronously when 5-queue inference completes for a window."""
         self.last_predictions = preds
-        self.inference_latency_ms = latency
+        self.inference_latency_ms = latency_ms
 
     def on_model_dropdown_select(self, selected_title: str):
         """Dropdown handler to switch active model by display title."""
@@ -389,7 +410,11 @@ def main():
     parser = argparse.ArgumentParser(description="Real-Time MediaPipe Touch Gesture Detector Native Desktop Application.")
     parser.add_argument("--src", default=0, help="Camera index (e.g. 0) or video file path")
     parser.add_argument("--device", type=str, default=None, choices=["cuda", "cpu"], help="Target execution device")
+    parser.add_argument("--model", type=str, default="LSTM_All_Combined", help="Defined model architecture to load (default: LSTM_All_Combined)")
     parser.add_argument("--threshold", "-t", type=float, default=DEFAULT_DISPLACEMENT_THRESHOLD, help=f"Hand movement displacement threshold relative to L_hand (default: {DEFAULT_DISPLACEMENT_THRESHOLD})")
+    parser.add_argument("--min-avg-score", type=float, default=0.65, help="Min average hand score cutoff across 5 frames (default: 0.65)")
+    parser.add_argument("--min-frame-score", type=float, default=0.45, help="Min per-frame hand score cutoff (default: 0.45)")
+    parser.add_argument("--max-score-drop", type=float, default=0.35, help="Max hand score fluctuation drop cutoff (default: 0.35)")
     args = parser.parse_args()
 
     try:
@@ -397,7 +422,15 @@ def main():
     except ValueError:
         src = args.src
 
-    app = RealtimeTkApp(camera_src=src, device=args.device, threshold=args.threshold)
+    app = RealtimeTkApp(
+        camera_src=src,
+        device=args.device,
+        threshold=args.threshold,
+        min_avg_score=args.min_avg_score,
+        min_frame_score=args.min_frame_score,
+        max_score_drop=args.max_score_drop,
+        default_model=args.model,
+    )
     app.protocol("WM_DELETE_WINDOW", app.on_closing)
     app.mainloop()
 
