@@ -15,10 +15,10 @@ from model_arch import (
 
 ARCH_NAME = "Attention"
 VARIANT   = "combined_2d"
-CONFIGS   = [{'id': 1, 'embed_dim': 32, 'num_heads': 4, 'dropout': 0.2, 'lr': 0.001, 'bs': 32}]
+CONFIGS   = [{'id': 1, 'embed_dim': 32, 'num_heads': 2, 'dropout': 0.25, 'lr': 0.001, 'bs': 32}]
 
 def create_model(feature_dim, cfg):
-    return TouchAttentionNet(input_features=feature_dim, embed_dim=cfg.get("embed_dim", 32), num_heads=cfg.get("num_heads", 4), dropout=cfg.get("dropout", 0.2))
+    return TouchAttentionNet(input_features=feature_dim, embed_dim=cfg.get("embed_dim", 32), num_heads=cfg.get("num_heads", 2), dropout=cfg.get("dropout", 0.25))
 
 def main():
     run_model_benchmark(

@@ -48,7 +48,7 @@ def print_terminal_curves(history: dict, title: str = ""):
         return
 
     print(f"\n{'='*70}", flush=True)
-    print(f"  {title} — TRAINING & EVALUATION CURVES", flush=True)
+    print(f"  {title}: TRAINING & EVALUATION CURVES", flush=True)
     print(f"{'='*70}", flush=True)
 
     # Loss Curve
@@ -93,7 +93,7 @@ def plot_matplotlib_curves(history: dict, title: str = "", save_path: Path = Non
     # --- Loss Plot ---
     axes[0].plot(epochs, tr_loss, label="Train Loss", color="#e74c3c", linewidth=2.0, marker="o", markersize=3)
     axes[0].plot(epochs, te_loss, label="Test Loss", color="#3498db", linewidth=2.0, linestyle="--", marker="s", markersize=3)
-    axes[0].set_title(f"{title} — Loss Curve", fontsize=12, fontweight="bold")
+    axes[0].set_title(f"{title}: Loss Curve", fontsize=12, fontweight="bold")
     axes[0].set_xlabel("Epoch", fontsize=10)
     axes[0].set_ylabel("BCE Loss", fontsize=10)
     axes[0].grid(True, linestyle=":", alpha=0.6)
@@ -102,7 +102,7 @@ def plot_matplotlib_curves(history: dict, title: str = "", save_path: Path = Non
     # --- Accuracy Plot ---
     axes[1].plot(epochs, tr_acc, label="Train Acc", color="#2ecc71", linewidth=2.0, marker="o", markersize=3)
     axes[1].plot(epochs, te_acc, label="Test Acc", color="#f39c12", linewidth=2.0, linestyle="--", marker="s", markersize=3)
-    axes[1].set_title(f"{title} — Accuracy Curve (%)", fontsize=12, fontweight="bold")
+    axes[1].set_title(f"{title}: Accuracy Curve (%)", fontsize=12, fontweight="bold")
     axes[1].set_xlabel("Epoch", fontsize=10)
     axes[1].set_ylabel("Accuracy (%)", fontsize=10)
     axes[1].grid(True, linestyle=":", alpha=0.6)
@@ -207,7 +207,7 @@ def print_overfit_analytics(analytics: dict, title: str = ""):
     rec      = analytics["recommendation"]
 
     print(f"\n{'='*70}", flush=True)
-    print(f"  {title} — OVERFITTING & DIAGNOSTIC ANALYTICS", flush=True)
+    print(f"  {title}: OVERFITTING & DIAGNOSTIC ANALYTICS", flush=True)
     print(f"{'='*70}", flush=True)
 
     if status == "OVERFITTING":
@@ -242,7 +242,7 @@ def print_terminal_confusion_matrix(cm: np.ndarray, title: str = ""):
     f1   = 2 * (prec * rec) / (prec + rec) / 100.0 if (prec + rec) > 0 else 0.0
 
     print(f"\n{'='*70}", flush=True)
-    print(f"  {title} — CONFUSION MATRIX & METRICS REPORT", flush=True)
+    print(f"  {title}: CONFUSION MATRIX & METRICS REPORT", flush=True)
     print(f"{'='*70}", flush=True)
     print(f"                 Predicted UNTOUCH    Predicted TOUCH     Total Actual", flush=True)
     print(f"  Actual UNTOUCH     TN = {tn:<8d}     FP = {fp:<8d}     {actual_untouch:<8d}", flush=True)
@@ -272,7 +272,7 @@ def plot_matplotlib_confusion_matrix(cm: np.ndarray, title: str = "", save_path:
         yticks=np.arange(2),
         xticklabels=["Untouch (0)", "Touch (1)"],
         yticklabels=["Untouch (0)", "Touch (1)"],
-        title=f"{title} — Confusion Matrix",
+        title=f"{title}: Confusion Matrix",
         ylabel="Actual Label",
         xlabel="Predicted Label"
     )

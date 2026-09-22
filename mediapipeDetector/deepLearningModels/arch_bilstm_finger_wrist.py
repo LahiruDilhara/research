@@ -16,10 +16,10 @@ from model_arch import (
 
 ARCH_NAME = "BiLSTM_Finger_Wrist"
 VARIANT   = "finger_wrist"
-CONFIGS   = [{'id': 1, 'hidden': 32, 'layers': 2, 'dropout': 0.2, 'lr': 0.001, 'bs': 32}]
+CONFIGS   = [{'id': 1, 'hidden': 32, 'layers': 2, 'dropout': 0.25, 'lr': 0.001, 'bs': 32}]
 
 def create_model(feature_dim, cfg):
-    return BiLSTM(input_features=feature_dim, hidden_units=cfg.get("hidden", 32), num_layers=cfg.get("layers", 2), dropout=cfg.get("dropout", 0.2))
+    return BiLSTM(input_features=feature_dim, hidden_units=cfg.get("hidden", 32), num_layers=cfg.get("layers", 2), dropout=cfg.get("dropout", 0.25))
 
 def main():
     run_model_benchmark(
