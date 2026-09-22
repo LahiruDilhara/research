@@ -33,9 +33,9 @@ import sys
 import time
 from pathlib import Path
 
-# Complete Pure 2D Model Pool (22 distinct architecture & feature variants - 0% Z dependence)
+# Complete Pure 2D Model Pool (34 distinct architecture & feature variants - 0% Z dependence)
 ALL_SCRIPTS = [
-    # LSTM variants (7)
+    # LSTM variants (9)
     ("arch_lstm_velocities.py",        "LSTM_Velocities (2D Vels 4×8)",               "vel_2d"),
     ("arch_lstm_coords.py",            "LSTM_Coords (2D Coords 5×8)",                 "coords_2d"),
     ("arch_lstm_combined.py",          "LSTM_Combined (2D Coords+Vels 4×16)",         "combined_2d"),
@@ -43,31 +43,43 @@ ALL_SCRIPTS = [
     ("arch_lstm_all_joints_vel.py",    "LSTM_All_Joints_Vel (All 9 Joints Vels 4×18)","all_joints_vel"),
     ("arch_lstm_all_combined.py",      "LSTM_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
     ("arch_lstm_tip_vel_ratios.py",    "LSTM_Tip_Vel_Ratios (Tip Vel Ratios 4×16)",    "fingertip_velocity_ratios"),
+    ("arch_lstm_finger_only.py",       "LSTM_Finger_Only (Isolated Finger 4×16)",     "finger_only"),
+    ("arch_lstm_finger_wrist.py",      "LSTM_Finger_Wrist (Finger + Wrist 4×20)",     "finger_wrist"),
 
-    # BiLSTM variants (3)
+    # BiLSTM variants (5)
     ("arch_bilstm.py",                 "BiLSTM (2D Coords+Vels 4×16)",                "combined_2d"),
-    ("arch_bilstm_all_combined.py",     "BiLSTM_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
+    ("arch_bilstm_all_combined.py",    "BiLSTM_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
     ("arch_bilstm_tip_vel_ratios.py",  "BiLSTM_Tip_Vel_Ratios (Tip Vel Ratios 4×16)", "fingertip_velocity_ratios"),
+    ("arch_bilstm_finger_only.py",      "BiLSTM_Finger_Only (Isolated Finger 4×16)",   "finger_only"),
+    ("arch_bilstm_finger_wrist.py",     "BiLSTM_Finger_Wrist (Finger + Wrist 4×20)",   "finger_wrist"),
 
-    # 1D CNN variants (3)
+    # 1D CNN variants (5)
     ("arch_cnn1d.py",                  "CNN1D (2D Coords+Vels 4×16)",                 "combined_2d"),
-    ("arch_cnn1d_all_combined.py",      "CNN1D_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
+    ("arch_cnn1d_all_combined.py",     "CNN1D_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
     ("arch_cnn1d_tip_vel_ratios.py",   "CNN1D_Tip_Vel_Ratios (Tip Vel Ratios 4×16)", "fingertip_velocity_ratios"),
+    ("arch_cnn1d_finger_only.py",      "CNN1D_Finger_Only (Isolated Finger 4×16)",    "finger_only"),
+    ("arch_cnn1d_finger_wrist.py",     "CNN1D_Finger_Wrist (Finger + Wrist 4×20)",    "finger_wrist"),
 
-    # 1D ResNet variants (3)
+    # 1D ResNet variants (5)
     ("arch_resnet1d.py",               "ResNet1D (2D Coords+Vels 4×16)",              "combined_2d"),
-    ("arch_resnet1d_all_combined.py",   "ResNet1D_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
+    ("arch_resnet1d_all_combined.py",  "ResNet1D_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
     ("arch_resnet1d_tip_vel_ratios.py","ResNet1D_Tip_Vel_Ratios (Tip Vel Ratios 4×16)", "fingertip_velocity_ratios"),
+    ("arch_resnet1d_finger_only.py",   "ResNet1D_Finger_Only (Isolated Finger 4×16)",  "finger_only"),
+    ("arch_resnet1d_finger_wrist.py",  "ResNet1D_Finger_Wrist (Finger + Wrist 4×20)",  "finger_wrist"),
 
-    # Transformer Attention variants (3)
+    # Transformer Attention variants (5)
     ("arch_attention.py",              "Attention (2D Coords+Vels 4×16)",             "combined_2d"),
-    ("arch_attention_all_combined.py",  "Attention_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
+    ("arch_attention_all_combined.py", "Attention_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
     ("arch_attention_tip_vel_ratios.py","Attention_Tip_Vel_Ratios (Tip Vel Ratios 4×16)", "fingertip_velocity_ratios"),
+    ("arch_attention_finger_only.py",  "Attention_Finger_Only (Isolated Finger 4×16)", "finger_only"),
+    ("arch_attention_finger_wrist.py", "Attention_Finger_Wrist (Finger + Wrist 4×20)", "finger_wrist"),
 
-    # TCN variants (3)
+    # TCN variants (5)
     ("arch_tcn.py",                    "TCN (2D Coords+Vels 4×16)",                   "combined_2d"),
-    ("arch_tcn_all_combined.py",        "TCN_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
+    ("arch_tcn_all_combined.py",       "TCN_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
     ("arch_tcn_tip_vel_ratios.py",     "TCN_Tip_Vel_Ratios (Tip Vel Ratios 4×16)",   "fingertip_velocity_ratios"),
+    ("arch_tcn_finger_only.py",        "TCN_Finger_Only (Isolated Finger 4×16)",      "finger_only"),
+    ("arch_tcn_finger_wrist.py",       "TCN_Finger_Wrist (Finger + Wrist 4×20)",      "finger_wrist"),
 ]
 
 
@@ -83,7 +95,10 @@ def parse_args():
     parser.add_argument("-n", "--num-models", type=int, default=None, help="Number of models to run from pool (e.g. 5, 20, 1000)")
     parser.add_argument("-r", "--random", action="store_true", help="Randomize model selection from the pool")
     parser.add_argument("-m", "--models", type=str, default=None, help="Comma-separated architecture name filter (e.g. -m resnet,lstm,cnn)")
-    parser.add_argument("-i", "--inputs", type=str, default=None, help="Comma-separated input representation filter (e.g. -i coords,vel_3d,super_combined,wrist_rel_3d)")
+    parser.add_argument("-i", "--inputs", type=str, default=None, help="Comma-separated input representation filter (e.g. -i finger_only,finger_wrist,combined_2d)")
+    parser.add_argument("--finger-only", "-fo", action="store_true", help="Run only the 6 Finger-Only models (isolated finger: base MCP, PIP, DIP, TIP; no wrist, no other MCPs)")
+    parser.add_argument("--finger-wrist", "-fw", action="store_true", help="Run only the 6 Finger+Wrist models (Wrist + base MCP, PIP, DIP, TIP; no other MCPs)")
+    parser.add_argument("--ablation", "-ab", action="store_true", help="Run both isolated finger ablation suites (all 12 Finger-Only and Finger+Wrist models)")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for model sampling (default: 42)")
     parser.add_argument("--epochs", "-e", type=int, default=None, help="Override default training epochs for all models")
     parser.add_argument("--dropout", "-d", type=float, default=None, help="Override default dropout probability for all models")
@@ -97,7 +112,15 @@ def parse_args():
 def filter_and_sample_models(cli_args) -> list[tuple[str, str, str]]:
     pool = list(ALL_SCRIPTS)
 
-    # 1. Apply architecture filter -m / --models
+    # 1. Dedicated Category / Ablation filters
+    if cli_args.finger_only:
+        pool = [item for item in pool if item[2] == "finger_only"]
+    elif cli_args.finger_wrist:
+        pool = [item for item in pool if item[2] == "finger_wrist"]
+    elif cli_args.ablation:
+        pool = [item for item in pool if item[2] in ("finger_only", "finger_wrist")]
+
+    # 2. Apply architecture filter -m / --models
     if cli_args.models:
         terms = [t.strip().lower() for t in cli_args.models.split(",") if t.strip()]
         matched = []
@@ -112,7 +135,7 @@ def filter_and_sample_models(cli_args) -> list[tuple[str, str, str]]:
             sys.exit(1)
         pool = matched
 
-    # 2. Apply input representation filter -i / --inputs
+    # 3. Apply input representation filter -i / --inputs
     if cli_args.inputs:
         terms = [t.strip().lower() for t in cli_args.inputs.split(",") if t.strip()]
         matched = []
@@ -128,12 +151,12 @@ def filter_and_sample_models(cli_args) -> list[tuple[str, str, str]]:
             sys.exit(1)
         pool = matched
 
-    # 3. Randomize pool if -r / --random is passed
+    # 4. Randomize pool if -r / --random is passed
     if cli_args.random:
         rnd = random.Random(cli_args.seed)
         rnd.shuffle(pool)
 
-    # 4. Limit count if -n / --num-models is passed
+    # 5. Limit count if -n / --num-models is passed
     if cli_args.num_models is not None and cli_args.num_models > 0:
         pool = pool[:cli_args.num_models]
 

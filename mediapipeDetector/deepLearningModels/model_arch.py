@@ -349,6 +349,7 @@ def get_data_paths(base_dir: Path):
     """Resolve train and test CSV file paths with robust fallback search."""
     candidates = [
         (base_dir / "training_testing_data" / "train_dataset.csv", base_dir / "training_testing_data" / "test_dataset.csv"),
+        (base_dir / "dataprocessing" / "14_train_test_split" / "training_dataset.csv", base_dir / "dataprocessing" / "14_train_test_split" / "testing_dataset.csv"),
         (base_dir / "dataprocessing" / "13_train_test_split" / "training_dataset.csv", base_dir / "dataprocessing" / "13_train_test_split" / "testing_dataset.csv"),
         (base_dir / "dataprocessing" / "12_train_test_split" / "training_dataset.csv", base_dir / "dataprocessing" / "12_train_test_split" / "testing_dataset.csv"),
         (base_dir / "dataprocessing" / "11_train_test_split" / "training_dataset.csv", base_dir / "dataprocessing" / "11_train_test_split" / "testing_dataset.csv"),
@@ -448,6 +449,111 @@ def parse_variant_csv(csv_path_or_df, variant_name: str):
             v_vals = df[vel_cols].fillna(0.0).values.astype(np.float32)
             rel_kinematics = np.column_stack([rel_vx, rel_vy, wrist_speed, tip_speed, pip_speed, dip_speed, speed_ratio, speed_ratio * 0.0])
             X[:, v - 1, :] = np.hstack([v_vals, rel_kinematics])
+        return X, y, seq_len, feature_dim
+
+    elif variant_name in ("finger_only", "finger_only_combined"):
+        # Isolated single finger representation:
+        # ONLY that specific finger's own MCP, PIP, DIP, and TIP (no other finger MCP, NO wrist)
+        # 4 joints x 4 values (x, y, vx, vy) = 16 features, seq_len = 4
+        seq_len, feature_dim = 4, 16
+        X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+
+        finger_base_map = {
+            "thumb": "thumb_cmc",
+            "index": "index_mcp",
+            "middle": "middle_mcp",
+            "ring": "ring_mcp",
+            "pinky": "pinky_mcp",
+        }
+        fnames = df["finger_name"].astype(str).str.strip().str.lower().values
+
+        for v in range(1, 5):
+            base_x = np.zeros(n, dtype=np.float32)
+            base_y = np.zeros(n, dtype=np.float32)
+            base_vx = np.zeros(n, dtype=np.float32)
+            base_vy = np.zeros(n, dtype=np.float32)
+
+            for fg, prefix in finger_base_map.items():
+                mask = (fnames == fg)
+                if np.any(mask):
+                    base_x[mask] = df.loc[mask, f"{prefix}{v}_x"].fillna(0.0).values
+                    base_y[mask] = df.loc[mask, f"{prefix}{v}_y"].fillna(0.0).values
+                    base_vx[mask] = df.loc[mask, f"{prefix}{v}_vx"].fillna(0.0).values
+                    base_vy[mask] = df.loc[mask, f"{prefix}{v}_vy"].fillna(0.0).values
+
+            pip_x = df[f"pip{v}_x"].fillna(0.0).values
+            pip_y = df[f"pip{v}_y"].fillna(0.0).values
+            dip_x = df[f"dip{v}_x"].fillna(0.0).values
+            dip_y = df[f"dip{v}_y"].fillna(0.0).values
+            tip_x = df[f"tip{v}_x"].fillna(0.0).values
+            tip_y = df[f"tip{v}_y"].fillna(0.0).values
+
+            pip_vx = df[f"pip{v}_vx"].fillna(0.0).values
+            pip_vy = df[f"pip{v}_vy"].fillna(0.0).values
+            dip_vx = df[f"dip{v}_vx"].fillna(0.0).values
+            dip_vy = df[f"dip{v}_vy"].fillna(0.0).values
+            tip_vx = df[f"tip{v}_vx"].fillna(0.0).values
+            tip_vy = df[f"tip{v}_vy"].fillna(0.0).values
+
+            X[:, v - 1, :] = np.column_stack([
+                base_x, base_y, pip_x, pip_y, dip_x, dip_y, tip_x, tip_y,
+                base_vx, base_vy, pip_vx, pip_vy, dip_vx, dip_vy, tip_vx, tip_vy
+            ])
+        return X, y, seq_len, feature_dim
+
+    elif variant_name in ("finger_wrist", "finger_wrist_combined"):
+        # Single finger with wrist anchor:
+        # Wrist + that specific finger's own MCP, PIP, DIP, and TIP (no other finger MCPs)
+        # 5 joints x 4 values (x, y, vx, vy) = 20 features, seq_len = 4
+        seq_len, feature_dim = 4, 20
+        X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+
+        finger_base_map = {
+            "thumb": "thumb_cmc",
+            "index": "index_mcp",
+            "middle": "middle_mcp",
+            "ring": "ring_mcp",
+            "pinky": "pinky_mcp",
+        }
+        fnames = df["finger_name"].astype(str).str.strip().str.lower().values
+
+        for v in range(1, 5):
+            wrist_x = df[f"wrist{v}_x"].fillna(0.0).values
+            wrist_y = df[f"wrist{v}_y"].fillna(0.0).values
+            wrist_vx = df[f"wrist{v}_vx"].fillna(0.0).values
+            wrist_vy = df[f"wrist{v}_vy"].fillna(0.0).values
+
+            base_x = np.zeros(n, dtype=np.float32)
+            base_y = np.zeros(n, dtype=np.float32)
+            base_vx = np.zeros(n, dtype=np.float32)
+            base_vy = np.zeros(n, dtype=np.float32)
+
+            for fg, prefix in finger_base_map.items():
+                mask = (fnames == fg)
+                if np.any(mask):
+                    base_x[mask] = df.loc[mask, f"{prefix}{v}_x"].fillna(0.0).values
+                    base_y[mask] = df.loc[mask, f"{prefix}{v}_y"].fillna(0.0).values
+                    base_vx[mask] = df.loc[mask, f"{prefix}{v}_vx"].fillna(0.0).values
+                    base_vy[mask] = df.loc[mask, f"{prefix}{v}_vy"].fillna(0.0).values
+
+            pip_x = df[f"pip{v}_x"].fillna(0.0).values
+            pip_y = df[f"pip{v}_y"].fillna(0.0).values
+            dip_x = df[f"dip{v}_x"].fillna(0.0).values
+            dip_y = df[f"dip{v}_y"].fillna(0.0).values
+            tip_x = df[f"tip{v}_x"].fillna(0.0).values
+            tip_y = df[f"tip{v}_y"].fillna(0.0).values
+
+            pip_vx = df[f"pip{v}_vx"].fillna(0.0).values
+            pip_vy = df[f"pip{v}_vy"].fillna(0.0).values
+            dip_vx = df[f"dip{v}_vx"].fillna(0.0).values
+            dip_vy = df[f"dip{v}_vy"].fillna(0.0).values
+            tip_vx = df[f"tip{v}_vx"].fillna(0.0).values
+            tip_vy = df[f"tip{v}_vy"].fillna(0.0).values
+
+            X[:, v - 1, :] = np.column_stack([
+                wrist_x, wrist_y, base_x, base_y, pip_x, pip_y, dip_x, dip_y, tip_x, tip_y,
+                wrist_vx, wrist_vy, base_vx, base_vy, pip_vx, pip_vy, dip_vx, dip_vy, tip_vx, tip_vy
+            ])
         return X, y, seq_len, feature_dim
 
     elif variant_name in ("coords_3d", "vel_3d", "vel_speed_3d", "combined_3d", "z_kinematics", "super_combined", "super", "wrist_relative_3d", "wrist_rel_3d"):
