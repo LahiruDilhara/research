@@ -13,7 +13,7 @@ else
 fi
 
 # Configuration Thresholds
-HAND_MOVEMENT_THRESHOLD=0.168
+HAND_MOVEMENT_THRESHOLD=0.155
 
 rm -rf dataprocessing
 rm -rf training_testing_data
@@ -63,7 +63,7 @@ cp -f -r ./dataprocessing/3_euroFilter_coordinates/*.filtered_landmarks.* ./data
 "$PYTHON_BIN" datacreator/filter_dataset.py -i ./dataprocessing/8_dataset_with_velocities/all_windowed_dataset_velocities.csv -o ./dataprocessing/9_cleaned_dataset/cleaned_dataset.csv --remove-zero-vel-touch --remove-out-of-sync --remove-hand-invisible
 
 # Filter windowed dataset based on comprehensive quality & confidence flags (hand score, score drop, 2D/3D speed anomalies)
-"$PYTHON_BIN" datacreator/filter_window_quality.py -i ./dataprocessing/9_cleaned_dataset/cleaned_dataset.csv -o ./dataprocessing/10_quality_filtered_dataset/quality_cleaned_dataset.csv  --min-avg-score 0.65 #  --min-frame-score 0.45 --max-score-drop 0.30 --max-speed-2d 0.90 --max-speed-3d 1.10
+"$PYTHON_BIN" datacreator/filter_window_quality.py -i ./dataprocessing/9_cleaned_dataset/cleaned_dataset.csv -o ./dataprocessing/10_quality_filtered_dataset/quality_cleaned_dataset.csv --min-avg-score 0.65 --min-frame-score 0.45 --max-score-drop 0.35
 
 # Unroll sequence windows into per-finger dataset records (thumb, index, middle, ring, pinky)
 "$PYTHON_BIN" datacreator/split_fingers.py -i ./dataprocessing/10_quality_filtered_dataset/quality_cleaned_dataset.csv -o ./dataprocessing/11_per_finger_dataset/per_finger_dataset.csv
@@ -72,7 +72,7 @@ cp -f -r ./dataprocessing/3_euroFilter_coordinates/*.filtered_landmarks.* ./data
 "$PYTHON_BIN" datacreator/split_touch.py -i ./dataprocessing/11_per_finger_dataset/per_finger_dataset.csv -o ./dataprocessing/12_split_touch_dataset/
 
 # Create balanced training and testing datasets
-"$PYTHON_BIN" datacreator/create_train_test_split.py --touch-in ./dataprocessing/12_split_touch_dataset/touch_dataset.csv --untouch-in ./dataprocessing/12_split_touch_dataset/untouch_dataset.csv --train-out ./dataprocessing/13_train_test_split/training_dataset.csv --test-out ./dataprocessing/13_train_test_split/testing_dataset.csv --touch-test-pct 20 --untouch-train-ratio-pct 120 --untouch-test-ratio-pct 100 --seed 50 --no-video-leak
+"$PYTHON_BIN" datacreator/create_train_test_split.py --touch-in ./dataprocessing/12_split_touch_dataset/touch_dataset.csv --untouch-in ./dataprocessing/12_split_touch_dataset/untouch_dataset.csv --train-out ./dataprocessing/13_train_test_split/training_dataset.csv --test-out ./dataprocessing/13_train_test_split/testing_dataset.csv --touch-test-pct 20 --untouch-train-ratio-pct 130 --untouch-test-ratio-pct 100 --seed 50 --no-video-leak
 
 # Copy training and testing data to root
 mkdir -p training_testing_data

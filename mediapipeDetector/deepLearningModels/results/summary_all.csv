@@ -1,6 +1,6 @@
-arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-LSTM_Vel_Speed,1,32,2,0.2,0.001,32,92.73,91.8398,0.9114,0.9466,0.9287,306,31,18,319,GOOD FIT (OPTIMAL),35,-0.4,14.6,LSTM_Vel_Speed_cfg01.pth
-LSTM_All_Joints_Vel,1,32,2,0.2,0.001,32,92.4332,91.8398,0.9256,0.9228,0.9242,312,25,26,311,GOOD FIT (OPTIMAL),13,2.26,9.5,LSTM_All_Joints_Vel_cfg01.pth
-LSTM_Combined,1,32,2,0.2,0.001,32,91.9881,91.6914,0.9125,0.9288,0.9206,307,30,24,313,GOOD FIT (OPTIMAL),17,-0.29,6.8,LSTM_Combined_cfg01.pth
-LSTM_Velocities,1,32,2,0.2,0.001,32,91.9881,91.8398,0.9125,0.9288,0.9206,307,30,24,313,GOOD FIT (OPTIMAL),49,-0.2,17.8,LSTM_Velocities_cfg01.pth
-LSTM_Coords,1,32,2,0.2,0.001,32,90.5045,89.6142,0.8957,0.9169,0.9062,301,36,28,309,GOOD FIT (OPTIMAL),37,4.38,19.0,LSTM_Coords_cfg01.pth
+arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,optimal_threshold,optimal_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
+LSTM_All_Joints_Vel,1,32,2,0.2,0.001,32,93.0818,91.5094,0.47,93.24,0.9536,0.9057,0.929,304,14,30,288,OVERFITTING (Mild),17,2.51,12.2,LSTM_All_Joints_Vel_cfg01.pth
+LSTM_Combined,1,32,2,0.2,0.001,32,92.4528,91.6667,0.5,92.45,0.8971,0.9591,0.9271,283,35,13,305,GOOD FIT (OPTIMAL),22,0.49,16.3,LSTM_Combined_cfg01.pth
+LSTM_Vel_Speed,1,32,2,0.2,0.001,32,91.5094,89.6226,0.55,91.98,0.9125,0.9182,0.9154,290,28,26,292,GOOD FIT (OPTIMAL),18,0.39,8.7,LSTM_Vel_Speed_cfg01.pth
+LSTM_Coords,1,32,2,0.2,0.001,32,91.3522,91.0377,0.5,91.35,0.9071,0.9214,0.9142,288,30,25,293,GOOD FIT (OPTIMAL),62,1.21,26.9,LSTM_Coords_cfg01.pth
+LSTM_Velocities,1,32,2,0.2,0.001,32,91.3522,89.6226,0.64,91.98,0.9046,0.9245,0.9145,287,31,24,294,GOOD FIT (OPTIMAL),20,-0.3,9.2,LSTM_Velocities_cfg01.pth

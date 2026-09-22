@@ -41,42 +41,42 @@ ALL_SCRIPTS = [
     ("arch_lstm_combined.py",          "LSTM_Combined (2D Coords+Vels 4×16)",         "combined_2d"),
     ("arch_lstm_vel_speed.py",         "LSTM_Vel_Speed (2D Vels+Speeds 4×12)",        "vel_speed_2d"),
     ("arch_lstm_all_joints_vel.py",    "LSTM_All_Joints_Vel (All 9 Joints Vels 4×18)","all_joints_vel"),
-    ("arch_lstm_all_combined.py",      "LSTM_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
+    ("arch_lstm_all_combined.py",      "LSTM_All_Combined (All Joints Coords+Vels+Speeds 4×45)", "all_joints_coords_vel_speed"),
     ("arch_lstm_tip_vel_ratios.py",    "LSTM_Tip_Vel_Ratios (Tip Vel Ratios 4×16)",    "fingertip_velocity_ratios"),
     ("arch_lstm_finger_only.py",       "LSTM_Finger_Only (Isolated Finger 4×16)",     "finger_only"),
     ("arch_lstm_finger_wrist.py",      "LSTM_Finger_Wrist (Finger + Wrist 4×20)",     "finger_wrist"),
 
     # BiLSTM variants (5)
     ("arch_bilstm.py",                 "BiLSTM (2D Coords+Vels 4×16)",                "combined_2d"),
-    ("arch_bilstm_all_combined.py",    "BiLSTM_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
+    ("arch_bilstm_all_combined.py",    "BiLSTM_All_Combined (All Joints Coords+Vels+Speeds 4×45)", "all_joints_coords_vel_speed"),
     ("arch_bilstm_tip_vel_ratios.py",  "BiLSTM_Tip_Vel_Ratios (Tip Vel Ratios 4×16)", "fingertip_velocity_ratios"),
     ("arch_bilstm_finger_only.py",      "BiLSTM_Finger_Only (Isolated Finger 4×16)",   "finger_only"),
     ("arch_bilstm_finger_wrist.py",     "BiLSTM_Finger_Wrist (Finger + Wrist 4×20)",   "finger_wrist"),
 
     # 1D CNN variants (5)
     ("arch_cnn1d.py",                  "CNN1D (2D Coords+Vels 4×16)",                 "combined_2d"),
-    ("arch_cnn1d_all_combined.py",     "CNN1D_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
+    ("arch_cnn1d_all_combined.py",     "CNN1D_All_Combined (All Joints Coords+Vels+Speeds 4×45)", "all_joints_coords_vel_speed"),
     ("arch_cnn1d_tip_vel_ratios.py",   "CNN1D_Tip_Vel_Ratios (Tip Vel Ratios 4×16)", "fingertip_velocity_ratios"),
     ("arch_cnn1d_finger_only.py",      "CNN1D_Finger_Only (Isolated Finger 4×16)",    "finger_only"),
     ("arch_cnn1d_finger_wrist.py",     "CNN1D_Finger_Wrist (Finger + Wrist 4×20)",    "finger_wrist"),
 
     # 1D ResNet variants (5)
     ("arch_resnet1d.py",               "ResNet1D (2D Coords+Vels 4×16)",              "combined_2d"),
-    ("arch_resnet1d_all_combined.py",  "ResNet1D_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
+    ("arch_resnet1d_all_combined.py",  "ResNet1D_All_Combined (All Joints Coords+Vels+Speeds 4×45)", "all_joints_coords_vel_speed"),
     ("arch_resnet1d_tip_vel_ratios.py","ResNet1D_Tip_Vel_Ratios (Tip Vel Ratios 4×16)", "fingertip_velocity_ratios"),
     ("arch_resnet1d_finger_only.py",   "ResNet1D_Finger_Only (Isolated Finger 4×16)",  "finger_only"),
     ("arch_resnet1d_finger_wrist.py",  "ResNet1D_Finger_Wrist (Finger + Wrist 4×20)",  "finger_wrist"),
 
     # Transformer Attention variants (5)
     ("arch_attention.py",              "Attention (2D Coords+Vels 4×16)",             "combined_2d"),
-    ("arch_attention_all_combined.py", "Attention_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
+    ("arch_attention_all_combined.py", "Attention_All_Combined (All Joints Coords+Vels+Speeds 4×45)", "all_joints_coords_vel_speed"),
     ("arch_attention_tip_vel_ratios.py","Attention_Tip_Vel_Ratios (Tip Vel Ratios 4×16)", "fingertip_velocity_ratios"),
     ("arch_attention_finger_only.py",  "Attention_Finger_Only (Isolated Finger 4×16)", "finger_only"),
     ("arch_attention_finger_wrist.py", "Attention_Finger_Wrist (Finger + Wrist 4×20)", "finger_wrist"),
 
     # TCN variants (5)
     ("arch_tcn.py",                    "TCN (2D Coords+Vels 4×16)",                   "combined_2d"),
-    ("arch_tcn_all_combined.py",       "TCN_All_Combined (All Joints Coords+Vels 4×36)", "all_joints_coords_vel"),
+    ("arch_tcn_all_combined.py",       "TCN_All_Combined (All Joints Coords+Vels+Speeds 4×45)", "all_joints_coords_vel_speed"),
     ("arch_tcn_tip_vel_ratios.py",     "TCN_Tip_Vel_Ratios (Tip Vel Ratios 4×16)",   "fingertip_velocity_ratios"),
     ("arch_tcn_finger_only.py",        "TCN_Finger_Only (Isolated Finger 4×16)",      "finger_only"),
     ("arch_tcn_finger_wrist.py",       "TCN_Finger_Wrist (Finger + Wrist 4×20)",      "finger_wrist"),

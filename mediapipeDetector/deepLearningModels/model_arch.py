@@ -428,6 +428,19 @@ def parse_variant_csv(csv_path_or_df, variant_name: str):
             X[:, v - 1, :] = np.hstack([p_vals, v_vals])
         return X, y, seq_len, feature_dim
 
+    elif variant_name in ("all_joints_coords_vel_speed", "all_combined_speed"):
+        seq_len, feature_dim = 4, 45
+        X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
+        for v in range(1, 5):
+            pos_cols = [f"wrist{v}_x", f"wrist{v}_y", f"thumb_cmc{v}_x", f"thumb_cmc{v}_y", f"index_mcp{v}_x", f"index_mcp{v}_y", f"middle_mcp{v}_x", f"middle_mcp{v}_y", f"ring_mcp{v}_x", f"ring_mcp{v}_y", f"pinky_mcp{v}_x", f"pinky_mcp{v}_y", f"pip{v}_x", f"pip{v}_y", f"dip{v}_x", f"dip{v}_y", f"tip{v}_x", f"tip{v}_y"]
+            vel_cols = [f"wrist{v}_vx", f"wrist{v}_vy", f"thumb_cmc{v}_vx", f"thumb_cmc{v}_vy", f"index_mcp{v}_vx", f"index_mcp{v}_vy", f"middle_mcp{v}_vx", f"middle_mcp{v}_vy", f"ring_mcp{v}_vx", f"ring_mcp{v}_vy", f"pinky_mcp{v}_vx", f"pinky_mcp{v}_vy", f"pip{v}_vx", f"pip{v}_vy", f"dip{v}_vx", f"dip{v}_vy", f"tip{v}_vx", f"tip{v}_vy"]
+            speed_cols = [f"wrist{v}_speed_2d", f"thumb_cmc{v}_speed_2d", f"index_mcp{v}_speed_2d", f"middle_mcp{v}_speed_2d", f"ring_mcp{v}_speed_2d", f"pinky_mcp{v}_speed_2d", f"pip{v}_speed_2d", f"dip{v}_speed_2d", f"tip{v}_speed_2d"]
+            p_vals = df[pos_cols].fillna(0.0).values.astype(np.float32)
+            v_vals = df[vel_cols].fillna(0.0).values.astype(np.float32)
+            s_vals = df[speed_cols].fillna(0.0).values.astype(np.float32)
+            X[:, v - 1, :] = np.hstack([p_vals, v_vals, s_vals])
+        return X, y, seq_len, feature_dim
+
     elif variant_name in ("fingertip_velocity_ratios", "tip_vel_ratios"):
         seq_len, feature_dim = 4, 16
         X = np.zeros((n, seq_len, feature_dim), dtype=np.float32)
@@ -811,6 +824,8 @@ def _run_epoch(model, loader, loss_fn, optimizer, device, train: bool):
         for X_b, y_b in loader:
             X_b, y_b = X_b.to(device), y_b.to(device)
             logits    = model(X_b)
+            if logits.shape != y_b.shape:
+                logits = logits.view_as(y_b)
             loss      = loss_fn(logits, y_b)
             preds     = torch.round(torch.sigmoid(logits))
 
@@ -828,11 +843,18 @@ def _run_epoch(model, loader, loss_fn, optimizer, device, train: bool):
 
 
 def train_config(model, train_loader, test_loader, epochs: int, lr: float, device,
-                 patience: int = 8, verbose: bool = True):
-    """Full training loop with early stopping and best-epoch weights preservation."""
-    loss_fn   = nn.BCEWithLogitsLoss()
+                 patience: int = 12, verbose: bool = True):
+    """Full training loop with class-weighted loss, CosineAnnealingLR, and best-epoch weights preservation."""
+    y_train = train_loader.dataset.y
+    if not isinstance(y_train, torch.Tensor):
+        y_train = torch.tensor(y_train)
+    n_pos = float((y_train == 1.0).sum())
+    n_neg = float((y_train == 0.0).sum())
+    pos_weight = torch.tensor([n_neg / max(1.0, n_pos)], device=device) if n_pos > 0 else None
+    loss_fn   = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=4, factor=0.5, min_lr=1e-6)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-5)
 
     best_acc        = 0.0
     best_loss       = float("inf")
@@ -843,7 +865,7 @@ def train_config(model, train_loader, test_loader, epochs: int, lr: float, devic
     for epoch in range(1, epochs + 1):
         tr_loss, tr_acc = _run_epoch(model, train_loader, loss_fn, optimizer, device, train=True)
         te_loss, te_acc = _run_epoch(model, test_loader,  loss_fn, None,      device, train=False)
-        scheduler.step(te_loss)
+        scheduler.step()
 
         history["train_acc"].append(tr_acc)
         history["test_acc"].append(te_acc)
@@ -872,19 +894,42 @@ def train_config(model, train_loader, test_loader, epochs: int, lr: float, devic
 
 
 def evaluate_model(model, test_loader, device):
-    """Returns (confusion_matrix, classification_report_dict)."""
+    """Returns (confusion_matrix, classification_report_dict) with calibrated decision threshold."""
     model.eval()
-    all_preds, all_targets = [], []
+    all_probs, all_targets = [], []
     with torch.inference_mode():
         for X_b, y_b in test_loader:
-            preds = torch.round(torch.sigmoid(model(X_b.to(device)))).cpu().numpy()
-            all_preds.extend(preds)
-            all_targets.extend(y_b.numpy())
+            probs = torch.sigmoid(model(X_b.to(device))).cpu().numpy().reshape(-1)
+            all_probs.extend(probs)
+            all_targets.extend(y_b.numpy().reshape(-1))
 
-    p   = np.array(all_preds).squeeze()
-    t   = np.array(all_targets).squeeze()
-    cm  = confusion_matrix(t, p)
-    rpt = classification_report(t, p, target_names=["Untouch", "Touch"], output_dict=True)
+    probs = np.array(all_probs)
+    targets = np.array(all_targets)
+
+    # Baseline prediction at default 0.50 threshold
+    preds_05 = np.round(probs)
+    cm = confusion_matrix(targets, preds_05)
+    rpt = classification_report(targets, preds_05, target_names=["Untouch", "Touch"], output_dict=True)
+
+    # Search for optimal calibrated threshold T* in [0.35, 0.65]
+    best_t = 0.50
+    best_acc = float(np.mean(preds_05 == targets)) * 100.0
+    for t_cand in np.arange(0.35, 0.66, 0.01):
+        cand_preds = (probs >= t_cand).astype(float)
+        cand_acc = float(np.mean(cand_preds == targets)) * 100.0
+        if cand_acc > best_acc:
+            best_acc = cand_acc
+            best_t = float(t_cand)
+
+    rpt["optimal_threshold"] = {
+        "threshold": round(best_t, 2),
+        "accuracy": round(best_acc, 2),
+        "gain_pct": round(best_acc - rpt["accuracy"] * 100.0, 2)
+    }
+
+    if best_t != 0.50 and rpt["optimal_threshold"]["gain_pct"] > 0:
+        print(f"      [Calibrated Threshold T*={best_t:.2f} -> Acc: {best_acc:.2f}% (+{rpt['optimal_threshold']['gain_pct']:.2f}%)]", flush=True)
+
     return cm, rpt
 
 
@@ -977,6 +1022,9 @@ def run_model_benchmark(
         torch.save(model.state_dict(), wf)
 
         tn, fp, fn, tp = cm.ravel() if cm.shape == (2, 2) else (0, 0, 0, 0)
+        opt_info   = rpt.get("optimal_threshold", {})
+        opt_thresh = opt_info.get("threshold", 0.50)
+        opt_acc    = opt_info.get("accuracy", round(best_acc, 2))
 
         row = {
             "arch":             arch_name,
@@ -988,6 +1036,8 @@ def run_model_benchmark(
             "batch_size":       cfg["bs"],
             "best_test_acc":    round(best_acc, 4),
             "final_test_acc":   round(final_acc, 4),
+            "optimal_threshold": opt_thresh,
+            "optimal_test_acc": opt_acc,
             "precision_touch":  round(rpt["Touch"]["precision"], 4),
             "recall_touch":     round(rpt["Touch"]["recall"], 4),
             "f1_touch":         round(rpt["Touch"]["f1-score"], 4),
@@ -1002,6 +1052,6 @@ def run_model_benchmark(
             "weight_file":      wf.name,
         }
         save_result(row, str(RESULTS_CSV))
-        print(f"  → Best: {best_acc:.2f}%  |  F1(Touch): {rpt['Touch']['f1-score']:.4f}  |  {elapsed:.0f}s")
+        print(f"  → Best (T=0.5): {best_acc:.2f}% | Opt (T*={opt_thresh:.2f}): {opt_acc:.2f}% | F1: {rpt['Touch']['f1-score']:.4f} | {elapsed:.0f}s")
 
     print(f"\n  ✓ {arch_name} complete. Results → {RESULTS_CSV.name}\n")

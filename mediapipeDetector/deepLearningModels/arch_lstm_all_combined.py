@@ -15,11 +15,11 @@ from model_arch import (
 )
 
 ARCH_NAME = "LSTM_All_Combined"
-VARIANT   = "all_joints_coords_vel"
-CONFIGS   = [{'id': 1, 'hidden': 32, 'layers': 2, 'dropout': 0.2, 'lr': 0.001, 'bs': 32}]
+VARIANT   = "all_joints_coords_vel_speed"
+CONFIGS   = [{'id': 1, 'hidden': 48, 'layers': 2, 'dropout': 0.25, 'lr': 0.001, 'bs': 32}]
 
 def create_model(feature_dim, cfg):
-    return SequenceLSTM(input_features=feature_dim, hidden_units=cfg.get("hidden", 32), num_layers=cfg.get("layers", 2), dropout=cfg.get("dropout", 0.2))
+    return SequenceLSTM(input_features=feature_dim, hidden_units=cfg.get("hidden", 48), num_layers=cfg.get("layers", 2), dropout=cfg.get("dropout", 0.25))
 
 def main():
     run_model_benchmark(
