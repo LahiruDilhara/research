@@ -30,6 +30,8 @@ from collections import deque
 import time
 from typing import Any
 
+import numpy as np
+
 from config.constants import (
     FINGERS,
     HAND_MOVEMENT_THRESHOLD,
@@ -374,7 +376,10 @@ class TouchPipelineService:
             }
 
         # Step 10 Filtration: Window tracking confidence quality checks
-        scores_5 = [float(f.get("_hand_score", 0.85)) for f in norm_window_5]
+        if isinstance(norm_window_5, np.ndarray):
+            scores_5 = [0.85] * len(norm_window_5)
+        else:
+            scores_5 = [float(f.get("_hand_score", 0.85)) if isinstance(f, dict) else 0.85 for f in norm_window_5]
         is_valid_quality, q_reason = self._window_quality_filter.validate(scores_5)
         if not is_valid_quality:
             self.reset_touch_states()

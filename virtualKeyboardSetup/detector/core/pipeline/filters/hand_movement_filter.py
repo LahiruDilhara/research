@@ -27,12 +27,27 @@ class HandMovementFilter:
     def __init__(self, threshold: float = HAND_MOVEMENT_THRESHOLD) -> None:
         self.threshold = threshold
 
-    def compute_displacement(self, norm_frames_5: list[dict[str, Any]]) -> float:
+    def compute_displacement(self, norm_frames_5: Any) -> float:
         """
         Computes maximum stationary joint displacement between Frame 1 and Frame 5
         normalized by Frame 1 palm scale L_hand.
         """
-        if not norm_frames_5 or len(norm_frames_5) < 5:
+        if norm_frames_5 is None or len(norm_frames_5) < 5:
+            return 0.0
+
+        import numpy as np
+        if isinstance(norm_frames_5, np.ndarray):
+            if norm_frames_5.ndim >= 3 and norm_frames_5.shape[0] >= 5:
+                # Stationary joints: wrist=0, index_mcp=5, middle_mcp=9, ring_mcp=13, pinky_mcp=17
+                stat_indices = [0, 5, 9, 13, 17]
+                p1 = norm_frames_5[0, stat_indices, :2]
+                p5 = norm_frames_5[4, stat_indices, :2]
+                diffs = p5 - p1
+                dists = np.sqrt(np.sum(diffs ** 2, axis=-1))
+                return float(np.max(dists))
+            return 0.0
+
+        if not isinstance(norm_frames_5[0], dict):
             return 0.0
 
         f1_raw = norm_frames_5[0].get("_raw_stationary")

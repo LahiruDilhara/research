@@ -13,7 +13,8 @@ Responsibilities
 - Supports hot-swapping the active model without restarting the camera thread.
 """
 
-from __future__ import annotations
+from enum import Enum
+import time
 
 import numpy as np
 from PySide6.QtCore import QObject, Signal, Slot
@@ -31,20 +32,41 @@ from utils.logger import setup_logger
 logger = setup_logger("DetectorViewModel")
 
 
+class ExecutionMode(str, Enum):
+    """Operational mode of the virtual keyboard detector."""
+    PLAY = "play"  # Visual testing mode: video rendering, simulated touches, no OS keystrokes
+    RUN  = "run"   # Headless production mode: zero video rendering, low RAM, live telemetry, executes OS keystrokes
+
+
 class DetectorViewModel(QObject):
     """ViewModel for the live detector view."""
 
     # ── Signals ────────────────────────────────────────────────────────────────
-    frame_updated       = Signal(object, float, bool, bool)
-    # (frame: np.ndarray, fps: float, hand_detected: bool, layout_found: bool)
+    frame_updated        = Signal(object, float, bool, bool)
+    # (frame: np.ndarray | None, fps: float, hand_detected: bool, layout_found: bool)
 
     finger_probs_updated = Signal(dict)
-    # {"Thumb": 0.0..1.0, "Index": ..., ...}
+    # {"Thumb": {"touch": bool, "prob": float}, ...}
 
-    touch_event         = Signal(str, str, float)
+    touch_event          = Signal(str, str, float)
     # (key_id: str, finger: str, probability: float)
 
-    pipeline_error      = Signal(str)
+    action_executed      = Signal(str, str, str, str)
+    # (action_type: str, payload: str, key_id: str, finger: str)
+
+    latency_updated      = Signal(float)
+    # inference latency in milliseconds
+
+    fps_updated          = Signal(float)
+    # current pipeline execution FPS
+
+    mode_changed         = Signal(str)
+    # "play" or "run"
+
+    model_changed        = Signal(str)
+    # active model name
+
+    pipeline_error       = Signal(str)
 
     def __init__(
         self,
@@ -59,6 +81,8 @@ class DetectorViewModel(QObject):
         self._action_config = action_config
         self._config       = config
         self._camera_index = camera_index
+        self._mode = ExecutionMode.PLAY
+        self._active_model_name: str = ""
 
         self._active_model: ITouchModel | None = None
         self._current_H: np.ndarray | None = None
@@ -84,6 +108,37 @@ class DetectorViewModel(QObject):
         self._executor = ActionExecutor()
         self._worker: CameraWorker | None = None
 
+    # ── Operational Mode & Properties ──────────────────────────────────────────
+
+    @property
+    def execution_mode(self) -> ExecutionMode:
+        return self._mode
+
+    def set_execution_mode(self, mode: ExecutionMode | str) -> None:
+        if isinstance(mode, str):
+            mode = ExecutionMode(mode.lower())
+        self._mode = mode
+        if self._worker is not None:
+            self._worker.render_video = (mode == ExecutionMode.PLAY)
+        self.mode_changed.emit(self._mode.value)
+        logger.info("DetectorViewModel execution mode set to: %s", self._mode.value)
+
+    @property
+    def active_model_name(self) -> str:
+        return self._active_model_name
+
+    @property
+    def layout(self) -> LayoutData:
+        return self._layout
+
+    @property
+    def action_config(self) -> dict[str, ActionData]:
+        return self._action_config
+
+    def set_action_config(self, config: dict[str, ActionData]) -> None:
+        self._action_config = config
+        logger.info("Updated DetectorViewModel action configuration (%d keys).", len(config))
+
     # ── Lifecycle ──────────────────────────────────────────────────────────────
 
     def start(self) -> None:
@@ -97,11 +152,12 @@ class DetectorViewModel(QObject):
             pipeline_service=self._pipeline_service,
             parent=None,
         )
+        self._worker.render_video = (self._mode == ExecutionMode.PLAY)
         self._worker.frame_ready.connect(self._on_frame_ready)
         self._worker.window_ready.connect(self._on_window_ready)
         self._worker.error.connect(self._on_error)
         self._worker.start()
-        logger.info("Detection pipeline started (camera=%d).", self._camera_index)
+        logger.info("Detection pipeline started (camera=%d, mode=%s).", self._camera_index, self._mode.value)
 
     def stop(self) -> None:
         """Stop the camera worker thread cleanly."""
@@ -154,7 +210,9 @@ class DetectorViewModel(QObject):
             instance = entry.cls()
             instance.load(entry.weights_path)
             self._active_model = instance
+            self._active_model_name = entry.name
             entry.instance = instance
+            self.model_changed.emit(entry.name)
             logger.info("Active model set: %s", entry.name)
         except Exception as exc:
             logger.error("Failed to load model '%s': %s", entry.name, exc)
@@ -165,12 +223,28 @@ class DetectorViewModel(QObject):
         if entry:
             self.set_model(entry)
 
+    @property
+    def camera_index(self) -> int:
+        return self._camera_index
+
+    def set_camera_index(self, camera_index: int) -> None:
+        """Switch camera device dynamically without stopping the workspace."""
+        if self._camera_index == camera_index and self._worker and self._worker.isRunning():
+            return
+        logger.info("Switching camera device to index: %d", camera_index)
+        self._camera_index = camera_index
+        self._config._camera_index = camera_index
+        was_running = self._worker is not None and self._worker.isRunning()
+        if was_running:
+            self.stop()
+            self.start()
+
     # ── Slots ──────────────────────────────────────────────────────────────────
 
     @Slot(object, float, bool, object, bool)
     def _on_frame_ready(
         self,
-        frame: np.ndarray,
+        frame: np.ndarray | None,
         fps: float,
         hand_detected: bool,
         H,
@@ -180,6 +254,7 @@ class DetectorViewModel(QObject):
         self._layout_found = layout_found
         if not hand_detected:
             self._pipeline_service.reset_touch_states()
+        self.fps_updated.emit(fps)
         self.frame_updated.emit(frame, fps, hand_detected, layout_found)
 
     @Slot(list, list, int, int)
@@ -194,15 +269,24 @@ class DetectorViewModel(QObject):
             return
 
         # ── Parallel 5-Finger Model Inference (Service Layer) ───────────────
+        t0 = time.perf_counter()
         results = self._pipeline_service.run_parallel_inference(self._active_model, norm_window)
+        latency_ms = (time.perf_counter() - t0) * 1000.0
+
+        self.latency_updated.emit(latency_ms)
         self.finger_probs_updated.emit(results)
 
-        # ── Touch resolution ─────────────────────────────────────────────────
+        # ── Touch candidate monitoring ───────────────────────────────────────
+        touch_fingers = [f for f, data in results.items() if data.get("touch", False)]
+        if touch_fingers:
+            candidates_str = ", ".join(f"{f}: {results[f].get('prob', 0.0):.2f}" for f in touch_fingers)
+            logger.info("Touch candidate onset: [%s] (latency=%.1f ms)", candidates_str, latency_ms)
+
         if not self._layout_found or self._current_H is None:
+            if touch_fingers:
+                logger.warning("Touch candidate ignored: AprilTag layout homography is not locked.")
             return
 
-        # Enforce exact process.sh logic: only evaluate fingers with active touch
-        touch_fingers = [f for f, data in results.items() if data.get("touch", False)]
         if not touch_fingers:
             return
 
@@ -215,10 +299,28 @@ class DetectorViewModel(QObject):
 
         key_id, finger, prob = result
 
-        # ── Action execution ─────────────────────────────────────────────────
-        action = self._action_config.get(key_id)
-        if action and action.is_active:
-            self._executor.execute(action)
+        # ── Action execution (Run Mode only) ─────────────────────────────────
+        if self._mode == ExecutionMode.RUN:
+            action = self._action_config.get(key_id)
+            if action and action.is_active:
+                self._executor.execute(action)
+                self.action_executed.emit(action.type, action.value, key_id, finger)
+                logger.info(
+                    "[RUN MODE ACTION EXECUTED] Key='%s' Finger=%s Action=[%s: %s] (prob=%.2f, latency=%.1f ms)",
+                    key_id, finger, action.type.upper(), action.value, prob, latency_ms,
+                )
+            else:
+                logger.info(
+                    "[RUN MODE TOUCH] Key='%s' Finger=%s (No digital action bound) (prob=%.2f)",
+                    key_id, finger, prob,
+                )
+        else:
+            action = self._action_config.get(key_id)
+            action_desc = f"[{action.type.upper()}: {action.value}]" if (action and action.is_active) else "[No Action]"
+            logger.info(
+                "[PLAY MODE SIMULATED TOUCH] Key='%s' Finger=%s Simulated=%s (prob=%.2f, latency=%.1f ms)",
+                key_id, finger, action_desc, prob, latency_ms,
+            )
 
         self.touch_event.emit(key_id, finger, prob)
 

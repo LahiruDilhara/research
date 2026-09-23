@@ -186,8 +186,18 @@ class CameraWorker(QThread):
         self._layout = layout
         self._config = config
         self._pipeline_service = pipeline_service
+        self._render_video = True
         self._running = False
         self.setObjectName("CameraWorker")
+
+    @property
+    def render_video(self) -> bool:
+        """True if video frame rendering and skeleton drawing are enabled."""
+        return self._render_video
+
+    @render_video.setter
+    def render_video(self, value: bool) -> None:
+        self._render_video = bool(value)
 
     # ── QThread lifecycle ──────────────────────────────────────────────────────
 
@@ -201,14 +211,29 @@ class CameraWorker(QThread):
             self._running = False
             return
 
-        # 2. Open camera
+        # 2. Open camera with automatic fallback to any discovered working camera
         with _suppress_c_stderr():
             cap = cv2.VideoCapture(self._camera_index, cv2.CAP_V4L2)
             if not cap.isOpened():
                 cap = cv2.VideoCapture(self._camera_index)
 
         if not cap.isOpened():
-            self.error.emit(f"Could not open camera index {self._camera_index}.")
+            from services.camera_discovery import discover_cameras
+            discovered = discover_cameras(max_index=6)
+            for c in discovered:
+                if c.index != self._camera_index:
+                    with _suppress_c_stderr():
+                        fallback_cap = cv2.VideoCapture(c.index, cv2.CAP_V4L2)
+                        if not fallback_cap.isOpened():
+                            fallback_cap = cv2.VideoCapture(c.index)
+                    if fallback_cap.isOpened():
+                        logger.info("Camera %d failed. Auto-recovered with camera %d (%s).", self._camera_index, c.index, c.name)
+                        self._camera_index = c.index
+                        cap = fallback_cap
+                        break
+
+        if not cap.isOpened():
+            self.error.emit(f"Could not open camera index {self._camera_index} and no other working camera found.")
             self._running = False
             return
 
@@ -263,6 +288,8 @@ class CameraWorker(QThread):
         fps_counter = 0
         fps_start = time.perf_counter()
         actual_fps = TARGET_FPS
+        prev_hand_detected = False
+        prev_layout_valid = False
 
         # 6. Main loop
         try:
@@ -323,10 +350,6 @@ class CameraWorker(QThread):
                     timestamp=now,
                 )
 
-                # ── Draw filtered skeleton ──────────────────────────────────
-                if hand_detected and pipeline_service.last_pixel_coords is not None:
-                    self._draw_skeleton(frame, pipeline_service.last_pixel_coords)
-
                 if win_ready and norm_window and pixel_window:
                     self.window_ready.emit(
                         norm_window,
@@ -335,13 +358,31 @@ class CameraWorker(QThread):
                         frame_h,
                     )
 
-                # ── AprilTag tracking + key overlay ────────────────────────
-                apriltag.update(frame)
-                apriltag.annotate_frame(frame, self._layout)
+                if hand_detected and not prev_hand_detected:
+                    logger.info("MediaPipe: Hand entered camera frame (%s, score=%.2f)", hand_label or "Active", hand_score)
+                elif not hand_detected and prev_hand_detected:
+                    logger.info("MediaPipe: Hand exited camera frame.")
+                prev_hand_detected = hand_detected
 
-                # ── Emit annotated frame ────────────────────────────────────
+                # ── Visual rendering (Play Mode only) ────────────────────────
+                apriltag.update(frame)
+                if apriltag.is_valid and not prev_layout_valid:
+                    logger.info("AprilTag: Tracking locked (%d markers visible, homography valid).", len(apriltag.last_detections))
+                elif not apriltag.is_valid and prev_layout_valid:
+                    logger.warning("AprilTag: Tracking lost. Searching for layout markers...")
+                prev_layout_valid = apriltag.is_valid
+
+                if self._render_video:
+                    if hand_detected and pipeline_service.last_pixel_coords is not None:
+                        self._draw_skeleton(frame, pipeline_service.last_pixel_coords)
+                    apriltag.annotate_frame(frame, self._layout)
+                    out_frame = frame.copy()
+                else:
+                    out_frame = None
+
+                # ── Emit frame / telemetry ──────────────────────────────────
                 self.frame_ready.emit(
-                    frame.copy(),
+                    out_frame,
                     actual_fps,
                     hand_detected,
                     apriltag.H.copy() if apriltag.H is not None else None,

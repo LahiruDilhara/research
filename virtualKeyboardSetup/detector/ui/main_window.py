@@ -1,40 +1,39 @@
 """
 ui/main_window.py
 
-FluentWindow shell for the detector app.
-
-Navigation
-──────────
-  Home             → hosts a QStackedWidget (Splash → Action Config → Camera Select → Detector).
-  Settings         → settings view.
-
-View Routing
-────────────
-  All screen transitions happen cleanly inside the Home stacked widget without creating
-  any extra navigation tabs in the sidebar.
+FluentWindow shell for the detector application.
+Implements clean MVVM and SOLID separation:
+1. Startup: Full-window file landing screen with zero sidebars. File-only selection.
+2. Workspace: Sidebar navigation with Play Mode (Testing HUD), Run Mode (Headless Production),
+   Key Editor, and Settings. Mode, camera, and model selections live inside the workspace views.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QFileDialog, QStackedWidget, QWidget
-from qfluentwidgets import FluentIcon, FluentWindow, NavigationItemPosition
+from PySide6.QtCore import Qt, Slot
+from PySide6.QtWidgets import QWidget
+from qfluentwidgets import (
+    FluentIcon,
+    FluentWindow,
+    InfoBar,
+    InfoBarPosition,
+    NavigationItemPosition,
+)
 
 from config.app_config import AppConfig
 from config.constants import UI_BG_DARK
-from core.action.action_executor import ActionData
 from core.interfaces.touch_model import ModelEntry, ModelRegistry
+from core.layout.layout_parser import LayoutData
 from services.action_config_service import ActionConfigService
-from ui.components.splash_overlay import SplashOverlayWidget
 from ui.views.action_config_view import ActionConfigView
-from ui.views.camera_select_view import CameraSelectView
-from ui.views.detector_view import DetectorView
+from ui.views.file_landing_view import FileLandingView
+from ui.views.play_mode_view import PlayModeView
+from ui.views.run_mode_view import RunModeView
 from ui.views.settings_view import SettingsView
 from viewmodels.action_config_viewmodel import ActionConfigViewModel
-from viewmodels.camera_select_viewmodel import CameraSelectViewModel
-from viewmodels.detector_viewmodel import DetectorViewModel
+from viewmodels.detector_viewmodel import DetectorViewModel, ExecutionMode
 from viewmodels.settings_viewmodel import SettingsViewModel
 from viewmodels.startup_viewmodel import StartupViewModel
 from utils.logger import setup_logger
@@ -43,13 +42,14 @@ logger = setup_logger("MainWindow")
 
 
 class MainWindow(FluentWindow):
-    """Application shell, dark FluentWindow with internal stacked view routing."""
+    """Application shell with full-window startup and sidebar-driven workspace."""
 
     def __init__(self, config: AppConfig) -> None:
         super().__init__()
         self._config = config
-        self._current_model_entry: ModelEntry | None = None
         self._active_det_vm: DetectorViewModel | None = None
+        self._action_vm: ActionConfigViewModel | None = None
+        self._workspace_built: bool = False
         self._env_path = str(Path(__file__).resolve().parent.parent / ".env")
 
         # ViewModels
@@ -62,13 +62,12 @@ class MainWindow(FluentWindow):
         )
 
         self._setup_window()
-        self._build_pages()
-        self._connect_startup_vm()
+        self._setup_landing_page()
 
-        # Discover plugins
+        # Discover AI model plugins
         self._startup_vm.discover_models()
 
-    # ── Window setup ───────────────────────────────────────────────────────────
+    # ── Window Setup ───────────────────────────────────────────────────────────
 
     def _setup_window(self) -> None:
         self.setWindowTitle(self._config.app_title)
@@ -79,30 +78,142 @@ class MainWindow(FluentWindow):
         )
         self.navigationInterface.setAcrylicEnabled(False)
 
-    # ── Pages ──────────────────────────────────────────────────────────────────
+    # ── Startup Landing View (No Sidebars) ────────────────────────────────────
 
-    def _build_pages(self) -> None:
-        # ── Home stacked container ─────────────────────────────────────────────
-        self._home_stack = QStackedWidget(self)
-        self._home_stack.setObjectName("homeView")
-        self._home_stack.setStyleSheet(f"QStackedWidget {{ background-color: {UI_BG_DARK}; border: none; }}")
+    def _setup_landing_page(self) -> None:
+        # Hide sidebar navigation completely on application launch
+        self.navigationInterface.hide()
 
-        # Startup Splash View
-        self._splash = SplashOverlayWidget(self._home_stack)
-        self._splash.setObjectName("splashView")
-        self._splash.xml_browse_requested.connect(self._on_browse_xml)
-        self._splash.configure_actions_requested.connect(self._on_configure_requested)
-        self._splash.quick_start_requested.connect(self._on_quick_start)
-        self._home_stack.addWidget(self._splash)
+        self._landing_view = FileLandingView(
+            self._startup_vm,
+            last_xml_path=self._config.last_xml_path,
+            parent=self,
+        )
+        self._landing_view.setObjectName("fileLandingView")
+        self._landing_view.workspace_entered.connect(self._on_enter_workspace)
 
+        self.stackedWidget.addWidget(self._landing_view)
+        self.stackedWidget.setCurrentWidget(self._landing_view)
+
+    # ── Workspace Entry ────────────────────────────────────────────────────────
+
+    def _on_enter_workspace(
+        self,
+        layout_data: LayoutData,
+        xml_path: str,
+    ) -> None:
+        # Persist layout path
+        self._config.set_last_xml_path(xml_path)
+        self._settings_vm.set_layout_xml_path(xml_path)
+
+        # Stop previous detector if running
+        if self._active_det_vm is not None:
+            self._active_det_vm.stop()
+            self._active_det_vm = None
+
+        # Load action configuration
+        svc = ActionConfigService()
+        btn_ids = [b.id for b in layout_data.buttons]
+        action_config = svc.load(xml_path, btn_ids)
+
+        # Choose best default model from registry
+        models = ModelRegistry.all_entries()
+        default_model = None
+        for m in models:
+            if "lstm" in m.name.lower() or "best" in m.name.lower():
+                default_model = m
+                break
+        if default_model is None and models:
+            default_model = models[0]
+
+        # Resolve best available camera index
+        from services.camera_discovery import discover_cameras
+        available_cams = discover_cameras(max_index=6)
+        active_cam_idx = self._config.camera_index
+        available_indices = [c.index for c in available_cams]
+        if active_cam_idx not in available_indices and available_cams:
+            active_cam_idx = available_cams[0].index
+            logger.info(
+                "Camera %d not in active devices. Auto-selected Camera %d (%s).",
+                self._config.camera_index,
+                active_cam_idx,
+                available_cams[0].name,
+            )
+            self._config._camera_index = active_cam_idx
+
+        # Initialize Detector ViewModel in Play Mode
+        self._active_det_vm = DetectorViewModel(
+            layout=layout_data,
+            action_config=action_config,
+            config=self._config,
+            camera_index=active_cam_idx,
+            parent=self,
+        )
+        if default_model is not None:
+            self._active_det_vm.set_model(default_model)
+        self._active_det_vm.set_execution_mode(ExecutionMode.PLAY)
+
+        # Build workspace interface views
+        if not self._workspace_built:
+            self._build_workspace(layout_data, xml_path)
+            self._workspace_built = True
+        else:
+            self._update_workspace_layout(layout_data, xml_path)
+
+        # Reveal sidebar navigation
+        self.navigationInterface.show()
+
+        # Switch to Play Mode
+        self.switchTo(self._play_view)
+
+        # Start detector engine
+        self._active_det_vm.start()
+
+    # ── Workspace Interface Construction ───────────────────────────────────────
+
+    def _build_workspace(self, layout_data: LayoutData, xml_path: str) -> None:
+        # 1. Play Mode View
+        self._play_view = PlayModeView(self._active_det_vm, parent=self)
+        self._play_view.setObjectName("playModeView")
+        self._play_view.set_layout_data(layout_data)
+        self._play_view.mode_switch_requested.connect(self._on_mode_switch_requested)
         self.addSubInterface(
-            self._home_stack,
-            FluentIcon.HOME,
-            "Home",
+            self._play_view,
+            FluentIcon.PLAY,
+            "Play Mode",
             position=NavigationItemPosition.TOP,
         )
 
-        # ── Settings page ──────────────────────────────────────────────────────
+        # 2. Run Mode View
+        self._run_view = RunModeView(self._active_det_vm, parent=self)
+        self._run_view.setObjectName("runModeView")
+        self._run_view.set_layout_data(layout_data)
+        self._run_view.set_touch_threshold(self._config.touch_threshold)
+        self._run_view.mode_switch_requested.connect(self._on_mode_switch_requested)
+        self.addSubInterface(
+            self._run_view,
+            FluentIcon.SPEED_HIGH,
+            "Run Mode",
+            position=NavigationItemPosition.TOP,
+        )
+
+        # 3. Key Editor View
+        self._action_vm = ActionConfigViewModel(layout_data, xml_path, parent=self)
+        self._key_editor_view = ActionConfigView(self._action_vm, parent=self)
+        self._key_editor_view.setObjectName("keyEditorView")
+        self._key_editor_view.btn_back.setVisible(False)
+        self._key_editor_view.btn_continue.setText("Apply Actions")
+        self._key_editor_view.btn_continue.clicked.connect(self._on_apply_actions)
+        self._action_vm.action_changed.connect(self._on_action_item_changed)
+        self._action_vm.config_saved.connect(self._on_actions_saved)
+        self.addSubInterface(
+            self._key_editor_view,
+            FluentIcon.EDIT,
+            "Key Editor",
+            position=NavigationItemPosition.TOP,
+        )
+
+        # 4. Settings View (Bottom)
         self._settings_view = SettingsView(self._settings_vm, parent=self)
         self._settings_view.setObjectName("settingsView")
         self._settings_view.settings_applied.connect(self._on_settings_applied)
@@ -113,137 +224,88 @@ class MainWindow(FluentWindow):
             position=NavigationItemPosition.BOTTOM,
         )
 
-    def _connect_startup_vm(self) -> None:
-        self._startup_vm.layout_loaded.connect(self._on_layout_loaded)
-        self._startup_vm.models_ready.connect(self._splash.set_model_entries)
-        self._startup_vm.error_occurred.connect(self._show_error)
+        # 5. Change Layout Action (Bottom)
+        self.navigationInterface.addItem(
+            routeKey="changeLayoutAction",
+            icon=FluentIcon.FOLDER,
+            text="Change Layout",
+            onClick=self._return_to_landing,
+            selectable=False,
+            position=NavigationItemPosition.BOTTOM,
+        )
 
-    def _on_layout_loaded(self, layout) -> None:
-        xml_path = self._startup_vm.layout_path
-        self._splash.set_layout_loaded(layout, xml_path)
-        self._config.set_last_xml_path(xml_path)
-        self._settings_vm.set_layout_xml_path(xml_path)
+        # Track interface transitions for execution mode synchronization
+        self.stackedWidget.currentChanged.connect(self._on_interface_changed)
+
+    def _update_workspace_layout(self, layout_data: LayoutData, xml_path: str) -> None:
+        """Update existing workspace views with a newly opened layout XML."""
+        if hasattr(self, "_play_view"):
+            self._play_view.set_layout_data(layout_data)
+        if hasattr(self, "_run_view"):
+            self._run_view.set_layout_data(layout_data)
+        if hasattr(self, "_key_editor_view"):
+            self._action_vm = ActionConfigViewModel(layout_data, xml_path, parent=self)
+            self._action_vm.action_changed.connect(self._on_action_item_changed)
+            self._action_vm.config_saved.connect(self._on_actions_saved)
+
+    # ── Mode & Settings Synchronization ────────────────────────────────────────
+
+    def _on_mode_switch_requested(self, target_mode: str) -> None:
+        if target_mode == "run":
+            self.switchTo(self._run_view)
+        else:
+            self.switchTo(self._play_view)
+
+    @Slot(int)
+    def _on_interface_changed(self, index: int) -> None:
+        if self._active_det_vm is None:
+            return
+        widget = self.stackedWidget.widget(index)
+        if widget is self._run_view:
+            self._active_det_vm.set_execution_mode(ExecutionMode.RUN)
+        elif widget is self._play_view:
+            self._active_det_vm.set_execution_mode(ExecutionMode.PLAY)
+
+    def _on_action_item_changed(self, button_id: str, action_type: str, value: str) -> None:
+        if self._active_det_vm is not None and self._action_vm is not None:
+            self._active_det_vm.set_action_config(self._action_vm.config)
+
+    def _on_apply_actions(self) -> None:
+        if self._action_vm is not None and self._active_det_vm is not None:
+            self._action_vm.save()
+            self._active_det_vm.set_action_config(self._action_vm.config)
+            InfoBar.success(
+                title="Actions Applied",
+                content="Updated key actions are now active in the detector.",
+                position=InfoBarPosition.TOP,
+                parent=self,
+                duration=3000,
+            )
+
+    def _on_actions_saved(self, path: str) -> None:
+        if self._action_vm is not None and self._active_det_vm is not None:
+            self._active_det_vm.set_action_config(self._action_vm.config)
 
     def _on_settings_applied(self) -> None:
-        """Propagate updated settings immediately to live detector if running."""
         if self._active_det_vm is not None:
             self._active_det_vm.update_settings(self._config)
-            logger.info("Propagated settings update to active DetectorViewModel.")
+        if hasattr(self, "_run_view"):
+            self._run_view.set_touch_threshold(self._config.touch_threshold)
+        logger.info("Propagated settings update to active detector pipeline.")
 
-    # ── Navigation / routing ───────────────────────────────────────────────────
+    # ── Return to Landing Page ─────────────────────────────────────────────────
 
-    def _on_browse_xml(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(
-            self, "Open Layout XML", "", "XML Files (*.xml)"
-        )
-        if path:
-            self._startup_vm.load_layout(path)
-
-    def _on_configure_requested(
-        self, layout_data, xml_path: str, model_name: str
-    ) -> None:
-        self._current_model_entry = self._get_model_entry(model_name)
-        vm = ActionConfigViewModel(layout_data, xml_path, parent=self)
-        view = ActionConfigView(vm, parent=self._home_stack)
-        view.setObjectName("actionConfigView")
-        view.back_requested.connect(self._go_home)
-        view.start_requested.connect(
-            lambda: self._go_to_camera_select(layout_data, xml_path, vm.config)
-        )
-        self._push_view(view)
-
-    def _on_quick_start(
-        self, layout_data, xml_path: str, model_name: str
-    ) -> None:
-        self._current_model_entry = self._get_model_entry(model_name)
-        # Load existing actions or empty defaults
-        svc = ActionConfigService()
-        btn_ids = [b.id for b in layout_data.buttons]
-        action_config = svc.load(xml_path, btn_ids)
-        self._go_to_camera_select(layout_data, xml_path, action_config)
-
-    def _go_to_camera_select(
-        self, layout_data, xml_path: str, action_config: dict[str, ActionData]
-    ) -> None:
-        cam_vm = CameraSelectViewModel(parent=self)
-        cam_view = CameraSelectView(cam_vm, parent=self._home_stack)
-        cam_view.setObjectName("cameraSelectView")
-        cam_view.back_requested.connect(self._go_home)
-        cam_view.start_requested.connect(
-            lambda cam_idx: self._start_detector(layout_data, action_config, cam_idx)
-        )
-        self._push_view(cam_view)
-
-    def _start_detector(
-        self,
-        layout_data,
-        action_config: dict[str, ActionData],
-        camera_index: int,
-    ) -> None:
-        if self._current_model_entry is None:
-            self._show_error("No model selected.")
-            return
-
-        # Stop previous detector if running
+    def _return_to_landing(self) -> None:
         if self._active_det_vm is not None:
             self._active_det_vm.stop()
             self._active_det_vm = None
+        self.navigationInterface.hide()
+        self.switchTo(self._landing_view)
 
-        det_vm = DetectorViewModel(
-            layout=layout_data,
-            action_config=action_config,
-            config=self._config,
-            camera_index=camera_index,
-            parent=self,
-        )
-        det_vm.set_model(self._current_model_entry)
-        self._active_det_vm = det_vm
-
-        det_view = DetectorView(det_vm, self._current_model_entry, parent=self._home_stack)
-        det_view.setObjectName("detectorView")
-        det_view.set_layout_data(layout_data)
-        det_view.stop_requested.connect(self._go_home)
-
-        self._push_view(det_view)
-        det_vm.start()
-
-    def _go_home(self) -> None:
-        if self._active_det_vm is not None:
-            self._active_det_vm.stop()
-            self._active_det_vm = None
-        self._home_stack.setCurrentWidget(self._splash)
-        self.switchTo(self._home_stack)
-
-    def _push_view(self, view: QWidget) -> None:
-        """Switch to view inside the Home stacked widget without touching the sidebar."""
-        # Clean up existing instance with same objectName in the stack
-        for i in range(self._home_stack.count() - 1, -1, -1):
-            w = self._home_stack.widget(i)
-            if w is not None and w is not self._splash and w.objectName() == view.objectName():
-                self._home_stack.removeWidget(w)
-                w.deleteLater()
-        self._home_stack.addWidget(view)
-        self._home_stack.setCurrentWidget(view)
-        self.switchTo(self._home_stack)
+    # ── Close Event ────────────────────────────────────────────────────────────
 
     def closeEvent(self, event) -> None:
-        """Ensure threads and camera workers are cleanly shut down on exit."""
         if self._active_det_vm is not None:
             self._active_det_vm.stop()
             self._active_det_vm = None
         super().closeEvent(event)
-
-    # ── Helpers ────────────────────────────────────────────────────────────────
-
-    def _get_model_entry(self, name: str) -> ModelEntry | None:
-        return next((e for e in ModelRegistry.all_entries() if e.name == name), None)
-
-    def _show_error(self, msg: str) -> None:
-        from qfluentwidgets import InfoBar, InfoBarPosition
-        InfoBar.error(
-            title="Error",
-            content=msg,
-            position=InfoBarPosition.TOP,
-            parent=self,
-            duration=5000,
-        )

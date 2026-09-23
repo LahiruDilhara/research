@@ -1,0 +1,184 @@
+"""
+tests/test_touch_resolver.py
+
+Unit tests for TouchResolver:
+- Verifies kinematic deceleration and trajectory turnaround impact frame selection.
+- Verifies rebound taps (bounce back up), resting taps (staying still on key).
+- Verifies camera tilt invariance (angled diagonal strokes).
+- Verifies key boundary hit testing via Homography matrix.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+# Add project root to sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+import numpy as np
+
+from config.constants import FINGERTIP_INDICES
+from core.layout.layout_parser import ButtonData, LayoutData
+from core.pipeline.touch_resolver import TouchResolver
+
+
+def _create_mock_layout() -> LayoutData:
+    """Creates a mock layout with two buttons."""
+    # Button 'A': x in [20, 60] mm, y in [20, 60] mm
+    # Button 'B': x in [80, 120] mm, y in [20, 60] mm
+    btn_a = ButtonData(
+        id="KEY_A",
+        label="A",
+        x_mm=20.0,
+        y_mm=20.0,
+        x_max_mm=60.0,
+        y_max_mm=60.0,
+        width_mm=40.0,
+        height_mm=40.0,
+        center_x_mm=40.0,
+        center_y_mm=40.0,
+    )
+    btn_b = ButtonData(
+        id="KEY_B",
+        label="B",
+        x_mm=80.0,
+        y_mm=20.0,
+        x_max_mm=120.0,
+        y_max_mm=60.0,
+        width_mm=40.0,
+        height_mm=40.0,
+        center_x_mm=100.0,
+        center_y_mm=40.0,
+    )
+    return LayoutData(
+        paper_width_mm=210.0,
+        paper_height_mm=297.0,
+        marker_size_mm=15.0,
+        marker_family="tag36h11",
+        buttons=[btn_a, btn_b],
+        markers=[],
+    )
+
+
+def test_rebound_tap_at_frame_3():
+    """Verify that a downward strike at Frame 3 followed by an upward rebound selects Frame 3."""
+    layout = _create_mock_layout()
+    resolver = TouchResolver(layout)
+
+    # Identity homography: 1 pixel = 1 mm
+    H = np.eye(3, dtype=np.float64)
+
+    # 5 frames of 21 landmarks
+    # Index finger tip index is 8
+    # Frame 0: still at (40, 10)
+    # Frame 1: still at (40, 10)
+    # Frame 2: moving down at (40, 25)
+    # Frame 3: struck key 'A' at (40, 45) (inside KEY_A: [20..60, 20..60])
+    # Frame 4: rebounded back up to (40, 20)
+    pixel_window = []
+    y_coords = [10.0, 10.0, 25.0, 45.0, 20.0]
+    for y in y_coords:
+        landmarks = [(40.0, y) for _ in range(21)]
+        pixel_window.append(landmarks)
+
+    probs = {"Index": 0.92, "Thumb": 0.10}
+    touch_fingers = ["Index"]
+
+    result = resolver.resolve(touch_fingers, probs, pixel_window, H)
+    assert result is not None
+    key_id, finger, prob = result
+    assert key_id == "KEY_A"
+    assert finger == "Index"
+    assert abs(prob - 0.92) < 1e-4
+
+    # Verify impact frame selection directly
+    impact_frame = resolver._find_impact_frame(FINGERTIP_INDICES["Index"], pixel_window)
+    assert impact_frame == 3
+
+
+def test_resting_tap_at_frame_3():
+    """Verify that a downward strike at Frame 3 followed by staying still selects Frame 3."""
+    layout = _create_mock_layout()
+    resolver = TouchResolver(layout)
+    H = np.eye(3, dtype=np.float64)
+
+    # Frame 0: (40, 10)
+    # Frame 1: (40, 15)
+    # Frame 2: (40, 25)
+    # Frame 3: lands at (40, 45) (inside KEY_A)
+    # Frame 4: resting still at (40, 45)
+    pixel_window = []
+    y_coords = [10.0, 15.0, 25.0, 45.0, 45.0]
+    for y in y_coords:
+        landmarks = [(40.0, y) for _ in range(21)]
+        pixel_window.append(landmarks)
+
+    impact_frame = resolver._find_impact_frame(FINGERTIP_INDICES["Index"], pixel_window)
+    assert impact_frame == 3
+
+    result = resolver.resolve(["Index"], {"Index": 0.88}, pixel_window, H)
+    assert result is not None
+    assert result[0] == "KEY_A"
+
+
+def test_early_rebound_at_frame_2():
+    """Verify that a fast strike landing at Frame 2 and rebounding selects Frame 2."""
+    layout = _create_mock_layout()
+    resolver = TouchResolver(layout)
+    H = np.eye(3, dtype=np.float64)
+
+    # Frame 0: (100, 10)
+    # Frame 1: (100, 25)
+    # Frame 2: landed at (100, 50) (inside KEY_B: [80..120, 20..60])
+    # Frame 3: rebounded to (100, 30)
+    # Frame 4: continuing up to (100, 15)
+    pixel_window = []
+    y_coords = [10.0, 25.0, 50.0, 30.0, 15.0]
+    for y in y_coords:
+        landmarks = [(100.0, y) for _ in range(21)]
+        pixel_window.append(landmarks)
+
+    impact_frame = resolver._find_impact_frame(FINGERTIP_INDICES["Index"], pixel_window)
+    assert impact_frame == 2
+
+    result = resolver.resolve(["Index"], {"Index": 0.85}, pixel_window, H)
+    assert result is not None
+    assert result[0] == "KEY_B"
+
+
+def test_angled_camera_motion_invariance():
+    """Verify that tilted diagonal strokes (e.g. 45 degrees) resolve the exact turnaround frame."""
+    layout = _create_mock_layout()
+    resolver = TouchResolver(layout)
+
+    # Motion along diagonal line at 45 degrees: (x, y)
+    # Frame 0: (20, 20)
+    # Frame 1: (25, 25)
+    # Frame 2: (35, 35)
+    # Frame 3: lands at (45, 45) (inside KEY_A)
+    # Frame 4: rebounds backward along diagonal to (30, 30)
+    pixel_window = []
+    coords = [(20.0, 20.0), (25.0, 25.0), (35.0, 35.0), (45.0, 45.0), (30.0, 30.0)]
+    for pt in coords:
+        landmarks = [pt for _ in range(21)]
+        pixel_window.append(landmarks)
+
+    # Camera tilt invariance check: direction reverses along diagonal
+    impact_frame = resolver._find_impact_frame(FINGERTIP_INDICES["Index"], pixel_window)
+    assert impact_frame == 3
+
+    H = np.eye(3, dtype=np.float64)
+    result = resolver.resolve(["Index"], {"Index": 0.90}, pixel_window, H)
+    assert result is not None
+    assert result[0] == "KEY_A"
+
+
+if __name__ == "__main__":
+    test_rebound_tap_at_frame_3()
+    test_resting_tap_at_frame_3()
+    test_early_rebound_at_frame_2()
+    test_angled_camera_motion_invariance()
+    print("\nAll TouchResolver kinematic deceleration and angle invariance tests passed successfully!")
