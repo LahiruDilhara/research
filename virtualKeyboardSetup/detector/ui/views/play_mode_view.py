@@ -290,13 +290,17 @@ class PlayModeView(QWidget):
 
         selected_idx = 0
         current_cam = self._vm.camera_index
+        matched = False
         for i, cam in enumerate(self._cameras):
             label = f"Camera {cam.index}: {cam.name}"
             self.combo_camera.addItem(label, userData=cam.index)
             if cam.index == current_cam:
                 selected_idx = i
+                matched = True
         self.combo_camera.setCurrentIndex(selected_idx)
         self.combo_camera.blockSignals(False)
+        if not matched and self._cameras:
+            self._vm.set_camera_index(self._cameras[0].index)
 
     # ── Public API ─────────────────────────────────────────────────────────────
 

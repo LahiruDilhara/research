@@ -157,6 +157,27 @@ class AppConfig:
     def camera_index(self) -> int:
         return self._camera_index
 
+    def set_camera_index(self, index: int) -> None:
+        """Set the active camera index and save to .env if needed."""
+        self._camera_index = int(index)
+        os.environ["CAMERA_INDEX"] = str(index)
+        env_file = Path(self._env_path)
+        try:
+            lines: list[str] = []
+            found = False
+            if env_file.exists():
+                for line in env_file.read_text(encoding="utf-8").splitlines():
+                    if line.startswith("CAMERA_INDEX="):
+                        lines.append(f"CAMERA_INDEX={index}")
+                        found = True
+                    else:
+                        lines.append(line)
+            if not found:
+                lines.append(f"CAMERA_INDEX={index}")
+            env_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        except Exception:
+            pass
+
     @property
     def target_fps(self) -> float:
         return self._target_fps

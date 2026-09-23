@@ -206,6 +206,27 @@ class TestUiModesAndTelemetry(unittest.TestCase):
         startup_vm = StartupViewModel(self.config.plugins_dir)
         landing_view = FileLandingView(startup_vm)
         self.assertIsNotNone(landing_view)
+        self.assertFalse(landing_view.btn_open.isEnabled())
+
+        # Simulate layout loaded
+        landing_view._xml_path = "tests/dummy_layout.xml"
+        landing_view._on_loaded(self.layout)
+        self.assertTrue(landing_view.btn_open.isEnabled())
+        self.assertFalse(landing_view.drop_zone.isVisible())
+        self.assertEqual(landing_view.pill_keys.text(), "1 keys")
+
+        # Test workspace entry signal
+        workspace_signal_fired = []
+        landing_view.workspace_entered.connect(lambda l, p: workspace_signal_fired.append((l, p)))
+        landing_view.btn_open.click()
+        self.assertEqual(len(workspace_signal_fired), 1)
+        self.assertEqual(workspace_signal_fired[0][0], self.layout)
+
+        # Test browse file mock
+        with patch("PySide6.QtWidgets.QFileDialog.getOpenFileName", return_value=("/tmp/sample.xml", "XML Layout Files (*.xml)")):
+            with patch.object(landing_view, "_load") as mock_load:
+                landing_view._on_browse()
+                mock_load.assert_called_once_with("/tmp/sample.xml")
 
         # Test PlayModeView
         play_view = PlayModeView(vm)

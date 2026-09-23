@@ -212,28 +212,42 @@ class CameraWorker(QThread):
             return
 
         # 2. Open camera with automatic fallback to any discovered working camera
+        cap = None
         with _suppress_c_stderr():
-            cap = cv2.VideoCapture(self._camera_index, cv2.CAP_V4L2)
-            if not cap.isOpened():
-                cap = cv2.VideoCapture(self._camera_index)
+            candidate_cap = cv2.VideoCapture(self._camera_index, cv2.CAP_V4L2)
+            if not candidate_cap.isOpened():
+                candidate_cap = cv2.VideoCapture(self._camera_index)
+            if candidate_cap.isOpened():
+                ret, _ = candidate_cap.read()
+                if ret:
+                    cap = candidate_cap
+                else:
+                    candidate_cap.release()
 
-        if not cap.isOpened():
+        if cap is None:
             from services.camera_discovery import discover_cameras
             discovered = discover_cameras(max_index=6)
             for c in discovered:
-                if c.index != self._camera_index:
-                    with _suppress_c_stderr():
-                        fallback_cap = cv2.VideoCapture(c.index, cv2.CAP_V4L2)
-                        if not fallback_cap.isOpened():
-                            fallback_cap = cv2.VideoCapture(c.index)
+                with _suppress_c_stderr():
+                    fallback_cap = cv2.VideoCapture(c.index, cv2.CAP_V4L2)
+                    if not fallback_cap.isOpened():
+                        fallback_cap = cv2.VideoCapture(c.index)
                     if fallback_cap.isOpened():
-                        logger.info("Camera %d failed. Auto-recovered with camera %d (%s).", self._camera_index, c.index, c.name)
-                        self._camera_index = c.index
-                        cap = fallback_cap
-                        break
+                        ret, _ = fallback_cap.read()
+                        if ret:
+                            logger.info(
+                                "Camera %d was unavailable. Auto-recovered with camera %d (%s).",
+                                self._camera_index,
+                                c.index,
+                                c.name,
+                            )
+                            self._camera_index = c.index
+                            cap = fallback_cap
+                            break
+                        fallback_cap.release()
 
-        if not cap.isOpened():
-            self.error.emit(f"Could not open camera index {self._camera_index} and no other working camera found.")
+        if cap is None or not cap.isOpened():
+            self.error.emit(f"Could not open camera {self._camera_index} and no other working camera found.")
             self._running = False
             return
 

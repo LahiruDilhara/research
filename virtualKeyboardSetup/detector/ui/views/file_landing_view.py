@@ -1,9 +1,8 @@
 """
 ui/views/file_landing_view.py
 
-Modern, minimal startup landing view designed for real-world non-technical users.
-Features a clean card surface, intuitive file selection with drag and drop,
-clear visual confirmation of the chosen keyboard layout, and zero sidebars on launch.
+Startup landing view. Clean, minimal, single-purpose: load a layout XML file.
+Two states: empty (choose file) and loaded (confirm and enter workspace).
 """
 
 from __future__ import annotations
@@ -13,377 +12,438 @@ from pathlib import Path
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import (
+    QFileDialog,
     QFrame,
     QHBoxLayout,
-    QStackedWidget,
+    QLabel,
+    QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 from qfluentwidgets import (
-    BodyLabel,
     CaptionLabel,
-    CardWidget,
-    FluentIcon,
     InfoBar,
     InfoBarPosition,
-    PrimaryPushButton,
-    PushButton,
     StrongBodyLabel,
-    SubtitleLabel,
-    TitleLabel,
 )
 
-from config.constants import (
-    UI_ACCENT,
-    UI_BG_CARD,
-    UI_BG_DARK,
-    UI_TEXT_PRI,
-    UI_TEXT_SEC,
-)
 from core.layout.layout_parser import LayoutData
 from viewmodels.startup_viewmodel import StartupViewModel
 
 
-class ModernDropZone(QFrame):
-    """Clean, friendly drop target with dynamic hover state."""
+# ── Palette ────────────────────────────────────────────────────────────────────
+_BG      = "#18191E"
+_CARD    = "#1E1F26"
+_BORDER  = "#2C2E38"
+_ACCENT  = "#009FEF"
+_SUCCESS = "#10B981"
+_PRI     = "#F1F3F7"
+_SEC     = "#7B8192"
+_DROP    = "#1A1B22"
+_DROPHOV = "#1C2A38"
+
+
+# ── Shared helpers ─────────────────────────────────────────────────────────────
+
+def _hr(parent: QWidget) -> QFrame:
+    """Thin 1px horizontal rule."""
+    line = QFrame(parent)
+    line.setFrameShape(QFrame.HLine)
+    line.setFixedHeight(1)
+    line.setStyleSheet(f"background: {_BORDER}; border: none;")
+    return line
+
+
+def _pill(text: str, parent: QWidget) -> QLabel:
+    """Small muted badge."""
+    lbl = QLabel(text, parent)
+    lbl.setStyleSheet(
+        f"color: {_SEC};"
+        f"background: #252730;"
+        f"border: 1px solid {_BORDER};"
+        f"border-radius: 4px;"
+        f"padding: 1px 9px;"
+        f"font-size: 11px;"
+    )
+    lbl.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    return lbl
+
+
+def _btn(label: str, primary: bool, parent: QWidget) -> QPushButton:
+    """
+    Plain QPushButton with no FluentIcon so there is no icon-text overlap.
+    `primary=True` gives the filled accent style; False gives ghost style.
+    """
+    btn = QPushButton(label, parent)
+    if primary:
+        btn.setStyleSheet(
+            f"QPushButton {{"
+            f"  background: {_ACCENT};"
+            f"  color: #ffffff;"
+            f"  border: none;"
+            f"  border-radius: 8px;"
+            f"  font-size: 14px;"
+            f"  font-weight: 600;"
+            f"  padding: 0 20px;"
+            f"}}"
+            f"QPushButton:hover {{"
+            f"  background: #007fd4;"
+            f"}}"
+            f"QPushButton:disabled {{"
+            f"  background: #2A2D38;"
+            f"  color: {_SEC};"
+            f"}}"
+        )
+    else:
+        btn.setStyleSheet(
+            f"QPushButton {{"
+            f"  background: #252730;"
+            f"  color: {_PRI};"
+            f"  border: 1px solid {_BORDER};"
+            f"  border-radius: 7px;"
+            f"  font-size: 13px;"
+            f"  padding: 0 16px;"
+            f"}}"
+            f"QPushButton:hover {{"
+            f"  background: #2D3040;"
+            f"  border-color: #3C4055;"
+            f"}}"
+        )
+    return btn
+
+
+# ── Drop zone widget ───────────────────────────────────────────────────────────
+
+class _DropTarget(QFrame):
+    """Dashed drop zone that lights up on valid drag hover."""
 
     file_dropped = Signal(str)
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setAcceptDrops(True)
-        self._is_hovered = False
-        self._update_appearance()
+        self._hov = False
+        self._style()
 
-    def _update_appearance(self) -> None:
-        if self._is_hovered:
-            border = UI_ACCENT
-            bg = "rgba(0, 190, 255, 0.06)"
-        else:
-            border = "rgba(255, 255, 255, 0.12)"
-            bg = "rgba(255, 255, 255, 0.02)"
-
+    def _style(self) -> None:
+        bg  = _DROPHOV if self._hov else _DROP
+        bdr = _ACCENT  if self._hov else _BORDER
         self.setStyleSheet(
-            f"QFrame {{ "
-            f"  background-color: {bg}; "
-            f"  border: 2px dashed {border}; "
-            f"  border-radius: 16px; "
-            f"}} "
+            f"QFrame {{"
+            f"  background: {bg};"
+            f"  border: 1.5px dashed {bdr};"
+            f"  border-radius: 10px;"
+            f"}}"
             f"QLabel {{ background: transparent; border: none; }}"
         )
 
-    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
-        if event.mimeData().hasUrls():
-            for url in event.mimeData().urls():
+    def dragEnterEvent(self, e: QDragEnterEvent) -> None:
+        if e.mimeData().hasUrls():
+            for url in e.mimeData().urls():
                 if url.toLocalFile().lower().endswith(".xml"):
-                    event.acceptProposedAction()
-                    self._is_hovered = True
-                    self._update_appearance()
+                    e.acceptProposedAction()
+                    self._hov = True
+                    self._style()
                     return
-        event.ignore()
+        e.ignore()
 
-    def dragLeaveEvent(self, event) -> None:
-        self._is_hovered = False
-        self._update_appearance()
+    def dragLeaveEvent(self, e) -> None:
+        self._hov = False
+        self._style()
 
-    def dropEvent(self, event: QDropEvent) -> None:
-        self._is_hovered = False
-        self._update_appearance()
-        for url in event.mimeData().urls():
-            file_path = url.toLocalFile()
-            if file_path.lower().endswith(".xml"):
-                self.file_dropped.emit(file_path)
-                event.acceptProposedAction()
+    def dropEvent(self, e: QDropEvent) -> None:
+        self._hov = False
+        self._style()
+        for url in e.mimeData().urls():
+            fp = url.toLocalFile()
+            if fp.lower().endswith(".xml"):
+                self.file_dropped.emit(fp)
+                e.acceptProposedAction()
                 return
 
 
-class FileLandingView(QWidget):
-    """Full-window, user-friendly startup landing screen with zero sidebars."""
+# ── Main view ──────────────────────────────────────────────────────────────────
 
-    workspace_entered = Signal(object, str)  # layout_data, xml_path
+class FileLandingView(QWidget):
+    """Full-window, zero-sidebar startup screen for loading a layout file."""
+
+    workspace_entered = Signal(object, str)   # LayoutData, xml_path
 
     def __init__(
         self,
         startup_vm: StartupViewModel,
         last_xml_path: str = "",
-        parent=None,
+        parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self._vm = startup_vm
-        self._last_xml_path = last_xml_path
-        self._current_layout: LayoutData | None = None
-        self._current_xml_path: str = ""
+        self._vm       = startup_vm
+        self._last_xml = last_xml_path
+        self._layout: LayoutData | None = None
+        self._xml_path = ""
 
-        self._setup_ui()
-        self._connect_signals()
+        self._build()
+        self._vm.layout_loaded.connect(self._on_loaded)
+        self._vm.error_occurred.connect(self._on_error)
 
-        # Auto-load previous layout if it exists
-        if self._last_xml_path and Path(self._last_xml_path).is_file():
-            self._load_xml_path(self._last_xml_path)
+        if self._last_xml and Path(self._last_xml).is_file():
+            self._load(self._last_xml)
 
-    def _setup_ui(self) -> None:
-        self.setStyleSheet(f"background-color: {UI_BG_DARK};")
+    # ── Build ──────────────────────────────────────────────────────────────────
+
+    def _build(self) -> None:
+        self.setStyleSheet(f"background: {_BG};")
+
         root = QVBoxLayout(self)
-        root.setContentsMargins(40, 40, 40, 40)
+        root.setContentsMargins(0, 0, 0, 0)
         root.setAlignment(Qt.AlignCenter)
 
-        # Centered modern card
-        card = CardWidget(self)
-        card.setFixedWidth(660)
-        card.setStyleSheet(
-            f"CardWidget {{ "
-            f"  background-color: #16161A; "
-            f"  border: 1px solid rgba(255, 255, 255, 0.08); "
-            f"  border-radius: 20px; "
-            f"}} "
+        # Narrow centered panel
+        panel = QFrame(self)
+        panel.setFixedWidth(520)
+        panel.setStyleSheet(
+            f"QFrame {{"
+            f"  background: {_CARD};"
+            f"  border: 1px solid {_BORDER};"
+            f"  border-radius: 14px;"
+            f"}}"
             f"QLabel {{ background: transparent; border: none; }}"
         )
-        card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(40, 36, 40, 36)
-        card_layout.setSpacing(22)
 
-        # ── Header Section ────────────────────────────────────────────────────
-        header_row = QHBoxLayout()
-        header_row.setSpacing(16)
+        vbox = QVBoxLayout(panel)
+        vbox.setContentsMargins(36, 30, 36, 28)
+        vbox.setSpacing(0)
 
-        # App visual badge icon
-        badge_frame = QFrame(card)
-        badge_frame.setFixedSize(52, 52)
-        badge_frame.setStyleSheet(
-            "background-color: rgba(0, 190, 255, 0.12); "
-            "border: 1px solid rgba(0, 190, 255, 0.3); "
-            "border-radius: 14px;"
+        # ── Header row ─────────────────────────────────────────────────────────
+        hdr = QHBoxLayout()
+        hdr.setSpacing(14)
+
+        icon_frame = QFrame(panel)
+        icon_frame.setFixedSize(42, 42)
+        icon_frame.setStyleSheet(
+            "background: #0D1E2F; border: 1px solid #1A3350; border-radius: 10px;"
         )
-        badge_layout = QVBoxLayout(badge_frame)
-        badge_layout.setContentsMargins(0, 0, 0, 0)
-        badge_layout.setAlignment(Qt.AlignCenter)
-        badge_icon = StrongBodyLabel("⌨", badge_frame)
-        badge_icon.setStyleSheet("color: #00BEFF; font-size: 24px; font-weight: bold;")
-        badge_icon.setAlignment(Qt.AlignCenter)
-        badge_layout.addWidget(badge_icon)
-        header_row.addWidget(badge_frame)
-
-        # Title & Subtitle
-        title_col = QVBoxLayout()
-        title_col.setSpacing(4)
-        title = TitleLabel("Choose Your Keyboard Layout", card)
-        title.setStyleSheet(f"color: {UI_TEXT_PRI}; font-size: 22px; font-weight: 700;")
-        subtitle = CaptionLabel(
-            "Select your printed paper keyboard design to begin typing on any flat surface.",
-            card,
+        icon_vbox = QVBoxLayout(icon_frame)
+        icon_vbox.setContentsMargins(0, 0, 0, 0)
+        icon_vbox.setAlignment(Qt.AlignCenter)
+        icon_lbl = QLabel("⌨", icon_frame)
+        icon_lbl.setStyleSheet(
+            f"color: {_ACCENT}; font-size: 21px; font-weight: bold;"
+            f"background: transparent; border: none;"
         )
-        subtitle.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 13px;")
-        title_col.addWidget(title)
-        title_col.addWidget(subtitle)
-        header_row.addLayout(title_col, 1)
+        icon_lbl.setAlignment(Qt.AlignCenter)
+        icon_vbox.addWidget(icon_lbl)
+        hdr.addWidget(icon_frame)
 
-        card_layout.addLayout(header_row)
+        title_vbox = QVBoxLayout()
+        title_vbox.setSpacing(1)
+        title_lbl = StrongBodyLabel("Paper Virtual Keyboard", panel)
+        title_lbl.setStyleSheet(f"color: {_PRI}; font-size: 16px; font-weight: 700;")
+        sub_lbl   = CaptionLabel("Type on any plain paper with a regular camera", panel)
+        sub_lbl.setStyleSheet(f"color: {_SEC}; font-size: 12px;")
+        title_vbox.addWidget(title_lbl)
+        title_vbox.addWidget(sub_lbl)
+        hdr.addLayout(title_vbox, 1)
 
-        # Subtle divider
-        divider = QFrame(card)
-        divider.setFrameShape(QFrame.HLine)
-        divider.setStyleSheet("background-color: rgba(255, 255, 255, 0.06); min-height: 1px; max-height: 1px;")
-        card_layout.addWidget(divider)
+        vbox.addLayout(hdr)
+        vbox.addSpacing(22)
+        vbox.addWidget(_hr(panel))
+        vbox.addSpacing(22)
 
-        # ── Interactive Selection Area (Stacked: Empty vs Selected) ───────────
-        self.selection_stack = QStackedWidget(card)
-        self.selection_stack.setStyleSheet("QStackedWidget { background: transparent; border: none; }")
-
-        # Page 0: Empty Drop Zone
-        page_empty = QWidget(self.selection_stack)
-        pe_layout = QVBoxLayout(page_empty)
-        pe_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.drop_zone = ModernDropZone(page_empty)
-        self.drop_zone.setFixedHeight(140)
-        dz_layout = QVBoxLayout(self.drop_zone)
-        dz_layout.setContentsMargins(24, 20, 24, 20)
-        dz_layout.setSpacing(12)
-        dz_layout.setAlignment(Qt.AlignCenter)
-
-        dz_msg = StrongBodyLabel("Drag and drop your layout XML file here", self.drop_zone)
-        dz_msg.setStyleSheet(f"color: {UI_TEXT_PRI}; font-size: 14px; font-weight: 500;")
-        dz_msg.setAlignment(Qt.AlignCenter)
-
-        dz_actions = QHBoxLayout()
-        dz_actions.setSpacing(10)
-        dz_actions.setAlignment(Qt.AlignCenter)
-        self.btn_browse = PushButton(FluentIcon.FOLDER, "Browse File", self.drop_zone)
-        self.btn_browse.setFixedHeight(34)
-        self.btn_browse.setFixedWidth(160)
-        self.btn_browse.clicked.connect(self._on_browse_clicked)
-        dz_actions.addWidget(self.btn_browse)
-
-        dz_sub = CaptionLabel("Compatible with layout designs exported from the designer (.xml)", self.drop_zone)
-        dz_sub.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 11px;")
-        dz_sub.setAlignment(Qt.AlignCenter)
-
-        dz_layout.addWidget(dz_msg)
-        dz_layout.addLayout(dz_actions)
-        dz_layout.addWidget(dz_sub)
-
-        self.drop_zone.file_dropped.connect(self._load_xml_path)
-        pe_layout.addWidget(self.drop_zone)
-        self.selection_stack.addWidget(page_empty)
-
-        # Page 1: Selected Layout Confirmation Card
-        page_selected = QWidget(self.selection_stack)
-        ps_layout = QVBoxLayout(page_selected)
-        ps_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.selected_card = CardWidget(page_selected)
-        self.selected_card.setFixedHeight(140)
-        self.selected_card.setStyleSheet(
-            f"CardWidget {{ "
-            f"  background-color: rgba(0, 220, 100, 0.04); "
-            f"  border: 1px solid rgba(0, 220, 100, 0.25); "
-            f"  border-radius: 16px; "
-            f"}} "
-            f"QLabel {{ background: transparent; border: none; }}"
+        # ── File selection label ───────────────────────────────────────────────
+        open_lbl = QLabel("Select a keyboard layout file", panel)
+        open_lbl.setStyleSheet(
+            f"color: {_PRI}; font-size: 13px; font-weight: 600;"
+            f"background: transparent; border: none;"
         )
-        sc_layout = QVBoxLayout(self.selected_card)
-        sc_layout.setContentsMargins(24, 18, 24, 18)
-        sc_layout.setSpacing(10)
+        vbox.addWidget(open_lbl)
+        vbox.addSpacing(14)
 
-        # Status badge row
-        status_row = QHBoxLayout()
-        status_row.setSpacing(8)
-        dot = StrongBodyLabel("●", self.selected_card)
-        dot.setStyleSheet("color: #00DC64; font-size: 12px;")
-        status_lbl = StrongBodyLabel("LAYOUT READY", self.selected_card)
-        status_lbl.setStyleSheet("color: #00DC64; font-size: 11px; font-weight: bold; letter-spacing: 0.5px;")
-        status_row.addWidget(dot)
-        status_row.addWidget(status_lbl)
-        status_row.addStretch(1)
+        # ── Drop zone ──────────────────────────────────────────────────────────
+        self.drop_zone = _DropTarget(panel)
+        self.drop_zone.setFixedHeight(100)
+        dz_vbox = QVBoxLayout(self.drop_zone)
+        dz_vbox.setAlignment(Qt.AlignCenter)
+        dz_vbox.setSpacing(3)
 
-        self.btn_change = PushButton(FluentIcon.SYNC, "Change File", self.selected_card)
-        self.btn_change.setFixedHeight(30)
-        self.btn_change.clicked.connect(self._on_browse_clicked)
-        status_row.addWidget(self.btn_change)
-        sc_layout.addLayout(status_row)
-
-        # File name
-        self.lbl_filename = StrongBodyLabel("layout.xml", self.selected_card)
-        self.lbl_filename.setStyleSheet(f"color: {UI_TEXT_PRI}; font-size: 16px; font-weight: 700;")
-        sc_layout.addWidget(self.lbl_filename)
-
-        # Stats pills row
-        stats_row = QHBoxLayout()
-        stats_row.setSpacing(10)
-        self.lbl_keys_pill = CaptionLabel("0 Keys", self.selected_card)
-        self.lbl_keys_pill.setStyleSheet(
-            f"background-color: rgba(255, 255, 255, 0.06); color: {UI_TEXT_SEC}; "
-            "padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;"
+        dz_lbl1 = QLabel("Drag and drop your .xml file here", self.drop_zone)
+        dz_lbl1.setStyleSheet(
+            f"color: {_PRI}; font-size: 13px;"
+            f"background: transparent; border: none;"
         )
-        self.lbl_tags_pill = CaptionLabel("0 AprilTags", self.selected_card)
-        self.lbl_tags_pill.setStyleSheet(
-            f"background-color: rgba(255, 255, 255, 0.06); color: {UI_TEXT_SEC}; "
-            "padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;"
+        dz_lbl1.setAlignment(Qt.AlignCenter)
+
+        dz_lbl2 = QLabel("or", self.drop_zone)
+        dz_lbl2.setStyleSheet(
+            f"color: {_SEC}; font-size: 11px;"
+            f"background: transparent; border: none;"
         )
-        stats_row.addWidget(self.lbl_keys_pill)
-        stats_row.addWidget(self.lbl_tags_pill)
-        stats_row.addStretch(1)
-        sc_layout.addLayout(stats_row)
+        dz_lbl2.setAlignment(Qt.AlignCenter)
 
-        ps_layout.addWidget(self.selected_card)
-        self.selection_stack.addWidget(page_selected)
+        dz_vbox.addWidget(dz_lbl1)
+        dz_vbox.addWidget(dz_lbl2)
+        self.drop_zone.file_dropped.connect(self._load)
+        vbox.addWidget(self.drop_zone)
+        vbox.addSpacing(10)
 
-        card_layout.addWidget(self.selection_stack)
+        # ── Browse button ──────────────────────────────────────────────────────
+        self.btn_browse = _btn("Browse File", primary=False, parent=panel)
+        self.btn_browse.setFixedHeight(38)
+        self.btn_browse.clicked.connect(self._on_browse)
+        vbox.addWidget(self.btn_browse)
 
-        # ── Recent Layouts Row ────────────────────────────────────────────────
-        recent_row = QHBoxLayout()
-        recent_row.setContentsMargins(4, 0, 4, 0)
-        recent_row.setSpacing(10)
+        # ── Recent shortcut (shown only if previous session exists) ────────────
+        self.recent_bar = QWidget(panel)
+        self.recent_bar.setStyleSheet("background: transparent;")
+        rb = QHBoxLayout(self.recent_bar)
+        rb.setContentsMargins(0, 0, 0, 0)
+        rb.setSpacing(6)
 
-        self.lbl_recent_caption = CaptionLabel("Recent design:", card)
-        self.lbl_recent_caption.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 11px;")
-        self.lbl_recent_caption.setVisible(False)
-        recent_row.addWidget(self.lbl_recent_caption)
-
-        self.btn_recent = PushButton(FluentIcon.HISTORY, "", card)
-        self.btn_recent.setFixedHeight(28)
-        self.btn_recent.setVisible(False)
+        rc_lbl = QLabel("Recent:", self.recent_bar)
+        rc_lbl.setStyleSheet(f"color: {_SEC}; font-size: 11px; background: transparent; border: none;")
+        self.btn_recent = QPushButton("", self.recent_bar)
+        self.btn_recent.setFixedHeight(26)
+        self.btn_recent.setStyleSheet(
+            f"QPushButton {{"
+            f"  background: transparent; border: none;"
+            f"  color: {_ACCENT}; font-size: 11px; text-align: left;"
+            f"}}"
+            f"QPushButton:hover {{ text-decoration: underline; }}"
+        )
         self.btn_recent.clicked.connect(self._on_load_recent)
-        recent_row.addWidget(self.btn_recent)
-        recent_row.addStretch(1)
+        rb.addWidget(rc_lbl)
+        rb.addWidget(self.btn_recent, 1)
 
-        card_layout.addLayout(recent_row)
+        if self._last_xml and Path(self._last_xml).is_file():
+            self.btn_recent.setText(Path(self._last_xml).name)
+            self.recent_bar.setVisible(True)
+        else:
+            self.recent_bar.setVisible(False)
 
-        if self._last_xml_path and Path(self._last_xml_path).is_file():
-            recent_name = Path(self._last_xml_path).name
-            self.lbl_recent_caption.setVisible(True)
-            self.btn_recent.setText(recent_name)
-            self.btn_recent.setVisible(True)
+        vbox.addSpacing(6)
+        vbox.addWidget(self.recent_bar)
 
-        # ── Open Workspace Action Button ──────────────────────────────────────
-        self.btn_start = PrimaryPushButton(FluentIcon.ACCEPT, "Open Workspace", card)
-        self.btn_start.setFixedHeight(46)
-        self.btn_start.setEnabled(False)
-        self.btn_start.clicked.connect(self._on_enter_workspace)
-        card_layout.addWidget(self.btn_start)
+        # ── Summary block (hidden until file loaded) ───────────────────────────
+        vbox.addSpacing(18)
+        vbox.addWidget(_hr(panel))
+        vbox.addSpacing(14)
 
-        # Friendly footnote
-        footnote = CaptionLabel(
-            "Print your layout on plain paper, position it in camera view, and begin typing.",
-            card,
+        self.summary_box = QWidget(panel)
+        self.summary_box.setStyleSheet("background: transparent;")
+        sb = QVBoxLayout(self.summary_box)
+        sb.setContentsMargins(0, 0, 0, 0)
+        sb.setSpacing(8)
+
+        # File name row
+        fname_row = QHBoxLayout()
+        fname_row.setSpacing(8)
+
+        dot = QLabel("●", self.summary_box)
+        dot.setStyleSheet(f"color: {_SUCCESS}; font-size: 12px; background: transparent; border: none;")
+        dot.setFixedWidth(14)
+
+        self.lbl_fname = QLabel("", self.summary_box)
+        self.lbl_fname.setStyleSheet(
+            f"color: {_PRI}; font-size: 14px; font-weight: 600;"
+            f"background: transparent; border: none;"
         )
-        footnote.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 11px;")
-        footnote.setAlignment(Qt.AlignCenter)
-        card_layout.addWidget(footnote)
 
-        root.addWidget(card, 0, Qt.AlignCenter)
+        self.btn_change = QPushButton("Change", self.summary_box)
+        self.btn_change.setFixedHeight(26)
+        self.btn_change.setFixedWidth(70)
+        self.btn_change.setStyleSheet(
+            f"QPushButton {{"
+            f"  background: #252730; color: {_SEC};"
+            f"  border: 1px solid {_BORDER}; border-radius: 5px;"
+            f"  font-size: 11px;"
+            f"}}"
+            f"QPushButton:hover {{ color: {_PRI}; background: #2D3040; }}"
+        )
+        self.btn_change.clicked.connect(self._on_browse)
 
-    def _connect_signals(self) -> None:
-        self._vm.layout_loaded.connect(self._on_layout_loaded)
-        self._vm.error_occurred.connect(self._show_error)
+        fname_row.addWidget(dot)
+        fname_row.addWidget(self.lbl_fname, 1)
+        fname_row.addWidget(self.btn_change)
+        sb.addLayout(fname_row)
 
-    # ── File loading ───────────────────────────────────────────────────────────
+        # Stats pills
+        pills_row = QHBoxLayout()
+        pills_row.setSpacing(6)
+        pills_row.setContentsMargins(18, 0, 0, 0)
+        self.pill_keys = _pill("0 keys",      self.summary_box)
+        self.pill_tags = _pill("0 AprilTags", self.summary_box)
+        self.pill_dims = _pill("",            self.summary_box)
+        pills_row.addWidget(self.pill_keys)
+        pills_row.addWidget(self.pill_tags)
+        pills_row.addWidget(self.pill_dims)
+        pills_row.addStretch(1)
+        sb.addLayout(pills_row)
 
-    def _on_browse_clicked(self) -> None:
+        self.summary_box.setVisible(False)
+        vbox.addWidget(self.summary_box)
+        vbox.addSpacing(20)
+
+        # ── Primary CTA ────────────────────────────────────────────────────────
+        self.btn_open = _btn("Open Workspace", primary=True, parent=panel)
+        self.btn_open.setFixedHeight(44)
+        self.btn_open.setEnabled(False)
+        self.btn_open.clicked.connect(self._on_enter)
+        vbox.addWidget(self.btn_open)
+
+        root.addWidget(panel, 0, Qt.AlignCenter)
+
+    # ── Actions ────────────────────────────────────────────────────────────────
+
+    def _on_browse(self) -> None:
+        start = str(
+            Path(self._xml_path).parent if self._xml_path and Path(self._xml_path).parent.is_dir()
+            else Path(self._last_xml).parent if self._last_xml and Path(self._last_xml).parent.is_dir()
+            else Path.home()
+        )
         path, _ = QFileDialog.getOpenFileName(
-            self, "Select Keyboard Layout", "", "XML Layout Files (*.xml)"
+            self, "Select Layout File", start, "XML Layout Files (*.xml);;All Files (*)"
         )
         if path:
-            self._load_xml_path(path)
+            self._load(path)
 
     def _on_load_recent(self) -> None:
-        if self._last_xml_path and Path(self._last_xml_path).is_file():
-            self._load_xml_path(self._last_xml_path)
+        if self._last_xml and Path(self._last_xml).is_file():
+            self._load(self._last_xml)
 
-    def _load_xml_path(self, path: str) -> None:
-        self._current_xml_path = path
-        self._vm.load_layout(path)
-
-    def _on_layout_loaded(self, layout: LayoutData) -> None:
-        self._current_layout = layout
-        file_name = Path(self._current_xml_path).name
-        btn_count = len(layout.buttons)
-        marker_count = len(layout.markers)
-
-        self.lbl_filename.setText(file_name)
-        self.lbl_keys_pill.setText(f"{btn_count} Keys")
-        self.lbl_tags_pill.setText(f"{marker_count} AprilTags")
-
-        self.selection_stack.setCurrentIndex(1)
-        self.btn_start.setEnabled(True)
-
-    # ── Workspace Entry ────────────────────────────────────────────────────────
-
-    def _on_enter_workspace(self) -> None:
-        if self._current_layout is None:
-            self._show_error("Please select a keyboard layout file first.")
+    def _load(self, path: str) -> None:
+        resolved = str(Path(path).resolve())
+        if not Path(resolved).is_file():
+            self._on_error(f"File not found: {resolved}")
             return
+        self._xml_path = resolved
+        self._vm.load_layout(resolved)
 
-        self.workspace_entered.emit(
-            self._current_layout,
-            self._current_xml_path,
-        )
+    def _on_loaded(self, layout: LayoutData) -> None:
+        self._layout = layout
+        self.lbl_fname.setText(Path(self._xml_path).name)
+        self.pill_keys.setText(f"{len(layout.buttons)} keys")
+        self.pill_tags.setText(f"{len(layout.markers)} AprilTags")
+        w = int(round(layout.paper_width_mm))
+        h = int(round(layout.paper_height_mm))
+        self.pill_dims.setText(f"{w} x {h} mm")
 
-    def _show_error(self, message: str) -> None:
+        # Switch to confirmed state
+        self.drop_zone.setVisible(False)
+        self.btn_browse.setVisible(False)
+        self.summary_box.setVisible(True)
+        self.btn_open.setEnabled(True)
+
+    def _on_enter(self) -> None:
+        if self._layout is None:
+            self._on_error("Please select a layout file first.")
+            return
+        self.workspace_entered.emit(self._layout, self._xml_path)
+
+    def _on_error(self, message: str) -> None:
         InfoBar.error(
-            title="Unable to Load Layout",
+            title="Cannot Load Layout",
             content=message,
             position=InfoBarPosition.TOP,
             parent=self,
-            duration=5000,
+            duration=4000,
         )

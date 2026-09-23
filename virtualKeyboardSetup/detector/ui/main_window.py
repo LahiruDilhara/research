@@ -139,7 +139,7 @@ class MainWindow(FluentWindow):
                 active_cam_idx,
                 available_cams[0].name,
             )
-            self._config._camera_index = active_cam_idx
+            self._config.set_camera_index(active_cam_idx)
 
         # Initialize Detector ViewModel in Play Mode
         self._active_det_vm = DetectorViewModel(
