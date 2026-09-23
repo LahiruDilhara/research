@@ -93,8 +93,8 @@ class SettingsView(QWidget):
                     ),
                 ),
                 (
-                    "Touch Threshold",
-                    "Minimum model probability to trigger a touch (0.01 to 1.00)",
+                    "Touch Threshold Percentage",
+                    "Percentage a finger probability must exceed to detect a touch (0.01 to 1.00 = 1% to 100%, default 0.55 = 55%)",
                     self._make_double_spin(
                         value=self._vm.touch_threshold,
                         mn=0.01,

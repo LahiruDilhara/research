@@ -317,6 +317,7 @@ class RunModeView(QWidget):
         self._vm.action_executed.connect(self._on_action_executed)
         self._vm.model_changed.connect(self._on_model_changed)
         self._vm.camera_changed.connect(self.sync_camera_index)
+        self._vm.touch_threshold_changed.connect(self.set_touch_threshold)
         self._vm.frame_updated.connect(self._on_frame_updated)
 
     def _populate_models(self) -> None:

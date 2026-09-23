@@ -25,6 +25,7 @@ from qfluentwidgets import (
     InfoBar,
     InfoBarPosition,
     SingleDirectionScrollArea,
+    SpinBox,
 )
 
 from ui.theme import (
@@ -184,9 +185,35 @@ class PlayModeView(QWidget):
         sw.setContentsMargins(16, 10, 16, 16)
         sw.setSpacing(16)
 
-        # 1. Finger touch probabilities
+        # 1. Finger touch probabilities section
         sw.addWidget(self._section("FINGER TOUCH PROBABILITIES"))
-        self.finger_bar = FingerStatusBar(scroll_w)
+
+        thresh_row = QHBoxLayout()
+        thresh_row.setContentsMargins(0, 0, 0, 0)
+        thresh_row.setSpacing(10)
+
+        lbl_thresh = QLabel("Touch Trigger Threshold:", scroll_w)
+        lbl_thresh.setStyleSheet(f"color: {TXT_SEC}; font-size: 11px; {LABEL_TRANSPARENT}")
+        thresh_row.addWidget(lbl_thresh)
+        thresh_row.addStretch(1)
+
+        self.spin_thresh = SpinBox(scroll_w)
+        self.spin_thresh.setRange(5, 99)
+        self.spin_thresh.setSingleStep(5)
+        self.spin_thresh.setSuffix(" %")
+        self.spin_thresh.setFixedWidth(130)
+        self.spin_thresh.setFixedHeight(30)
+        initial_pct = int(round(self._vm.touch_threshold * 100)) if hasattr(self._vm, "touch_threshold") else 55
+        self.spin_thresh.setValue(initial_pct)
+        self.spin_thresh.valueChanged.connect(self._on_threshold_percentage_changed)
+        thresh_row.addWidget(self.spin_thresh)
+
+        sw.addLayout(thresh_row)
+
+        self.finger_bar = FingerStatusBar(
+            touch_threshold=self._vm.touch_threshold if hasattr(self._vm, "touch_threshold") else 0.55,
+            parent=scroll_w,
+        )
         sw.addWidget(self.finger_bar)
 
         # 2. 2D Paper Layout - placed under finger indicators as requested
@@ -241,6 +268,7 @@ class PlayModeView(QWidget):
         self._vm.touch_event.connect(self._on_touch_event)
         self._vm.model_changed.connect(self._on_vm_model_changed)
         self._vm.camera_changed.connect(self.sync_camera_index)
+        self._vm.touch_threshold_changed.connect(self.set_touch_threshold)
         self._vm.pipeline_error.connect(self._on_error)
 
     def _populate_models(self) -> None:
@@ -306,6 +334,25 @@ class PlayModeView(QWidget):
                 self.combo_model.setCurrentIndex(i)
                 break
         self.combo_model.blockSignals(False)
+
+    def set_touch_threshold(self, threshold: float) -> None:
+        """Update the touch percentage spinbox and finger status bar threshold."""
+        pct = max(1, min(100, int(round(threshold * 100))))
+        if hasattr(self, "spin_thresh"):
+            self.spin_thresh.blockSignals(True)
+            self.spin_thresh.setValue(pct)
+            self.spin_thresh.blockSignals(False)
+        if hasattr(self, "finger_bar"):
+            self.finger_bar.set_touch_threshold(threshold)
+
+    def _on_threshold_percentage_changed(self, value: int) -> None:
+        """Triggered when the user adjusts the Touch % spinbox."""
+        thresh = float(value) / 100.0
+        if hasattr(self, "finger_bar"):
+            self.finger_bar.set_touch_threshold(thresh)
+        if hasattr(self._vm, "set_touch_threshold"):
+            if abs(thresh - self._vm.touch_threshold) > 1e-4:
+                self._vm.set_touch_threshold(thresh)
 
     # ── Slots ──────────────────────────────────────────────────────────────────
 

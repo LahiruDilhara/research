@@ -257,7 +257,8 @@ class TouchPipelineService:
     def set_touch_threshold(self, threshold: float) -> None:
         """Update touch probability onset and release thresholds dynamically."""
         self._t_on = float(threshold)
-        self._t_off = max(0.10, float(threshold) - 0.15)
+        # Keep release threshold strictly lower than onset threshold (approx 70% of onset)
+        self._t_off = max(0.01, min(float(threshold) * 0.70, float(threshold) - 0.02))
         logger.info(
             "Updated TouchPipelineService touch thresholds: onset=%.2f, release=%.2f",
             self._t_on,
@@ -449,10 +450,6 @@ class TouchPipelineService:
         results: dict[str, dict[str, Any]] = {}
         for f in FINGERS:
             p = float(raw_probs.get(f, 0.0))
-            f_tip_speed = tip_speeds[f]
-
-            # Fingertip must individually exceed the velocity threshold
-            has_speed = f_tip_speed >= self._velocity_threshold
 
             was_touch = self._finger_touch_state.get(f, False)
             if was_touch:
@@ -460,14 +457,9 @@ class TouchPipelineService:
                 is_touch = bool(p >= self._t_off)
                 reason = "Touch Maintained (Debounce)" if is_touch else "Touch Released"
             else:
-                # Trigger new touch only if probability exceeds onset cutoff AND tip speed exceeds threshold
-                is_touch = bool(p >= self._t_on and has_speed)
-                if is_touch:
-                    reason = "Touch Detected"
-                elif p >= self._t_on and not has_speed:
-                    reason = f"Tip Speed Below Threshold ({f_tip_speed:.4f} < {self._velocity_threshold:.4f})"
-                else:
-                    reason = "Below Onset Threshold"
+                # Trigger touch directly when raw model probability meets or exceeds onset threshold
+                is_touch = bool(p >= self._t_on)
+                reason = "Touch Detected" if is_touch else "Below Onset Threshold"
 
             self._finger_touch_state[f] = is_touch
             results[f] = {

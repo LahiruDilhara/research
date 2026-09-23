@@ -177,6 +177,7 @@ class MainWindow(FluentWindow):
         self._play_view = PlayModeView(self._active_det_vm, parent=self)
         self._play_view.setObjectName("playModeView")
         self._play_view.set_layout_data(layout_data)
+        self._play_view.set_touch_threshold(self._config.touch_threshold)
         self._play_view.mode_switch_requested.connect(self._on_mode_switch_requested)
         self.addSubInterface(
             self._play_view,
@@ -309,8 +310,11 @@ class MainWindow(FluentWindow):
     def _on_settings_applied(self) -> None:
         if self._active_det_vm is not None:
             self._active_det_vm.update_settings(self._config)
+            self._active_det_vm.set_touch_threshold(self._config.touch_threshold)
         if hasattr(self, "_run_view"):
             self._run_view.set_touch_threshold(self._config.touch_threshold)
+        if hasattr(self, "_play_view"):
+            self._play_view.set_touch_threshold(self._config.touch_threshold)
         logger.info("Propagated settings update to active detector pipeline.")
 
     # ── Return to Landing Page ─────────────────────────────────────────────────

@@ -69,6 +69,9 @@ class DetectorViewModel(QObject):
     camera_changed       = Signal(int)
     # active camera index
 
+    touch_threshold_changed = Signal(float)
+    # active touch threshold (0.01 to 1.00)
+
     pipeline_error       = Signal(str)
 
     def __init__(
@@ -197,6 +200,21 @@ class DetectorViewModel(QObject):
             config.hand_movement_threshold,
             config.one_euro_enabled,
         )
+        self.touch_threshold_changed.emit(config.touch_threshold)
+
+    @property
+    def touch_threshold(self) -> float:
+        """Current touch probability threshold."""
+        return self._pipeline_service.touch_threshold
+
+    def set_touch_threshold(self, threshold: float) -> None:
+        """Dynamically update touch probability threshold in service and config."""
+        val = max(0.01, min(1.00, float(threshold)))
+        self._pipeline_service.set_touch_threshold(val)
+        if self._config:
+            self._config.set_touch_threshold(val)
+        self.touch_threshold_changed.emit(val)
+        logger.info("DetectorViewModel touch threshold updated: %.2f (%.0f%%)", val, val * 100.0)
 
     # ── Model hot-swap ─────────────────────────────────────────────────────────
 

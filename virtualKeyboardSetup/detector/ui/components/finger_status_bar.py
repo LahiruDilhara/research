@@ -44,9 +44,10 @@ def _card_css(bg_color: str, border_color: str = BORDER) -> str:
 class FingerStatusBar(QWidget):
     """5 stacked per-finger touch status cards."""
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, touch_threshold: float = 0.55, parent=None) -> None:
         super().__init__(parent)
         self.setStyleSheet("background: transparent; border: none;")
+        self._touch_threshold: float = float(touch_threshold)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(5)
@@ -60,6 +61,10 @@ class FingerStatusBar(QWidget):
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
+    def set_touch_threshold(self, threshold: float) -> None:
+        """Dynamically update touch probability threshold."""
+        self._touch_threshold = max(0.01, min(1.00, float(threshold)))
+
     def set_probs(self, probs: dict[str, Any]) -> None:
         """Update all 5 cards from a probability dict or structured results dict."""
         for finger, val in probs.items():
@@ -67,11 +72,11 @@ class FingerStatusBar(QWidget):
                 continue
             if isinstance(val, dict):
                 prob = float(val.get("prob", 0.0))
-                is_touch = bool(val.get("touch", False))
+                is_touch = bool(val.get("touch", False)) or (prob >= self._touch_threshold)
                 hand_moving = bool(val.get("hand_moving", False))
             else:
                 prob = float(val)
-                is_touch = prob >= 0.55
+                is_touch = prob >= self._touch_threshold
                 hand_moving = False
 
             self._update_card(
