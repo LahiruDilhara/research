@@ -144,6 +144,8 @@ class DetectorViewModel(QObject):
     ) -> None:
         self._current_H = H
         self._layout_found = layout_found
+        if not hand_detected:
+            self._pipeline_service.reset_touch_states()
         self.frame_updated.emit(frame, fps, hand_detected, layout_found)
 
     @Slot(list, list, int, int)
@@ -158,17 +160,19 @@ class DetectorViewModel(QObject):
             return
 
         # ── Parallel 5-Finger Model Inference (Service Layer) ───────────────
-        probs = self._pipeline_service.run_parallel_inference(self._active_model, norm_window)
-        self.finger_probs_updated.emit(probs)
+        results = self._pipeline_service.run_parallel_inference(self._active_model, norm_window)
+        self.finger_probs_updated.emit(results)
 
         # ── Touch resolution ─────────────────────────────────────────────────
         if not self._layout_found or self._current_H is None:
             return
 
-        touch_fingers = [f for f, p in probs.items() if p >= TOUCH_PROBABILITY_THRESHOLD]
+        # Enforce exact process.sh logic: only evaluate fingers with active touch
+        touch_fingers = [f for f, data in results.items() if data.get("touch", False)]
         if not touch_fingers:
             return
 
+        probs = {f: float(data.get("prob", 0.0)) for f, data in results.items()}
         result = self._resolver.resolve(
             touch_fingers, probs, pixel_window, self._current_H
         )

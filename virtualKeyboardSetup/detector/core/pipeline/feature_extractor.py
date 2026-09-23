@@ -155,6 +155,8 @@ def unroll_per_finger_window(
                 row[f"{j}{v}_vx"] = v_data.get(f"{j}_vx", 0.0)
                 row[f"{j}{v}_vy"] = v_data.get(f"{j}_vy", 0.0)
                 row[f"{j}{v}_vz"] = v_data.get(f"{j}_vz", 0.0)
+                row[f"{j}{v}_speed_2d"] = v_data.get(f"{j}_speed_2d", 0.0)
+                row[f"{j}{v}_speed_3d"] = v_data.get(f"{j}_speed_3d", 0.0)
 
             for j_role, orig_name in j_map.items():
                 row[f"{j_role}{v}_vx"] = v_data.get(f"{orig_name}_vx", 0.0)
@@ -187,6 +189,48 @@ def extract_variant_tensor(finger_rows: dict[str, dict], variant_name: str) -> n
                 pos = [_g(row, f"wrist{v}_x"), _g(row, f"wrist{v}_y"), _g(row, f"pip{v}_x"), _g(row, f"pip{v}_y"), _g(row, f"dip{v}_x"), _g(row, f"dip{v}_y"), _g(row, f"tip{v}_x"), _g(row, f"tip{v}_y")]
                 vel = [_g(row, f"wrist{v}_vx"), _g(row, f"wrist{v}_vy"), _g(row, f"pip{v}_vx"), _g(row, f"pip{v}_vy"), _g(row, f"dip{v}_vx"), _g(row, f"dip{v}_vy"), _g(row, f"tip{v}_vx"), _g(row, f"tip{v}_vy")]
                 X[i, v - 1, :] = pos + vel
+        return X
+
+    elif variant_name in ("all_joints_coords_vel_speed", "all_combined_speed"):
+        seq_len, feature_dim = 4, 45
+        X = np.zeros((5, seq_len, feature_dim), dtype=np.float32)
+        for i, f in enumerate(finger_list):
+            row = finger_rows[f]
+            for v in range(1, 5):
+                pos = [
+                    _g(row, f"wrist{v}_x"), _g(row, f"wrist{v}_y"),
+                    _g(row, f"thumb_cmc{v}_x"), _g(row, f"thumb_cmc{v}_y"),
+                    _g(row, f"index_mcp{v}_x"), _g(row, f"index_mcp{v}_y"),
+                    _g(row, f"middle_mcp{v}_x"), _g(row, f"middle_mcp{v}_y"),
+                    _g(row, f"ring_mcp{v}_x"), _g(row, f"ring_mcp{v}_y"),
+                    _g(row, f"pinky_mcp{v}_x"), _g(row, f"pinky_mcp{v}_y"),
+                    _g(row, f"pip{v}_x"), _g(row, f"pip{v}_y"),
+                    _g(row, f"dip{v}_x"), _g(row, f"dip{v}_y"),
+                    _g(row, f"tip{v}_x"), _g(row, f"tip{v}_y"),
+                ]
+                vel = [
+                    _g(row, f"wrist{v}_vx"), _g(row, f"wrist{v}_vy"),
+                    _g(row, f"thumb_cmc{v}_vx"), _g(row, f"thumb_cmc{v}_vy"),
+                    _g(row, f"index_mcp{v}_vx"), _g(row, f"index_mcp{v}_vy"),
+                    _g(row, f"middle_mcp{v}_vx"), _g(row, f"middle_mcp{v}_vy"),
+                    _g(row, f"ring_mcp{v}_vx"), _g(row, f"ring_mcp{v}_vy"),
+                    _g(row, f"pinky_mcp{v}_vx"), _g(row, f"pinky_mcp{v}_vy"),
+                    _g(row, f"pip{v}_vx"), _g(row, f"pip{v}_vy"),
+                    _g(row, f"dip{v}_vx"), _g(row, f"dip{v}_vy"),
+                    _g(row, f"tip{v}_vx"), _g(row, f"tip{v}_vy"),
+                ]
+                speeds = [
+                    _g(row, f"wrist{v}_speed_2d"),
+                    _g(row, f"thumb_cmc{v}_speed_2d"),
+                    _g(row, f"index_mcp{v}_speed_2d"),
+                    _g(row, f"middle_mcp{v}_speed_2d"),
+                    _g(row, f"ring_mcp{v}_speed_2d"),
+                    _g(row, f"pinky_mcp{v}_speed_2d"),
+                    _g(row, f"pip{v}_speed_2d"),
+                    _g(row, f"dip{v}_speed_2d"),
+                    _g(row, f"tip{v}_speed_2d"),
+                ]
+                X[i, v - 1, :] = pos + vel + speeds
         return X
 
     elif variant_name in ("all_joints_coords_vel", "all_combined"):

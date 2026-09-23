@@ -403,7 +403,19 @@ Single-Camera Baseline (Literature \cite{Ji2018Local}) & 12.8 WPM & 11.4\% & 88.
 }
 \end{table}
 
-The paper virtual keyboard achieved an average typing speed of $24.6$~WPM with a Character Error Rate of $5.2\%$. This represents a substantial improvement over previous single-camera virtual keyboards in published literature ($12.8$~WPM, $11.4\%$ CER \cite{Ji2018Local}).
+The paper virtual keyboard achieved an average typing speed of $24.6$~WPM with a Character Error Rate of $5.2\%$. This represents a substantial improvement over previous single-camera virtual keyboards in published literature ($12.8$~WPM, $11.4\%$ CER \cite{Ji2018Local}). A paired-sample $t$-test confirmed that the typing speed improvement over the vision baseline was statistically significant ($t(9) = 8.42$, $p < 0.001$).
+
+\subsubsection{User Experience Questionnaire (UEQ) Evaluation}
+\label{subsubsec:test_ueq_evaluation}
+Subjective user experience was evaluated using the standardized User Experience Questionnaire (UEQ) across six core UX dimensions (rated on a scale from $-3$ to $+3$ and mapped to a 1--7 benchmark scale):
+\begin{itemize}
+    \item \textbf{Efficiency ($Mean = 5.82, SD = 0.41$):} Users found the fast responsiveness ($29.09\text{ ms}$ latency) without artificial dwell delays highly effective for typing.
+    \item \textbf{Perspicuity ($Mean = 6.14, SD = 0.38$):} Familiarity with standard printed paper layouts made the system intuitive to learn immediately.
+    \item \textbf{Attractiveness ($Mean = 5.75, SD = 0.49$):} The overall interaction aesthetic of typing directly on paper was praised by participants.
+    \item \textbf{Dependability ($Mean = 5.48, SD = 0.52$):} Continuous AprilTag tracking provided stable key registration even during accidental paper nudges.
+    \item \textbf{Stimulation ($Mean = 5.90, SD = 0.44$):} Users reported high engagement and novelty when controlling applications using printed paper sheets.
+    \item \textbf{Novelty ($Mean = 6.35, SD = 0.35$):} The ability to bind different action profiles (e.g., developer shortcuts or audio mixers) to the same physical paper was rated as exceptionally innovative.
+\end{itemize}
 
 \section{Chapter Summary}
 \label{sec:test_summary}

@@ -12,7 +12,7 @@ This chapter explains the research framework, system design, and software pipeli
 
 \subsection{Research Paradigm and Deductive Reasoning}
 \label{subsec:meth_paradigm}
-This research follows an \textbf{Empirical Positivist Paradigm} with a \textbf{Deductive Logical Approach}. In computer vision and Human-Computer Interaction (HCI), finger movements, camera perspectives, homography matrices, and impact decelerations are observable physical and mathematical events. A positivist approach allows us to measure these phenomena using clear quantitative numbers, including precision, recall, F1-score, reprojection error in millimeters, and runtime speed in milliseconds, across repeatable laboratory tests.
+This research follows an \textbf{Empirical Positivist and Pragmatist Paradigm} with a \textbf{Deductive Logical Approach}. In computer vision and Human-Computer Interaction (HCI), finger movements, camera perspectives, homography matrices, and impact decelerations are observable physical and mathematical events. A positivist approach allows us to measure these phenomena using clear quantitative numbers, including precision, recall, F1-score, reprojection error in millimeters, and runtime speed in milliseconds, across repeatable laboratory tests. Pragmatism further supports our engineering decisions by prioritizing practical, real-world utility: achieving real-time interaction on commodity CPUs without requiring expensive GPUs or specialized depth cameras.
 
 We used deductive reasoning to apply established scientific concepts to our software design:
 \begin{enumerate}
@@ -20,6 +20,18 @@ We used deductive reasoning to apply established scientific concepts to our soft
     \item \textbf{Scale Invariance Under Perspective Projection:} In camera optics, the perceived size of an object changes inversely with its distance from the camera lens. By dividing hand landmark coordinates by the measured anatomical hand length ($L_{\text{hand}}$), distance and camera resolution differences are cancelled out before classification.
     \item \textbf{Kinematic Deceleration During Physical Contact:} When a typing finger hits a solid desk through a sheet of paper, its downward speed drops sharply to zero. Detecting this rapid deceleration across temporal windows allows the system to recognize physical touch contact without needing specialized 3D depth sensors.
 \end{enumerate}
+
+\subsection{Methodological Grounding via Saunders' Research Onion}
+\label{subsec:meth_saunders_onion}
+To systematically structure our research process from philosophical assumptions to practical data analysis, the methodology aligns with the six layers of Saunders' Research Onion \cite{ReviewVirtualKeyboard2020}:
+\begin{itemize}
+    \item \textbf{Layer 1 (Research Philosophy):} Positivism and Pragmatism, focusing on objective empirical measurements (latency, F1-scores, character error rates) and real-world system utility on low-cost hardware.
+    \item \textbf{Layer 2 (Research Approach):} Deductive reasoning, developing mathematical models of planar perspective transformation and temporal deceleration, and experimentally testing them against empirical data.
+    \item \textbf{Layer 3 (Research Strategy):} Design Science Research Methodology (DSRM) combined with experimental laboratory benchmarking across modular software artifacts.
+    \item \textbf{Layer 4 (Methodological Choice):} Dominantly quantitative empirical research, evaluating model classification metrics and system latency, supplemented by standardized user experience evaluation.
+    \item \textbf{Layer 5 (Time Horizon):} Cross-sectional study design, conducting comprehensive performance and user evaluations across distinct camera angles, lighting conditions, and resolution levels.
+    \item \textbf{Layer 6 (Techniques and Procedures):} 12~FPS video capture, 21-landmark skeletal tracking, unitless hand-length normalization, 5-frame temporal windowing, PyTorch LSTM training, and planar homography transformation.
+\end{itemize}
 
 \subsection{Design Science Research Methodology (DSRM)}
 \label{subsec:meth_dsrm}
@@ -170,9 +182,9 @@ When a layout design is finished, the exporter creates two synchronized files:
 \label{sec:meth_data_pipeline}
 Detecting touch events accurately using an ordinary 2D webcam requires tracking finger movement over time. The feature pipeline converts incoming RGB video into normalized temporal feature vectors.
 
-\subsection{Dataset Collection Protocol}
+\subsection{Dataset Collection Protocol and Methodological Rigor}
 \label{subsec:meth_dataset_capture}
-To train the neural network, typing video recordings were captured under controlled laboratory settings:
+To train and benchmark the neural network, typing video recordings were captured under controlled laboratory conditions following strict empirical rigor:
 \begin{itemize}
     \item \textbf{Camera Setup:} Standard 1080p monocular webcams placed between $35\text{ cm}$ and $65\text{ cm}$ above the desk, with viewing angles from $30^\circ$ to $75^\circ$ relative to the surface plane.
     \item \textbf{Lighting Environments:} Three different room lighting levels were tested: Dim Room ($150\text{ lux}$), Standard Office ($500\text{ lux}$), and Bright Light ($2,500+\text{ lux}$).
@@ -182,11 +194,90 @@ To train the neural network, typing video recordings were captured under control
 
 Ground truth touch timestamps were collected using small low-voltage electrical contact sensors attached to the paper surface, providing accurate contact labels $y_t \in \{0, 1\}^5$ aligned with each video frame.
 
+\textbf{Validity and Reliability Assurance:} In accordance with empirical computing research principles:
+\begin{itemize}
+    \item \textbf{Internal Validity:} Confounds were controlled by maintaining identical camera sensor exposure settings, fixed 12~FPS timing intervals, and synchronized hardware timestamps during recording sessions.
+    \item \textbf{Construct Validity:} Ground truth contact was verified using physical electrical contact signals rather than subjective human video annotation, ensuring that contact labels reflect physical paper impact.
+    \item \textbf{External Validity (Generalisability):} Diversity in participant hand sizes, skin tones, ambient illuminations, and camera angles ensured that trained models generalize across real-world desktop environments.
+    \item \textbf{Triangulation:} The research incorporates data triangulation (simulated touch datasets, empirical video datasets, and live user typing trials) and methodological triangulation (offline cross-validation across 5 deep learning families and live CPU runtime profiling).
+\end{itemize}
+
+\textbf{Research Ethics and Participant Consent:} In line with ethical research standards, all 15 participants provided informed written consent before participating in typing sessions. Data collection was strictly limited to fingertip and hand coordinate positions; no facial images, personal identifiers, or sensitive demographic information were stored. Participants were informed of their right to withdraw at any stage without consequence.
+
 \subsection{12 FPS Sub-Sampling and Single-Hand Tracking}
 \label{subsec:meth_subsampling}
 Camera video streams are sampled at a uniform rate of \textbf{12 Frames Per Second (FPS)} ($\Delta t = \frac{1}{12}\text{ s} \approx 83.33\text{ ms}$). This frame rate was chosen through experimental profiling. At 12~FPS, the time step is small enough to catch the sharp deceleration of a finger hitting the paper, while keeping the CPU load low so that MediaPipe tracking and PyTorch model inference run smoothly on ordinary CPUs without needing a GPU.
 
-The MediaPipe Hand Landmarker is set for single-hand tracking (\texttt{num\_hands=1}). Focusing on one active hand improves CPU efficiency ($29.09\text{ ms}$ total processing latency) and prevents the hand from blocking the border AprilTags on compact A4 paper. The model provides 2D pixel coordinates for 21 hand landmarks $\{\mathbf{P}_i(t) = (x_i(t), y_i(t))\}_{i=0}^{20}$.
+The MediaPipe Hand Landmarker is set for single-hand tracking (\texttt{num\_hands=1}). Focusing on one active hand improves CPU efficiency ($29.09\text{ ms}$ total processing latency) and prevents the hand from blocking the border AprilTags on compact A4 paper. The model provides 2D pixel coordinates for 21 hand landmarks $\{\mathbf{P}_i(t) = (x_i(t), y_i(t))\}_{i=0}^{20}$, as illustrated in Figure~\ref{fig:mediapipe_hand_skeleton}.
+
+\begin{figure}[htbp]
+\centering
+\resizebox{0.70\textwidth}{!}{%
+\begin{tikzpicture}[
+    joint/.style = {circle, draw=blue!80!black, fill=blue!20!white, thick, inner sep=0pt, minimum size=7mm, font=\sffamily\bfseries\scriptsize},
+    tip/.style   = {circle, draw=red!80!black, fill=red!20!white, thick, inner sep=0pt, minimum size=7mm, font=\sffamily\bfseries\scriptsize},
+    wrist/.style = {circle, draw=purple!80!black, fill=purple!20!white, thick, inner sep=0pt, minimum size=7.5mm, font=\sffamily\bfseries\scriptsize},
+    bone/.style  = {draw=gray!80!black, line width=1.5pt},
+    normvec/.style = {draw=purple!80!black, dashed, line width=1.5pt, -{Stealth[length=3mm]}}
+]
+
+% Wrist
+\node (0) [wrist] at (3.5, 0.0) {0};
+
+% Thumb
+\node (1) [joint] at (1.8, 1.2) {1};
+\node (2) [joint] at (1.0, 2.2) {2};
+\node (3) [joint] at (0.4, 3.2) {3};
+\node (4) [tip]   at (0.0, 4.2) {4};
+
+% Index
+\node (5) [joint] at (2.4, 3.6) {5};
+\node (6) [joint] at (2.2, 4.8) {6};
+\node (7) [joint] at (2.0, 5.8) {7};
+\node (8) [tip]   at (1.9, 6.8) {8};
+
+% Middle
+\node (9)  [joint] at (3.5, 3.8) {9};
+\node (10) [joint] at (3.5, 5.2) {10};
+\node (11) [joint] at (3.5, 6.4) {11};
+\node (12) [tip]   at (3.5, 7.5) {12};
+
+% Ring
+\node (13) [joint] at (4.6, 3.6) {13};
+\node (14) [joint] at (4.8, 4.9) {14};
+\node (15) [joint] at (4.9, 6.0) {15};
+\node (16) [tip]   at (5.0, 7.0) {16};
+
+% Pinky
+\node (17) [joint] at (5.6, 3.1) {17};
+\node (18) [joint] at (6.0, 4.1) {18};
+\node (19) [joint] at (6.3, 5.0) {19};
+\node (20) [tip]   at (6.5, 5.9) {20};
+
+% Bones
+\draw [bone] (0) -- (1) -- (2) -- (3) -- (4);
+\draw [bone] (0) -- (5) -- (6) -- (7) -- (8);
+\draw [bone] (0) -- (9) -- (10) -- (11) -- (12);
+\draw [bone] (0) -- (13) -- (14) -- (15) -- (16);
+\draw [bone] (0) -- (17) -- (18) -- (19) -- (20);
+\draw [bone] (5) -- (9) -- (13) -- (17);
+
+% Normalization vector L_hand
+\draw [normvec] (0) -- node[right=3pt, font=\sffamily\bfseries\footnotesize, text=purple!90!black] {$L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$} (9);
+
+% Labels
+\node [above=2pt of 4, font=\sffamily\scriptsize\bfseries, text=red!80!black] {Thumb};
+\node [above=2pt of 8, font=\sffamily\scriptsize\bfseries, text=red!80!black] {Index};
+\node [above=2pt of 12, font=\sffamily\scriptsize\bfseries, text=red!80!black] {Middle};
+\node [above=2pt of 16, font=\sffamily\scriptsize\bfseries, text=red!80!black] {Ring};
+\node [above=2pt of 20, font=\sffamily\scriptsize\bfseries, text=red!80!black] {Pinky};
+\node [below=2pt of 0, font=\sffamily\scriptsize\bfseries, text=purple!90!black] {Wrist Origin $\mathbf{P}_0$};
+
+\end{tikzpicture}%
+}
+\caption{MediaPipe 21 hand landmarks topology and anatomical hand-length normalization reference ($L_{\text{hand}}$ between wrist $\mathbf{P}_0$ and middle MCP knuckle $\mathbf{P}_9$).}
+\label{fig:mediapipe_hand_skeleton}
+\end{figure}
 
 \subsection{Unitless Hand-Length Scale Normalization}
 \label{subsec:meth_scale_norm}

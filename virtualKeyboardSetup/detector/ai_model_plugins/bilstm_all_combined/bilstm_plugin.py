@@ -1,12 +1,12 @@
 """
 plugins/bilstm_all_combined/bilstm_plugin.py
 
-Top Benchmark BiLSTM Model: BiLSTM_All_Combined (all_joints_coords_vel).
+Top Benchmark BiLSTM Model: BiLSTM_All_Combined (all_joints_coords_vel_speed).
 Achieved 91.59% Test Accuracy, 92.14% Touch Recall, 0.9164 F1-Score.
 
 Architecture:
-  - BiLSTM: input_features=36, hidden_units=32, num_layers=2, bidirectional=True
-  - Feature Variant: all_joints_coords_vel (4 steps × 36 features per finger)
+  - BiLSTM: input_features=45, hidden_units=48, num_layers=2, bidirectional=True
+  - Feature Variant: all_joints_coords_vel_speed (4 steps x 45 features per finger)
 """
 
 from __future__ import annotations
@@ -24,13 +24,13 @@ from core.pipeline.feature_extractor import (
 )
 
 FINGERS = ["Thumb", "Index", "Middle", "Ring", "Pinky"]
-VARIANT_NAME = "all_joints_coords_vel"
+VARIANT_NAME = "all_joints_coords_vel_speed"
 
 
 class _BiLSTM(nn.Module):
     """Bidirectional LSTM matching trained BiLSTM weights."""
 
-    def __init__(self, input_features: int = 36, hidden_units: int = 32, num_layers: int = 2, dropout: float = 0.2):
+    def __init__(self, input_features: int = 45, hidden_units: int = 48, num_layers: int = 2, dropout: float = 0.2):
         super().__init__()
         self.lstm = nn.LSTM(
             input_size=input_features,
@@ -54,7 +54,7 @@ class _BiLSTM(nn.Module):
 
 @register_model(
     name="BiLSTM All-Combined (91.6% Acc)",
-    description="Bidirectional LSTM trained on all hand joints coords+velocities (36 features, 4 steps).",
+    description="Bidirectional LSTM trained on all hand joints coords, velocities and speeds (45 features, 4 steps).",
     weights_file="BiLSTM_All_Combined_cfg01.pth",
 )
 class BiLSTMAllCombinedPlugin(ITouchModel):
@@ -65,7 +65,7 @@ class BiLSTMAllCombinedPlugin(ITouchModel):
         self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def load(self, weights_path: str) -> None:
-        self._model = _BiLSTM(input_features=36, hidden_units=32, num_layers=2)
+        self._model = _BiLSTM(input_features=45, hidden_units=48, num_layers=2)
         state = torch.load(weights_path, map_location=self._device, weights_only=True)
         self._model.load_state_dict(state)
         self._model.to(self._device)

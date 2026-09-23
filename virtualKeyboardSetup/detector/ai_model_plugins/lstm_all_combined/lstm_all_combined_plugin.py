@@ -1,14 +1,14 @@
 """
 plugins/lstm_all_combined/lstm_all_combined_plugin.py
 
-Champion Touch Detection Model: LSTM_All_Combined (all_joints_coords_vel).
+Champion Touch Detection Model: LSTM_All_Combined (all_joints_coords_vel_speed).
 Achieved top benchmark 94.34% Test Accuracy, 94.97% Touch Recall, 0.9437 F1-Score.
 
 Architecture:
-  - SequenceLSTM: input_features=36, hidden_units=32, num_layers=2, dropout=0.25
-  - Classifier Head: Linear(32, 16) -> ReLU -> Dropout(0.25) -> Linear(16, 1)
-  - Feature Variant: all_joints_coords_vel (4 steps x 36 features per finger)
-  - Pre-scaled via dataset StandardScaler (plugins/scalers.npz: all_joints_coords_vel_mean/scale)
+  - SequenceLSTM: input_features=45, hidden_units=48, num_layers=2, dropout=0.25
+  - Classifier Head: Linear(48, 24) -> ReLU -> Dropout(0.25) -> Linear(24, 1)
+  - Feature Variant: all_joints_coords_vel_speed (4 steps x 45 features per finger)
+  - Pre-scaled via dataset StandardScaler (scalers.npz: all_joints_coords_vel_speed_mean/scale)
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from core.pipeline.feature_extractor import (
 )
 
 FINGERS = ["Thumb", "Index", "Middle", "Ring", "Pinky"]
-VARIANT_NAME = "all_joints_coords_vel"
+VARIANT_NAME = "all_joints_coords_vel_speed"
 
 
 class _SequenceLSTM(nn.Module):
@@ -34,8 +34,8 @@ class _SequenceLSTM(nn.Module):
 
     def __init__(
         self,
-        input_features: int = 36,
-        hidden_units: int = 32,
+        input_features: int = 45,
+        hidden_units: int = 48,
         num_layers: int = 2,
         dropout: float = 0.25,
     ) -> None:
@@ -61,7 +61,7 @@ class _SequenceLSTM(nn.Module):
 
 @register_model(
     name="LSTM All-Combined (94.3% Acc)",
-    description="2-layer LSTM trained on all hand joints coords+velocities (36 features, 4 steps).",
+    description="Champion 2-layer LSTM trained on all hand joints coords, velocities and speeds (45 features, 4 steps).",
     weights_file="LSTM_All_Combined_cfg01.pth",
 )
 class LSTMAllCombinedPlugin(ITouchModel):
@@ -72,7 +72,7 @@ class LSTMAllCombinedPlugin(ITouchModel):
         self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def load(self, weights_path: str) -> None:
-        self._model = _SequenceLSTM(input_features=36, hidden_units=32, num_layers=2, dropout=0.25)
+        self._model = _SequenceLSTM(input_features=45, hidden_units=48, num_layers=2, dropout=0.25)
         state = torch.load(weights_path, map_location=self._device, weights_only=True)
         self._model.load_state_dict(state)
         self._model.to(self._device)

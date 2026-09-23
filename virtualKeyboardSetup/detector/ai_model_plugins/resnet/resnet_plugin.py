@@ -1,11 +1,11 @@
 """
 plugins/resnet/resnet_plugin.py
 
-ResNet1D Touch Detection Model: ResNet1D_All_Combined (all_joints_coords_vel).
+ResNet1D Touch Detection Model: ResNet1D_All_Combined (all_joints_coords_vel_speed).
 Achieved 90.50% Test Accuracy, 90.17% Touch Recall.
 
 Architecture:
-  - TouchResNet1D: residual 1D CNN blocks with skip connections over 36 features.
+  - TouchResNet1D: residual 1D CNN blocks with skip connections over 45 features.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from core.pipeline.feature_extractor import (
 )
 
 FINGERS = ["Thumb", "Index", "Middle", "Ring", "Pinky"]
-VARIANT_NAME = "all_joints_coords_vel"
+VARIANT_NAME = "all_joints_coords_vel_speed"
 
 
 class _ResBlock1D(nn.Module):
@@ -45,7 +45,7 @@ class _ResBlock1D(nn.Module):
 
 
 class _TouchResNet1D(nn.Module):
-    def __init__(self, input_features: int = 36, hidden_dim: int = 32, dropout: float = 0.2):
+    def __init__(self, input_features: int = 45, hidden_dim: int = 48, dropout: float = 0.25):
         super().__init__()
         self.in_conv = nn.Sequential(
             nn.Conv1d(input_features, hidden_dim, 3, padding=1),
@@ -74,7 +74,7 @@ class _TouchResNet1D(nn.Module):
 
 @register_model(
     name="ResNet1D All-Combined (90.5% Acc)",
-    description="1D Residual CNN with skip connections trained on all joints coords+velocities.",
+    description="1D Residual CNN with skip connections trained on all joints coords, velocities and speeds.",
     weights_file="ResNet1D_All_Combined_cfg01.pth",
 )
 class ResNet1DPlugin(ITouchModel):
@@ -85,7 +85,7 @@ class ResNet1DPlugin(ITouchModel):
         self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def load(self, weights_path: str) -> None:
-        self._model = _TouchResNet1D(input_features=36, hidden_dim=32)
+        self._model = _TouchResNet1D(input_features=45, hidden_dim=48, dropout=0.25)
         state = torch.load(weights_path, map_location=self._device, weights_only=True)
         self._model.load_state_dict(state)
         self._model.to(self._device)

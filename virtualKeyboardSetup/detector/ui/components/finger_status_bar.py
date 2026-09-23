@@ -57,32 +57,57 @@ class FingerStatusBar(QWidget):
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
-    def set_probs(self, probs: dict[str, float]) -> None:
-        """Update all 5 cards from a probability dict."""
-        for finger, prob in probs.items():
+    def set_probs(self, probs: dict[str, Any]) -> None:
+        """Update all 5 cards from a probability dict or structured results dict."""
+        for finger, val in probs.items():
             if finger not in self._cards:
                 continue
-            self._update_card(finger, prob=prob, hand_present=True)
+            if isinstance(val, dict):
+                prob = float(val.get("prob", 0.0))
+                is_touch = bool(val.get("touch", False))
+                hand_moving = bool(val.get("hand_moving", False))
+            else:
+                prob = float(val)
+                is_touch = prob >= 0.55
+                hand_moving = False
+
+            self._update_card(
+                finger,
+                prob=prob,
+                is_touch=is_touch,
+                hand_moving=hand_moving,
+                hand_present=True,
+            )
 
     def set_no_hand(self) -> None:
         """Mark all fingers as 'no hand detected'."""
         for finger in FINGERS:
-            self._update_card(finger, prob=0.0, hand_present=False)
+            self._update_card(finger, prob=0.0, is_touch=False, hand_moving=False, hand_present=False)
 
     # ── Internal ───────────────────────────────────────────────────────────────
 
-    def _update_card(self, finger: str, prob: float, hand_present: bool) -> None:
+    def _update_card(
+        self,
+        finger: str,
+        prob: float,
+        is_touch: bool,
+        hand_moving: bool,
+        hand_present: bool,
+    ) -> None:
         c = self._cards[finger]
         card: CardWidget = c["card"]
         status_lbl: BodyLabel = c["status"]
         pbar: ProgressBar = c["pbar"]
 
-        is_touch = hand_present and prob >= 0.5
-
         if not hand_present:
             card.setStyleSheet(_card_css(_NO_HAND_BG))
             status_lbl.setText("NO HAND")
             status_lbl.setStyleSheet("background: transparent; color: #606070;")
+            pbar.setValue(0)
+        elif hand_moving:
+            card.setStyleSheet(_card_css("#3A2810", "#FF9000"))
+            status_lbl.setText("HAND MOVING")
+            status_lbl.setStyleSheet("background: transparent; color: #FFA500; font-weight: bold;")
             pbar.setValue(0)
         elif is_touch:
             card.setStyleSheet(_card_css(_TOUCH_BG, "#00DC64"))
@@ -91,7 +116,7 @@ class FingerStatusBar(QWidget):
             pbar.setValue(int(prob * 100))
         else:
             card.setStyleSheet(_card_css(_NO_TOUCH_BG))
-            status_lbl.setText(f"{prob*100:.0f}%")
+            status_lbl.setText(f"UNTOUCH  {prob*100:.0f}%")
             status_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC};")
             pbar.setValue(int(prob * 100))
 

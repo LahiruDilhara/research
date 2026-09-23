@@ -21,23 +21,31 @@ Furthermore, existing virtual keyboard implementations hard-code static QWERTY l
 
 \section{Problem Statement}
 \label{sec:problem_statement}
-Current virtual keyboard solutions face significant practical barriers. They either depend on expensive specialized hardware (such as 3D depth cameras, infrared curtains, or high-end GPUs) or suffer from severe usability flaws (such as single-finger limitations, artificial dwell-time delays, and rigid layouts). As a result, users with standard computers and everyday webcams cannot benefit from flexible, paper-based virtual input.
+Writing a rigorous problem statement in computing research requires converting general domain issues into a specific, structured problem. Following the IRCA framework (Ideally, Reality, Consequences, and Aim) from computing research methodology, the problem addressed in this study is structured as follows:
 
-\subsection{General Problem}
-\label{subsec:general_problem}
-Physical keyboards are expensive to replace, vulnerable to liquid spills and dust, and prone to pathogen transmission in public and clinical settings \cite{ReviewVirtualKeyboard2020}. Although vision-based virtual keyboards offer a flexible alternative, existing implementations rely on specialized hardware not found in ordinary desktop environments \cite{Lee2019Virtual, Pilkov2024Markerless}, or require heavy GPU resources to process high-resolution video streams in real time.
+\subsection{Ideally}
+\label{subsec:irca_ideally}
+Ideally, users should be able to transform any flat, ordinary desk surface into an interactive, highly customizable, and responsive multi-finger text and command input device using low-cost commodity hardware. Such an interface should operate using standard printed paper and an everyday monocular RGB webcam, running efficiently on a standard consumer CPU without requiring dedicated GPUs, specialized 3D depth sensors, or active electronic components. Users should have the freedom to design custom layouts and bind multiple distinct action profiles to the same physical sheet.
 
-\subsection{Specific Problem}
-\label{subsec:specific_problem}
-Developing an accurate, real-time, and customizable paper virtual keyboard using a single monocular RGB camera and a standard commodity CPU presents six key technical challenges:
+\subsection{Reality}
+\label{subsec:irca_reality}
+In reality, vision-based virtual keyboards remain hindered by severe practical and algorithmic limitations:
 \begin{enumerate}
-    \item \textbf{Single-Finger Tracking Restrictions:} Prior monocular camera systems track only a single active finger, typically the index digit \cite{Thomas2013Camera, Ji2018Local, Srivastava2012RealTime}. Shadow-based techniques fail when multiple fingers move together because their shadows overlap and occlude one another \cite{Posner2012Single}.
-    \item \textbf{Touch Ambiguity and Artificial Dwell Delays:} Without depth sensors, distinguishing between a surface touch and a finger hovering a few millimeters above the paper is difficult \cite{Thomas2013Camera, Posner2012Single}. To resolve this ambiguity, previous systems forced users to freeze their finger over a key for 500 to 1000 ms, severely limiting typing speed \cite{Khare2019QWERTY, Chen2024Gaze}.
-    \item \textbf{Computational Overhead on Standard CPUs:} Modern deep learning architectures often require GPU acceleration. Running hand tracking and deep sequence models concurrently on a standard CPU can cause frame drops and high input latency \cite{Enkhbat2020HandKey, Ji2018Local}.
-    \item \textbf{Sensitivity to Lighting, Shadows, and Skin Tones:} Skin-color thresholding and shadow tracking fail under diffuse room lighting, multiple illumination sources, ambient shadows, and diverse skin tones \cite{Thomas2013Camera, Yue2014Blind}.
-    \item \textbf{Perspective Distortion and Paper Movement:} Camera perspective tilt and paper shifts distort key positions, leading to key registration errors without real-time homography tracking \cite{Wang2016AprilTag2, Kallwies2020Determining, Kalaitzakis2021Fiducial}.
-    \item \textbf{Rigid Layouts and Lack of Action Multiplexing:} Existing virtual keyboards use fixed, hard-coded layouts \cite{ReviewVirtualKeyboard2020}. Users cannot design custom arrangements or assign different action sets to the same physical sheet.
+    \item \textbf{Single-Finger Restriction:} Prior monocular systems track only one finger at a time (usually the index digit), because optical shadow methods collapse when multiple fingers move closely together \cite{Thomas2013Camera, Posner2012Single, Ji2018Local}.
+    \item \textbf{High Latency and GPU Dependence:} Modern computer vision and deep learning pipelines require heavy GPU acceleration or drop below usable frame rates on standard CPUs \cite{Enkhbat2020HandKey, Ji2018Local}.
+    \item \textbf{Artificial Dwell Delays:} Because standard webcams lack 3D depth perception along the optical Z-axis, prior systems force users to freeze their finger over a key for 500 to 1000~ms to confirm a press, making natural touch typing impossible \cite{Khare2019QWERTY, Chen2024Gaze}.
+    \item \textbf{Environmental Sensitivity:} Classical shadow and skin-color thresholding break under diffuse lighting, multiple light sources, and diverse skin tones \cite{Thomas2013Camera, Yue2014Blind}.
+    \item \textbf{Rigid Mounts and Paper Shifts:} Prior systems require rigid perpendicular camera mounts; any paper displacement or camera tilt breaks key registration \cite{Wang2016AprilTag2, Kallwies2020Determining}.
+    \item \textbf{Fixed Layouts:} Existing applications hard-code fixed QWERTY layouts with no action multiplexing \cite{ReviewVirtualKeyboard2020}.
 \end{enumerate}
+
+\subsection{Consequences}
+\label{subsec:irca_consequences}
+Consequently, monocular vision-based keyboards have failed to become viable alternatives to physical hardware. Users cannot achieve natural typing speeds, interaction is slow and fatiguing, and deployments in cost-sensitive settings (such as classrooms, public kiosks, and rural healthcare facilities) remain impractical.
+
+\subsection{Aim}
+\label{subsec:irca_aim}
+To resolve this contradiction, this study aims to develop and evaluate a monocular paper-based virtual keyboard system. The system combines MediaPipe 21-joint skeletal tracking, unitless hand-length scale normalization ($L_{\text{hand}}$), lightweight PyTorch LSTM sequence classification, and dynamic AprilTag planar homography tracking ($H$) to achieve real-time ($29.09\text{ ms}$), multi-finger interaction on commodity CPUs.
 
 \section{Research Question}
 \label{sec:research_question}

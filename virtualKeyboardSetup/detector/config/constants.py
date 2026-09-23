@@ -73,8 +73,8 @@ APRILTAG_SMOOTHING_ALPHA: float = 0.75   # blending weight for previous H
 APRILTAG_NTHREADS: int = 1
 
 # ── Touch detection & debouncing ───────────────────────────────────────────────
-TOUCH_PROBABILITY_THRESHOLD: float = 0.50
-TOUCH_ONSET_THRESHOLD: float = 0.50
+TOUCH_PROBABILITY_THRESHOLD: float = 0.55
+TOUCH_ONSET_THRESHOLD: float = 0.55
 TOUCH_RELEASE_THRESHOLD: float = 0.40
 
 # ── Filtration thresholds (matching process.sh & datacreator) ──────────────────

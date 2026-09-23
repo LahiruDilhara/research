@@ -264,9 +264,57 @@ def test_touch_pipeline_service_full_flow():
     assert len(norm_win) == 5
 
     # Run inference through service with full filtration
-    debounced_probs = service.run_parallel_inference(plugin, norm_win)
-    assert len(debounced_probs) == 5
+    results = service.run_parallel_inference(plugin, norm_win)
+    assert len(results) == 5
     assert service.last_status == "OK"
+    for f in FINGERS:
+        assert "touch" in results[f]
+        assert "prob" in results[f]
+        assert "reason" in results[f]
+
+
+def test_pinky_touch_does_not_trigger_index():
+    """Verify that when only the pinky moves to touch, resting index finger does not trigger."""
+    service = TouchPipelineService()
+    weights_path = PROJECT_ROOT / "ai_model_plugins" / "lstm_all_combined" / "LSTM_All_Combined_cfg01.pth"
+    plugin = LSTMAllCombinedPlugin()
+    plugin.load(str(weights_path))
+
+    # Ingest 5 frames where only the pinky moves downward, other fingers remain resting
+    for i in range(5):
+        pts = _create_synthetic_landmarks()
+        # Move pinky downward by 12px each frame
+        pts[20] = (pts[20][0], pts[20][1] + i * 12.0, pts[20][2])
+        pts[19] = (pts[19][0], pts[19][1] + i * 8.0, pts[19][2])
+        pts[18] = (pts[18][0], pts[18][1] + i * 4.0, pts[18][2])
+
+        class MockLM:
+            def __init__(self, x, y, z):
+                self.x = x / 640.0
+                self.y = y / 480.0
+                self.z = z / 640.0
+
+        mock_raw = [MockLM(x, y, z) for x, y, z in pts]
+        win_ready, norm_win, pix_win = service.process_frame(
+            raw_landmarks=mock_raw,
+            hand_label="Right",
+            frame_w=640,
+            frame_h=480,
+            hand_score=0.95,
+        )
+
+    assert win_ready is True
+    results = service.run_parallel_inference(plugin, norm_win)
+
+    # Resting fingers must have kinetic motion filter active (has_kinetic_motion = False)
+    # Index must never be touched
+    assert results["Index"]["touch"] is False
+    assert results["Thumb"]["touch"] is False
+    assert results["Middle"]["touch"] is False
+    assert results["Ring"]["touch"] is False
+
+    touch_fingers = [f for f, data in results.items() if data.get("touch", False)]
+    assert "Index" not in touch_fingers
 
 
 if __name__ == "__main__":
@@ -277,4 +325,5 @@ if __name__ == "__main__":
     test_feature_extraction_and_scaling()
     test_lstm_all_combined_plugin_inference()
     test_touch_pipeline_service_full_flow()
-    print("\n✅ All 7 pipeline replication and model verification tests passed successfully!")
+    test_pinky_touch_does_not_trigger_index()
+    print("\n✅ All 8 pipeline replication and model verification tests passed successfully!")

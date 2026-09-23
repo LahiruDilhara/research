@@ -3,9 +3,10 @@
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \contentsline {figure}{\numberline {3.1}{\ignorespaces Conceptual taxonomy and structural organization of the literature review.}}{17}{figure.caption.7}%
-\contentsline {figure}{\numberline {3.2}{\ignorespaces MediaPipe 21 hand landmark anatomical topology.}}{22}{figure.caption.9}%
+\contentsline {figure}{\numberline {3.2}{\ignorespaces MediaPipe 21 hand landmark anatomical topology.}}{23}{figure.caption.9}%
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {4.1}{\ignorespaces Design Science Research Methodology (DSRM) execution framework.}}{29}{figure.caption.11}%
-\contentsline {figure}{\numberline {4.2}{\ignorespaces System architecture framework connecting Application 1 and Application 2 workflows.}}{30}{figure.caption.12}%
+\contentsline {figure}{\numberline {4.1}{\ignorespaces Design Science Research Methodology (DSRM) execution framework.}}{30}{figure.caption.11}%
+\contentsline {figure}{\numberline {4.2}{\ignorespaces System architecture framework connecting Application 1 and Application 2 workflows.}}{32}{figure.caption.12}%
+\contentsline {figure}{\numberline {4.3}{\ignorespaces MediaPipe 21 hand landmarks topology and anatomical hand-length normalization reference ($L_{\text {hand}}$ between wrist $\mathbf {P}_0$ and middle MCP knuckle $\mathbf {P}_9$).}}{36}{figure.caption.13}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }

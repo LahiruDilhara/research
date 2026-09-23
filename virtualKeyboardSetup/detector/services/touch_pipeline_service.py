@@ -194,13 +194,20 @@ class TouchPipelineService:
 
         return False, None, None
 
-    # ── Parallel Model Inference with Filtration Pipeline ───────────────────────
+    def reset_touch_states(self) -> None:
+        """Reset all per-finger debouncing states to False."""
+        self._finger_touch_state = {f: False for f in FINGERS}
+
+    @property
+    def finger_touch_states(self) -> dict[str, bool]:
+        """Current debounced touch state per finger."""
+        return dict(self._finger_touch_state)
 
     def run_parallel_inference(
         self,
         model: ITouchModel | None,
         norm_window_5: list[dict[str, Any]],
-    ) -> dict[str, float]:
+    ) -> dict[str, dict[str, Any]]:
         """
         Executes complete production filtration pipeline and model inference:
         1. Validates whole-hand transit movement (Step 7: displacement <= 0.155 L_hand).
@@ -208,30 +215,61 @@ class TouchPipelineService:
         3. Computes 4 velocity steps across 5 frames (Step 8).
         4. Runs active touch model inference forward-pass.
         5. Validates finger kinetic motion (Step 9: zero-velocity filter >= 0.008).
-        6. Applies dual-threshold debouncing hysteresis (onset >= 0.50, release < 0.40).
+        6. Applies dual-threshold debouncing hysteresis (onset >= 0.55, release < 0.40).
 
         Returns:
-            {"Thumb": p1, "Index": p2, "Middle": p3, "Ring": p4, "Pinky": p5}
+            Dict mapping each finger to {
+                "touch": bool,
+                "prob": float,
+                "reason": str,
+                "hand_moving": bool,
+                "disp": float,
+            }
         """
         if model is None or len(norm_window_5) < self._window_size:
-            return {f: 0.0 for f in FINGERS}
+            return {
+                f: {
+                    "touch": False,
+                    "prob": 0.0,
+                    "reason": "No Model or Incomplete Window",
+                    "hand_moving": False,
+                    "disp": 0.0,
+                }
+                for f in FINGERS
+            }
 
         # Step 7 Filtration: Whole-hand transit movement displacement filter
         is_stationary, max_disp, hm_reason = self._hand_movement_filter.validate(norm_window_5)
         if not is_stationary:
-            for f in FINGERS:
-                self._finger_touch_state[f] = False
+            self.reset_touch_states()
             self._last_status = hm_reason
-            return {f: 0.0 for f in FINGERS}
+            return {
+                f: {
+                    "touch": False,
+                    "prob": 0.0,
+                    "reason": hm_reason,
+                    "hand_moving": True,
+                    "disp": max_disp,
+                }
+                for f in FINGERS
+            }
 
         # Step 10 Filtration: Window tracking confidence quality checks
         scores_5 = [float(f.get("_hand_score", 0.85)) for f in norm_window_5]
         is_valid_quality, q_reason = self._window_quality_filter.validate(scores_5)
         if not is_valid_quality:
-            for f in FINGERS:
-                self._finger_touch_state[f] = False
+            self.reset_touch_states()
             self._last_status = q_reason
-            return {f: 0.0 for f in FINGERS}
+            return {
+                f: {
+                    "touch": False,
+                    "prob": 0.0,
+                    "reason": q_reason,
+                    "hand_moving": False,
+                    "disp": max_disp,
+                }
+                for f in FINGERS
+            }
 
         # Step 8: Compute 4 velocity steps from normalized 5 frames
         v_steps_4 = compute_window_velocities(norm_window_5)
@@ -242,10 +280,19 @@ class TouchPipelineService:
         except Exception as exc:
             logger.error("Parallel model inference failed: %s", exc)
             self._last_status = f"Model Error: {exc}"
-            return {f: 0.0 for f in FINGERS}
+            return {
+                f: {
+                    "touch": False,
+                    "prob": 0.0,
+                    "reason": f"Model Error: {exc}",
+                    "hand_moving": False,
+                    "disp": max_disp,
+                }
+                for f in FINGERS
+            }
 
         # Step 9 Filtration + Dual-Threshold Hysteresis Debouncing
-        debounced_probs: dict[str, float] = {}
+        results: dict[str, dict[str, Any]] = {}
         for f in FINGERS:
             p = float(raw_probs.get(f, 0.0))
 
@@ -256,12 +303,25 @@ class TouchPipelineService:
             if was_touch:
                 # Retain active touch until probability falls below release cutoff
                 is_touch = bool(p >= self._t_off)
+                reason = "Touch Maintained (Debounce)" if is_touch else "Touch Released"
             else:
                 # Trigger new touch only if probability exceeds onset cutoff AND has kinetic motion
                 is_touch = bool(p >= self._t_on and has_kinetic_motion)
+                if is_touch:
+                    reason = "Touch Detected"
+                elif p >= self._t_on and not has_kinetic_motion:
+                    reason = "Zero-Velocity Suppressed"
+                else:
+                    reason = "Below Onset Threshold"
 
             self._finger_touch_state[f] = is_touch
-            debounced_probs[f] = p if is_touch else (p if p < self._t_off else 0.0)
+            results[f] = {
+                "touch": is_touch,
+                "prob": p,
+                "reason": reason,
+                "hand_moving": False,
+                "disp": max_disp,
+            }
 
         self._last_status = "OK"
-        return debounced_probs
+        return results
