@@ -86,8 +86,8 @@ class InteractiveLayoutMapWidget(QWidget):
         painter.setRenderHint(QPainter.Antialiasing, True)
         painter.setRenderHint(QPainter.TextAntialiasing, True)
 
-        # Background
-        painter.fillRect(self.rect(), QColor("#101015"))
+        # Background of the whole widget
+        painter.fillRect(self.rect(), QColor("#18191E"))
 
         if not self._layout:
             painter.setPen(QColor(UI_TEXT_SEC))
@@ -148,28 +148,28 @@ class InteractiveLayoutMapWidget(QWidget):
 
     def _draw_paper(self, painter: QPainter) -> None:
         # Paper drop shadow
-        shadow_rect = self._paper_rect.adjusted(-3, -3, 3, 3)
+        shadow_rect = self._paper_rect.adjusted(3, 4, 3, 4)
         painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor(0, 0, 0, 100))
-        painter.drawRoundedRect(shadow_rect, 10, 10)
+        painter.setBrush(QColor(0, 0, 0, 80))
+        painter.drawRoundedRect(shadow_rect, 6, 6)
 
-        # Paper sheet surface
-        painter.setPen(QPen(QColor(255, 255, 255, 30), 1.2))
-        painter.setBrush(QColor("#1A1A24"))
-        painter.drawRoundedRect(self._paper_rect, 8, 8)
+        # Paper sheet surface - white like real paper
+        painter.setPen(QPen(QColor(180, 180, 180), 1.0))
+        painter.setBrush(QColor("#FFFFFF"))
+        painter.drawRoundedRect(self._paper_rect, 4, 4)
 
-        # Layout Title / Project Name at top of canvas (Centered)
+        # Layout title above the paper
         title_text = self._layout.project_name or "Paper Virtual Keyboard"
-        painter.setPen(QColor("#E2E8F0"))
-        painter.setFont(QFont("Segoe UI", 12, QFont.Bold))
-        title_rect = QRectF(self._paper_rect.left(), self._paper_rect.top() - 28, self._paper_rect.width(), 22)
+        painter.setPen(QColor("#94A3B8"))
+        painter.setFont(QFont("Segoe UI", 11, QFont.Bold))
+        title_rect = QRectF(self._paper_rect.left(), self._paper_rect.top() - 26, self._paper_rect.width(), 20)
         painter.drawText(title_rect, Qt.AlignCenter, title_text)
 
-        # Dimension watermark & Button count at bottom (Centered)
-        dim_text = f"{self._layout.paper_width_mm:.0f} × {self._layout.paper_height_mm:.0f} mm  •  {len(self._layout.buttons)} keys  •  {len(self._layout.markers)} anchors"
+        # Dimension info below the paper
+        dim_text = f"{self._layout.paper_width_mm:.0f} x {self._layout.paper_height_mm:.0f} mm  |  {len(self._layout.buttons)} keys  |  {len(self._layout.markers)} anchors"
         painter.setPen(QColor("#64748B"))
         painter.setFont(QFont("Segoe UI", 9, QFont.Medium))
-        dim_rect = QRectF(self._paper_rect.left(), self._paper_rect.bottom() + 6, self._paper_rect.width(), 20)
+        dim_rect = QRectF(self._paper_rect.left(), self._paper_rect.bottom() + 6, self._paper_rect.width(), 18)
         painter.drawText(dim_rect, Qt.AlignCenter, dim_text)
 
     def _draw_markers(self, painter: QPainter) -> None:
@@ -212,33 +212,35 @@ class InteractiveLayoutMapWidget(QWidget):
             has_action = (act.type != "none" and bool(act.value))
             tint = _ACTION_COLORS.get(act.type, _ACTION_COLORS["none"])
 
-            # Button background path
             path = QPainterPath()
-            path.addRoundedRect(btn_rect, 5, 5)
+            path.addRoundedRect(btn_rect, 4, 4)
 
-            # All buttons share the exact same clean base background
-            painter.fillPath(path, QColor("#1E1E28"))
-
+            # Key background on white paper: light grey fill
             if is_selected:
-                border_pen = QPen(QColor(UI_ACCENT), 1.8)
+                painter.fillPath(path, QColor("#E8F4FD"))  # light blue tint when selected
             elif is_hovered:
-                border_pen = QPen(QColor(255, 255, 255, 90), 1.2)
-            elif has_action:
-                border_pen = QPen(QColor(tint.red(), tint.green(), tint.blue(), 80), 1.0)
+                painter.fillPath(path, QColor("#F0F0F0"))
             else:
-                border_pen = QPen(QColor(255, 255, 255, 30), 1.0)
+                painter.fillPath(path, QColor("#F5F5F5"))
 
-            # Stroke border only (no brush fill leakage)
+            # Border
+            if is_selected:
+                border_pen = QPen(QColor("#009FEF"), 2.0)
+            elif is_hovered:
+                border_pen = QPen(QColor("#AAAAAA"), 1.2)
+            elif has_action:
+                border_pen = QPen(QColor(tint.red(), tint.green(), tint.blue(), 160), 1.0)
+            else:
+                border_pen = QPen(QColor("#CCCCCC"), 0.8)
             painter.strokePath(path, border_pen)
 
-            # Standardized Key Label (moderated font size)
+            # Key label - dark text on white/light background
             label_text = b.label if b.label.strip() else b.id
             font_sz = max(8, int(min(px_h * 0.28, px_w * 0.20, 12)))
             font = QFont("Segoe UI", font_sz, QFont.Bold)
             painter.setFont(font)
-            painter.setPen(QColor("#FFFFFF" if (is_selected or is_hovered or has_action) else "#CBD5E1"))
+            painter.setPen(QColor("#1A1A2E") if not is_selected else QColor("#005A8E"))
 
-            # Calculate label and subtitle boxes
             has_sub = bool(has_action or px_h > 22)
             if has_sub:
                 lbl_box = QRectF(btn_rect.left() + 3, btn_rect.top() + 2, btn_rect.width() - 6, btn_rect.height() * 0.52)
@@ -249,7 +251,6 @@ class InteractiveLayoutMapWidget(QWidget):
 
             painter.drawText(lbl_box, Qt.AlignCenter, label_text)
 
-            # Action subtitle badge
             if has_action:
                 painter.setPen(tint)
                 sub_font = QFont("Segoe UI", max(7, font_sz - 2), QFont.Medium)
@@ -257,19 +258,16 @@ class InteractiveLayoutMapWidget(QWidget):
                 act_str = f"[{act.value}]" if len(act.value) <= 10 else f"[{act.value[:8]}...]"
                 painter.drawText(sub_box, Qt.AlignCenter, act_str)
             elif has_sub:
-                painter.setPen(QColor("#64748B"))
+                painter.setPen(QColor("#9AA3B0"))
                 sub_font = QFont("Segoe UI", max(7, font_sz - 3))
                 painter.setFont(sub_font)
                 painter.drawText(sub_box, Qt.AlignCenter, b.id)
 
-            # Small status dot in top right
+            # Action dot in top-right corner
             dot_r = 3.0
             dot_center = QPointF(btn_rect.right() - 6, btn_rect.top() + 6)
             painter.setPen(Qt.NoPen)
-            if has_action:
-                painter.setBrush(tint)
-            else:
-                painter.setBrush(QColor(255, 255, 255, 20))
+            painter.setBrush(tint if has_action else QColor(180, 180, 180, 120))
             painter.drawEllipse(dot_center, dot_r, dot_r)
             painter.setBrush(Qt.NoBrush)
 

@@ -29,6 +29,7 @@ from config.constants import UI_ACCENT, UI_BG_CARD, UI_TEXT_PRI, UI_TEXT_SEC
 from core.action.action_executor import ActionData
 from core.layout.layout_parser import ButtonData
 from ui.components.key_capture_edit import KeyCaptureButton
+from ui.theme import btn_ghost
 
 _ACTION_TYPES = ["none", "keystroke", "shortcut", "shell", "macro"]
 _PLACEHOLDERS = {
@@ -64,14 +65,16 @@ class ActionInspectorCard(QWidget):
         self._building = False
 
     def _setup_ui(self) -> None:
+        # Match page background so rounded corners of the inner card don't bleed
+        self.setStyleSheet("background: #18191E;")
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
 
         card = CardWidget(self)
-        card.setBorderRadius(12)
+        card.setBorderRadius(10)
         card.setStyleSheet(
-            f"background-color: {UI_BG_CARD}; border: 1px solid rgba(255, 255, 255, 0.06); "
-            "QLabel { background: transparent; border: none; }"
+            f"CardWidget {{ background-color: {UI_BG_CARD}; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; }}"
+            " QLabel { background: transparent; border: none; }"
         )
 
         layout = QVBoxLayout(card)
@@ -153,16 +156,13 @@ class ActionInspectorCard(QWidget):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
 
-        self.btn_prev = PushButton(FluentIcon.LEFT_ARROW, "Prev", card)
-        self.btn_prev.setFixedHeight(34)
+        self.btn_prev = btn_ghost("◀ Prev", card, height=34)
         self.btn_prev.clicked.connect(lambda: self.navigate_key.emit("prev"))
 
-        self.btn_clear = PushButton(FluentIcon.DELETE, "Clear", card)
-        self.btn_clear.setFixedHeight(34)
+        self.btn_clear = btn_ghost("Clear", card, height=34)
         self.btn_clear.clicked.connect(self._on_clear_clicked)
 
-        self.btn_next = PushButton(FluentIcon.RIGHT_ARROW, "Next", card)
-        self.btn_next.setFixedHeight(34)
+        self.btn_next = btn_ghost("Next ▶", card, height=34)
         self.btn_next.clicked.connect(lambda: self.navigate_key.emit("next"))
 
         btn_row.addWidget(self.btn_prev)

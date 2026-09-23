@@ -21,17 +21,15 @@ from PySide6.QtWidgets import (
 )
 from qfluentwidgets import (
     CaptionLabel,
-    FluentIcon,
     InfoBar,
     InfoBarPosition,
-    PrimaryPushButton,
-    PushButton,
     SegmentedWidget,
     SingleDirectionScrollArea,
     SubtitleLabel,
 )
 
 from config.constants import UI_ACCENT, UI_BG_DARK, UI_TEXT_PRI, UI_TEXT_SEC
+from ui.theme import btn_primary, btn_ghost
 from core.action.action_executor import ActionData
 from ui.components.action_inspector_card import ActionInspectorCard
 from ui.components.interactive_layout_map import InteractiveLayoutMapWidget
@@ -156,16 +154,13 @@ class ActionConfigView(QWidget):
         btn_row.setContentsMargins(0, 4, 0, 0)
         btn_row.setSpacing(12)
 
-        self.btn_back = PushButton(FluentIcon.RETURN, "Back", self)
-        self.btn_back.setFixedHeight(38)
+        self.btn_back = btn_ghost("Back", self, height=38)
         self.btn_back.clicked.connect(self.back_requested.emit)
 
-        self.btn_save = PushButton(FluentIcon.SAVE, "Save XML", self)
-        self.btn_save.setFixedHeight(38)
+        self.btn_save = btn_ghost("Save XML", self, height=38)
         self.btn_save.clicked.connect(self._on_save)
 
-        self.btn_continue = PrimaryPushButton(FluentIcon.PLAY, "Save & Start Detector", self)
-        self.btn_continue.setFixedHeight(38)
+        self.btn_continue = btn_primary("Save & Start Detector", self, height=38)
         self.btn_continue.clicked.connect(self._on_save_and_continue)
 
         btn_row.addWidget(self.btn_back)

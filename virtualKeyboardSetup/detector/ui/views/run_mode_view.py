@@ -15,29 +15,33 @@ from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
+    QLabel,
     QListWidget,
     QListWidgetItem,
+    QPushButton,
     QVBoxLayout,
     QWidget,
 )
 from qfluentwidgets import (
-    CaptionLabel,
     CardWidget,
     ComboBox,
-    FluentIcon,
     InfoBar,
     InfoBarPosition,
-    PushButton,
-    StrongBodyLabel,
-    SubtitleLabel,
 )
 
-from config.constants import (
-    UI_ACCENT,
-    UI_BG_CARD,
-    UI_BG_DARK,
-    UI_TEXT_PRI,
-    UI_TEXT_SEC,
+from ui.theme import (
+    ACCENT,
+    BG_CARD,
+    BG_PAGE,
+    BORDER,
+    FINGER_COLORS,
+    LABEL_TRANSPARENT,
+    SUCCESS,
+    TXT_PRI,
+    TXT_SEC,
+    btn_ghost,
+    btn_icon_only,
+    btn_primary,
 )
 from core.interfaces.touch_model import ModelEntry, ModelRegistry
 from core.layout.layout_parser import LayoutData
@@ -65,39 +69,32 @@ class ExecutedActionItem(QWidget):
         layout.setSpacing(10)
 
         # Time
-        lbl_time = CaptionLabel(timestamp, self)
-        lbl_time.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 10px; font-family: monospace;")
+        lbl_time = QLabel(timestamp, self)
+        lbl_time.setStyleSheet(f"color: {TXT_SEC}; font-size: 10px; font-family: monospace; {LABEL_TRANSPARENT}")
         layout.addWidget(lbl_time)
 
         # Key badge
-        lbl_key = StrongBodyLabel(key_id, self)
+        lbl_key = QLabel(key_id, self)
         lbl_key.setStyleSheet(
-            f"background-color: rgba(255, 255, 255, 0.08); color: {UI_TEXT_PRI}; "
-            "padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;"
+            f"background-color: rgba(255, 255, 255, 0.08); color: {TXT_PRI}; "
+            "padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; border: none;"
         )
         layout.addWidget(lbl_key)
 
         # Finger badge
-        finger_colors = {
-            "Thumb": "#FF8C00",
-            "Index": "#00BEFF",
-            "Middle": "#00E678",
-            "Ring": "#E650FF",
-            "Pinky": "#FF4B4B",
-        }
-        color = finger_colors.get(finger, UI_ACCENT)
-        lbl_finger = CaptionLabel(finger, self)
+        color = FINGER_COLORS.get(finger, ACCENT)
+        lbl_finger = QLabel(finger, self)
         lbl_finger.setStyleSheet(
             f"background-color: rgba(255, 255, 255, 0.05); color: {color}; "
-            "padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500;"
+            "padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; border: none;"
         )
         layout.addWidget(lbl_finger)
 
         layout.addStretch(1)
 
         # Action payload
-        lbl_payload = CaptionLabel(f"[{action_type.upper()}] {payload}", self)
-        lbl_payload.setStyleSheet(f"color: {UI_ACCENT}; font-size: 11px; font-weight: 500;")
+        lbl_payload = QLabel(f"[{action_type.upper()}] {payload}", self)
+        lbl_payload.setStyleSheet(f"color: {ACCENT}; font-size: 11px; font-weight: 500; {LABEL_TRANSPARENT}")
         layout.addWidget(lbl_payload)
 
 
@@ -121,7 +118,7 @@ class RunModeView(QWidget):
         self._refresh_cameras()
 
     def _setup_ui(self) -> None:
-        self.setStyleSheet(f"background-color: {UI_BG_DARK};")
+        self.setStyleSheet(f"background-color: {BG_PAGE};")
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(24, 20, 24, 20)
         root_layout.setSpacing(16)
@@ -133,12 +130,12 @@ class RunModeView(QWidget):
 
         title_box = QHBoxLayout()
         title_box.setSpacing(10)
-        title_lbl = SubtitleLabel("Run Mode", self)
-        title_lbl.setStyleSheet(f"color: {UI_TEXT_PRI}; font-size: 18px; font-weight: bold;")
-        badge = CaptionLabel("PRODUCTION ENGINE (ACTIONS ACTIVE)", self)
+        title_lbl = QLabel("Run Mode", self)
+        title_lbl.setStyleSheet(f"color: {TXT_PRI}; font-size: 18px; font-weight: bold; {LABEL_TRANSPARENT}")
+        badge = QLabel("PRODUCTION ENGINE (ACTIONS ACTIVE)", self)
         badge.setStyleSheet(
             "background: rgba(0, 220, 100, 0.15); color: #00DC64; "
-            "padding: 3px 10px; border-radius: 4px; font-weight: bold; font-size: 10px;"
+            "padding: 3px 10px; border-radius: 4px; font-weight: bold; font-size: 10px; border: none;"
         )
         title_box.addWidget(title_lbl)
         title_box.addWidget(badge)
@@ -149,14 +146,13 @@ class RunModeView(QWidget):
         # Camera Selector
         cam_box = QHBoxLayout()
         cam_box.setSpacing(6)
-        cam_lbl = CaptionLabel("Camera:", self)
-        cam_lbl.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 11px;")
+        cam_lbl = QLabel("Camera:", self)
+        cam_lbl.setStyleSheet(f"color: {TXT_SEC}; font-size: 11px; {LABEL_TRANSPARENT}")
         self.combo_camera = ComboBox(self)
         self.combo_camera.setFixedWidth(180)
         self.combo_camera.currentIndexChanged.connect(self._on_camera_selection_changed)
-        self.btn_refresh_cams = PushButton(FluentIcon.SYNC, "", self)
-        self.btn_refresh_cams.setFixedSize(32, 32)
-        self.btn_refresh_cams.setToolTip("Refresh connected cameras")
+        self.btn_refresh_cams = btn_icon_only("↺", self, size=30)
+        self.btn_refresh_cams.setToolTip("Refresh camera list")
         self.btn_refresh_cams.clicked.connect(self._refresh_cameras)
         cam_box.addWidget(cam_lbl)
         cam_box.addWidget(self.combo_camera)
@@ -166,8 +162,8 @@ class RunModeView(QWidget):
         # Quick Model Selector
         model_box = QHBoxLayout()
         model_box.setSpacing(6)
-        model_caption = CaptionLabel("Model:", self)
-        model_caption.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 11px;")
+        model_caption = QLabel("Model:", self)
+        model_caption.setStyleSheet(f"color: {TXT_SEC}; font-size: 11px; {LABEL_TRANSPARENT}")
         self.combo_model = ComboBox(self)
         self.combo_model.setFixedWidth(190)
         self.combo_model.currentIndexChanged.connect(self._on_model_selection_changed)
@@ -176,8 +172,7 @@ class RunModeView(QWidget):
         header_row.addLayout(model_box)
 
         # Switch to Play Mode Button
-        self.btn_play_mode = PushButton(FluentIcon.VIDEO, "Switch to Play Mode", self)
-        self.btn_play_mode.setFixedHeight(34)
+        self.btn_play_mode = btn_ghost("Switch to Play Mode", self, height=34)
         self.btn_play_mode.clicked.connect(self._on_switch_to_play_mode)
         header_row.addWidget(self.btn_play_mode)
 
@@ -189,8 +184,8 @@ class RunModeView(QWidget):
 
         self.card_fps = self._make_stat_card("PIPELINE FPS", "0.0 FPS", "#00DC64")
         self.card_latency = self._make_stat_card("MODEL LATENCY", "-- ms", "#00BEFF")
-        self.card_model = self._make_stat_card("ACTIVE MODEL", self._vm.active_model_name or "Default", UI_TEXT_PRI)
-        self.card_layout = self._make_stat_card("APRILTAG TRACKING", "Searching...", UI_TEXT_SEC)
+        self.card_model = self._make_stat_card("ACTIVE MODEL", self._vm.active_model_name or "Default", TXT_PRI)
+        self.card_layout = self._make_stat_card("APRILTAG TRACKING", "Searching...", TXT_SEC)
 
         stats_row.addWidget(self.card_fps, 1)
         stats_row.addWidget(self.card_latency, 1)
@@ -198,6 +193,33 @@ class RunModeView(QWidget):
         stats_row.addWidget(self.card_layout, 1)
 
         root_layout.addLayout(stats_row)
+
+        # ── Hand detection banner ────────────────────────────────────────────
+        self.hand_banner = QWidget(self)
+        self.hand_banner.setFixedHeight(44)
+        self.hand_banner.setStyleSheet(
+            f"background: {BG_CARD}; border: 1px solid {BORDER}; border-radius: 8px;"
+        )
+        hb_row = QHBoxLayout(self.hand_banner)
+        hb_row.setContentsMargins(16, 0, 16, 0)
+        hb_row.setSpacing(12)
+
+        hb_dot = QLabel("●", self.hand_banner)
+        hb_dot.setObjectName("handDot")
+        hb_dot.setStyleSheet(f"color: {TXT_SEC}; font-size: 12px; background: transparent; border: none;")
+
+        self.lbl_hand_banner = QLabel("No hand detected", self.hand_banner)
+        self.lbl_hand_banner.setStyleSheet(f"color: {TXT_SEC}; font-size: 12px; font-weight: 500; background: transparent; border: none;")
+
+        hb_row.addWidget(hb_dot)
+        hb_row.addWidget(self.lbl_hand_banner)
+        hb_row.addStretch(1)
+
+        caption_note = QLabel("Hand detection (single active hand)", self.hand_banner)
+        caption_note.setStyleSheet(f"color: {TXT_SEC}; font-size: 10px; background: transparent; border: none;")
+        hb_row.addWidget(caption_note)
+
+        root_layout.addWidget(self.hand_banner)
 
         # ── Main Center Area: Dual Graphs + Executed Actions Feed ─────────────
         main_body = QHBoxLayout()
@@ -210,18 +232,18 @@ class RunModeView(QWidget):
         # 1. Multi-Finger Probability Telemetry Graph Card
         graph1_card = CardWidget(self)
         graph1_card.setStyleSheet(
-            f"CardWidget {{ background-color: {UI_BG_CARD}; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; }} "
-            "QLabel { background-color: transparent; border: none; }"
+            f"CardWidget {{ background-color: {BG_CARD}; border: 1px solid {BORDER}; border-radius: 12px; }} "
+            f"QLabel {{ {LABEL_TRANSPARENT} }}"
         )
         g1_layout = QVBoxLayout(graph1_card)
         g1_layout.setContentsMargins(18, 16, 18, 16)
         g1_layout.setSpacing(8)
 
         g1_header = QHBoxLayout()
-        g1_title = StrongBodyLabel("Multi-Finger Contact Probabilities", graph1_card)
-        g1_title.setStyleSheet(f"color: {UI_TEXT_PRI}; font-size: 13px; font-weight: bold;")
-        g1_sub = CaptionLabel("Rolling window touch probability curves (0.0 to 1.0)", graph1_card)
-        g1_sub.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 11px;")
+        g1_title = QLabel("Multi-Finger Contact Probabilities", graph1_card)
+        g1_title.setStyleSheet(f"color: {TXT_PRI}; font-size: 13px; font-weight: bold; {LABEL_TRANSPARENT}")
+        g1_sub = QLabel("Rolling window touch probability curves (0.0 to 1.0)", graph1_card)
+        g1_sub.setStyleSheet(f"color: {TXT_SEC}; font-size: 11px; {LABEL_TRANSPARENT}")
         g1_header.addWidget(g1_title)
         g1_header.addStretch(1)
         g1_header.addWidget(g1_sub)
@@ -234,18 +256,18 @@ class RunModeView(QWidget):
         # 2. Pipeline Dynamics Graph Card (Latency & FPS)
         graph2_card = CardWidget(self)
         graph2_card.setStyleSheet(
-            f"CardWidget {{ background-color: {UI_BG_CARD}; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; }} "
-            "QLabel { background-color: transparent; border: none; }"
+            f"CardWidget {{ background-color: {BG_CARD}; border: 1px solid {BORDER}; border-radius: 12px; }} "
+            f"QLabel {{ {LABEL_TRANSPARENT} }}"
         )
         g2_layout = QVBoxLayout(graph2_card)
         g2_layout.setContentsMargins(18, 16, 18, 16)
         g2_layout.setSpacing(8)
 
         g2_header = QHBoxLayout()
-        g2_title = StrongBodyLabel("Pipeline Latency & Frame Rate Dynamics", graph2_card)
-        g2_title.setStyleSheet(f"color: {UI_TEXT_PRI}; font-size: 13px; font-weight: bold;")
-        g2_sub = CaptionLabel("Real-time CPU inference latency (ms) and capture FPS", graph2_card)
-        g2_sub.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 11px;")
+        g2_title = QLabel("Pipeline Latency & Frame Rate Dynamics", graph2_card)
+        g2_title.setStyleSheet(f"color: {TXT_PRI}; font-size: 13px; font-weight: bold; {LABEL_TRANSPARENT}")
+        g2_sub = QLabel("Real-time CPU inference latency (ms) and capture FPS", graph2_card)
+        g2_sub.setStyleSheet(f"color: {TXT_SEC}; font-size: 11px; {LABEL_TRANSPARENT}")
         g2_header.addWidget(g2_title)
         g2_header.addStretch(1)
         g2_header.addWidget(g2_sub)
@@ -260,18 +282,18 @@ class RunModeView(QWidget):
         # Right Column: Executed Actions Feed Card
         actions_card = CardWidget(self)
         actions_card.setStyleSheet(
-            f"CardWidget {{ background-color: {UI_BG_CARD}; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; }} "
-            "QLabel { background-color: transparent; border: none; }"
+            f"CardWidget {{ background-color: {BG_CARD}; border: 1px solid {BORDER}; border-radius: 12px; }} "
+            f"QLabel {{ {LABEL_TRANSPARENT} }}"
         )
         actions_layout = QVBoxLayout(actions_card)
         actions_layout.setContentsMargins(18, 16, 18, 16)
         actions_layout.setSpacing(10)
 
         act_header = QHBoxLayout()
-        act_title = StrongBodyLabel("Executed Actions Feed", actions_card)
-        act_title.setStyleSheet(f"color: {UI_TEXT_PRI}; font-size: 13px; font-weight: bold;")
-        self.lbl_action_count = CaptionLabel("0 executed", actions_card)
-        self.lbl_action_count.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 11px;")
+        act_title = QLabel("Executed Actions Feed", actions_card)
+        act_title.setStyleSheet(f"color: {TXT_PRI}; font-size: 13px; font-weight: bold; {LABEL_TRANSPARENT}")
+        self.lbl_action_count = QLabel("0 executed", actions_card)
+        self.lbl_action_count.setStyleSheet(f"color: {TXT_SEC}; font-size: 11px; {LABEL_TRANSPARENT}")
         act_header.addWidget(act_title)
         act_header.addStretch(1)
         act_header.addWidget(self.lbl_action_count)
@@ -359,19 +381,19 @@ class RunModeView(QWidget):
     def _make_stat_card(self, title: str, initial_val: str, val_color: str) -> CardWidget:
         card = CardWidget(self)
         card.setStyleSheet(
-            f"CardWidget {{ background-color: {UI_BG_CARD}; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; }} "
-            "QLabel { background-color: transparent; border: none; }"
+            f"CardWidget {{ background-color: {BG_CARD}; border: 1px solid {BORDER}; border-radius: 10px; }} "
+            f"QLabel {{ {LABEL_TRANSPARENT} }}"
         )
         layout = QVBoxLayout(card)
         layout.setContentsMargins(18, 14, 18, 14)
         layout.setSpacing(4)
 
-        lbl_t = CaptionLabel(title, card)
-        lbl_t.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 10px; font-weight: bold; letter-spacing: 0.5px;")
+        lbl_t = QLabel(title, card)
+        lbl_t.setStyleSheet(f"color: {TXT_SEC}; font-size: 10px; font-weight: bold; letter-spacing: 0.5px; {LABEL_TRANSPARENT}")
 
-        lbl_v = StrongBodyLabel(initial_val, card)
+        lbl_v = QLabel(initial_val, card)
         lbl_v.setObjectName("valueLabel")
-        lbl_v.setStyleSheet(f"color: {val_color}; font-size: 16px; font-weight: bold;")
+        lbl_v.setStyleSheet(f"color: {val_color}; font-size: 16px; font-weight: bold; {LABEL_TRANSPARENT}")
 
         layout.addWidget(lbl_t)
         layout.addWidget(lbl_v)
@@ -413,7 +435,7 @@ class RunModeView(QWidget):
     @Slot(float)
     def _on_fps_updated(self, fps: float) -> None:
         self._latest_fps = fps
-        lbl = self.card_fps.findChild(StrongBodyLabel, "valueLabel")
+        lbl = self.card_fps.findChild(QLabel, "valueLabel")
         if lbl:
             lbl.setText(f"{fps:.1f} FPS")
         self.dynamics_graph.push_metrics(self._latest_latency, self._latest_fps)
@@ -421,7 +443,7 @@ class RunModeView(QWidget):
     @Slot(float)
     def _on_latency_updated(self, latency_ms: float) -> None:
         self._latest_latency = latency_ms
-        lbl = self.card_latency.findChild(StrongBodyLabel, "valueLabel")
+        lbl = self.card_latency.findChild(QLabel, "valueLabel")
         if lbl:
             lbl.setText(f"{latency_ms:.1f} ms")
         self.dynamics_graph.push_metrics(self._latest_latency, self._latest_fps)
@@ -458,7 +480,7 @@ class RunModeView(QWidget):
                 break
         self.combo_model.blockSignals(False)
 
-        lbl = self.card_model.findChild(StrongBodyLabel, "valueLabel")
+        lbl = self.card_model.findChild(QLabel, "valueLabel")
         if lbl:
             lbl.setText(model_name)
 
@@ -466,11 +488,24 @@ class RunModeView(QWidget):
     def _on_frame_updated(
         self, frame, fps: float, hand_detected: bool, layout_found: bool
     ) -> None:
-        lbl = self.card_layout.findChild(StrongBodyLabel, "valueLabel")
+        lbl = self.card_layout.findChild(QLabel, "valueLabel")
         if lbl:
             if layout_found:
                 lbl.setText("Locked")
-                lbl.setStyleSheet("color: #00DC64; font-size: 16px; font-weight: bold;")
+                lbl.setStyleSheet(f"color: #00DC64; font-size: 16px; font-weight: bold; {LABEL_TRANSPARENT}")
             else:
                 lbl.setText("Searching...")
-                lbl.setStyleSheet(f"color: {UI_TEXT_SEC}; font-size: 16px; font-weight: bold;")
+                lbl.setStyleSheet(f"color: {TXT_SEC}; font-size: 16px; font-weight: bold; {LABEL_TRANSPARENT}")
+
+        # Update hand detection banner
+        dot = self.hand_banner.findChild(QLabel, "handDot")
+        if hand_detected:
+            if dot:
+                dot.setStyleSheet(f"color: {SUCCESS}; font-size: 12px; {LABEL_TRANSPARENT}")
+            self.lbl_hand_banner.setText("Hand detected")
+            self.lbl_hand_banner.setStyleSheet(f"color: {SUCCESS}; font-size: 12px; font-weight: 600; {LABEL_TRANSPARENT}")
+        else:
+            if dot:
+                dot.setStyleSheet(f"color: {TXT_SEC}; font-size: 12px; {LABEL_TRANSPARENT}")
+            self.lbl_hand_banner.setText("No hand detected")
+            self.lbl_hand_banner.setStyleSheet(f"color: {TXT_SEC}; font-size: 12px; font-weight: 500; {LABEL_TRANSPARENT}")
