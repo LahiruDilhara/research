@@ -21,6 +21,7 @@ from qfluentwidgets import (
     InfoBarPosition,
     LineEdit,
     PrimaryPushButton,
+    PushButton,
     SmoothScrollArea,
     StrongBodyLabel,
     SubtitleLabel,
@@ -234,11 +235,18 @@ class SettingsView(QWidget):
 
         # ── Action Buttons ─────────────────────────────────────────────────────
         btn_row = QHBoxLayout()
+        btn_restore = PushButton(FluentIcon.SYNC, "Restore Defaults")
+        btn_restore.setFixedHeight(38)
+        btn_restore.setMinimumWidth(150)
+        btn_restore.clicked.connect(self._on_restore_defaults_clicked)
+
         btn_save = PrimaryPushButton(FluentIcon.SAVE, "Apply & Save")
         btn_save.setFixedHeight(38)
         btn_save.setMinimumWidth(140)
         btn_save.clicked.connect(self._on_save_clicked)
+
         btn_row.addStretch(1)
+        btn_row.addWidget(btn_restore)
         btn_row.addWidget(btn_save)
         content_layout.addLayout(btn_row)
 
@@ -368,3 +376,7 @@ class SettingsView(QWidget):
             parent=self,
             duration=4000,
         )
+
+    def _on_restore_defaults_clicked(self) -> None:
+        """Restores all input fields and saved configuration to default parameters."""
+        self._vm.restore_defaults(persist=True)

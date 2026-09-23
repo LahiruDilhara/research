@@ -39,14 +39,14 @@ class AppConfig:
 
     def __init__(self, env_path: str | Path | None = None) -> None:
         if env_path and Path(env_path).exists():
-            load_dotenv(env_path)
+            load_dotenv(env_path, override=True)
         else:
             # Try sibling .env next to main.py
             fallback = Path(__file__).resolve().parent.parent / ".env"
             if fallback.exists():
-                load_dotenv(fallback)
+                load_dotenv(fallback, override=True)
             else:
-                load_dotenv()
+                load_dotenv(override=True)
 
         self._app_title   = os.getenv("APP_TITLE", "Virtual Keyboard Detector")
         self._app_theme   = os.getenv("APP_THEME", "Dark")

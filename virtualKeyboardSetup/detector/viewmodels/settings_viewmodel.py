@@ -226,3 +226,52 @@ class SettingsViewModel(QObject):
             logger.error(err_msg)
             self.error_occurred.emit(err_msg)
             return False
+
+    def restore_defaults(self, persist: bool = True) -> bool:
+        """
+        Restores all settings to their canonical system defaults.
+        Optionally persists the restored defaults to storage (.env and active layout XML).
+        """
+        default_fps = float(TARGET_FPS)
+        default_touch_threshold = float(TOUCH_PROBABILITY_THRESHOLD)
+        default_velocity_threshold = float(FINGERTIP_VELOCITY_THRESHOLD)
+        default_hand_movement_threshold = float(HAND_MOVEMENT_THRESHOLD)
+        default_detection_confidence = float(MEDIAPIPE_MIN_DETECTION_CONFIDENCE)
+        default_presence_confidence = float(MEDIAPIPE_MIN_PRESENCE_CONFIDENCE)
+        default_tracking_confidence = float(MEDIAPIPE_MIN_TRACKING_CONFIDENCE)
+        default_quality_min_avg = float(QUALITY_MIN_AVG_SCORE)
+        default_quality_min_frame = float(QUALITY_MIN_FRAME_SCORE)
+        default_quality_max_drop = float(QUALITY_MAX_SCORE_DROP)
+        default_plugins_dir = "ai_model_plugins"
+
+        if persist:
+            success = self.save_settings(
+                fps=default_fps,
+                touch_threshold=default_touch_threshold,
+                velocity_threshold=default_velocity_threshold,
+                hand_movement_threshold=default_hand_movement_threshold,
+                detection_confidence=default_detection_confidence,
+                presence_confidence=default_presence_confidence,
+                tracking_confidence=default_tracking_confidence,
+                quality_min_avg=default_quality_min_avg,
+                quality_min_frame=default_quality_min_frame,
+                quality_max_drop=default_quality_max_drop,
+                plugins_dir=default_plugins_dir,
+            )
+            self.settings_loaded.emit()
+            return success
+        else:
+            if self._config is not None:
+                self._config.set_target_fps(default_fps)
+                self._config.set_touch_threshold(default_touch_threshold)
+                self._config.set_fingertip_velocity_threshold(default_velocity_threshold)
+                self._config.set_hand_movement_threshold(default_hand_movement_threshold)
+                self._config.set_mediapipe_min_detection_confidence(default_detection_confidence)
+                self._config.set_mediapipe_min_presence_confidence(default_presence_confidence)
+                self._config.set_mediapipe_min_tracking_confidence(default_tracking_confidence)
+                self._config.set_quality_min_avg_score(default_quality_min_avg)
+                self._config.set_quality_min_frame_score(default_quality_min_frame)
+                self._config.set_quality_max_score_drop(default_quality_max_drop)
+                self._config.set_plugins_dir(default_plugins_dir)
+            self.settings_loaded.emit()
+            return True

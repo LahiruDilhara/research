@@ -285,10 +285,66 @@ def test_detector_viewmodel_live_settings_update():
         env_path.unlink(missing_ok=True)
 
 
+def test_settings_restore_defaults():
+    """Verify SettingsViewModel and SettingsView restore defaults button resets all parameters."""
+    _get_or_create_qapp()
+
+    with tempfile.NamedTemporaryFile("w+", suffix=".env", delete=False) as f_env:
+        # Prepopulate with customized/deviated values
+        f_env.write(
+            "TARGET_FPS=30.0\n"
+            "TOUCH_THRESHOLD=0.85\n"
+            "FINGERTIP_VELOCITY_THRESHOLD=0.2500\n"
+            "HAND_MOVEMENT_THRESHOLD=0.4500\n"
+            "QUALITY_MIN_AVG_SCORE=0.90\n"
+        )
+        env_path = Path(f_env.name)
+
+    try:
+        config = AppConfig(env_path=env_path)
+        vm = SettingsViewModel(env_path=env_path, config=config)
+        view = SettingsView(vm)
+
+        # Confirm non-default initial values
+        assert abs(vm.target_fps - 30.0) < 1e-4
+        assert abs(vm.touch_threshold - 0.85) < 1e-4
+        assert abs(vm.hand_movement_threshold - 0.4500) < 1e-4
+
+        # Trigger restore defaults
+        view._on_restore_defaults_clicked()
+
+        # Verify values restored to canonical defaults in ViewModel and AppConfig
+        assert abs(vm.target_fps - 12.0) < 1e-4
+        assert abs(vm.touch_threshold - 0.55) < 1e-4
+        assert abs(vm.hand_movement_threshold - 0.1550) < 1e-4
+        assert abs(vm.fingertip_velocity_threshold - 0.0080) < 1e-4
+        assert abs(vm.mediapipe_min_detection_confidence - 0.50) < 1e-4
+        assert abs(vm.quality_min_avg_score - 0.65) < 1e-4
+        assert abs(vm.quality_min_frame_score - 0.45) < 1e-4
+        assert abs(vm.quality_max_score_drop - 0.35) < 1e-4
+
+        # Verify view inputs refreshed
+        assert abs(view.target_fps_spin.value() - 12.0) < 1e-4
+        assert abs(view.touch_threshold_spin.value() - 0.55) < 1e-4
+        assert abs(view.hand_movement_spin.value() - 0.1550) < 1e-4
+        assert abs(view.fingertip_vel_spin.value() - 0.0080) < 1e-4
+
+        # Verify persisted to disk
+        service = SettingsService(env_path)
+        entries = service.load_raw_entries()
+        assert entries.get("TARGET_FPS") == "12.0"
+        assert entries.get("TOUCH_THRESHOLD") == "0.55"
+        assert entries.get("HAND_MOVEMENT_THRESHOLD") == "0.1550"
+        assert entries.get("FINGERTIP_VELOCITY_THRESHOLD") == "0.0080"
+    finally:
+        env_path.unlink(missing_ok=True)
+
+
 if __name__ == "__main__":
     test_settings_service_roundtrip()
     test_settings_viewmodel_save_and_signals()
     test_ui_input_box_dimensions_and_0_15_acceptance()
     test_settings_xml_persistence_and_preservation()
     test_detector_viewmodel_live_settings_update()
-    print("\nAll 5 Settings MVVM, XML persistence, and live update tests passed successfully!")
+    test_settings_restore_defaults()
+    print("\nAll 6 Settings MVVM, XML persistence, live update, and restore defaults tests passed successfully!")
