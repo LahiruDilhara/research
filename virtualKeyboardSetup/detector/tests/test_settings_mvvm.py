@@ -336,6 +336,90 @@ def test_settings_restore_defaults():
         assert entries.get("TOUCH_THRESHOLD") == "0.55"
         assert entries.get("HAND_MOVEMENT_THRESHOLD") == "0.1550"
         assert entries.get("FINGERTIP_VELOCITY_THRESHOLD") == "0.0080"
+        assert entries.get("ONE_EURO_ENABLED") == "true"
+        assert entries.get("ONE_EURO_MIN_CUTOFF") == "0.02"
+    finally:
+        env_path.unlink(missing_ok=True)
+
+
+def test_one_euro_filter_settings_persistence_and_detector_update():
+    """Verify One Euro filter settings save, persist to disk, and update detector live."""
+    _get_or_create_qapp()
+
+    with tempfile.NamedTemporaryFile("w+", suffix=".env", delete=False) as f_env:
+        f_env.write("ONE_EURO_ENABLED=false\nONE_EURO_MIN_CUTOFF=1.0\n")
+        env_path = Path(f_env.name)
+
+    try:
+        config = AppConfig(env_path=env_path)
+        vm = SettingsViewModel(env_path=env_path, config=config)
+        view = SettingsView(vm)
+
+        assert vm.one_euro_enabled is False
+        assert abs(vm.one_euro_min_cutoff - 1.0) < 1e-4
+
+        # Save new One Euro parameters
+        success = vm.save_settings(
+            fps=12.0,
+            touch_threshold=0.55,
+            velocity_threshold=0.008,
+            hand_movement_threshold=0.155,
+            detection_confidence=0.50,
+            presence_confidence=0.50,
+            tracking_confidence=0.50,
+            quality_min_avg=0.65,
+            quality_min_frame=0.45,
+            quality_max_drop=0.35,
+            plugins_dir="ai_model_plugins",
+            one_euro_enabled=True,
+            one_euro_min_cutoff=0.85,
+            one_euro_beta=2.50,
+            one_euro_d_cutoff=1.20,
+        )
+        assert success is True
+        assert vm.one_euro_enabled is True
+        assert abs(vm.one_euro_min_cutoff - 0.85) < 1e-4
+        assert abs(vm.one_euro_beta - 2.50) < 1e-4
+        assert abs(vm.one_euro_d_cutoff - 1.20) < 1e-4
+
+        # Verify disk persistence
+        service = SettingsService(env_path)
+        raw = service.load_raw_entries()
+        assert raw.get("ONE_EURO_ENABLED") == "true"
+        assert raw.get("ONE_EURO_MIN_CUTOFF") == "0.85"
+        assert raw.get("ONE_EURO_BETA") == "2.50"
+        assert raw.get("ONE_EURO_D_CUTOFF") == "1.20"
+
+        # Verify live detector pipeline synchronization
+        from core.layout.layout_parser import LayoutData
+        from viewmodels.detector_viewmodel import DetectorViewModel
+
+        layout = LayoutData(
+            paper_width_mm=297,
+            paper_height_mm=210,
+            marker_size_mm=15,
+            marker_family="tag36h11",
+            buttons=[],
+            markers=[],
+        )
+        det_vm = DetectorViewModel(layout=layout, action_config={}, config=config, camera_index=0)
+        pipe = det_vm._pipeline_service
+        assert pipe.one_euro_filter.enabled is True
+        assert abs(pipe.one_euro_filter.min_cutoff - 0.85) < 1e-4
+        assert abs(pipe.one_euro_filter.beta - 2.50) < 1e-4
+        assert abs(pipe.one_euro_filter.d_cutoff - 1.20) < 1e-4
+
+        # Modify config and call update_settings
+        config.set_one_euro_enabled(False)
+        config.set_one_euro_min_cutoff(1.50)
+        det_vm.update_settings(config)
+        assert pipe.one_euro_filter.enabled is False
+        assert abs(pipe.one_euro_filter.min_cutoff - 1.50) < 1e-4
+
+        # Test view fields refresh
+        view._refresh_fields()
+        assert view.one_euro_enabled_switch.isChecked() is False
+        assert abs(view.one_euro_min_cutoff_spin.value() - 1.50) < 1e-4
     finally:
         env_path.unlink(missing_ok=True)
 
@@ -347,4 +431,5 @@ if __name__ == "__main__":
     test_settings_xml_persistence_and_preservation()
     test_detector_viewmodel_live_settings_update()
     test_settings_restore_defaults()
-    print("\nAll 6 Settings MVVM, XML persistence, live update, and restore defaults tests passed successfully!")
+    test_one_euro_filter_settings_persistence_and_detector_update()
+    print("\nAll 7 Settings MVVM, XML persistence, One Euro filter, live update, and restore defaults tests passed successfully!")

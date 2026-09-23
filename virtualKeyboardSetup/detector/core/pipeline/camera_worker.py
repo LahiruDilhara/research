@@ -178,12 +178,14 @@ class CameraWorker(QThread):
         camera_index: int,
         layout: LayoutData,
         config: AppConfig,
+        pipeline_service: TouchPipelineService | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self._camera_index = camera_index
         self._layout = layout
         self._config = config
+        self._pipeline_service = pipeline_service
         self._running = False
         self.setObjectName("CameraWorker")
 
@@ -242,10 +244,18 @@ class CameraWorker(QThread):
         )
 
         # 5. Service Layer Pipeline (Manages 5 dedicated finger queues and hand identity)
-        pipeline_service = TouchPipelineService(
-            window_size=self._config.window_size,
-            shift_size=self._config.shift_size,
-        )
+        if self._pipeline_service is not None:
+            pipeline_service = self._pipeline_service
+        else:
+            pipeline_service = TouchPipelineService(
+                window_size=self._config.window_size,
+                shift_size=self._config.shift_size,
+                one_euro_enabled=self._config.one_euro_enabled,
+                one_euro_min_cutoff=self._config.one_euro_min_cutoff,
+                one_euro_beta=self._config.one_euro_beta,
+                one_euro_d_cutoff=self._config.one_euro_d_cutoff,
+            )
+            self._pipeline_service = pipeline_service
 
         frame_interval = 1.0 / TARGET_FPS
         last_capture_t = time.perf_counter()
@@ -310,14 +320,12 @@ class CameraWorker(QThread):
                     frame_w=frame_w,
                     frame_h=frame_h,
                     hand_score=hand_score,
+                    timestamp=now,
                 )
 
-                if hand_detected and raw_lm:
-                    pts_pixel = [
-                        (lm.x * frame_w, lm.y * frame_h, lm.z * frame_w)
-                        for lm in raw_lm
-                    ]
-                    self._draw_skeleton(frame, pts_pixel)
+                # ── Draw filtered skeleton ──────────────────────────────────
+                if hand_detected and pipeline_service.last_pixel_coords is not None:
+                    self._draw_skeleton(frame, pipeline_service.last_pixel_coords)
 
                 if win_ready and norm_window and pixel_window:
                     self.window_ready.emit(

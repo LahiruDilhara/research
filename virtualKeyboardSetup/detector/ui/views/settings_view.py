@@ -25,6 +25,7 @@ from qfluentwidgets import (
     SmoothScrollArea,
     StrongBodyLabel,
     SubtitleLabel,
+    SwitchButton,
 )
 
 from config.constants import (
@@ -216,7 +217,58 @@ class SettingsView(QWidget):
             ]
         ))
 
-        # ── Card 4: AI Model Plugins Directory ─────────────────────────────────
+        # ── Card 4: One Euro (1€) Coordinate Filter ───────────────────────────
+        content_layout.addWidget(self._make_card(
+            "One Euro (1€) Coordinate Filter",
+            [
+                (
+                    "Enable One Euro Filter",
+                    "Apply adaptive low-pass filter on coordinates right after capture",
+                    self._make_switch(
+                        checked=self._vm.one_euro_enabled,
+                        attr="one_euro_enabled_switch",
+                    ),
+                ),
+                (
+                    "Min Cutoff Frequency (Hz)",
+                    "Base cutoff when hand is stationary (lower = less jitter, default 1.00)",
+                    self._make_double_spin(
+                        value=self._vm.one_euro_min_cutoff,
+                        mn=0.01,
+                        mx=20.00,
+                        attr="one_euro_min_cutoff_spin",
+                        step=0.1,
+                        decimals=2,
+                    ),
+                ),
+                (
+                    "Speed Sensitivity (beta)",
+                    "Adaptive cutoff speed coefficient (higher = less lag during fast motion, default 1.00)",
+                    self._make_double_spin(
+                        value=self._vm.one_euro_beta,
+                        mn=0.00,
+                        mx=20.00,
+                        attr="one_euro_beta_spin",
+                        step=0.1,
+                        decimals=2,
+                    ),
+                ),
+                (
+                    "Derivative Cutoff (Hz)",
+                    "Cutoff frequency for velocity derivation filtering (default 1.00)",
+                    self._make_double_spin(
+                        value=self._vm.one_euro_d_cutoff,
+                        mn=0.01,
+                        mx=20.00,
+                        attr="one_euro_d_cutoff_spin",
+                        step=0.1,
+                        decimals=2,
+                    ),
+                ),
+            ]
+        ))
+
+        # ── Card 5: AI Model Plugins Directory ─────────────────────────────────
         content_layout.addWidget(self._make_card(
             "AI Model Plugins Directory",
             [
@@ -269,6 +321,10 @@ class SettingsView(QWidget):
         self.quality_min_avg_spin.setValue(self._vm.quality_min_avg_score)
         self.quality_min_frame_spin.setValue(self._vm.quality_min_frame_score)
         self.quality_max_drop_spin.setValue(self._vm.quality_max_score_drop)
+        self.one_euro_enabled_switch.setChecked(self._vm.one_euro_enabled)
+        self.one_euro_min_cutoff_spin.setValue(self._vm.one_euro_min_cutoff)
+        self.one_euro_beta_spin.setValue(self._vm.one_euro_beta)
+        self.one_euro_d_cutoff_spin.setValue(self._vm.one_euro_d_cutoff)
         self.plugins_dir_edit.setText(self._vm.plugins_dir)
 
     def _make_card(self, section: str, rows: list[tuple]) -> CardWidget:
@@ -323,6 +379,12 @@ class SettingsView(QWidget):
         setattr(self, attr, spin)
         return spin
 
+    def _make_switch(self, checked: bool, attr: str) -> SwitchButton:
+        switch = SwitchButton()
+        switch.setChecked(checked)
+        setattr(self, attr, switch)
+        return switch
+
     def _make_line_edit(self, value: str, attr: str) -> LineEdit:
         edit = LineEdit()
         edit.setText(value)
@@ -342,6 +404,10 @@ class SettingsView(QWidget):
         q_avg_val = self.quality_min_avg_spin.value()
         q_frame_val = self.quality_min_frame_spin.value()
         q_drop_val = self.quality_max_drop_spin.value()
+        one_euro_en = self.one_euro_enabled_switch.isChecked()
+        one_euro_min = self.one_euro_min_cutoff_spin.value()
+        one_euro_b = self.one_euro_beta_spin.value()
+        one_euro_d = self.one_euro_d_cutoff_spin.value()
         plugins_val = self.plugins_dir_edit.text()
 
         self._vm.save_settings(
@@ -356,6 +422,10 @@ class SettingsView(QWidget):
             quality_min_frame=q_frame_val,
             quality_max_drop=q_drop_val,
             plugins_dir=plugins_val,
+            one_euro_enabled=one_euro_en,
+            one_euro_min_cutoff=one_euro_min,
+            one_euro_beta=one_euro_b,
+            one_euro_d_cutoff=one_euro_d,
         )
 
     def _on_settings_saved(self, message: str) -> None:

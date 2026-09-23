@@ -12,9 +12,12 @@ from __future__ import annotations
 from .hand_movement_filter import HandMovementFilter
 from .window_quality_filter import WindowQualityFilter
 from .kinetic_motion_filter import KineticMotionFilter
+from .one_euro_filter import OneEuroFilter, OneEuroFilter1D
 
 __all__ = [
     "HandMovementFilter",
     "WindowQualityFilter",
     "KineticMotionFilter",
+    "OneEuroFilter",
+    "OneEuroFilter1D",
 ]

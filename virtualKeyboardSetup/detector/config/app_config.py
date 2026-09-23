@@ -31,6 +31,10 @@ from .constants import (
     MEDIAPIPE_MIN_DETECTION_CONFIDENCE,
     MEDIAPIPE_MIN_PRESENCE_CONFIDENCE,
     MEDIAPIPE_MIN_TRACKING_CONFIDENCE,
+    ONE_EURO_ENABLED,
+    ONE_EURO_MIN_CUTOFF,
+    ONE_EURO_BETA,
+    ONE_EURO_D_CUTOFF,
 )
 
 
@@ -106,6 +110,10 @@ class AppConfig:
         self._mediapipe_min_tracking_confidence = float(
             os.getenv("MEDIAPIPE_MIN_TRACKING_CONFIDENCE", str(MEDIAPIPE_MIN_TRACKING_CONFIDENCE))
         )
+        self._one_euro_enabled = os.getenv("ONE_EURO_ENABLED", str(ONE_EURO_ENABLED)).lower() in ("true", "1", "yes")
+        self._one_euro_min_cutoff = float(os.getenv("ONE_EURO_MIN_CUTOFF", str(ONE_EURO_MIN_CUTOFF)))
+        self._one_euro_beta = float(os.getenv("ONE_EURO_BETA", str(ONE_EURO_BETA)))
+        self._one_euro_d_cutoff = float(os.getenv("ONE_EURO_D_CUTOFF", str(ONE_EURO_D_CUTOFF)))
 
         self._env_path = env_path or (Path(__file__).resolve().parent.parent / ".env")
         self._last_xml_path = os.getenv("LAST_XML_PATH", "")
@@ -257,6 +265,34 @@ class AppConfig:
         self._fingertip_velocity_threshold = float(value)
         self._min_kinetic_speed = float(value)
 
+    @property
+    def one_euro_enabled(self) -> bool:
+        return self._one_euro_enabled
+
+    def set_one_euro_enabled(self, value: bool) -> None:
+        self._one_euro_enabled = bool(value)
+
+    @property
+    def one_euro_min_cutoff(self) -> float:
+        return self._one_euro_min_cutoff
+
+    def set_one_euro_min_cutoff(self, value: float) -> None:
+        self._one_euro_min_cutoff = float(value)
+
+    @property
+    def one_euro_beta(self) -> float:
+        return self._one_euro_beta
+
+    def set_one_euro_beta(self, value: float) -> None:
+        self._one_euro_beta = float(value)
+
+    @property
+    def one_euro_d_cutoff(self) -> float:
+        return self._one_euro_d_cutoff
+
+    def set_one_euro_d_cutoff(self, value: float) -> None:
+        self._one_euro_d_cutoff = float(value)
+
     def apply_dict(self, settings: dict[str, Any]) -> None:
         """Apply a dictionary of settings directly into in-memory properties."""
         if "TARGET_FPS" in settings:
@@ -312,6 +348,27 @@ class AppConfig:
         if "MEDIAPIPE_MIN_TRACKING_CONFIDENCE" in settings:
             try:
                 self.set_mediapipe_min_tracking_confidence(float(settings["MEDIAPIPE_MIN_TRACKING_CONFIDENCE"]))
+            except (ValueError, TypeError):
+                pass
+        if "ONE_EURO_ENABLED" in settings:
+            val = settings["ONE_EURO_ENABLED"]
+            if isinstance(val, bool):
+                self.set_one_euro_enabled(val)
+            else:
+                self.set_one_euro_enabled(str(val).lower() in ("true", "1", "yes"))
+        if "ONE_EURO_MIN_CUTOFF" in settings:
+            try:
+                self.set_one_euro_min_cutoff(float(settings["ONE_EURO_MIN_CUTOFF"]))
+            except (ValueError, TypeError):
+                pass
+        if "ONE_EURO_BETA" in settings:
+            try:
+                self.set_one_euro_beta(float(settings["ONE_EURO_BETA"]))
+            except (ValueError, TypeError):
+                pass
+        if "ONE_EURO_D_CUTOFF" in settings:
+            try:
+                self.set_one_euro_d_cutoff(float(settings["ONE_EURO_D_CUTOFF"]))
             except (ValueError, TypeError):
                 pass
         if "AI_MODEL_PLUGINS_DIR" in settings:

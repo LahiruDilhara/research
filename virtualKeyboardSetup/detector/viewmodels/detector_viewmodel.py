@@ -75,6 +75,10 @@ class DetectorViewModel(QObject):
             touch_onset_threshold=config.touch_onset_threshold,
             touch_release_threshold=config.touch_release_threshold,
             velocity_threshold=config.fingertip_velocity_threshold,
+            one_euro_enabled=config.one_euro_enabled,
+            one_euro_min_cutoff=config.one_euro_min_cutoff,
+            one_euro_beta=config.one_euro_beta,
+            one_euro_d_cutoff=config.one_euro_d_cutoff,
         )
         self._resolver = TouchResolver(layout)
         self._executor = ActionExecutor()
@@ -90,6 +94,7 @@ class DetectorViewModel(QObject):
             camera_index=self._camera_index,
             layout=self._layout,
             config=self._config,
+            pipeline_service=self._pipeline_service,
             parent=None,
         )
         self._worker.frame_ready.connect(self._on_frame_ready)
@@ -120,11 +125,18 @@ class DetectorViewModel(QObject):
             min_frame=config.quality_min_frame_score,
             max_drop=config.quality_max_score_drop,
         )
+        self._pipeline_service.update_one_euro_settings(
+            enabled=config.one_euro_enabled,
+            min_cutoff=config.one_euro_min_cutoff,
+            beta=config.one_euro_beta,
+            d_cutoff=config.one_euro_d_cutoff,
+        )
         logger.info(
-            "DetectorViewModel live thresholds updated: velocity_threshold=%.4f, touch_threshold=%.2f, hand_movement=%.4f",
+            "DetectorViewModel live thresholds updated: velocity_threshold=%.4f, touch_threshold=%.2f, hand_movement=%.4f, one_euro=%s",
             config.fingertip_velocity_threshold,
             config.touch_threshold,
             config.hand_movement_threshold,
+            config.one_euro_enabled,
         )
 
     # ── Model hot-swap ─────────────────────────────────────────────────────────

@@ -27,12 +27,17 @@ Architecture & Responsibilities (SOLID & KISS):
 from __future__ import annotations
 
 from collections import deque
+import time
 from typing import Any
 
 from config.constants import (
     FINGERS,
     HAND_MOVEMENT_THRESHOLD,
     MIN_KINETIC_SPEED_THRESHOLD,
+    ONE_EURO_BETA,
+    ONE_EURO_D_CUTOFF,
+    ONE_EURO_ENABLED,
+    ONE_EURO_MIN_CUTOFF,
     QUALITY_MAX_SCORE_DROP,
     QUALITY_MIN_AVG_SCORE,
     QUALITY_MIN_FRAME_SCORE,
@@ -46,6 +51,7 @@ from core.pipeline.feature_extractor import compute_window_velocities
 from core.pipeline.filters import (
     HandMovementFilter,
     KineticMotionFilter,
+    OneEuroFilter,
     WindowQualityFilter,
 )
 from core.pipeline.normalizer import HandScaleNormalizer
@@ -69,12 +75,22 @@ class TouchPipelineService:
         touch_onset_threshold: float = TOUCH_ONSET_THRESHOLD,
         touch_release_threshold: float = TOUCH_RELEASE_THRESHOLD,
         velocity_threshold: float | None = None,
+        one_euro_enabled: bool = ONE_EURO_ENABLED,
+        one_euro_min_cutoff: float = ONE_EURO_MIN_CUTOFF,
+        one_euro_beta: float = ONE_EURO_BETA,
+        one_euro_d_cutoff: float = ONE_EURO_D_CUTOFF,
     ) -> None:
         self._window_size = window_size
         self._shift_size = shift_size
         self._normalizer = HandScaleNormalizer()
 
-        # Modular filters replicating process.sh
+        # Modular filters replicating process.sh and signal smoothing
+        self._one_euro_filter = OneEuroFilter(
+            min_cutoff=one_euro_min_cutoff,
+            beta=one_euro_beta,
+            d_cutoff=one_euro_d_cutoff,
+            enabled=one_euro_enabled,
+        )
         self._hand_movement_filter = HandMovementFilter(threshold=hand_movement_threshold)
         self._window_quality_filter = WindowQualityFilter(
             min_avg_score=quality_min_avg_score,
@@ -104,6 +120,7 @@ class TouchPipelineService:
         self._last_hand_label: str | None = None
         self._hand_detected = False
         self._last_status = "IDLE"
+        self._last_pixel_coords: list[tuple[float, float, float]] | None = None
 
     # ── Queue State Management ─────────────────────────────────────────────────
 
@@ -114,13 +131,17 @@ class TouchPipelineService:
             self._finger_touch_state[f] = False
         self._pixel_queue.clear()
         self._shift_counter = 0
+        self._one_euro_filter.reset()
+        self._last_pixel_coords = None
 
     def reset(self) -> None:
         """Fully reset the pipeline service state."""
         self.clear_queues()
+        self._one_euro_filter.reset()
         self._last_hand_label = None
         self._hand_detected = False
         self._last_status = "IDLE"
+        self._last_pixel_coords = None
 
     @property
     def is_queue_full(self) -> bool:
@@ -137,6 +158,11 @@ class TouchPipelineService:
         """Diagnostic description of last processed window."""
         return self._last_status
 
+    @property
+    def last_pixel_coords(self) -> list[tuple[float, float, float]] | None:
+        """Last filtered pixel coordinates of the active hand."""
+        return self._last_pixel_coords
+
     # ── Frame Processing & Ingestion ───────────────────────────────────────────
 
     def process_frame(
@@ -146,6 +172,7 @@ class TouchPipelineService:
         frame_w: int,
         frame_h: int,
         hand_score: float = 0.85,
+        timestamp: float | None = None,
     ) -> tuple[bool, list[dict[str, Any]] | None, list[list[tuple[float, float]]] | None]:
         """
         Process a single 12 FPS frame from MediaPipe.
@@ -157,6 +184,7 @@ class TouchPipelineService:
         if not raw_landmarks or len(raw_landmarks) == 0:
             if self._hand_detected or any(len(q) > 0 for q in self._finger_queues.values()):
                 self.clear_queues()
+            self._one_euro_filter.reset()
             self._hand_detected = False
             self._last_status = "NO_HAND"
             return False, None, None
@@ -164,14 +192,20 @@ class TouchPipelineService:
         # Reset queues if hand identity / handedness changes
         if self._last_hand_label is not None and hand_label is not None and self._last_hand_label != hand_label:
             self.clear_queues()
+            self._one_euro_filter.reset()
         self._last_hand_label = hand_label
         self._hand_detected = True
 
-        # Extract pixel coordinates
-        pts_pixel: list[tuple[float, float, float]] = [
+        # Extract raw pixel coordinates
+        pts_pixel_raw: list[tuple[float, float, float]] = [
             (lm.x * frame_w, lm.y * frame_h, lm.z * frame_w)
             for lm in raw_landmarks
         ]
+
+        # Apply One Euro adaptive speed filter on coordinates
+        t_now = timestamp if timestamp is not None else time.time()
+        pts_pixel = self._one_euro_filter.filter_points(pts_pixel_raw, t_now)
+        self._last_pixel_coords = pts_pixel
 
         # Unitless scale normalization relative to L_hand
         norm_pts = self._normalizer.normalize(pts_pixel, center_wrist=True)
@@ -259,6 +293,31 @@ class TouchPipelineService:
             self._window_quality_filter.min_avg_score,
             self._window_quality_filter.min_frame_score,
             self._window_quality_filter.max_score_drop,
+        )
+
+    @property
+    def one_euro_filter(self) -> OneEuroFilter:
+        """One Euro coordinate filter instance."""
+        return self._one_euro_filter
+
+    def update_one_euro_settings(
+        self,
+        enabled: bool,
+        min_cutoff: float,
+        beta: float,
+        d_cutoff: float,
+    ) -> None:
+        """Update One Euro coordinate filter parameters dynamically."""
+        self._one_euro_filter.enabled = bool(enabled)
+        self._one_euro_filter.min_cutoff = float(min_cutoff)
+        self._one_euro_filter.beta = float(beta)
+        self._one_euro_filter.d_cutoff = float(d_cutoff)
+        logger.info(
+            "Updated TouchPipelineService One Euro filter: enabled=%s, min_cutoff=%.2f, beta=%.2f, d_cutoff=%.2f",
+            self._one_euro_filter.enabled,
+            self._one_euro_filter.min_cutoff,
+            self._one_euro_filter.beta,
+            self._one_euro_filter.d_cutoff,
         )
 
     def run_parallel_inference(

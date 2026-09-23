@@ -20,6 +20,10 @@ from config.constants import (
     MEDIAPIPE_MIN_DETECTION_CONFIDENCE,
     MEDIAPIPE_MIN_PRESENCE_CONFIDENCE,
     MEDIAPIPE_MIN_TRACKING_CONFIDENCE,
+    ONE_EURO_BETA,
+    ONE_EURO_D_CUTOFF,
+    ONE_EURO_ENABLED,
+    ONE_EURO_MIN_CUTOFF,
     QUALITY_MAX_SCORE_DROP,
     QUALITY_MIN_AVG_SCORE,
     QUALITY_MIN_FRAME_SCORE,
@@ -151,6 +155,30 @@ class SettingsViewModel(QObject):
         return "ai_model_plugins"
 
     @property
+    def one_euro_enabled(self) -> bool:
+        if self._config is not None:
+            return self._config.one_euro_enabled
+        return bool(ONE_EURO_ENABLED)
+
+    @property
+    def one_euro_min_cutoff(self) -> float:
+        if self._config is not None:
+            return self._config.one_euro_min_cutoff
+        return float(ONE_EURO_MIN_CUTOFF)
+
+    @property
+    def one_euro_beta(self) -> float:
+        if self._config is not None:
+            return self._config.one_euro_beta
+        return float(ONE_EURO_BETA)
+
+    @property
+    def one_euro_d_cutoff(self) -> float:
+        if self._config is not None:
+            return self._config.one_euro_d_cutoff
+        return float(ONE_EURO_D_CUTOFF)
+
+    @property
     def env_file_name(self) -> str:
         return self._service.env_path.name
 
@@ -169,6 +197,10 @@ class SettingsViewModel(QObject):
         quality_min_frame: float,
         quality_max_drop: float,
         plugins_dir: str,
+        one_euro_enabled: bool = False,
+        one_euro_min_cutoff: float = 1.0,
+        one_euro_beta: float = 1.0,
+        one_euro_d_cutoff: float = 1.0,
     ) -> bool:
         """
         Validates and persists updated settings.
@@ -190,6 +222,10 @@ class SettingsViewModel(QObject):
             "QUALITY_MAX_SCORE_DROP": f"{quality_max_drop:.2f}",
             "AI_MODEL_PLUGINS_DIR": clean_plugins_dir,
             "PLUGINS_DIR": clean_plugins_dir,
+            "ONE_EURO_ENABLED": "true" if one_euro_enabled else "false",
+            "ONE_EURO_MIN_CUTOFF": f"{one_euro_min_cutoff:.2f}",
+            "ONE_EURO_BETA": f"{one_euro_beta:.2f}",
+            "ONE_EURO_D_CUTOFF": f"{one_euro_d_cutoff:.2f}",
         }
 
         # Determine XML path to save into
@@ -212,6 +248,10 @@ class SettingsViewModel(QObject):
                 self._config.set_quality_min_frame_score(quality_min_frame)
                 self._config.set_quality_max_score_drop(quality_max_drop)
                 self._config.set_plugins_dir(clean_plugins_dir)
+                self._config.set_one_euro_enabled(one_euro_enabled)
+                self._config.set_one_euro_min_cutoff(one_euro_min_cutoff)
+                self._config.set_one_euro_beta(one_euro_beta)
+                self._config.set_one_euro_d_cutoff(one_euro_d_cutoff)
 
             targets = [self.env_file_name]
             if xml_save_path and Path(xml_save_path).exists():
@@ -243,6 +283,10 @@ class SettingsViewModel(QObject):
         default_quality_min_frame = float(QUALITY_MIN_FRAME_SCORE)
         default_quality_max_drop = float(QUALITY_MAX_SCORE_DROP)
         default_plugins_dir = "ai_model_plugins"
+        default_one_euro_enabled = bool(ONE_EURO_ENABLED)
+        default_one_euro_min_cutoff = float(ONE_EURO_MIN_CUTOFF)
+        default_one_euro_beta = float(ONE_EURO_BETA)
+        default_one_euro_d_cutoff = float(ONE_EURO_D_CUTOFF)
 
         if persist:
             success = self.save_settings(
@@ -257,6 +301,10 @@ class SettingsViewModel(QObject):
                 quality_min_frame=default_quality_min_frame,
                 quality_max_drop=default_quality_max_drop,
                 plugins_dir=default_plugins_dir,
+                one_euro_enabled=default_one_euro_enabled,
+                one_euro_min_cutoff=default_one_euro_min_cutoff,
+                one_euro_beta=default_one_euro_beta,
+                one_euro_d_cutoff=default_one_euro_d_cutoff,
             )
             self.settings_loaded.emit()
             return success
@@ -273,5 +321,9 @@ class SettingsViewModel(QObject):
                 self._config.set_quality_min_frame_score(default_quality_min_frame)
                 self._config.set_quality_max_score_drop(default_quality_max_drop)
                 self._config.set_plugins_dir(default_plugins_dir)
+                self._config.set_one_euro_enabled(default_one_euro_enabled)
+                self._config.set_one_euro_min_cutoff(default_one_euro_min_cutoff)
+                self._config.set_one_euro_beta(default_one_euro_beta)
+                self._config.set_one_euro_d_cutoff(default_one_euro_d_cutoff)
             self.settings_loaded.emit()
             return True

@@ -36,6 +36,7 @@ from core.pipeline.feature_extractor import (
 from core.pipeline.filters import (
     HandMovementFilter,
     KineticMotionFilter,
+    OneEuroFilter,
     WindowQualityFilter,
 )
 from core.pipeline.normalizer import HandScaleNormalizer
@@ -369,6 +370,56 @@ def test_pinky_touch_does_not_trigger_index():
     assert "Index" not in touch_fingers
 
 
+def test_one_euro_filter_smoothing_and_reset():
+    """Verify that One Euro filter smooths jittery coordinates and bypasses when disabled."""
+    # 1. Test OneEuroFilter directly
+    euro = OneEuroFilter(min_cutoff=1.0, beta=0.0, d_cutoff=1.0, enabled=True)
+    raw_coords = [(100.0, 200.0, 0.0) for _ in range(21)]
+
+    # First point initializes filter state
+    p1 = euro.filter_points(raw_coords, timestamp=1.0)
+    assert p1[0] == (100.0, 200.0, 0.0)
+
+    # Second point with high-frequency jitter at dt=0.083s (approx 12 FPS)
+    jittery_coords = [(110.0, 210.0, 0.0) for _ in range(21)]
+    p2 = euro.filter_points(jittery_coords, timestamp=1.083)
+
+    # Filtered x should be smoothed between 100.0 and 110.0
+    assert 100.0 < p2[0][0] < 110.0
+    assert 100.0 < p2[0][1] < 210.0
+
+    # 2. Test bypass when enabled is False
+    euro.enabled = False
+    raw_unfiltered = [(150.0, 250.0, 0.0) for _ in range(21)]
+    p3 = euro.filter_points(raw_unfiltered, timestamp=1.166)
+    assert p3 == raw_unfiltered
+
+    # 3. Test TouchPipelineService integration
+    service = TouchPipelineService(
+        one_euro_enabled=True,
+        one_euro_min_cutoff=1.0,
+        one_euro_beta=0.0,
+        one_euro_d_cutoff=1.0,
+    )
+    assert service.one_euro_filter.enabled is True
+
+    class MockLM:
+        def __init__(self, x, y, z):
+            self.x = x / 640.0
+            self.y = y / 480.0
+            self.z = z / 640.0
+
+    pts1 = _create_synthetic_landmarks()
+    mock_raw1 = [MockLM(x, y, z) for x, y, z in pts1]
+    service.process_frame(mock_raw1, "Right", 640, 480, timestamp=10.0)
+    assert service.last_pixel_coords is not None
+    assert abs(service.last_pixel_coords[0][0] - pts1[0][0]) < 1e-4
+
+    # Lost hand should reset the filter
+    service.process_frame(None, None, 640, 480)
+    assert service.last_pixel_coords is None
+
+
 if __name__ == "__main__":
     test_hand_scale_normalizer()
     test_hand_movement_filter()
@@ -380,5 +431,6 @@ if __name__ == "__main__":
     test_velocity_threshold_ignores_stationary_window()
     test_velocity_threshold_adjustment()
     test_pinky_touch_does_not_trigger_index()
-    print("\nAll 10 pipeline replication, velocity threshold, and model verification tests passed successfully!")
+    test_one_euro_filter_smoothing_and_reset()
+    print("\nAll 11 pipeline replication, velocity threshold, One Euro filter, and model verification tests passed successfully!")
 
