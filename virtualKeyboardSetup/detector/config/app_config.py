@@ -28,6 +28,9 @@ from .constants import (
     QUALITY_MAX_SCORE_DROP,
     MIN_KINETIC_SPEED_THRESHOLD,
     FINGERTIP_VELOCITY_THRESHOLD,
+    MEDIAPIPE_MIN_DETECTION_CONFIDENCE,
+    MEDIAPIPE_MIN_PRESENCE_CONFIDENCE,
+    MEDIAPIPE_MIN_TRACKING_CONFIDENCE,
 )
 
 
@@ -93,6 +96,15 @@ class AppConfig:
         )
         self._apriltag_smoothing = float(
             os.getenv("APRILTAG_SMOOTHING_ALPHA", str(APRILTAG_SMOOTHING_ALPHA))
+        )
+        self._mediapipe_min_detection_confidence = float(
+            os.getenv("MEDIAPIPE_MIN_DETECTION_CONFIDENCE", str(MEDIAPIPE_MIN_DETECTION_CONFIDENCE))
+        )
+        self._mediapipe_min_presence_confidence = float(
+            os.getenv("MEDIAPIPE_MIN_PRESENCE_CONFIDENCE", str(MEDIAPIPE_MIN_PRESENCE_CONFIDENCE))
+        )
+        self._mediapipe_min_tracking_confidence = float(
+            os.getenv("MEDIAPIPE_MIN_TRACKING_CONFIDENCE", str(MEDIAPIPE_MIN_TRACKING_CONFIDENCE))
         )
 
         self._env_path = env_path or (Path(__file__).resolve().parent.parent / ".env")
@@ -197,6 +209,39 @@ class AppConfig:
     def fingertip_velocity_threshold(self) -> float:
         return self._fingertip_velocity_threshold
 
+    @property
+    def mediapipe_min_detection_confidence(self) -> float:
+        return self._mediapipe_min_detection_confidence
+
+    def set_mediapipe_min_detection_confidence(self, value: float) -> None:
+        self._mediapipe_min_detection_confidence = float(value)
+
+    @property
+    def mediapipe_min_presence_confidence(self) -> float:
+        return self._mediapipe_min_presence_confidence
+
+    def set_mediapipe_min_presence_confidence(self, value: float) -> None:
+        self._mediapipe_min_presence_confidence = float(value)
+
+    @property
+    def mediapipe_min_tracking_confidence(self) -> float:
+        return self._mediapipe_min_tracking_confidence
+
+    def set_mediapipe_min_tracking_confidence(self, value: float) -> None:
+        self._mediapipe_min_tracking_confidence = float(value)
+
+    def set_hand_movement_threshold(self, value: float) -> None:
+        self._hand_movement_threshold = float(value)
+
+    def set_quality_min_avg_score(self, value: float) -> None:
+        self._quality_min_avg_score = float(value)
+
+    def set_quality_min_frame_score(self, value: float) -> None:
+        self._quality_min_frame_score = float(value)
+
+    def set_quality_max_score_drop(self, value: float) -> None:
+        self._quality_max_score_drop = float(value)
+
     def set_target_fps(self, value: float) -> None:
         self._target_fps = float(value)
 
@@ -232,6 +277,41 @@ class AppConfig:
         elif "MIN_KINETIC_SPEED_THRESHOLD" in settings:
             try:
                 self.set_fingertip_velocity_threshold(float(settings["MIN_KINETIC_SPEED_THRESHOLD"]))
+            except (ValueError, TypeError):
+                pass
+        if "HAND_MOVEMENT_THRESHOLD" in settings:
+            try:
+                self.set_hand_movement_threshold(float(settings["HAND_MOVEMENT_THRESHOLD"]))
+            except (ValueError, TypeError):
+                pass
+        if "QUALITY_MIN_AVG_SCORE" in settings:
+            try:
+                self.set_quality_min_avg_score(float(settings["QUALITY_MIN_AVG_SCORE"]))
+            except (ValueError, TypeError):
+                pass
+        if "QUALITY_MIN_FRAME_SCORE" in settings:
+            try:
+                self.set_quality_min_frame_score(float(settings["QUALITY_MIN_FRAME_SCORE"]))
+            except (ValueError, TypeError):
+                pass
+        if "QUALITY_MAX_SCORE_DROP" in settings:
+            try:
+                self.set_quality_max_score_drop(float(settings["QUALITY_MAX_SCORE_DROP"]))
+            except (ValueError, TypeError):
+                pass
+        if "MEDIAPIPE_MIN_DETECTION_CONFIDENCE" in settings:
+            try:
+                self.set_mediapipe_min_detection_confidence(float(settings["MEDIAPIPE_MIN_DETECTION_CONFIDENCE"]))
+            except (ValueError, TypeError):
+                pass
+        if "MEDIAPIPE_MIN_PRESENCE_CONFIDENCE" in settings:
+            try:
+                self.set_mediapipe_min_presence_confidence(float(settings["MEDIAPIPE_MIN_PRESENCE_CONFIDENCE"]))
+            except (ValueError, TypeError):
+                pass
+        if "MEDIAPIPE_MIN_TRACKING_CONFIDENCE" in settings:
+            try:
+                self.set_mediapipe_min_tracking_confidence(float(settings["MEDIAPIPE_MIN_TRACKING_CONFIDENCE"]))
             except (ValueError, TypeError):
                 pass
         if "AI_MODEL_PLUGINS_DIR" in settings:

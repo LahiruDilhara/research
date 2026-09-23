@@ -114,10 +114,17 @@ class DetectorViewModel(QObject):
         self._config = config
         self._pipeline_service.set_velocity_threshold(config.fingertip_velocity_threshold)
         self._pipeline_service.set_touch_threshold(config.touch_threshold)
+        self._pipeline_service.set_hand_movement_threshold(config.hand_movement_threshold)
+        self._pipeline_service.set_quality_filter_thresholds(
+            min_avg=config.quality_min_avg_score,
+            min_frame=config.quality_min_frame_score,
+            max_drop=config.quality_max_score_drop,
+        )
         logger.info(
-            "DetectorViewModel live thresholds updated: velocity_threshold=%.4f, touch_threshold=%.2f",
+            "DetectorViewModel live thresholds updated: velocity_threshold=%.4f, touch_threshold=%.2f, hand_movement=%.4f",
             config.fingertip_velocity_threshold,
             config.touch_threshold,
+            config.hand_movement_threshold,
         )
 
     # ── Model hot-swap ─────────────────────────────────────────────────────────

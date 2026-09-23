@@ -1,2 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,optimal_threshold,optimal_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-BiLSTM_Finger_Wrist,1,32,2,0.25,0.001,32,92.4528,91.8239,0.54,92.61,0.9193,0.9308,0.925,292,26,22,296,GOOD FIT (OPTIMAL),20,0.23,9.3,BiLSTM_Finger_Wrist_cfg01.pth
+BiLSTM_Finger_Wrist,1,32,2,0.25,0.001,32,92.4528,91.8239,0.54,92.61,0.9193,0.9308,0.925,292,26,22,296,GOOD FIT (OPTIMAL),20,0.23,8.7,BiLSTM_Finger_Wrist_cfg01.pth

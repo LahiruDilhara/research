@@ -16,6 +16,13 @@ from PySide6.QtCore import QObject, Signal
 from config.app_config import AppConfig
 from config.constants import (
     FINGERTIP_VELOCITY_THRESHOLD,
+    HAND_MOVEMENT_THRESHOLD,
+    MEDIAPIPE_MIN_DETECTION_CONFIDENCE,
+    MEDIAPIPE_MIN_PRESENCE_CONFIDENCE,
+    MEDIAPIPE_MIN_TRACKING_CONFIDENCE,
+    QUALITY_MAX_SCORE_DROP,
+    QUALITY_MIN_AVG_SCORE,
+    QUALITY_MIN_FRAME_SCORE,
     TARGET_FPS,
     TOUCH_PROBABILITY_THRESHOLD,
 )
@@ -96,6 +103,48 @@ class SettingsViewModel(QObject):
         return float(FINGERTIP_VELOCITY_THRESHOLD)
 
     @property
+    def hand_movement_threshold(self) -> float:
+        if self._config is not None:
+            return self._config.hand_movement_threshold
+        return float(HAND_MOVEMENT_THRESHOLD)
+
+    @property
+    def mediapipe_min_detection_confidence(self) -> float:
+        if self._config is not None:
+            return self._config.mediapipe_min_detection_confidence
+        return float(MEDIAPIPE_MIN_DETECTION_CONFIDENCE)
+
+    @property
+    def mediapipe_min_presence_confidence(self) -> float:
+        if self._config is not None:
+            return self._config.mediapipe_min_presence_confidence
+        return float(MEDIAPIPE_MIN_PRESENCE_CONFIDENCE)
+
+    @property
+    def mediapipe_min_tracking_confidence(self) -> float:
+        if self._config is not None:
+            return self._config.mediapipe_min_tracking_confidence
+        return float(MEDIAPIPE_MIN_TRACKING_CONFIDENCE)
+
+    @property
+    def quality_min_avg_score(self) -> float:
+        if self._config is not None:
+            return self._config.quality_min_avg_score
+        return float(QUALITY_MIN_AVG_SCORE)
+
+    @property
+    def quality_min_frame_score(self) -> float:
+        if self._config is not None:
+            return self._config.quality_min_frame_score
+        return float(QUALITY_MIN_FRAME_SCORE)
+
+    @property
+    def quality_max_score_drop(self) -> float:
+        if self._config is not None:
+            return self._config.quality_max_score_drop
+        return float(QUALITY_MAX_SCORE_DROP)
+
+    @property
     def plugins_dir(self) -> str:
         if self._config is not None:
             return self._config.plugins_dir
@@ -112,6 +161,13 @@ class SettingsViewModel(QObject):
         fps: float,
         touch_threshold: float,
         velocity_threshold: float,
+        hand_movement_threshold: float,
+        detection_confidence: float,
+        presence_confidence: float,
+        tracking_confidence: float,
+        quality_min_avg: float,
+        quality_min_frame: float,
+        quality_max_drop: float,
         plugins_dir: str,
     ) -> bool:
         """
@@ -125,6 +181,13 @@ class SettingsViewModel(QObject):
             "TOUCH_THRESHOLD": f"{touch_threshold:.2f}",
             "FINGERTIP_VELOCITY_THRESHOLD": f"{velocity_threshold:.4f}",
             "MIN_KINETIC_SPEED_THRESHOLD": f"{velocity_threshold:.4f}",
+            "HAND_MOVEMENT_THRESHOLD": f"{hand_movement_threshold:.4f}",
+            "MEDIAPIPE_MIN_DETECTION_CONFIDENCE": f"{detection_confidence:.2f}",
+            "MEDIAPIPE_MIN_PRESENCE_CONFIDENCE": f"{presence_confidence:.2f}",
+            "MEDIAPIPE_MIN_TRACKING_CONFIDENCE": f"{tracking_confidence:.2f}",
+            "QUALITY_MIN_AVG_SCORE": f"{quality_min_avg:.2f}",
+            "QUALITY_MIN_FRAME_SCORE": f"{quality_min_frame:.2f}",
+            "QUALITY_MAX_SCORE_DROP": f"{quality_max_drop:.2f}",
             "AI_MODEL_PLUGINS_DIR": clean_plugins_dir,
             "PLUGINS_DIR": clean_plugins_dir,
         }
@@ -141,6 +204,13 @@ class SettingsViewModel(QObject):
                 self._config.set_target_fps(fps)
                 self._config.set_touch_threshold(touch_threshold)
                 self._config.set_fingertip_velocity_threshold(velocity_threshold)
+                self._config.set_hand_movement_threshold(hand_movement_threshold)
+                self._config.set_mediapipe_min_detection_confidence(detection_confidence)
+                self._config.set_mediapipe_min_presence_confidence(presence_confidence)
+                self._config.set_mediapipe_min_tracking_confidence(tracking_confidence)
+                self._config.set_quality_min_avg_score(quality_min_avg)
+                self._config.set_quality_min_frame_score(quality_min_frame)
+                self._config.set_quality_max_score_drop(quality_max_drop)
                 self._config.set_plugins_dir(clean_plugins_dir)
 
             targets = [self.env_file_name]

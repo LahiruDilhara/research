@@ -228,6 +228,39 @@ class TouchPipelineService:
             self._t_off,
         )
 
+    @property
+    def hand_movement_threshold(self) -> float:
+        """Current whole-hand movement displacement threshold."""
+        return self._hand_movement_filter.threshold
+
+    def set_hand_movement_threshold(self, threshold: float) -> None:
+        """Update whole-hand movement displacement threshold dynamically."""
+        self._hand_movement_filter.threshold = float(threshold)
+        logger.info(
+            "Updated TouchPipelineService hand movement threshold: %.4f",
+            self._hand_movement_filter.threshold,
+        )
+
+    def set_quality_filter_thresholds(
+        self,
+        min_avg: float | None = None,
+        min_frame: float | None = None,
+        max_drop: float | None = None,
+    ) -> None:
+        """Update 5-frame sequence window confidence quality filter thresholds dynamically."""
+        if min_avg is not None:
+            self._window_quality_filter.min_avg_score = float(min_avg)
+        if min_frame is not None:
+            self._window_quality_filter.min_frame_score = float(min_frame)
+        if max_drop is not None:
+            self._window_quality_filter.max_score_drop = float(max_drop)
+        logger.info(
+            "Updated TouchPipelineService window quality thresholds: min_avg=%.2f, min_frame=%.2f, max_drop=%.2f",
+            self._window_quality_filter.min_avg_score,
+            self._window_quality_filter.min_frame_score,
+            self._window_quality_filter.max_score_drop,
+        )
+
     def run_parallel_inference(
         self,
         model: ITouchModel | None,

@@ -1,2 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,optimal_threshold,optimal_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-CNN1D_Tip_Vel_Ratios,1,32,2,0.25,0.0015,32,91.6667,87.5786,0.6,92.14,0.918,0.9151,0.9165,292,26,27,291,GOOD FIT (OPTIMAL),3,2.15,4.7,CNN1D_Tip_Vel_Ratios_cfg01.pth
+CNN1D_Tip_Vel_Ratios,1,32,2,0.25,0.0015,32,91.6667,87.4214,0.6,92.14,0.918,0.9151,0.9165,292,26,27,291,GOOD FIT (OPTIMAL),3,2.23,3.7,CNN1D_Tip_Vel_Ratios_cfg01.pth

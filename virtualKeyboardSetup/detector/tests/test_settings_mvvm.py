@@ -76,6 +76,13 @@ def test_settings_viewmodel_save_and_signals():
             fps=15.0,
             touch_threshold=0.60,
             velocity_threshold=0.15,
+            hand_movement_threshold=0.1800,
+            detection_confidence=0.65,
+            presence_confidence=0.60,
+            tracking_confidence=0.70,
+            quality_min_avg=0.75,
+            quality_min_frame=0.50,
+            quality_max_drop=0.30,
             plugins_dir="custom_plugins",
         )
 
@@ -85,11 +92,17 @@ def test_settings_viewmodel_save_and_signals():
 
         # Verify AppConfig was updated in memory
         assert abs(config.fingertip_velocity_threshold - 0.15) < 1e-4
+        assert abs(config.hand_movement_threshold - 0.1800) < 1e-4
+        assert abs(config.mediapipe_min_detection_confidence - 0.65) < 1e-4
+        assert abs(config.quality_min_avg_score - 0.75) < 1e-4
 
         # Verify file on disk
         service = SettingsService(temp_path)
         entries = service.load_raw_entries()
         assert entries.get("FINGERTIP_VELOCITY_THRESHOLD") == "0.1500"
+        assert entries.get("HAND_MOVEMENT_THRESHOLD") == "0.1800"
+        assert entries.get("MEDIAPIPE_MIN_DETECTION_CONFIDENCE") == "0.65"
+        assert entries.get("QUALITY_MIN_AVG_SCORE") == "0.75"
         assert entries.get("TARGET_FPS") == "15.0"
         assert entries.get("AI_MODEL_PLUGINS_DIR") == "custom_plugins"
     finally:
@@ -112,6 +125,9 @@ def test_ui_input_box_dimensions_and_0_15_acceptance():
         # Check ergonomic sizing
         assert view.fingertip_vel_spin.width() >= 180
         assert view.fingertip_vel_spin.height() >= 30
+        assert view.hand_movement_spin.width() >= 180
+        assert view.mp_detection_conf_spin.width() >= 180
+        assert view.quality_min_avg_spin.width() >= 180
         assert view.touch_threshold_spin.width() >= 180
         assert view.target_fps_spin.width() >= 180
         assert view.plugins_dir_edit.width() >= 300
@@ -166,6 +182,9 @@ def test_settings_xml_persistence_and_preservation():
                 "TARGET_FPS": "18.0",
                 "TOUCH_THRESHOLD": "0.65",
                 "FINGERTIP_VELOCITY_THRESHOLD": "0.2200",
+                "HAND_MOVEMENT_THRESHOLD": "0.1600",
+                "MEDIAPIPE_MIN_DETECTION_CONFIDENCE": "0.55",
+                "QUALITY_MIN_AVG_SCORE": "0.70",
                 "AI_MODEL_PLUGINS_DIR": "ai_model_plugins",
             },
             xml_path=xml_path,
@@ -182,6 +201,8 @@ def test_settings_xml_persistence_and_preservation():
         assert loaded.get("TARGET_FPS") == "18.0"
         assert loaded.get("TOUCH_THRESHOLD") == "0.65"
         assert loaded.get("FINGERTIP_VELOCITY_THRESHOLD") == "0.2200"
+        assert loaded.get("HAND_MOVEMENT_THRESHOLD") == "0.1600"
+        assert loaded.get("MEDIAPIPE_MIN_DETECTION_CONFIDENCE") == "0.55"
 
         # 3. Verify SettingsViewModel loads and persists with XML
         config = AppConfig(env_path=env_path)
@@ -190,12 +211,20 @@ def test_settings_xml_persistence_and_preservation():
 
         assert abs(config.touch_threshold - 0.65) < 1e-4
         assert abs(config.fingertip_velocity_threshold - 0.2200) < 1e-4
+        assert abs(config.hand_movement_threshold - 0.1600) < 1e-4
 
         # Save new values through ViewModel
         vm.save_settings(
             fps=20.0,
             touch_threshold=0.70,
             velocity_threshold=0.35,
+            hand_movement_threshold=0.1900,
+            detection_confidence=0.60,
+            presence_confidence=0.60,
+            tracking_confidence=0.60,
+            quality_min_avg=0.80,
+            quality_min_frame=0.55,
+            quality_max_drop=0.25,
             plugins_dir="ai_model_plugins",
         )
 
@@ -203,6 +232,8 @@ def test_settings_xml_persistence_and_preservation():
         assert reloaded.get("TARGET_FPS") == "20.0"
         assert reloaded.get("TOUCH_THRESHOLD") == "0.70"
         assert reloaded.get("FINGERTIP_VELOCITY_THRESHOLD") == "0.3500"
+        assert reloaded.get("HAND_MOVEMENT_THRESHOLD") == "0.1900"
+        assert reloaded.get("QUALITY_MIN_AVG_SCORE") == "0.80"
     finally:
         xml_path.unlink(missing_ok=True)
         env_path.unlink(missing_ok=True)

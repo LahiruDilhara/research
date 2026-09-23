@@ -220,9 +220,9 @@ class CameraWorker(QThread):
                 base_options=BaseOptions(model_asset_path=model_path),
                 running_mode=RunningMode.VIDEO,
                 num_hands=MEDIAPIPE_NUM_HANDS,
-                min_hand_detection_confidence=MEDIAPIPE_MIN_DETECTION_CONFIDENCE,
-                min_hand_presence_confidence=MEDIAPIPE_MIN_PRESENCE_CONFIDENCE,
-                min_tracking_confidence=MEDIAPIPE_MIN_TRACKING_CONFIDENCE,
+                min_hand_detection_confidence=self._config.mediapipe_min_detection_confidence,
+                min_hand_presence_confidence=self._config.mediapipe_min_presence_confidence,
+                min_tracking_confidence=self._config.mediapipe_min_tracking_confidence,
             )
             landmarker = HandLandmarker.create_from_options(options)
         except Exception as exc:

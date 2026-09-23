@@ -2,12 +2,15 @@
 ui/views/settings_view.py
 
 Settings view following MVVM architecture and SOLID principles.
-Provides ergonomic input controls for runtime thresholds and configuration.
+Provides ergonomic input controls for runtime thresholds, MediaPipe detector confidences,
+window quality filters, and layout configuration.
 """
 
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+import re
+
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 from qfluentwidgets import (
     CaptionLabel,
@@ -18,6 +21,7 @@ from qfluentwidgets import (
     InfoBarPosition,
     LineEdit,
     PrimaryPushButton,
+    SmoothScrollArea,
     StrongBodyLabel,
     SubtitleLabel,
 )
@@ -49,16 +53,30 @@ class SettingsView(QWidget):
 
     def _setup_ui(self) -> None:
         self.setStyleSheet(f"background-color: {UI_BG_DARK};")
-        root = QVBoxLayout(self)
-        root.setContentsMargins(32, 32, 32, 32)
-        root.setSpacing(20)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        # Smooth scroll area for seamless viewing across screen sizes
+        scroll_area = SmoothScrollArea(self)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet(
+            f"SmoothScrollArea {{ background-color: {UI_BG_DARK}; border: none; }}"
+        )
+
+        content_widget = QWidget()
+        content_widget.setStyleSheet(f"background-color: {UI_BG_DARK};")
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(32, 28, 32, 28)
+        content_layout.setSpacing(20)
 
         title = SubtitleLabel("Settings")
         title.setStyleSheet(f"color: {UI_ACCENT}; font-size: 20px; font-weight: bold;")
-        root.addWidget(title)
+        content_layout.addWidget(title)
 
-        root.addWidget(self._make_card(
-            "Pipeline",
+        # ── Card 1: Pipeline & Motion Thresholds ───────────────────────────────
+        content_layout.addWidget(self._make_card(
+            "Pipeline & Motion Thresholds",
             [
                 (
                     "Target FPS",
@@ -86,7 +104,7 @@ class SettingsView(QWidget):
                 ),
                 (
                     "Fingertip Velocity Threshold",
-                    "Minimum fingertip speed to evaluate window (default 0.0080)",
+                    "Minimum fingertip speed magnitude to evaluate window (default 0.0080)",
                     self._make_double_spin(
                         value=self._vm.fingertip_velocity_threshold,
                         mn=0.0001,
@@ -96,10 +114,109 @@ class SettingsView(QWidget):
                         decimals=4,
                     ),
                 ),
+                (
+                    "Hand Movement Threshold",
+                    "Maximum stationary joint displacement before flagging whole-hand motion (default 0.1550)",
+                    self._make_double_spin(
+                        value=self._vm.hand_movement_threshold,
+                        mn=0.0010,
+                        mx=1.0000,
+                        attr="hand_movement_spin",
+                        step=0.005,
+                        decimals=4,
+                    ),
+                ),
             ]
         ))
 
-        root.addWidget(self._make_card(
+        # ── Card 2: MediaPipe Detector Confidences ─────────────────────────────
+        content_layout.addWidget(self._make_card(
+            "MediaPipe Detector Confidences",
+            [
+                (
+                    "Min Detection Confidence",
+                    "Minimum confidence score for hand detection to be considered successful (default 0.50)",
+                    self._make_double_spin(
+                        value=self._vm.mediapipe_min_detection_confidence,
+                        mn=0.05,
+                        mx=1.00,
+                        attr="mp_detection_conf_spin",
+                        step=0.05,
+                        decimals=2,
+                    ),
+                ),
+                (
+                    "Min Presence Confidence",
+                    "Minimum confidence score for hand presence in video stream (default 0.50)",
+                    self._make_double_spin(
+                        value=self._vm.mediapipe_min_presence_confidence,
+                        mn=0.05,
+                        mx=1.00,
+                        attr="mp_presence_conf_spin",
+                        step=0.05,
+                        decimals=2,
+                    ),
+                ),
+                (
+                    "Min Tracking Confidence",
+                    "Minimum confidence score for hand landmark tracking to be robust (default 0.50)",
+                    self._make_double_spin(
+                        value=self._vm.mediapipe_min_tracking_confidence,
+                        mn=0.05,
+                        mx=1.00,
+                        attr="mp_tracking_conf_spin",
+                        step=0.05,
+                        decimals=2,
+                    ),
+                ),
+            ]
+        ))
+
+        # ── Card 3: Window Quality Filters (Step 10) ───────────────────────────
+        content_layout.addWidget(self._make_card(
+            "Window Quality Filters (Step 10)",
+            [
+                (
+                    "Min Average Score",
+                    "Minimum average hand confidence across 5-frame sequence window (default 0.65)",
+                    self._make_double_spin(
+                        value=self._vm.quality_min_avg_score,
+                        mn=0.05,
+                        mx=1.00,
+                        attr="quality_min_avg_spin",
+                        step=0.05,
+                        decimals=2,
+                    ),
+                ),
+                (
+                    "Min Single Frame Score",
+                    "Minimum hand confidence in any individual frame of sequence window (default 0.45)",
+                    self._make_double_spin(
+                        value=self._vm.quality_min_frame_score,
+                        mn=0.05,
+                        mx=1.00,
+                        attr="quality_min_frame_spin",
+                        step=0.05,
+                        decimals=2,
+                    ),
+                ),
+                (
+                    "Max Score Drop",
+                    "Maximum confidence fluctuation drop between frames in sequence window (default 0.35)",
+                    self._make_double_spin(
+                        value=self._vm.quality_max_score_drop,
+                        mn=0.05,
+                        mx=1.00,
+                        attr="quality_max_drop_spin",
+                        step=0.05,
+                        decimals=2,
+                    ),
+                ),
+            ]
+        ))
+
+        # ── Card 4: AI Model Plugins Directory ─────────────────────────────────
+        content_layout.addWidget(self._make_card(
             "AI Model Plugins Directory",
             [
                 (
@@ -113,8 +230,9 @@ class SettingsView(QWidget):
             ]
         ))
 
-        root.addStretch(1)
+        content_layout.addSpacing(10)
 
+        # ── Action Buttons ─────────────────────────────────────────────────────
         btn_row = QHBoxLayout()
         btn_save = PrimaryPushButton(FluentIcon.SAVE, "Apply & Save")
         btn_save.setFixedHeight(38)
@@ -122,7 +240,10 @@ class SettingsView(QWidget):
         btn_save.clicked.connect(self._on_save_clicked)
         btn_row.addStretch(1)
         btn_row.addWidget(btn_save)
-        root.addLayout(btn_row)
+        content_layout.addLayout(btn_row)
+
+        scroll_area.setWidget(content_widget)
+        main_layout.addWidget(scroll_area)
 
     def _connect_signals(self) -> None:
         self._vm.settings_saved.connect(self._on_settings_saved)
@@ -133,11 +254,19 @@ class SettingsView(QWidget):
         self.target_fps_spin.setValue(self._vm.target_fps)
         self.touch_threshold_spin.setValue(self._vm.touch_threshold)
         self.fingertip_vel_spin.setValue(self._vm.fingertip_velocity_threshold)
+        self.hand_movement_spin.setValue(self._vm.hand_movement_threshold)
+        self.mp_detection_conf_spin.setValue(self._vm.mediapipe_min_detection_confidence)
+        self.mp_presence_conf_spin.setValue(self._vm.mediapipe_min_presence_confidence)
+        self.mp_tracking_conf_spin.setValue(self._vm.mediapipe_min_tracking_confidence)
+        self.quality_min_avg_spin.setValue(self._vm.quality_min_avg_score)
+        self.quality_min_frame_spin.setValue(self._vm.quality_min_frame_score)
+        self.quality_max_drop_spin.setValue(self._vm.quality_max_score_drop)
         self.plugins_dir_edit.setText(self._vm.plugins_dir)
 
     def _make_card(self, section: str, rows: list[tuple]) -> CardWidget:
         card = CardWidget()
-        obj_name = f"settingsCard_{section.replace(' ', '_').lower()}"
+        clean_section = re.sub(r"[^a-zA-Z0-9_]", "", section.replace(" ", "_").lower())
+        obj_name = f"settingsCard_{clean_section}"
         card.setObjectName(obj_name)
         card.setStyleSheet(
             f"#{obj_name} {{ background-color: {UI_BG_CARD}; "
@@ -198,12 +327,26 @@ class SettingsView(QWidget):
         fps_val = self.target_fps_spin.value()
         thresh_val = self.touch_threshold_spin.value()
         vel_val = self.fingertip_vel_spin.value()
+        hand_mov_val = self.hand_movement_spin.value()
+        mp_det_val = self.mp_detection_conf_spin.value()
+        mp_pres_val = self.mp_presence_conf_spin.value()
+        mp_track_val = self.mp_tracking_conf_spin.value()
+        q_avg_val = self.quality_min_avg_spin.value()
+        q_frame_val = self.quality_min_frame_spin.value()
+        q_drop_val = self.quality_max_drop_spin.value()
         plugins_val = self.plugins_dir_edit.text()
 
         self._vm.save_settings(
             fps=fps_val,
             touch_threshold=thresh_val,
             velocity_threshold=vel_val,
+            hand_movement_threshold=hand_mov_val,
+            detection_confidence=mp_det_val,
+            presence_confidence=mp_pres_val,
+            tracking_confidence=mp_track_val,
+            quality_min_avg=q_avg_val,
+            quality_min_frame=q_frame_val,
+            quality_max_drop=q_drop_val,
             plugins_dir=plugins_val,
         )
 

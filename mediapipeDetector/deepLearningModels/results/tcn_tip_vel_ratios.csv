@@ -1,2 +1,2 @@
 arch,config_id,hidden,layers,dropout,lr,batch_size,best_test_acc,final_test_acc,optimal_threshold,optimal_test_acc,precision_touch,recall_touch,f1_touch,tn,fp,fn,tp,fit_status,onset_epoch,max_gap_pct,train_time_s,weight_file
-TCN_Tip_Vel_Ratios,1,32,2,0.15,0.0015,32,91.195,90.8805,0.65,91.82,0.897,0.9308,0.9136,284,34,22,296,GOOD FIT (OPTIMAL),11,0.13,10.3,TCN_Tip_Vel_Ratios_cfg01.pth
+TCN_Tip_Vel_Ratios,1,32,2,0.15,0.0015,32,91.195,91.195,0.65,91.82,0.897,0.9308,0.9136,284,34,22,296,GOOD FIT (OPTIMAL),11,0.13,8.5,TCN_Tip_Vel_Ratios_cfg01.pth
