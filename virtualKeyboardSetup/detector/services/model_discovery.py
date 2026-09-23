@@ -1,7 +1,7 @@
 """
 services/model_discovery.py
 
-Scans the plugins directory, imports every Python file found inside it,
+Scans the AI model plugins directory, imports every Python file found inside it,
 and relies on the @register_model decorator in each file to self-register
 the model in ModelRegistry.
 
@@ -17,11 +17,11 @@ from pathlib import Path
 from core.interfaces.touch_model import ModelRegistry
 from utils.logger import setup_logger
 
-logger = setup_logger("ModelDiscovery")
+logger = setup_logger("AIModelDiscovery")
 
 
 class ModelDiscoveryService:
-    """Scans a plugins directory and populates ModelRegistry."""
+    """Scans an AI model plugins directory and populates ModelRegistry."""
 
     def __init__(self, plugins_dir: str | Path) -> None:
         self._plugins_dir = Path(plugins_dir)
@@ -66,7 +66,7 @@ class ModelDiscoveryService:
                     )
 
         count = len(ModelRegistry.all_entries())
-        logger.info("Discovery complete — %d model(s) registered.", count)
+        logger.info("Discovery complete: %d model(s) registered.", count)
         return count
 
     @staticmethod
@@ -83,3 +83,8 @@ class ModelDiscoveryService:
             logger.debug("Imported plugin file: %s", path.name)
         except Exception as exc:
             logger.error("Failed to import plugin %s: %s", path.name, exc)
+
+
+# Backwards-compatible alias for explicit naming
+AIModelDiscoveryService = ModelDiscoveryService
+

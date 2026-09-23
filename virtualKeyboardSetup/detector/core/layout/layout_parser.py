@@ -2,7 +2,7 @@
 core/layout/layout_parser.py
 
 Parses the designer-exported XML layout file into clean domain objects.
-No business logic lives here — pure data extraction only.
+No business logic lives here, pure data extraction only.
 """
 
 from __future__ import annotations

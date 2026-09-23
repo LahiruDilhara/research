@@ -282,37 +282,6 @@
       \verb 10.1109/SMC42975.2020.9283182
       \endverb
     \endentry
-    \entry{Fiala2010Designing}{article}{}{}
-      \name{author}{1}{}{%
-        {{hash=00e8d2b42112c18c775342481b82909d}{%
-           family={Fiala},
-           familyi={F\bibinitperiod},
-           given={Mark},
-           giveni={M\bibinitperiod}}}%
-      }
-      \strng{namehash}{00e8d2b42112c18c775342481b82909d}
-      \strng{fullhash}{00e8d2b42112c18c775342481b82909d}
-      \strng{fullhashraw}{00e8d2b42112c18c775342481b82909d}
-      \strng{bibnamehash}{00e8d2b42112c18c775342481b82909d}
-      \strng{authorbibnamehash}{00e8d2b42112c18c775342481b82909d}
-      \strng{authornamehash}{00e8d2b42112c18c775342481b82909d}
-      \strng{authorfullhash}{00e8d2b42112c18c775342481b82909d}
-      \strng{authorfullhashraw}{00e8d2b42112c18c775342481b82909d}
-      \field{sortinit}{F}
-      \field{sortinithash}{2638baaa20439f1b5a8f80c6c08a13b4}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{journaltitle}{IEEE Transactions on Pattern Analysis and Machine Intelligence}
-      \field{number}{7}
-      \field{title}{Designing Highly Reliable Fiducial Markers}
-      \field{volume}{32}
-      \field{year}{2010}
-      \field{pages}{1317\bibrangedash 1324}
-      \range{pages}{8}
-      \verb{doi}
-      \verb 10.1109/TPAMI.2009.146
-      \endverb
-    \endentry
     \entry{Gammulle2021TMMF}{article}{}{}
       \name{author}{4}{}{%
         {{hash=bd9b9eb5c5d2ea503ea4fe9bc4b4aec7}{%
@@ -558,37 +527,6 @@
       \verb 10.1145/3421558.3421568
       \endverb
     \endentry
-    \entry{Isaksson2020Camera}{thesis}{}{}
-      \name{author}{2}{}{%
-        {{hash=885193cd4842d9ff6dea9dfd0592535d}{%
-           family={Isaksson},
-           familyi={I\bibinitperiod},
-           given={Jakob},
-           giveni={J\bibinitperiod}}}%
-        {{hash=d5e0d0c40db26206ee4b67d4295263a9}{%
-           family={Magnusson},
-           familyi={M\bibinitperiod},
-           given={Lucas},
-           giveni={L\bibinitperiod}}}%
-      }
-      \list{institution}{1}{%
-        {Jönköping University, School of Engineering}%
-      }
-      \strng{namehash}{c81b63a089c1554e053296bed2ef483b}
-      \strng{fullhash}{c81b63a089c1554e053296bed2ef483b}
-      \strng{fullhashraw}{c81b63a089c1554e053296bed2ef483b}
-      \strng{bibnamehash}{c81b63a089c1554e053296bed2ef483b}
-      \strng{authorbibnamehash}{c81b63a089c1554e053296bed2ef483b}
-      \strng{authornamehash}{c81b63a089c1554e053296bed2ef483b}
-      \strng{authorfullhash}{c81b63a089c1554e053296bed2ef483b}
-      \strng{authorfullhashraw}{c81b63a089c1554e053296bed2ef483b}
-      \field{sortinit}{I}
-      \field{sortinithash}{8d291c51ee89b6cd86bf5379f0b151d8}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{title}{Camera pose estimation with moving Aruco-board}
-      \field{year}{2020}
-    \endentry
     \entry{Ivacko2024Edge}{article}{}{}
       \name{author}{3}{}{%
         {{hash=2b0339cf88e0422f57e7f362cfe34d0b}{%
@@ -672,51 +610,6 @@
       \range{pages}{5}
       \verb{doi}
       \verb 10.1145/3232829.3232840
-      \endverb
-    \endentry
-    \entry{Jiang2021RealTime}{article}{}{}
-      \name{author}{4}{}{%
-        {{hash=29956973336cd143d4b8945f962d214a}{%
-           family={Jiang},
-           familyi={J\bibinitperiod},
-           given={Zicong},
-           giveni={Z\bibinitperiod}}}%
-        {{hash=ba92ebf4017c713370f998acf186194b}{%
-           family={Zhao},
-           familyi={Z\bibinitperiod},
-           given={Liquan},
-           giveni={L\bibinitperiod}}}%
-        {{hash=106a0efb75aceaec1be1f303ff145adf}{%
-           family={Li},
-           familyi={L\bibinitperiod},
-           given={Shuaiyang},
-           giveni={S\bibinitperiod}}}%
-        {{hash=60b585688d1eefccfcfb82bf714e3bd2}{%
-           family={Jia},
-           familyi={J\bibinitperiod},
-           given={Yanfei},
-           giveni={Y\bibinitperiod}}}%
-      }
-      \strng{namehash}{252c9f307449fe93408be2f8cf05488c}
-      \strng{fullhash}{c26fc53c2d909d05bcbc457358b7dc09}
-      \strng{fullhashraw}{c26fc53c2d909d05bcbc457358b7dc09}
-      \strng{bibnamehash}{c26fc53c2d909d05bcbc457358b7dc09}
-      \strng{authorbibnamehash}{c26fc53c2d909d05bcbc457358b7dc09}
-      \strng{authornamehash}{252c9f307449fe93408be2f8cf05488c}
-      \strng{authorfullhash}{c26fc53c2d909d05bcbc457358b7dc09}
-      \strng{authorfullhashraw}{c26fc53c2d909d05bcbc457358b7dc09}
-      \field{sortinit}{J}
-      \field{sortinithash}{b2f54a9081ace9966a7cb9413811edb4}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{journaltitle}{IEEE Access}
-      \field{title}{Real-time object detection method for embedded devices}
-      \field{volume}{9}
-      \field{year}{2021}
-      \field{pages}{114940\bibrangedash 114951}
-      \range{pages}{12}
-      \verb{doi}
-      \verb 10.1109/ICCV.2019.00140
       \endverb
     \endentry
     \entry{Kalaitzakis2021Fiducial}{article}{}{}
@@ -1215,72 +1108,6 @@
       \verb 10.1016/j.patcog.2017.10.033
       \endverb
     \endentry
-    \entry{Oscadal2020Improved}{article}{}{}
-      \name{author}{8}{}{%
-        {{hash=bf02adb59a343d3aa4bed37a829bb046}{%
-           family={Ošcádal},
-           familyi={O\bibinitperiod},
-           given={Petr},
-           giveni={P\bibinitperiod}}}%
-        {{hash=4084daf810f2f7bc807fdc9859a41835}{%
-           family={Heczko},
-           familyi={H\bibinitperiod},
-           given={Dominik},
-           giveni={D\bibinitperiod}}}%
-        {{hash=274df3bbdb942c7bd78ca48ca7ef20c6}{%
-           family={Vysocký},
-           familyi={V\bibinitperiod},
-           given={Aleš},
-           giveni={A\bibinitperiod}}}%
-        {{hash=ca951843c5820095e44250d0536781c9}{%
-           family={Mlotek},
-           familyi={M\bibinitperiod},
-           given={Jakub},
-           giveni={J\bibinitperiod}}}%
-        {{hash=61e7711c7a8ca085ed5b1753971d8cb3}{%
-           family={Novák},
-           familyi={N\bibinitperiod},
-           given={Petr},
-           giveni={P\bibinitperiod}}}%
-        {{hash=1839739f54289a9eca15721f8a2b8ffb}{%
-           family={Virgala},
-           familyi={V\bibinitperiod},
-           given={Ivan},
-           giveni={I\bibinitperiod}}}%
-        {{hash=2ac4a90376f60eec4381e3e01fc8dda3}{%
-           family={Sukop},
-           familyi={S\bibinitperiod},
-           given={Marek},
-           giveni={M\bibinitperiod}}}%
-        {{hash=dee0771db2f2e1a90734944595eda6e1}{%
-           family={Bobovský},
-           familyi={B\bibinitperiod},
-           given={Zdenko},
-           giveni={Z\bibinitperiod}}}%
-      }
-      \strng{namehash}{f0ca25fd152607cf8d70ba843e7fd8bb}
-      \strng{fullhash}{a0a860e617fbced5df96c6bac29deb96}
-      \strng{fullhashraw}{a0a860e617fbced5df96c6bac29deb96}
-      \strng{bibnamehash}{f0ca25fd152607cf8d70ba843e7fd8bb}
-      \strng{authorbibnamehash}{f0ca25fd152607cf8d70ba843e7fd8bb}
-      \strng{authornamehash}{f0ca25fd152607cf8d70ba843e7fd8bb}
-      \strng{authorfullhash}{a0a860e617fbced5df96c6bac29deb96}
-      \strng{authorfullhashraw}{a0a860e617fbced5df96c6bac29deb96}
-      \field{sortinit}{O}
-      \field{sortinithash}{2cd7140a07aea5341f9e2771efe90aae}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{journaltitle}{Sensors}
-      \field{number}{17}
-      \field{title}{Improved Pose Estimation of Aruco Tags Using a Novel 3D Placement Strategy}
-      \field{volume}{20}
-      \field{year}{2020}
-      \field{pages}{4825}
-      \range{pages}{1}
-      \verb{doi}
-      \verb 10.3390/s20174825
-      \endverb
-    \endentry
     \entry{Pilkov2024Markerless}{thesis}{}{}
       \name{author}{1}{}{%
         {{hash=ba76b5da6ff30a76aca8b4b9e12c9841}{%
@@ -1462,58 +1289,6 @@
       \field{pages}{1\bibrangedash 8}
       \range{pages}{8}
     \endentry
-    \entry{Shabalina2018ARTag}{incollection}{}{}
-      \name{author}{5}{}{%
-        {{hash=b1e6fc96e14c7e7b7f2a821c27eb5e97}{%
-           family={Shabalina},
-           familyi={S\bibinitperiod},
-           given={Ksenia},
-           giveni={K\bibinitperiod}}}%
-        {{hash=5ced7dddd6aac2c6b284e78e123ad185}{%
-           family={Sagitov},
-           familyi={S\bibinitperiod},
-           given={Artur},
-           giveni={A\bibinitperiod}}}%
-        {{hash=840b4c7240e6fbb3d7395fec5a734d84}{%
-           family={Sabirova},
-           familyi={S\bibinitperiod},
-           given={Leysan},
-           giveni={L\bibinitperiod}}}%
-        {{hash=4779c99b185eff51aa2b2ec5dbf5ad2b}{%
-           family={Li},
-           familyi={L\bibinitperiod},
-           given={Hongbing},
-           giveni={H\bibinitperiod}}}%
-        {{hash=0ebe0a3cb3f02f253bd16d7f85771174}{%
-           family={Magid},
-           familyi={M\bibinitperiod},
-           given={Evgeni},
-           giveni={E\bibinitperiod}}}%
-      }
-      \list{publisher}{1}{%
-        {Springer}%
-      }
-      \strng{namehash}{b30b67c631f6bf5bc0827281a4a1f2df}
-      \strng{fullhash}{541833b9c9897acb384395a7020ab498}
-      \strng{fullhashraw}{541833b9c9897acb384395a7020ab498}
-      \strng{bibnamehash}{541833b9c9897acb384395a7020ab498}
-      \strng{authorbibnamehash}{541833b9c9897acb384395a7020ab498}
-      \strng{authornamehash}{b30b67c631f6bf5bc0827281a4a1f2df}
-      \strng{authorfullhash}{541833b9c9897acb384395a7020ab498}
-      \strng{authorfullhashraw}{541833b9c9897acb384395a7020ab498}
-      \field{sortinit}{S}
-      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{booktitle}{Swarm Intelligence and Evolutionary Computation}
-      \field{title}{ARTag, AprilTag and CALTag Fiducial Systems Comparison in a Presence of Partial Rotation: Manual and Automated Approaches}
-      \field{year}{2018}
-      \field{pages}{191\bibrangedash 203}
-      \range{pages}{13}
-      \verb{doi}
-      \verb 10.1007/978-3-319-93818-9_16
-      \endverb
-    \endentry
     \entry{Simao2016Unsupervised}{article}{}{}
       \name{author}{3}{}{%
         {{hash=10aca76212427e3fbe248d9ab31498d5}{%
@@ -1678,35 +1453,6 @@
       \verb{doi}
       \verb 10.1109/TRO.2009.2032954
       \endverb
-    \endentry
-    \entry{Tariq2025Small}{article}{}{}
-      \name{author}{2}{}{%
-        {{hash=cf5ca3fdc415b42970bb19919d5a787a}{%
-           family={Tariq},
-           familyi={T\bibinitperiod},
-           given={Muhammad\bibnamedelima Fasih},
-           giveni={M\bibinitperiod\bibinitdelim F\bibinitperiod}}}%
-        {{hash=34149c86eeeeee11df5c383e3b99b74b}{%
-           family={Javed},
-           familyi={J\bibinitperiod},
-           given={Muhammad\bibnamedelima Azeem},
-           giveni={M\bibinitperiod\bibinitdelim A\bibinitperiod}}}%
-      }
-      \strng{namehash}{de330cd216c9eb3cff563362f4981ba2}
-      \strng{fullhash}{de330cd216c9eb3cff563362f4981ba2}
-      \strng{fullhashraw}{de330cd216c9eb3cff563362f4981ba2}
-      \strng{bibnamehash}{de330cd216c9eb3cff563362f4981ba2}
-      \strng{authorbibnamehash}{de330cd216c9eb3cff563362f4981ba2}
-      \strng{authornamehash}{de330cd216c9eb3cff563362f4981ba2}
-      \strng{authorfullhash}{de330cd216c9eb3cff563362f4981ba2}
-      \strng{authorfullhashraw}{de330cd216c9eb3cff563362f4981ba2}
-      \field{sortinit}{T}
-      \field{sortinithash}{9af77f0292593c26bde9a56e688eaee9}
-      \field{labelnamesource}{author}
-      \field{labeltitlesource}{title}
-      \field{journaltitle}{arXiv preprint arXiv:2504.09900}
-      \field{title}{Small Object Detection with YOLO: A Performance Analysis Across Model Versions and Hardware}
-      \field{year}{2025}
     \endentry
     \entry{Thomas2013Camera}{report}{}{}
       \name{author}{1}{}{%

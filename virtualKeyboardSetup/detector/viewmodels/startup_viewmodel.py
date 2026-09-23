@@ -38,7 +38,7 @@ class StartupViewModel(QObject):
     # ── Public API ─────────────────────────────────────────────────────────────
 
     def discover_models(self) -> list[ModelEntry]:
-        """Run model discovery (idempotent — skips if already done)."""
+        """Run model discovery (idempotent, skips if already done)."""
         if not self._discovered:
             self._discover_svc.discover()
             self._discovered = True

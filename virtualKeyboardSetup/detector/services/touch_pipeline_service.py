@@ -3,21 +3,25 @@ services/touch_pipeline_service.py
 
 Touch Pipeline Service & Temporal Queue Manager.
 
-Architecture & Responsibilities:
-─────────────────────────────────
+Architecture & Responsibilities (SOLID & KISS):
+─────────────────────────────────────────────────
 1. 12 FPS Ingestion & Timestamp Synchronization:
    - Receives raw landmark stream and regulates temporal ingestion.
 2. 5 Dedicated Per-Finger Queues:
    - Maintains 5 separate deques (maxlen=5) for: Thumb, Index, Middle, Ring, Pinky.
    - Preserves continuous spatial-temporal history per finger.
 3. Hand State & Identity Tracking:
-   - If no hand detected: immediately purges all 5 queues and enters idle/standby state.
-   - If hand identity/handedness switches (e.g., Left -> Right): clears all queues and continues.
+   - If no hand detected: purges all 5 queues and enters idle/standby state.
+   - If hand identity/handedness switches: clears all queues.
 4. Window Completion & Stride Control:
-   - Only triggers model inference when all 5 queues are filled to capacity (len == 5).
-5. Batched 5-Finger Parallel Inference:
-   - Dispatches the 5-finger temporal window to the active neural network simultaneously
-     via batched tensor processing.
+   - Triggers model inference when all 5 queues are filled (len == 5) and stride reached.
+5. Process.sh Filtration Replication:
+   - Step 7: HandMovementFilter (transit displacement <= 0.155)
+   - Step 8: compute_window_velocities (4 velocity steps + speeds)
+   - Step 9: KineticMotionFilter (zero-velocity touch suppression >= 0.008)
+   - Step 10: WindowQualityFilter (avg score >= 0.65, min score >= 0.45, drop <= 0.35)
+6. Dual-Threshold Hysteresis Debouncing:
+   - Evaluates touch onset (>= 0.50) vs touch release (< 0.40).
 """
 
 from __future__ import annotations
@@ -25,10 +29,25 @@ from __future__ import annotations
 from collections import deque
 from typing import Any
 
-import numpy as np
-
-from config.constants import FINGERS, SHIFT_SIZE, WINDOW_SIZE
+from config.constants import (
+    FINGERS,
+    HAND_MOVEMENT_THRESHOLD,
+    MIN_KINETIC_SPEED_THRESHOLD,
+    QUALITY_MAX_SCORE_DROP,
+    QUALITY_MIN_AVG_SCORE,
+    QUALITY_MIN_FRAME_SCORE,
+    SHIFT_SIZE,
+    TOUCH_ONSET_THRESHOLD,
+    TOUCH_RELEASE_THRESHOLD,
+    WINDOW_SIZE,
+)
 from core.interfaces.touch_model import ITouchModel
+from core.pipeline.feature_extractor import compute_window_velocities
+from core.pipeline.filters import (
+    HandMovementFilter,
+    KineticMotionFilter,
+    WindowQualityFilter,
+)
 from core.pipeline.normalizer import HandScaleNormalizer
 from utils.logger import setup_logger
 
@@ -38,28 +57,57 @@ logger = setup_logger("TouchPipelineService")
 class TouchPipelineService:
     """Service layer managing per-finger temporal sliding queues and parallel model inference."""
 
-    def __init__(self, window_size: int = WINDOW_SIZE, shift_size: int = SHIFT_SIZE) -> None:
+    def __init__(
+        self,
+        window_size: int = WINDOW_SIZE,
+        shift_size: int = SHIFT_SIZE,
+        hand_movement_threshold: float = HAND_MOVEMENT_THRESHOLD,
+        quality_min_avg_score: float = QUALITY_MIN_AVG_SCORE,
+        quality_min_frame_score: float = QUALITY_MIN_FRAME_SCORE,
+        quality_max_score_drop: float = QUALITY_MAX_SCORE_DROP,
+        min_kinetic_speed: float = MIN_KINETIC_SPEED_THRESHOLD,
+        touch_onset_threshold: float = TOUCH_ONSET_THRESHOLD,
+        touch_release_threshold: float = TOUCH_RELEASE_THRESHOLD,
+    ) -> None:
         self._window_size = window_size
         self._shift_size = shift_size
         self._normalizer = HandScaleNormalizer()
 
+        # Modular filters replicating process.sh
+        self._hand_movement_filter = HandMovementFilter(threshold=hand_movement_threshold)
+        self._window_quality_filter = WindowQualityFilter(
+            min_avg_score=quality_min_avg_score,
+            min_frame_score=quality_min_frame_score,
+            max_score_drop=quality_max_score_drop,
+        )
+        self._kinetic_motion_filter = KineticMotionFilter(threshold=min_kinetic_speed)
+
+        # Debouncing thresholds
+        self._t_on = touch_onset_threshold
+        self._t_off = touch_release_threshold
+
         # 5 separate queues for each finger
-        self._finger_queues: dict[str, deque[dict[str, float]]] = {
+        self._finger_queues: dict[str, deque[dict[str, Any]]] = {
             f: deque(maxlen=self._window_size) for f in FINGERS
         }
         # Corresponding pixel history queue for touch coordinate resolution
         self._pixel_queue: deque[list[tuple[float, float]]] = deque(maxlen=self._window_size)
 
+        # Per-finger touch state tracker for hysteresis debouncing
+        self._finger_touch_state: dict[str, bool] = {f: False for f in FINGERS}
+
         self._shift_counter = 0
         self._last_hand_label: str | None = None
         self._hand_detected = False
+        self._last_status = "IDLE"
 
     # ── Queue State Management ─────────────────────────────────────────────────
 
     def clear_queues(self) -> None:
-        """Clear all 5 finger queues and coordinate history."""
+        """Clear all 5 finger queues, coordinate history, and debounced touch states."""
         for f in FINGERS:
             self._finger_queues[f].clear()
+            self._finger_touch_state[f] = False
         self._pixel_queue.clear()
         self._shift_counter = 0
 
@@ -68,16 +116,22 @@ class TouchPipelineService:
         self.clear_queues()
         self._last_hand_label = None
         self._hand_detected = False
+        self._last_status = "IDLE"
 
     @property
     def is_queue_full(self) -> bool:
-        """Returns True if all 5 finger queues are filled to 5 frames."""
+        """Returns True if all 5 finger queues are filled to window_size frames."""
         return all(len(q) == self._window_size for q in self._finger_queues.values())
 
     @property
     def queue_lengths(self) -> dict[str, int]:
         """Returns the current element count in each finger queue."""
         return {f: len(q) for f, q in self._finger_queues.items()}
+
+    @property
+    def last_status(self) -> str:
+        """Diagnostic description of last processed window."""
+        return self._last_status
 
     # ── Frame Processing & Ingestion ───────────────────────────────────────────
 
@@ -87,7 +141,8 @@ class TouchPipelineService:
         hand_label: str | None,
         frame_w: int,
         frame_h: int,
-    ) -> tuple[bool, list[dict[str, float]] | None, list[list[tuple[float, float]]] | None]:
+        hand_score: float = 0.85,
+    ) -> tuple[bool, list[dict[str, Any]] | None, list[list[tuple[float, float]]] | None]:
         """
         Process a single 12 FPS frame from MediaPipe.
 
@@ -96,12 +151,16 @@ class TouchPipelineService:
             If window_ready is True, both windows contain 5 frames of history.
         """
         if not raw_landmarks or len(raw_landmarks) == 0:
-            # No hand detected: clear queues and stay/idle
             if self._hand_detected or any(len(q) > 0 for q in self._finger_queues.values()):
                 self.clear_queues()
             self._hand_detected = False
+            self._last_status = "NO_HAND"
             return False, None, None
 
+        # Reset queues if hand identity / handedness changes
+        if self._last_hand_label is not None and hand_label is not None and self._last_hand_label != hand_label:
+            self.clear_queues()
+        self._last_hand_label = hand_label
         self._hand_detected = True
 
         # Extract pixel coordinates
@@ -112,9 +171,11 @@ class TouchPipelineService:
 
         # Unitless scale normalization relative to L_hand
         norm_pts = self._normalizer.normalize(pts_pixel, center_wrist=True)
-        norm_dict = self._normalizer.build_norm_dict(norm_pts)
+        # Build normalized dict with stationary anchors attached for transit displacement filtering
+        norm_dict = self._normalizer.build_norm_dict(norm_pts, pts_px=pts_pixel)
+        norm_dict["_hand_score"] = float(hand_score)
 
-        # 2D pixel coordinates for touch resolution
+        # 2D pixel coordinates for touch coordinate resolution
         pixel_list: list[tuple[float, float]] = [(px, py) for px, py, _ in pts_pixel]
 
         # Ingest into the 5 separate finger queues
@@ -124,35 +185,83 @@ class TouchPipelineService:
         self._pixel_queue.append(pixel_list)
         self._shift_counter += 1
 
-        # Only trigger when all 5 queues are filled to 5 frames AND 2 shifts have occurred
+        # Trigger when all 5 queues are filled to window_size AND stride shifts have occurred
         if self.is_queue_full and self._shift_counter >= self._shift_size:
             self._shift_counter = 0
-            # Retrieve 5-frame window from queues
             norm_window_5 = list(self._finger_queues["Thumb"])
             pixel_window_5 = list(self._pixel_queue)
             return True, norm_window_5, pixel_window_5
 
         return False, None, None
 
-        return False, None, None
-
-    # ── Parallel Model Inference ───────────────────────────────────────────────
+    # ── Parallel Model Inference with Filtration Pipeline ───────────────────────
 
     def run_parallel_inference(
         self,
         model: ITouchModel | None,
-        norm_window_5: list[dict[str, float]],
+        norm_window_5: list[dict[str, Any]],
     ) -> dict[str, float]:
         """
-        Runs batched inference across all 5 finger channels in parallel.
-        Returns a probability dictionary: {"Thumb": p1, "Index": p2, "Middle": p3, "Ring": p4, "Pinky": p5}.
+        Executes complete production filtration pipeline and model inference:
+        1. Validates whole-hand transit movement (Step 7: displacement <= 0.155 L_hand).
+        2. Validates window confidence and quality (Step 10: avg >= 0.65, min >= 0.45, drop <= 0.35).
+        3. Computes 4 velocity steps across 5 frames (Step 8).
+        4. Runs active touch model inference forward-pass.
+        5. Validates finger kinetic motion (Step 9: zero-velocity filter >= 0.008).
+        6. Applies dual-threshold debouncing hysteresis (onset >= 0.50, release < 0.40).
+
+        Returns:
+            {"Thumb": p1, "Index": p2, "Middle": p3, "Ring": p4, "Pinky": p5}
         """
         if model is None or len(norm_window_5) < self._window_size:
             return {f: 0.0 for f in FINGERS}
 
+        # Step 7 Filtration: Whole-hand transit movement displacement filter
+        is_stationary, max_disp, hm_reason = self._hand_movement_filter.validate(norm_window_5)
+        if not is_stationary:
+            for f in FINGERS:
+                self._finger_touch_state[f] = False
+            self._last_status = hm_reason
+            return {f: 0.0 for f in FINGERS}
+
+        # Step 10 Filtration: Window tracking confidence quality checks
+        scores_5 = [float(f.get("_hand_score", 0.85)) for f in norm_window_5]
+        is_valid_quality, q_reason = self._window_quality_filter.validate(scores_5)
+        if not is_valid_quality:
+            for f in FINGERS:
+                self._finger_touch_state[f] = False
+            self._last_status = q_reason
+            return {f: 0.0 for f in FINGERS}
+
+        # Step 8: Compute 4 velocity steps from normalized 5 frames
+        v_steps_4 = compute_window_velocities(norm_window_5)
+
+        # Step 5: Execute active PyTorch neural network model prediction
         try:
-            probs = model.predict(norm_window_5)
-            return {f: float(probs.get(f, 0.0)) for f in FINGERS}
+            raw_probs = model.predict(norm_window_5)
         except Exception as exc:
             logger.error("Parallel model inference failed: %s", exc)
+            self._last_status = f"Model Error: {exc}"
             return {f: 0.0 for f in FINGERS}
+
+        # Step 9 Filtration + Dual-Threshold Hysteresis Debouncing
+        debounced_probs: dict[str, float] = {}
+        for f in FINGERS:
+            p = float(raw_probs.get(f, 0.0))
+
+            # Step 9: Zero-velocity touch suppression
+            has_kinetic_motion = self._kinetic_motion_filter.validate(v_steps_4, f)
+
+            was_touch = self._finger_touch_state.get(f, False)
+            if was_touch:
+                # Retain active touch until probability falls below release cutoff
+                is_touch = bool(p >= self._t_off)
+            else:
+                # Trigger new touch only if probability exceeds onset cutoff AND has kinetic motion
+                is_touch = bool(p >= self._t_on and has_kinetic_motion)
+
+            self._finger_touch_state[f] = is_touch
+            debounced_probs[f] = p if is_touch else (p if p < self._t_off else 0.0)
+
+        self._last_status = "OK"
+        return debounced_probs

@@ -1,7 +1,7 @@
 """
-main.py — Virtual Keyboard Detector
+main.py: Virtual Keyboard Detector
 
-Entry point.  Bootstraps the Qt application, loads config, and launches the
+Entry point. Bootstraps the Qt application, loads config, and launches the
 main FluentWindow shell.
 
 Usage
@@ -53,7 +53,7 @@ def main() -> None:
     env_path = Path(__file__).resolve().parent / ".env"
     config = AppConfig(env_path)
 
-    # Force dark theme — matches the designer
+    # Force dark theme, matches the designer
     setTheme(Theme.DARK)
 
     window = MainWindow(config)

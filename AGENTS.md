@@ -23,8 +23,10 @@
 > - **12 FPS Pipeline Standard:** The 12 FPS sub-sampling rate gives enough temporal detail to detect touch deceleration while keeping CPU usage low, ensuring near real-time performance on standard CPUs.
 > - **Scale Normalization & Direct Feature Propagation (DO NOT Mention 1€ Filter):** Hand landmark coordinates are scale-normalized relative to unitless hand length ($L_{\text{hand}}$) and sent directly to the neural network without temporal smoothing. **DO NOT mention the 1€ (One Euro) filter anywhere in the thesis**, because it was never used in this system.
 > - **Strict Prohibition on Thesis-Tooling / Meta-Tools in Thesis Text:** The thesis text MUST focus 100% on the virtual keyboard research project, algorithms, software libraries, and experimental setups. **NEVER mention thesis writing/compilation tools (such as TeX Live, pdflatex, latexmk, biber), humanizer utilities (`./humanizer`, `client.py`), PDF conversion utilities (`./converter`), or AI meta-tooling anywhere in the thesis chapters** (including Software Requirements, System Architecture, Scope, or Methodology). These utilities are used by the author to build the dissertation document, but are NOT part of the virtual keyboard research artifact.
+> - **Strict Thesis Word Count Limit (10,000 to 13,000 Words Only):** The complete thesis document must strictly fall within the word limit of **10,000 to 13,000 words** total (excluding preliminary pages, references, and appendices). When drafting and budgeting sections and chapters, always stay strictly within this target boundary.
 > - **IEEE Citation Style:** All thesis chapters **MUST strictly use IEEE citation style** (`style=ieee` via BibLaTeX/biber).
 > - **Mandatory Build Execution & Output Directory Rule:** Whenever any thesis chapter or file is updated, ALWAYS immediately compile/build the document using `latexmk -pdf -outdir=out main.tex` (or `pdflatex -output-directory=out main.tex`). ALL generated build outputs, compiled PDFs, auxiliary files, and created artifacts MUST be output to/stored in the `out/` directory (`out/main.pdf`) and NEVER placed elsewhere.
+> - **Faculty Research Methodology Guidelines (`research-db/research_methodology_guide.md`):** ALWAYS read and strictly align with `research-db/research_methodology_guide.md` (synthesized from all lecture slides in `./lectureSlides`) before updating or reviewing thesis chapters. It defines faculty evaluation expectations regarding the IRCA problem statement framework, SMART/Bloom's taxonomy objectives, Saunders' Research Onion, PRISMA 2020 literature review standards, IEEE referencing, empirical validity/reliability, and quantitative analysis reporting.
 > - **Thesis Assumption Context:** The major components (`designer/`, `mediapipeDetector/`, `aprilTag/`) have been developed and tested separately, proving complete technical feasibility. **When writing thesis chapters, assume the entire assembled system (App 1 Designer + App 2 Runtime Engine) is fully created and operational as specified in Section 6 of this document.**
 
 ---
@@ -139,7 +141,8 @@ Below is the layout of the project workspace:
 | [`aprilTag/`](file:///home/lahirukasunidilhara/Documents/university/research/aprilTag)                                                | Calibration and tracking scripts for AprilTag fiducial markers to compute $3 \times 3$ Homography matrix ($H$).                                                                                                                                                                | **Active Marker System**                         |
 | [`opencvAruco/`](file:///home/lahirukasunidilhara/Documents/university/research/opencvAruco)                                          | Legacy ArUco marker testing scripts used during marker evaluation.                                                                                                                                                                                                             | Legacy                                           |
 | [`humanizer/`](file:///home/lahirukasunidilhara/Documents/university/research/humanizer)                                              | Specialized text humanizer tool (`client.py`) to convert drafted thesis text into natural human writing.                                                                                                       | **Writing / Humanizing Tool**                     |
-| [`sources/chapter-breakdown.md`](file:///home/lahirukasunidilhara/Documents/university/research/sources/chapter-breakdown.md)        | Detailed thesis chapter breakdown & section outline to follow when writing thesis chapters.                                                                                                                                                                                     | Active thesis guideline                          |
+| [`sources/thesis_guideline.pdf`](file:///home/lahirukasunidilhara/Documents/university/research/sources/thesis_guideline.pdf)        | Official University Thesis Preparation and Formatting Guidelines document (PDF format). All formatting, structure, margins, font sizes, pagination, and layout rules must strictly follow this. | **Core Formatting & Structure Guideline**       |
+| [`sources/thesis_guideline.txt`](file:///home/lahirukasunidilhara/Documents/university/research/sources/thesis_guideline.txt)        | Plain-text conversion of `thesis_guideline.pdf` for convenient inspection of all formatting, structural order, heading styles, and pagination specifications. | **Guideline Text Reference**                     |
 | [`sources/old_breakdown_of_chapter1_chapter2_chapter3.pdf`](file:///home/lahirukasunidilhara/Documents/university/research/sources/old_breakdown_of_chapter1_chapter2_chapter3.pdf) | Previous draft breakdown for Chapters 1, 2, and 3. Used for reference/context only (internal mechanisms updated; **do not cite**).                                                                                                                                           | Contextual draft reference                       |
 | [`pdf-sources/`](file:///home/lahirukasunidilhara/Documents/university/research/pdf-sources)                                          | Repository storing PDF research papers and literature references.                                                                                                                                                                                                              | Paper storage                                    |
 | [`research-db/`](file:///home/lahirukasunidilhara/Documents/university/research/research-db)                                          | Literature analysis database containing [`summary-matrix.md`](file:///home/lahirukasunidilhara/Documents/university/research/research-db/summary-matrix.md) and [`references.bib`](file:///home/lahirukasunidilhara/Documents/university/research/research-db/references.bib). | Thesis reference hub                             |
@@ -168,8 +171,42 @@ When instructed to draft, research, or revise thesis chapters:
    - The thesis **MUST be written entirely in LaTeX (`.tex`) format**.
    - Save individual LaTeX chapter files (`.tex`) in [`chapters/`](file:///home/lahirukasunidilhara/Documents/university/research/chapters).
    - Ensure every chapter file is included in the root LaTeX document [`main.tex`](file:///home/lahirukasunidilhara/Documents/university/research/main.tex).
-5. **Follow Chapter Breakdown Outline**:
-   - Always follow the detailed section breakdown and outline defined in [`sources/chapter-breakdown.md`](file:///home/lahirukasunidilhara/Documents/university/research/sources/chapter-breakdown.md) for chapter structure and section numbering.
+5. **Strict Thesis Preparation & Formatting Guidelines ([`sources/thesis_guideline.pdf`](file:///home/lahirukasunidilhara/Documents/university/research/sources/thesis_guideline.pdf) / [`sources/thesis_guideline.txt`](file:///home/lahirukasunidilhara/Documents/university/research/sources/thesis_guideline.txt))**:
+   - **Supervisory Guidance & Flexibility on Sub-topics:** The main chapter titles and high-level structural sequence specified in the university thesis guidelines are strictly respected, while internal section titles, sub-headings, and subsections are flexible guidance rather than rigid compulsory titles. Adapt internal subtitles to fit the technical and experimental specifics of this virtual keyboard research.
+   - **Thesis Structural Order:**
+     1. Title page (Cover & Inner Title Page)
+     2. Declaration of the Candidate (page number ii at bottom center)
+     3. Acknowledgement
+     4. Abstract (200-300 words)
+     5. Table of Contents
+     6. List of Figures
+     7. List of Tables
+     8. List of Abbreviations (alphabetical order)
+     9. Chapter 1: Introduction (Arabic numeral 1 starts here)
+     10. Chapter 2: Objectives (General and specific objectives)
+     11. Chapter 3: Literature Review
+     12. Chapter 4: Methodology
+     13. Chapter 5: Results
+     14. Chapter 6: Discussion and Conclusions
+     15. References (IEEE style)
+     16. Appendices
+   - **Word Count Limit:** Strictly **10,000 to 13,000 words** total for the core thesis body (excluding preliminary pages, references, and appendices). All chapter budgeting and writing must respect this target boundary.
+   - **Page Setup & Margins:** Standard A4 size. Uniform margins: Left = 1" (or 1 1/4" for binding allowance), Right = 1", Top = 1", Bottom = 1" (with allowance for page numbers).
+   - **Font & Spacing:** Times New Roman, 12 pt, single column, 1.5 line spacing applied throughout.
+   - **Pagination:**
+     - Lower-case Roman numerals (`ii`, `iii`, `iv`, ...) starting at the Inner Title page (counts as `i`, but number does not appear; first visible number is `ii` on Declaration) through List of Abbreviations.
+     - Arabic numerals (`1`, `2`, `3`, ...) starting at Introduction (page 1) continuously through text, figures, tables, references, and appendices.
+     - Bottom center placement on every page.
+     - No running headers or footers aside from page numbers.
+   - **Heading Styles & Numbering Hierarchy (Arabic numerals up to 3 decimals):**
+     - First Numeral: Bold Capital, Font 12 (e.g., `1 INTRODUCTION`)
+     - First Numeral with 1 decimal: Bold Simple, Font 12 (e.g., `1.1 Justification`)
+     - First Numeral with 2 decimals: Simple, Font 12, only first letter capitalized (e.g., `1.2.1 General objective`)
+     - First Numeral with 3 decimals: Simple, Font 12, only first letter capitalized (e.g., `2.3.1.1 Factor affecting...`)
+   - **Table Headings & Figure Captions:**
+     - Table captions: Font 12, placed **above** the table (e.g., `Table 2.1: Table Caption`). Avoid shading in table cells.
+     - Figure captions: Font 12, placed **below** the figure (e.g., `Figure 1.2: Figure Caption`).
+     - Numbering: First digit represents main chapter/section, second digit denotes sequential item.
 6. **Contextual Reference for Early Chapters**:
    - When drafting Chapters 1, 2, and 3, refer to [`sources/old_breakdown_of_chapter1_chapter2_chapter3.pdf`](file:///home/lahirukasunidilhara/Documents/university/research/sources/old_breakdown_of_chapter1_chapter2_chapter3.pdf) to inspect previous writing and contextual background.
    - *Note:* Internal system mechanisms have evolved since that document was written, so prioritize the current pipeline architecture outlined in Section 1 of this document.

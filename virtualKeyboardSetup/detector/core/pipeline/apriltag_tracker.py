@@ -59,7 +59,7 @@ class AprilTagTracker:
         # Build id → MarkerData lookup once
         self._marker_lookup = layout.marker_by_id
         logger.info(
-            "AprilTagTracker ready — %d markers in layout, family=%s",
+            "AprilTagTracker ready, %d markers in layout, family=%s",
             len(layout.markers),
             APRILTAG_FAMILY,
         )

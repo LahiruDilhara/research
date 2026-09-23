@@ -1,7 +1,7 @@
 """
 ui/views/camera_select_view.py
 
-Camera selection view — shows detected cameras as clickable cards.
+Camera selection view, shows detected cameras as clickable cards.
 User picks one, then clicks Start.
 """
 

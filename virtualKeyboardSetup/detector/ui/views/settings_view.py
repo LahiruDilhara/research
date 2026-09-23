@@ -1,7 +1,7 @@
 """
 ui/views/settings_view.py
 
-Simple settings view — FPS override, touch threshold, model plugin directory.
+Simple settings view: FPS override, touch threshold, model plugin directory.
 Changes write to the .env file and take effect on next pipeline start.
 """
 
@@ -63,10 +63,10 @@ class SettingsView(QWidget):
         ))
 
         root.addWidget(self._make_card(
-            "Plugin Directory",
+            "AI Model Plugins Directory",
             [
-                ("Plugins Dir", "Relative path to the model plugins directory",
-                 self._make_line_edit("plugins", "plugins_dir_edit")),
+                ("AI Model Plugins Dir", "Relative path to the AI model plugins directory",
+                 self._make_line_edit("ai_model_plugins", "plugins_dir_edit")),
             ]
         ))
 
@@ -131,13 +131,8 @@ class SettingsView(QWidget):
     def _on_save(self) -> None:
         fps_val = self.target_fps_spin.value()
         thresh_val = self.touch_threshold_spin.value()
-        plugins_val = self.plugins_dir_edit.text().strip() or "plugins"
+        plugins_val = self.plugins_dir_edit.text().strip() or "ai_model_plugins"
 
-        env_content = (
-            f"TARGET_FPS={fps_val}\n"
-            f"TOUCH_THRESHOLD={thresh_val}\n"
-            f"PLUGINS_DIR={plugins_val}\n"
-        )
         try:
             existing: dict[str, str] = {}
             if self._env_path.exists():
@@ -147,6 +142,7 @@ class SettingsView(QWidget):
                         existing[k.strip()] = v.strip()
             existing["TARGET_FPS"] = str(fps_val)
             existing["TOUCH_THRESHOLD"] = str(thresh_val)
+            existing["AI_MODEL_PLUGINS_DIR"] = plugins_val
             existing["PLUGINS_DIR"] = plugins_val
 
             lines = [f"{k}={v}" for k, v in existing.items()]

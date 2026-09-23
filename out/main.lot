@@ -1,0 +1,21 @@
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {1.1}{\ignorespaces System Project Scope Boundaries (In-Scope vs. Out-of-Scope)}}{9}{table.caption.6}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {3.1}{\ignorespaces Comparative analysis of existing virtual keyboard frameworks and sensing methodologies.}}{21}{table.caption.8}%
+\contentsline {table}{\numberline {3.2}{\ignorespaces System architecture design trade-offs across sensing modalities.}}{24}{table.caption.10}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {5.1}{\ignorespaces Structured functional test cases and validation results.}}{39}{table.caption.13}%
+\contentsline {table}{\numberline {5.2}{\ignorespaces Structured non-functional test cases and empirical validation results.}}{40}{table.caption.14}%
+\contentsline {table}{\numberline {5.3}{\ignorespaces Comparative performance evaluation of deep learning model architecture combinations.}}{42}{table.caption.16}%
+\contentsline {table}{\numberline {5.4}{\ignorespaces Per-digit touch classification performance metrics.}}{42}{table.caption.18}%
+\contentsline {table}{\numberline {5.5}{\ignorespaces Ablation evaluation of MediaPipe landmark subsets and kinematic feature representations.}}{44}{table.caption.22}%
+\contentsline {table}{\numberline {5.6}{\ignorespaces Sensitivity analysis of temporal window length ($W$) and stride ($S$).}}{45}{table.caption.24}%
+\contentsline {table}{\numberline {5.7}{\ignorespaces Ablation evaluation of feature normalization across camera distances and hand sizes.}}{45}{table.caption.25}%
+\contentsline {table}{\numberline {5.8}{\ignorespaces Empirical benchmark of CPU-only execution and resolution invariance at 12~FPS standard.}}{46}{table.caption.26}%
+\contentsline {table}{\numberline {5.9}{\ignorespaces AprilTag homography tracking accuracy under perspective camera tilt angles.}}{47}{table.caption.27}%
+\contentsline {table}{\numberline {5.10}{\ignorespaces Detailed execution latency breakdown per frame processing cycle.}}{48}{table.caption.29}%
+\contentsline {table}{\numberline {5.11}{\ignorespaces User typing performance benchmark comparing input device modalities.}}{48}{table.caption.31}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {6.1}{\ignorespaces Research objective accomplishment and triangulation matrix.}}{53}{table.caption.32}%

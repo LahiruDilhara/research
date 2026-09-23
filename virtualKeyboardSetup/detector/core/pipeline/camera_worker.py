@@ -242,7 +242,10 @@ class CameraWorker(QThread):
         )
 
         # 5. Service Layer Pipeline (Manages 5 dedicated finger queues and hand identity)
-        pipeline_service = TouchPipelineService(window_size=WINDOW_SIZE, shift_size=SHIFT_SIZE)
+        pipeline_service = TouchPipelineService(
+            window_size=self._config.window_size,
+            shift_size=self._config.shift_size,
+        )
 
         frame_interval = 1.0 / TARGET_FPS
         last_capture_t = time.perf_counter()
@@ -294,11 +297,11 @@ class CameraWorker(QThread):
                 )
 
                 raw_lm = result.hand_landmarks[0] if hand_detected else None
-                hand_label = (
-                    result.handedness[0][0].category_name
-                    if (result and result.handedness and len(result.handedness) > 0 and len(result.handedness[0]) > 0)
-                    else None
+                has_handedness = bool(
+                    result and result.handedness and len(result.handedness) > 0 and len(result.handedness[0]) > 0
                 )
+                hand_label = result.handedness[0][0].category_name if has_handedness else None
+                hand_score = float(result.handedness[0][0].score) if has_handedness else 0.85
 
                 # ── Service Layer Queue & Hand Ingestion ───────────────────
                 win_ready, norm_window, pixel_window = pipeline_service.process_frame(
@@ -306,6 +309,7 @@ class CameraWorker(QThread):
                     hand_label=hand_label,
                     frame_w=frame_w,
                     frame_h=frame_h,
+                    hand_score=hand_score,
                 )
 
                 if hand_detected and raw_lm:

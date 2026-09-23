@@ -1,7 +1,7 @@
 """
 utils/logger.py
 
-Shared structured logger factory — mirrors the pattern used by the designer app.
+Shared structured logger factory, mirroring the pattern used by the designer app.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ def setup_logger(name: str, level: int = logging.DEBUG) -> logging.Logger:
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(level)
     fmt = logging.Formatter(
-        "[%(asctime)s] %(levelname)-8s %(name)s — %(message)s",
+        "[%(asctime)s] %(levelname)-8s %(name)s: %(message)s",
         datefmt="%H:%M:%S",
     )
     handler.setFormatter(fmt)

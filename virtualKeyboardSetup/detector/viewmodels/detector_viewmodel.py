@@ -64,7 +64,17 @@ class DetectorViewModel(QObject):
         self._current_H: np.ndarray | None = None
         self._layout_found = False
 
-        self._pipeline_service = TouchPipelineService()
+        self._pipeline_service = TouchPipelineService(
+            window_size=config.window_size,
+            shift_size=config.shift_size,
+            hand_movement_threshold=config.hand_movement_threshold,
+            quality_min_avg_score=config.quality_min_avg_score,
+            quality_min_frame_score=config.quality_min_frame_score,
+            quality_max_score_drop=config.quality_max_score_drop,
+            min_kinetic_speed=config.min_kinetic_speed,
+            touch_onset_threshold=config.touch_onset_threshold,
+            touch_release_threshold=config.touch_release_threshold,
+        )
         self._resolver = TouchResolver(layout)
         self._executor = ActionExecutor()
         self._worker: CameraWorker | None = None
@@ -100,7 +110,7 @@ class DetectorViewModel(QObject):
     def set_model(self, entry: ModelEntry) -> None:
         """
         Instantiate and load the given model entry as the active model.
-        Can be called while the camera is running — the swap is atomic
+        Can be called while the camera is running, since the swap is atomic
         at the Python object level (GIL).
         """
         if not entry.weights_path:

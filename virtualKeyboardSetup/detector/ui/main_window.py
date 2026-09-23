@@ -42,7 +42,7 @@ logger = setup_logger("MainWindow")
 
 
 class MainWindow(FluentWindow):
-    """Application shell — dark FluentWindow with internal stacked view routing."""
+    """Application shell, dark FluentWindow with internal stacked view routing."""
 
     def __init__(self, config: AppConfig) -> None:
         super().__init__()

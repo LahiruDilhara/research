@@ -49,7 +49,11 @@ _SCALER_DATA: dict[str, np.ndarray] | None = None
 def _load_scalers() -> dict[str, np.ndarray]:
     global _SCALER_DATA
     if _SCALER_DATA is None:
-        scaler_file = Path(__file__).resolve().parent.parent.parent / "plugins" / "scalers.npz"
+        base_dir = Path(__file__).resolve().parent.parent.parent
+        scaler_file = base_dir / "ai_model_plugins" / "scalers.npz"
+        if not scaler_file.exists():
+            scaler_file = base_dir / "plugins" / "scalers.npz"
+
         if scaler_file.exists():
             _SCALER_DATA = dict(np.load(scaler_file))
         else:

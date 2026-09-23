@@ -14,7 +14,7 @@ FRAME_INTERVAL: float = 1.0 / TARGET_FPS       # ~83.3 ms
 
 # ── Sliding window ─────────────────────────────────────────────────────────────
 WINDOW_SIZE: int = 5          # frames kept in ring buffer
-SHIFT_SIZE: int = 2           # frames captured before triggering inference
+SHIFT_SIZE: int = 3           # frames captured before triggering inference (5 frames, 2-frame overlap -> stride 3)
 
 # ── MediaPipe ──────────────────────────────────────────────────────────────────
 MEDIAPIPE_NUM_HANDS: int = 1
@@ -72,8 +72,25 @@ APRILTAG_MIN_MARKERS: int = 1
 APRILTAG_SMOOTHING_ALPHA: float = 0.75   # blending weight for previous H
 APRILTAG_NTHREADS: int = 1
 
-# ── Touch detection ────────────────────────────────────────────────────────────
-TOUCH_PROBABILITY_THRESHOLD: float = 0.5
+# ── Touch detection & debouncing ───────────────────────────────────────────────
+TOUCH_PROBABILITY_THRESHOLD: float = 0.50
+TOUCH_ONSET_THRESHOLD: float = 0.50
+TOUCH_RELEASE_THRESHOLD: float = 0.40
+
+# ── Filtration thresholds (matching process.sh & datacreator) ──────────────────
+# Whole-hand transit movement threshold (Step 7: max stationary joint displacement / L_hand)
+HAND_MOVEMENT_THRESHOLD: float = 0.155
+STATIONARY_LANDMARK_NAMES: list[str] = [
+    "wrist", "index_mcp", "middle_mcp", "ring_mcp", "pinky_mcp"
+]
+
+# Window quality & confidence thresholds (Step 10: filter_window_quality.py)
+QUALITY_MIN_AVG_SCORE: float = 0.65
+QUALITY_MIN_FRAME_SCORE: float = 0.45
+QUALITY_MAX_SCORE_DROP: float = 0.35
+
+# Kinetic motion threshold (Step 9: filter_dataset.py --remove-zero-vel-touch)
+MIN_KINETIC_SPEED_THRESHOLD: float = 0.008
 
 # ── Scale normalisation (HandScaleNormalizer, stage1) ─────────────────────────
 WRIST_INDEX: int = 0

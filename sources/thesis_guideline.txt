@@ -1,0 +1,503 @@
+Thesis Preparation and Formatting Guidelines
+for
+
+Undergraduate and Postgraduate Degree
+Programmes
+
+BINDING:
+Cover Page
+See Appendix - I for the format of the cover page. The lettering on the Cover should be in
+GOLD.
+Final Submission
+The final corrected copy of the thesis must be free from typographical, grammatical, and other
+errors when submitted. After making the alterations mentioned by the examiners/VIVA
+panelists, one (01) copy of the thesis should be hardbound with BLACK color.
+The short name of the degree, the year submitted and the name of the candidate with initials
+should be indicated at the spine as shown in the following figure. The lettering on the cover
+should be in GOLD.
+
+Short Name of Degree (Examples):
+B.Sc. (Hons) _____________
+B.M. (Hons) _____________
+B.A. (Hons) ______________
+B.Eng. (Hons) ____________
+M.Sc. ___________________
+
+Short Name of Degree
+__________
+Times New Roman 14
+
+MBA/MIT/MBS
+
+STRUCTURE:
+Your thesis should contain the following sections in order:
+•
+•
+•
+•
+•
+
+Title page
+Declaration of the Candidate
+Acknowledgement
+Abstract
+Table of Contents
+
+•
+•
+
+List of Figures
+List of Tables
+
+•
+•
+•
+•
+•
+•
+•
+•
+•
+
+List of Abbreviations
+Introduction
+Objectives
+Literature Review
+Methodology
+Results
+Discussion and Conclusions
+References
+Appendices
+
+◼ Title Page
+Refer to Appendix II.
+
+◼ Declaration
+A statement that the work is original and the student’s own effort, signed by the student
+(Refer to Appendix III).
+
+◼ Acknowledgments
+Gratitude to supervisors, contributors, and supporting organizations.
+
+◼ Abstract
+A summary of the study, including objectives, methods, main findings, and conclusions. The
+abstract is typically 200-300 words, but this may change based on your degree requirements.
+A typical abstract would contain 1-2 sentences about the background to the project, 1 sentence
+describing the aims, a few sentences describing the methods, a few sentences describing the
+results and 1-2 sentences containing the conclusion(s). Although the abstract comes
+immediately after the title, it is best to write it after you have completed all the other sections.
+
+◼ Table of Contents (Refer to Appendix IV)
+Include all headings and subheadings with page numbers.
+
+◼ List of Figures (Refer to Appendix V)
+Provide separate list including the titles and page numbers of all included figures. Figures
+commonly refer to photographs, images, maps, charts, graphs, and drawings. These items
+should appear as close as possible to their first mention in the text.
+List of figures should follow the table of contents (numbered in simple Roman numerals).
+Ensure that each figure has a caption.
+
+◼ List of Tables (Refer to Appendix VI)
+Provide separate list including the titles and page numbers of all included tables. Tables
+generally list tabulated numerical data. These items should appear as close as possible to their
+first mention in the text.
+List of tables, where required, should follow the table of contents (numbered in simple Roman
+numerals). Ensure that each table has a caption.
+
+◼ List of Abbreviations (Refer to Appendix VII)
+All abbreviations used in the thesis must be listed in alphabetical order with their full
+meanings. The first time an abbreviation is used, it must explained within the text.
+
+◼
+
+Introduction
+
+The introduction section describes the background to your project. It should answer questions
+such as why your area of investigation is important and worthy of investigation. Give an
+overview of the research that has been carried out in that area and identify any gaps in our
+knowledge. The final part of this section should be devoted to clearly defining your research
+questions/hypotheses.
+◼ Objectives
+Include the general and specific objectives of your research.
+
+◼ Literature Review
+This section provides an overview of existing research on your topic, setting the context for
+your study. Include a discussion of key theories and concepts related to your research, as well
+as a summary of major studies and their findings. Highlight gaps in knowledge, identify key
+debates, and point out areas of disagreement or conflicting results in the literature. Conclude
+
+by linking the literature to your research question, emphasizing how your study fills a gap or
+contributes new insights to the field.
+
+◼ Methodology
+The methodology section should provide a clear and detailed account of how the research was
+carried out and the approach taken to analyze the results. The description should include
+sufficient information to enable another researcher to replicate the study accurately.
+
+◼ Results
+The results section should present a logical and coherent sequence of tables and figures to
+summarize your findings. Avoid including raw data unless specifically advised otherwise.
+Focus on summarizing and organizing your data into a cohesive "results story," even if this
+means presenting results in a different order from the experimental process. The goal is to
+communicate the key findings clearly and effectively without attempting to interpret them.
+
+◼ Discussion and Conclusions
+In the discussion, further analyze your findings in relation to the study's rationale and existing
+literature. Acknowledge the limitations of your work and their potential impact on the validity
+or applicability of your conclusions. Discuss the implications of your results for theory, further
+research, and practical applications. Highlight potential future studies to address unanswered
+questions or expand on your findings. The conclusion is not a mere ‘summary’ of your research
+but needs to be ‘conclusions’ as to the main points that have emerged and what they mean for
+your field.
+
+◼ References
+A list of references should be given immediately after the text of the thesis, starting on a fresh
+page. Include all sources cited in the thesis. Include citations for images adapted from research
+papers or other databases.
+Use Vancouver, APA or IEEE referencing style as specified by your faculty.
+
+◼ Appendices
+Include additional information such as questionnaires, raw data, ethical letters, or
+supplementary tables. Appendices must appear at the end of the document (after references)
+and not the chapter to which they pertain. When there is more than one appendix, assign each
+appendix a number. All appendix headings and titles must be included in the table of contents.
+Page numbering must continue throughout your appendix or appendices. Ensure each appendix
+complies with margin and pagination requirements.
+
+FORMATTING: (Refer to Appendices VIII, IX and X)
+◼ Margins
+The thesis or dissertation must be in A4 size and have the following uniform margins
+throughout the entire document:
+•
+•
+•
+•
+
+Left: 1″ (or 1 1/4" to ensure sufficient room for binding the work if desired)
+Right: 1″
+Bottom: 1″ (with allowances for page numbers)
+Top: 1″
+
+◼ Font Type and Size
+Times New Roman, 12 pt
+
+◼ Spacing and Indentation
+The text must appear in a single column on each page, and 1.5-line spacing should be applied
+throughout the document.
+
+◼ Pagination
+Paginate your thesis or dissertation following these guidelines:
+1. Use lower-case Roman numerals (ii, iii, iv, etc.) starting with the Inner Title page. The Inner
+Title page counts as page i, but the number does not appear. Therefore, the first page showing
+a number will be the “Declaration” with ii at the bottom, where Roman numbering ends with
+the Abbreviations section.
+2. Arabic numerals (beginning with 1, 2, 3, 4, etc.) start at the Introduction. Arabic numbers
+must be included on all pages of the text, illustrations, notes, and any other materials that
+follow. Thus, the first page of chapter one/ Introduction will show an Arabic numeral 1, and
+the numbering of all subsequent pages will follow in order.
+3. Page numbers will appear at the bottom center of each page.
+4. Pages must not contain running headers or footers, aside from page numbers.
+5. If your document contains landscape, make sure that your page numbers still appear in the
+same position and direction as they do on pages with standard portrait orientation for
+consistency.
+
+◼ Headings
+Sections of the text should be numbered using Arabic numerals up to 3 decimals. Further,
+subsections should have Roman numerals.
+• 1st Numeral – Bold capital – Font 12
+Eg- 1 INTRODUCTION
+• 1st Numeral with decimals – Bold Simple – Font 12
+Eg – 1.1 Justification
+• 1st Numeral with 2 decimals – Simple- Font 12 (Only first letter capitalized)
+Eg – 1.2 Objectives
+1.2.1 General objective
+1.2.2 Specific objectives
+• 1st Numeral with 3 decimals – Simple – Font 12 (Only first letter capitalized)
+Eg – 2.3.1.1 Factors affecting cutaneous vitamin D synthesis
+
+◼ Table Headings and Figure Captions
+Captions for tables should appear above the table, and captions for figures should appear below
+the figure (Font 12). Avoid shading in table cells.
+Tables and figures should be numbered using Arabic numerals, with the first digit
+representing the main section of the thesis and the second digit denoting the sequential
+number of the table or figure within that section.
+For example:
+Table 2.1: Table Caption (indicates the first table in Section 2)
+Figure 1.2: Figure Caption (indicates the second figure in Section 1)
+
+[Appendix – I: Cover page]
+TITLE OF THESIS
+(Times New Roman - All Capital – Bold - 16 Font Size – 1.5 Space - Centered)
+
+FULL NAME
+Times New Roman 14, Centered
+
+Bachelor/Master of ____________________
+Times New Roman 14, Centered
+
+Department of ______________
+NSBM Green University
+Sri Lanka
+Month and Year of Submission
+Times New Roman 14, Centered
+
+[Appendix – II: Inner Title Page]
+TITLE OF THESIS
+(Times New Roman - All Capital – Bold - 16 Font Size – 1.5 Space - Centered)
+
+A thesis submitted to NSBM Green University for the degree of
+Bachelor/Master of _______________
+
+By
+
+STUDENT’S FULL NAME
+Times New Roman 14, Centered
+
+Department of ___________________
+Faculty of ________________
+NSBM Green University
+Sri Lanka
+Month and Year of Submission
+Times New Roman 14, Centered
+
+[Appendix – III: Declaration]
+DECLARATION
+I
+
+declare
+
+that
+
+the
+
+content
+
+of
+
+this
+
+undergraduate/postgraduate
+
+thesis
+
+titled
+
+…………………...…………….. is my own work and this dissertation does not incorporate
+without acknowledgement any material previously submitted for any other degree in any
+university or institution of higher learning.
+
+Signature ……………………
+Name ……………………
+
+Signature of the Supervisors
+
+.……………………………………
+Dr./Mr./Ms. …………………..
+Principal Supervisor
+Senior Lecturer/Lecturer
+Department of ________________,
+NSBM Green University
+
+…………………….
+Date
+
+[Appendix – IV: Table of Contents]
+TABLE OF CONTENTS
+Declaration
+
+i
+
+Acknowledgement
+
+iii
+
+Abstract
+
+iv
+
+Table of Contents
+
+v
+
+List of Figures
+
+vi
+
+List of Tables
+
+vii
+
+List of Abbreviations
+
+viii
+
+1. Introduction
+
+1
+
+1.1 Section
+
+1
+
+1.2 Section
+
+2
+
+1.2.1 Sub Section
+
+2
+
+1.2.2 Sub Section
+
+10
+
+2. Objectives
+
+17
+
+3. Literature Review
+
+18
+
+4. Methodology
+
+57
+
+5. Results
+
+90
+
+6. Discussion and Conclusion
+
+120
+
+References
+
+140
+
+Appendix A: Title
+
+150
+
+Appendix B: Title
+
+162
+
+[Appendix – V: List of Figures]
+Page
+Figure 1.1
+
+Figure caption
+
+2
+
+Figure 1.2
+
+Figure caption
+
+5
+
+Figure 2.1
+
+Figure caption
+
+10
+
+Figure 2.2
+
+Figure caption
+
+20
+
+[Appendix – VI: List of Tables]
+Page
+Table 1.1
+
+Table heading
+
+2
+
+Table 1.2
+
+Table heading
+
+5
+
+Table 2.1
+
+Table heading
+
+10
+
+Table 2.2
+
+Table heading
+
+20
+
+[Appendix – VII: List of Abbreviations]
+
+Abbreviation
+
+Description
+
+ACM
+
+Association for Computing Machinery
+
+IEEE
+
+Institute of Electrical and Electronic Engineers
+
+OPAC
+
+Online Public Access Catalogue
+
+[Appendix – VIII: Paragraph Formatting]
+
+5 RESULTS
+5.1 Socioeconomic characteristics of pregnant women
+A total of 110 pregnant women were recruited (Figure 4.1) at the booking visit, and socioeconomic characteristics are shown in Table 5.1. There was no significant difference in the
+ethnic distribution among the studied women. Ninety-five (86.4%) of the women had
+secondary education. Five had a tertiary qualification. Five women did not go to school and
+did not receive any formal education. Ninety-four (85.5%) women were unemployed, while 16
+(15.5%) were employed. Eighty-six women had a monthly family income of less than Sri
+Lankan Rupees (LKR) 50,000 (~USD 294).
+
+[Appendix – IX: Figure Formatting]
+
+Figure 5.1 Receiver operating characteristic curves of red cell indices in the prediction of early
+iron deficiency at baseline.
+
+[Appendix – X: Table Formatting]
+
+Table 5.10 Characteristics of the newborn (n=80)
+Characteristics
+
+At delivery
+
+6-8 weeks postpartum
+
+Gestational age, weeks (& days)
+
+39 (2) ± 1(2)
+
+Weight, kg
+
+2.968 ± 0.452
+
+4.718 ± 0.662
+
+Length, cm
+
+51.4 ± 3.4
+
+57.3 ± 2.6
+
+Head circumference, cm
+
+32.8 ± 1.1
+
+38.8 ± 2.1
+
+

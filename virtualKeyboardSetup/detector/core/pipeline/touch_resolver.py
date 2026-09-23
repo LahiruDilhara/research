@@ -10,7 +10,7 @@ Algorithm (per window trigger)
 3. For each finger in order:
    a. Find the IMPACT FRAME: the velocity step v in [0..3] where the fingertip's
       downward pixel speed is maximum (approximates the moment of surface contact).
-   b. Get the fingertip pixel at frame (v+1) — position right after impact.
+   b. Get the fingertip pixel at frame (v+1), position right after impact.
    c. Apply H to map pixel → mm-space.
    d. Hit-test against all key bounding boxes.
    e. On first hit: return (key_id, finger, prob).
@@ -63,7 +63,7 @@ class TouchResolver:
         if len(pixel_window_5) < 5:
             return None
 
-        # Sort by probability — highest confidence is evaluated first
+        # Sort by probability, highest confidence is evaluated first
         sorted_fingers = sorted(touch_fingers, key=lambda f: probs.get(f, 0.0), reverse=True)
 
         for finger in sorted_fingers:

@@ -1,17 +1,17 @@
 """
 core/interfaces/touch_model.py
 
-Plugin contract for touch detection models.
+AI model plugin contract for touch detection models.
 
-Usage (plugin author side)
-──────────────────────────
+Usage (AI model plugin author side)
+───────────────────────────────────
 1. Subclass ITouchModel.
 2. Decorate with @register_model(...).
 3. Implement load() and predict().
-4. Place the .py file and the .pth weights inside any sub-directory of plugins/.
+4. Place the .py file and the .pth weights inside any sub-directory of ai_model_plugins/.
 
-The ModelDiscoveryService imports every .py in plugins/, which triggers the decorator
-and self-registers the class in ModelRegistry — no manual registration needed.
+The ModelDiscoveryService imports every .py in ai_model_plugins/, which triggers the decorator
+and self-registers the class in ModelRegistry without manual registration needed.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ class ModelEntry:
 
 
 class ModelRegistry:
-    """Singleton in-process registry of all discovered plugin models."""
+    """Singleton in-process registry of all discovered AI model plugins."""
 
     _entries: list[ModelEntry] = []
 
@@ -72,16 +72,16 @@ def register_model(
     name        : Human-readable model name shown in the UI dropdown.
     description : Short description of architecture / training dataset.
     weights_file: Filename of the .pth weights file expected in the same directory
-                  as the plugin .py file (e.g. "best_finger_touch_lstm.pth").
+                  as the plugin .py file (e.g. "LSTM_All_Combined_cfg01.pth").
 
     Example
     -------
     @register_model(
-        name="LSTM v1 — Coords+Vel",
-        description="5-frame LSTM trained on combined coords+velocity dataset.",
-        weights_file="best_finger_touch_lstm.pth",
+        name="LSTM All-Combined",
+        description="2-layer LSTM trained on all hand joints coords+velocities.",
+        weights_file="LSTM_All_Combined_cfg01.pth",
     )
-    class LSTMv1Plugin(ITouchModel):
+    class LSTMAllCombinedPlugin(ITouchModel):
         ...
     """
 
@@ -112,7 +112,7 @@ def register_model(
 
 class ITouchModel(ABC):
     """
-    Interface every touch-detection plugin must implement.
+    Interface every touch-detection AI model plugin must implement.
 
     The detector calls predict() for every 5-frame window.
     The plugin is fully responsible for its own feature extraction.

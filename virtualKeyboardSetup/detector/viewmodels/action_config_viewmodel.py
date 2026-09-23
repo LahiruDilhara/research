@@ -115,8 +115,8 @@ class ActionConfigViewModel(QObject):
                 btn = self.get_button(button_id)
                 curr_label = btn.label.strip() if btn and btn.label.strip() else button_id
                 logger.warning(
-                    f"Duplicate {action_type} '{value}' rejected for '{curr_label}' ({button_id}) "
-                    f"— already assigned to '{other_label}' ({other_id})"
+                    f"Duplicate {action_type} '{value}' rejected for '{curr_label}' ({button_id}), "
+                    f"already assigned to '{other_label}' ({other_id})"
                 )
                 self.duplicate_rejected.emit(button_id, action_type, value, other_label, other_id)
                 # Re-emit existing valid state to revert UI widgets

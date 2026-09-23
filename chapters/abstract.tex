@@ -1,0 +1,12 @@
+\thispagestyle{plain}
+\begin{center}
+    \vspace*{1cm}
+    {\large \textbf{ABSTRACT}\par}
+    \vspace{1.5cm}
+\end{center}
+
+\noindent Physical computer keyboards are rigid, non-customizable, and susceptible to biological contamination in sterile environments such as medical clinics and cleanrooms. Prior vision-based virtual keyboards rely heavily on specialized hardware sensors, such as depth cameras or infrared projectors, or enforce artificial dwell-time pauses exceeding 500 ms under monocular webcams. Furthermore, existing monocular systems are largely restricted to single-finger tracking, fail under variable ambient lighting and hand shadows, and require fixed perpendicular camera mounts that break when the surface moves.
+
+This research presents a customizable paper-based virtual keyboard framework powered by a single standard monocular RGB camera and PyTorch deep learning, operating entirely on consumer-grade CPUs without dedicated GPUs. Physical layout geometry is designed through an interactive PySide6 graphical tool and printed on normal paper with AprilTag fiducial anchors, decoupling physical coordinates from software action bindings. The vision pipeline samples video feeds at a standardized 12 frames per second, extracts 21 hand landmarks using MediaPipe, and applies unitless hand-length scale normalization. Kinematic sliding windows of 5 frames with a 2-frame overlap are classified across all five individual fingers simultaneously using a lightweight Long Short-Term Memory (LSTM) sequence model to detect surface contact dynamics without dwell-time pauses. Dynamic planar homography updates compensate continuously for camera tilt and paper movement.
+
+Empirical evaluations across 22 model configurations confirm that the chosen LSTM architecture achieves an overall F1-score of 0.943 with an inference latency of 1.42 ms, yielding an end-to-end CPU pipeline latency of 29.09 ms. Hand-length scale normalization ensures spatial consistency across variable camera distances and user hand morphologies. The resulting framework provides a reliable, low-cost, and contamination-free human-computer interface suitable for healthcare, education, and assistive technology.

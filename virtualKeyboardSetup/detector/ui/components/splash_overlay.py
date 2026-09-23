@@ -57,7 +57,7 @@ _CARD_STYLE = (
 
 
 class SplashOverlayWidget(QWidget):
-    """Startup card overlay — shown until user loads a layout and selects a model."""
+    """Startup card overlay, shown until user loads a layout and selects a model."""
 
     configure_actions_requested = Signal(object, str, str)
     # (layout: LayoutData, xml_path: str, model_name: str)
@@ -208,10 +208,10 @@ class SplashOverlayWidget(QWidget):
         layout.setContentsMargins(24, 22, 24, 22)
         layout.setSpacing(12)
 
-        lbl_title = StrongBodyLabel("Select Model", card)
+        lbl_title = StrongBodyLabel("Select AI Model", card)
         lbl_title.setStyleSheet(f"background: transparent; color: {UI_ACCENT}; font-size: 16px; font-weight: bold; border: none;")
         lbl_desc = CaptionLabel(
-            "Choose the touch-detection model plugin to use.", card
+            "Choose the AI model plugin to use for touch detection.", card
         )
         lbl_desc.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 12px; border: none;")
         lbl_desc.setWordWrap(True)
@@ -221,8 +221,8 @@ class SplashOverlayWidget(QWidget):
 
         self.combo_model = ComboBox(card)
         self.combo_model.setFixedHeight(36)
-        self.combo_model.setPlaceholderText("No models found")
-        self.combo_model.currentTextChanged.connect(self._update_buttons)
+        self.combo_model.setPlaceholderText("No AI models found")
+        self.combo_model.currentTextChanged.connect(self._on_model_changed)
         layout.addWidget(self.combo_model)
 
         self.lbl_model_desc = CaptionLabel("", card)
@@ -236,13 +236,16 @@ class SplashOverlayWidget(QWidget):
     # ── Public update methods (called by MainWindow) ───────────────────────────
 
     def set_model_entries(self, entries: list[ModelEntry]) -> None:
+        self.combo_model.blockSignals(True)
         self.combo_model.clear()
         self._model_entries = {e.name: e for e in entries}
         for e in entries:
             self.combo_model.addItem(e.name)
+
         if entries:
             self.combo_model.setCurrentIndex(0)
             self.lbl_model_desc.setText(entries[0].description)
+        self.combo_model.blockSignals(False)
         self._update_buttons()
 
     def set_layout_loaded(self, layout_data, xml_path: str) -> None:
@@ -266,13 +269,23 @@ class SplashOverlayWidget(QWidget):
 
     # ── Slots ──────────────────────────────────────────────────────────────────
 
+    def _on_model_changed(self, text: str) -> None:
+        entry = self._model_entries.get(text)
+        if entry:
+            self.lbl_model_desc.setText(entry.description)
+        self._update_buttons()
+
     def _on_browse_clicked(self) -> None:
         self.xml_browse_requested.emit()
 
     def _on_continue_clicked(self) -> None:
-        if self._layout_data and self._xml_path and self.combo_model.currentText():
+        current_text = self.combo_model.currentText()
+        entry = self._model_entries.get(current_text)
+        canonical_name = entry.name if entry else current_text
+
+        if self._layout_data and self._xml_path and canonical_name:
             self.configure_actions_requested.emit(
-                self._layout_data, self._xml_path, self.combo_model.currentText()
+                self._layout_data, self._xml_path, canonical_name
             )
 
     def _update_buttons(self) -> None:

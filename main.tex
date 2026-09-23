@@ -1,8 +1,12 @@
 \documentclass[12pt,a4paper]{report}
 
-% Packages
+% Page Layout & Margins: 1 inch uniform, with 1.25 in left margin for binding
+\usepackage[top=1in, bottom=1in, right=1in, left=1.25in]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+% Character encoding & math
 \usepackage[utf8]{inputenc}
-\usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{graphicx}
 \usepackage{booktabs}
@@ -16,8 +20,14 @@
 \usepackage{subcaption}
 \usepackage{microtype}
 \emergencystretch=3em
-\usepackage{hyperref}
 
+% IEEE Table and Figure Caption formatting: Font 12, Table caption above, Figure caption below
+\captionsetup{font=normalsize}
+\captionsetup[table]{position=top}
+\captionsetup[figure]{position=bottom}
+
+% Hyperref setup
+\usepackage{hyperref}
 \hypersetup{
     colorlinks=true,
     linkcolor=blue,
@@ -25,51 +35,104 @@
     urlcolor=blue
 }
 
-% BibLaTeX configuration
+% BibLaTeX configuration (IEEE style)
 \usepackage[backend=biber,style=ieee,sorting=nyt]{biblatex}
 \addbibresource{research-db/references.bib}
 
+% Page numbering bottom center, no headers
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \cfoot{\thepage}%
+  \renewcommand{\headrulewidth}{0pt}%
+  \renewcommand{\footrulewidth}{0pt}%
+}
+
 \begin{document}
 
+% ----------------------------------------------------------------------
+% APPENDIX I: COVER PAGE
+% ----------------------------------------------------------------------
 \begin{titlepage}
     \centering
-    \vspace*{1.5cm}
-    
-    {\Huge \bfseries Customizable Paper-Based Virtual\\[0.3em] Keyboard System Using Computer\\[0.3em] Vision and Deep Learning \par}
-    
+    \vspace*{1.0cm}
+    {\fontsize{16pt}{24pt}\selectfont \bfseries CUSTOMIZABLE PAPER-BASED VIRTUAL KEYBOARD SYSTEM USING COMPUTER VISION AND DEEP LEARNING \par}
+    \vspace{2.5cm}
+    {\fontsize{14pt}{20pt}\selectfont G A LAHIRU DILHARA \par}
     \vspace{2.0cm}
-    
-    {\Large \bfseries G A Lahiru Dilhara \par}
-    \vspace{0.3cm}
-    {\large ( Student No: 29096 ) \par}
-    
-    \vspace{1.5cm}
-    
-    {\large \textbf{Supervised by:} \par}
-    \vspace{0.2cm}
-    {\large Prof. Chaminda Wijesinghe \par}
-    
-    \vfill
-    
-    {\large Degree of Bachelor of Science (Honours) in Computer Science \par}
-    
-    \vspace{1.8cm}
-    
-    {\large Department of Computer Science \par}
-    {\large Faculty of Computing \par}
-    {\large National School of Business Management \par}
-    
-    \vspace{1.5cm}
+    {\fontsize{14pt}{20pt}\selectfont Bachelor of Science (Honours) in Computer Science \par}
+    \vspace{2.0cm}
+    {\fontsize{14pt}{20pt}\selectfont Department of Computer Science \par}
+    {\fontsize{14pt}{20pt}\selectfont NSBM Green University \par}
+    {\fontsize{14pt}{20pt}\selectfont Sri Lanka \par}
+    \vspace{1.0cm}
+    {\fontsize{14pt}{20pt}\selectfont September 2026 \par}
 \end{titlepage}
+
+% ----------------------------------------------------------------------
+% APPENDIX II: INNER TITLE PAGE (Counts as page i, but number not displayed)
+% ----------------------------------------------------------------------
+\begin{titlepage}
+    \thispagestyle{empty}
+    \centering
+    \vspace*{1.0cm}
+    {\fontsize{16pt}{24pt}\selectfont \bfseries CUSTOMIZABLE PAPER-BASED VIRTUAL KEYBOARD SYSTEM USING COMPUTER VISION AND DEEP LEARNING \par}
+    \vspace{1.5cm}
+    {\fontsize{14pt}{20pt}\selectfont A thesis submitted to NSBM Green University for the degree of \par}
+    {\fontsize{14pt}{20pt}\selectfont Bachelor of Science (Honours) in Computer Science \par}
+    \vspace{1.5cm}
+    {\fontsize{14pt}{20pt}\selectfont By \par}
+    \vspace{1.0cm}
+    {\fontsize{14pt}{20pt}\selectfont G A LAHIRU DILHARA \par}
+    \vspace{1.8cm}
+    {\fontsize{14pt}{20pt}\selectfont Department of Computer Science \par}
+    {\fontsize{14pt}{20pt}\selectfont Faculty of Computing \par}
+    {\fontsize{14pt}{20pt}\selectfont NSBM Green University \par}
+    {\fontsize{14pt}{20pt}\selectfont Sri Lanka \par}
+    \vspace{1.0cm}
+    {\fontsize{14pt}{20pt}\selectfont September 2026 \par}
+\end{titlepage}
+
+% ----------------------------------------------------------------------
+% FRONT MATTER: Lower-case Roman numerals starting at ii
+% ----------------------------------------------------------------------
+\pagenumbering{roman}
+\setcounter{page}{2}
+
+\input{chapters/declaration.tex}
+\newpage
+
+\input{chapters/acknowledgement.tex}
+\newpage
+
+\input{chapters/abstract.tex}
+\newpage
 
 \tableofcontents
 \newpage
 
-% Front Matter / Preliminary Sections
+\listoffigures
+\addcontentsline{toc}{chapter}{List of Figures}
+\newpage
+
+\listoftables
+\addcontentsline{toc}{chapter}{List of Tables}
+\newpage
+
 \input{chapters/abbreviations.tex}
 \newpage
 
-% Include Chapters
+% ----------------------------------------------------------------------
+% MAIN BODY: Arabic numerals starting at 1
+% ----------------------------------------------------------------------
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
 \input{chapters/chapter01.tex}
 \newpage
 \input{chapters/chapter02.tex}
@@ -82,9 +145,11 @@
 \newpage
 \input{chapters/chapter06.tex}
 \newpage
-\input{chapters/chapter07.tex}
 
-\newpage
+% ----------------------------------------------------------------------
+% BACK MATTER: References (IEEE)
+% ----------------------------------------------------------------------
 \printbibliography[title={References}]
+\addcontentsline{toc}{chapter}{References}
 
 \end{document}

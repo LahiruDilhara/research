@@ -5,7 +5,7 @@ Live detector HUD view.
 
 Layout
 ──────
-  [Camera feed — fills left area]  |  [Sidebar: model info, layout status,
+  [Camera feed, fills left area]  |  [Sidebar: model info, layout status,
                                          finger probs, touch log, stop button]
 """
 

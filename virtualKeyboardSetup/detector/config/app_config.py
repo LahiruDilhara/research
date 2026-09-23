@@ -20,6 +20,13 @@ from .constants import (
     APRILTAG_MIN_MARKERS,
     APRILTAG_SMOOTHING_ALPHA,
     TOUCH_PROBABILITY_THRESHOLD,
+    TOUCH_ONSET_THRESHOLD,
+    TOUCH_RELEASE_THRESHOLD,
+    HAND_MOVEMENT_THRESHOLD,
+    QUALITY_MIN_AVG_SCORE,
+    QUALITY_MIN_FRAME_SCORE,
+    QUALITY_MAX_SCORE_DROP,
+    MIN_KINETIC_SPEED_THRESHOLD,
 )
 
 
@@ -46,9 +53,33 @@ class AppConfig:
         self._mediapipe_model_path = os.getenv(
             "MEDIAPIPE_MODEL_PATH", MEDIAPIPE_MODEL_FILENAME
         )
-        self._plugins_dir = os.getenv("PLUGINS_DIR", "plugins")
+        self._plugins_dir = os.getenv(
+            "AI_MODEL_PLUGINS_DIR",
+            os.getenv("PLUGINS_DIR", "ai_model_plugins"),
+        )
         self._touch_threshold = float(
             os.getenv("TOUCH_THRESHOLD", str(TOUCH_PROBABILITY_THRESHOLD))
+        )
+        self._touch_onset_threshold = float(
+            os.getenv("TOUCH_ONSET_THRESHOLD", str(TOUCH_ONSET_THRESHOLD))
+        )
+        self._touch_release_threshold = float(
+            os.getenv("TOUCH_RELEASE_THRESHOLD", str(TOUCH_RELEASE_THRESHOLD))
+        )
+        self._hand_movement_threshold = float(
+            os.getenv("HAND_MOVEMENT_THRESHOLD", str(HAND_MOVEMENT_THRESHOLD))
+        )
+        self._quality_min_avg_score = float(
+            os.getenv("QUALITY_MIN_AVG_SCORE", str(QUALITY_MIN_AVG_SCORE))
+        )
+        self._quality_min_frame_score = float(
+            os.getenv("QUALITY_MIN_FRAME_SCORE", str(QUALITY_MIN_FRAME_SCORE))
+        )
+        self._quality_max_score_drop = float(
+            os.getenv("QUALITY_MAX_SCORE_DROP", str(QUALITY_MAX_SCORE_DROP))
+        )
+        self._min_kinetic_speed = float(
+            os.getenv("MIN_KINETIC_SPEED_THRESHOLD", str(MIN_KINETIC_SPEED_THRESHOLD))
         )
         self._apriltag_min_markers = int(
             os.getenv("APRILTAG_MIN_MARKERS", str(APRILTAG_MIN_MARKERS))
@@ -116,12 +147,44 @@ class AppConfig:
         return self._mediapipe_model_path
 
     @property
+    def ai_model_plugins_dir(self) -> str:
+        return self._plugins_dir
+
+    @property
     def plugins_dir(self) -> str:
         return self._plugins_dir
 
     @property
     def touch_threshold(self) -> float:
         return self._touch_threshold
+
+    @property
+    def touch_onset_threshold(self) -> float:
+        return self._touch_onset_threshold
+
+    @property
+    def touch_release_threshold(self) -> float:
+        return self._touch_release_threshold
+
+    @property
+    def hand_movement_threshold(self) -> float:
+        return self._hand_movement_threshold
+
+    @property
+    def quality_min_avg_score(self) -> float:
+        return self._quality_min_avg_score
+
+    @property
+    def quality_min_frame_score(self) -> float:
+        return self._quality_min_frame_score
+
+    @property
+    def quality_max_score_drop(self) -> float:
+        return self._quality_max_score_drop
+
+    @property
+    def min_kinetic_speed(self) -> float:
+        return self._min_kinetic_speed
 
     @property
     def apriltag_min_markers(self) -> int:

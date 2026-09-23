@@ -5,11 +5,11 @@ Executes configured key actions when a touch event fires.
 
 Supported action types
 ──────────────────────
-  keystroke  — single key (e.g. "a", "enter", "f5", "space")
-  shortcut   — key combo (e.g. "ctrl+c", "ctrl+shift+t")
-  shell      — shell command string passed to subprocess
-  macro      — colon-separated steps: "ctrl+c:200:ctrl+v"  (integers = ms delay)
-  none       — no-op placeholder
+  keystroke: single key (e.g. "a", "enter", "f5", "space")
+  shortcut:  key combo (e.g. "ctrl+c", "ctrl+shift+t")
+  shell:     shell command string passed to subprocess
+  macro:     colon-separated steps: "ctrl+c:200:ctrl+v"  (integers = ms delay)
+  none:      no-op placeholder
 """
 
 from __future__ import annotations
