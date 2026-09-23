@@ -316,6 +316,7 @@ class RunModeView(QWidget):
         self._vm.finger_probs_updated.connect(self._on_probs_updated)
         self._vm.action_executed.connect(self._on_action_executed)
         self._vm.model_changed.connect(self._on_model_changed)
+        self._vm.camera_changed.connect(self.sync_camera_index)
         self._vm.frame_updated.connect(self._on_frame_updated)
 
     def _populate_models(self) -> None:
@@ -378,6 +379,19 @@ class RunModeView(QWidget):
                 break
         self.combo_camera.blockSignals(False)
 
+    def sync_model(self, model_name: str) -> None:
+        if not model_name:
+            return
+        self.combo_model.blockSignals(True)
+        for i in range(self.combo_model.count()):
+            if self.combo_model.itemText(i) == model_name:
+                self.combo_model.setCurrentIndex(i)
+                break
+        self.combo_model.blockSignals(False)
+        lbl = self.card_model.findChild(QLabel, "valueLabel")
+        if lbl:
+            lbl.setText(model_name)
+
     def _make_stat_card(self, title: str, initial_val: str, val_color: str) -> CardWidget:
         card = CardWidget(self)
         card.setStyleSheet(
@@ -408,7 +422,7 @@ class RunModeView(QWidget):
         if index < 0:
             return
         cam_idx = self.combo_camera.currentData()
-        if cam_idx is not None:
+        if cam_idx is not None and int(cam_idx) != self._vm.camera_index:
             self._vm.set_camera_index(int(cam_idx))
             InfoBar.success(
                 title="Camera Switched",
@@ -422,7 +436,7 @@ class RunModeView(QWidget):
         if index < 0 or index >= len(self._models):
             return
         selected_model = self.combo_model.currentData()
-        if selected_model:
+        if selected_model and selected_model.name != self._vm.active_model_name:
             self._vm.set_model(selected_model)
             InfoBar.success(
                 title="Model Hot-Swapped",

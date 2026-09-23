@@ -66,6 +66,9 @@ class DetectorViewModel(QObject):
     model_changed        = Signal(str)
     # active model name
 
+    camera_changed       = Signal(int)
+    # active camera index
+
     pipeline_error       = Signal(str)
 
     def __init__(
@@ -234,6 +237,7 @@ class DetectorViewModel(QObject):
         logger.info("Switching camera device to index: %d", camera_index)
         self._camera_index = camera_index
         self._config._camera_index = camera_index
+        self.camera_changed.emit(camera_index)
         was_running = self._worker is not None and self._worker.isRunning()
         if was_running:
             self.stop()

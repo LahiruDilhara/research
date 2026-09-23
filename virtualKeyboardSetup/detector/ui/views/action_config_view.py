@@ -28,8 +28,15 @@ from qfluentwidgets import (
     SubtitleLabel,
 )
 
-from config.constants import UI_ACCENT, UI_BG_DARK, UI_TEXT_PRI, UI_TEXT_SEC
-from ui.theme import btn_primary, btn_ghost
+from ui.theme import (
+    ACCENT,
+    BG_PAGE,
+    TXT_PRI,
+    TXT_SEC,
+    btn_ghost,
+    btn_primary,
+    LABEL_TRANSPARENT,
+)
 from core.action.action_executor import ActionData
 from ui.components.action_inspector_card import ActionInspectorCard
 from ui.components.interactive_layout_map import InteractiveLayoutMapWidget
@@ -57,7 +64,7 @@ class ActionConfigView(QWidget):
             self._select_button(self._vm.buttons[0].id)
 
     def _setup_ui(self) -> None:
-        self.setStyleSheet(f"background-color: {UI_BG_DARK};")
+        self.setStyleSheet(f"background-color: {BG_PAGE};")
         root = QVBoxLayout(self)
         root.setContentsMargins(24, 20, 24, 20)
         root.setSpacing(14)
@@ -70,12 +77,12 @@ class ActionConfigView(QWidget):
         title_col = QVBoxLayout()
         title_col.setSpacing(3)
         title = SubtitleLabel("Configure Key Actions", self)
-        title.setStyleSheet(f"background: transparent; color: {UI_ACCENT}; font-size: 20px; font-weight: bold;")
+        title.setStyleSheet(f"color: {ACCENT}; font-size: 20px; font-weight: bold; {LABEL_TRANSPARENT}")
         hint = CaptionLabel(
             "Click any key on the visual layout map to assign actions, or switch to the grid list.",
             self,
         )
-        hint.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC}; font-size: 12px;")
+        hint.setStyleSheet(f"color: {TXT_SEC}; font-size: 12px; {LABEL_TRANSPARENT}")
         title_col.addWidget(title)
         title_col.addWidget(hint)
         header_row.addLayout(title_col, 1)
@@ -123,7 +130,9 @@ class ActionConfigView(QWidget):
 
         scroll = SingleDirectionScrollArea(orient=Qt.Vertical)
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
+        scroll.setStyleSheet("QScrollArea, QScrollArea > QWidget > QWidget { border: none; background: transparent; }")
+        if scroll.viewport():
+            scroll.viewport().setStyleSheet("background: transparent; border: none;")
 
         grid_container = QWidget()
         grid_container.setStyleSheet("background-color: transparent;")

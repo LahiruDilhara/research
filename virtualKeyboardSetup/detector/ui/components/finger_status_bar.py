@@ -7,31 +7,37 @@ Updates colours based on touch state (green = touch, blue-grey = no touch, dim =
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget
+from typing import Any
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from qfluentwidgets import (
-    BodyLabel,
     CardWidget,
     ProgressBar,
-    StrongBodyLabel,
 )
 
-from config.constants import FINGERS, UI_ACCENT, UI_BG_CARD, UI_TEXT_PRI, UI_TEXT_SEC
+from config.constants import FINGERS
+from ui.theme import (
+    ACCENT,
+    BG_CARD,
+    BORDER,
+    FINGER_COLORS,
+    LABEL_TRANSPARENT,
+    SUCCESS,
+    TXT_PRI,
+    TXT_SEC,
+)
 
-_NO_HAND_BG  = UI_BG_CARD
+_NO_HAND_BG  = BG_CARD
 _TOUCH_BG    = "#183C24"
-_NO_TOUCH_BG = "#22223A"
+_NO_TOUCH_BG = "#1A1A28"
 
-def _card_css(bg_color: str, border_color: str = "rgba(255,255,255,0.06)") -> str:
+def _card_css(bg_color: str, border_color: str = BORDER) -> str:
     return (
         f"#fingerCard {{ "
         f"  background-color: {bg_color}; "
         f"  border: 1px solid {border_color}; "
-        "  border-radius: 10px; "
+        "  border-radius: 8px; "
         "} "
-        "QLabel { "
-        "  background-color: transparent; "
-        "  border: none; "
-        "}"
+        f"QLabel {{ {LABEL_TRANSPARENT} }}"
     )
 
 
@@ -40,13 +46,10 @@ class FingerStatusBar(QWidget):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
+        self.setStyleSheet("background: transparent; border: none;")
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
-
-        title = StrongBodyLabel("Per-Finger Touch Status")
-        title.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-size: 12px;")
-        layout.addWidget(title)
+        layout.setSpacing(5)
 
         self._cards: dict[str, dict] = {}
 
@@ -96,28 +99,28 @@ class FingerStatusBar(QWidget):
     ) -> None:
         c = self._cards[finger]
         card: CardWidget = c["card"]
-        status_lbl: BodyLabel = c["status"]
+        status_lbl: QLabel = c["status"]
         pbar: ProgressBar = c["pbar"]
 
         if not hand_present:
             card.setStyleSheet(_card_css(_NO_HAND_BG))
             status_lbl.setText("NO HAND")
-            status_lbl.setStyleSheet("background: transparent; color: #606070;")
+            status_lbl.setStyleSheet(f"color: #555566; font-size: 10px; {LABEL_TRANSPARENT}")
             pbar.setValue(0)
         elif hand_moving:
             card.setStyleSheet(_card_css("#3A2810", "#FF9000"))
-            status_lbl.setText("HAND MOVING")
-            status_lbl.setStyleSheet("background: transparent; color: #FFA500; font-weight: bold;")
+            status_lbl.setText("MOVING")
+            status_lbl.setStyleSheet(f"color: #FFA500; font-weight: bold; font-size: 10px; {LABEL_TRANSPARENT}")
             pbar.setValue(0)
         elif is_touch:
-            card.setStyleSheet(_card_css(_TOUCH_BG, "#00DC64"))
-            status_lbl.setText(f"TOUCH  {prob*100:.0f}%")
-            status_lbl.setStyleSheet("background: transparent; color: #00DC64; font-weight: bold;")
+            card.setStyleSheet(_card_css(_TOUCH_BG, SUCCESS))
+            status_lbl.setText(f"TOUCH {prob*100:.0f}%")
+            status_lbl.setStyleSheet(f"color: {SUCCESS}; font-weight: bold; font-size: 10px; {LABEL_TRANSPARENT}")
             pbar.setValue(int(prob * 100))
         else:
             card.setStyleSheet(_card_css(_NO_TOUCH_BG))
-            status_lbl.setText(f"UNTOUCH  {prob*100:.0f}%")
-            status_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_SEC};")
+            status_lbl.setText(f"{prob*100:.0f}%")
+            status_lbl.setStyleSheet(f"color: {TXT_SEC}; font-size: 10px; {LABEL_TRANSPARENT}")
             pbar.setValue(int(prob * 100))
 
     @staticmethod
@@ -125,23 +128,27 @@ class FingerStatusBar(QWidget):
         card = CardWidget()
         card.setObjectName("fingerCard")
         card.setStyleSheet(_card_css(_NO_HAND_BG))
-        card.setFixedHeight(68)
+        card.setFixedHeight(44)
 
         inner = QVBoxLayout(card)
-        inner.setContentsMargins(12, 8, 12, 8)
-        inner.setSpacing(4)
+        inner.setContentsMargins(10, 5, 10, 5)
+        inner.setSpacing(3)
 
         header = QHBoxLayout()
-        name_lbl = BodyLabel(finger.upper())
-        name_lbl.setStyleSheet(f"background: transparent; color: {UI_TEXT_PRI}; font-weight: bold; font-size: 11px;")
-        status_lbl = BodyLabel("NO HAND")
-        status_lbl.setStyleSheet("background: transparent; color: #606070; font-size: 11px;")
+        header.setContentsMargins(0, 0, 0, 0)
+        finger_color = FINGER_COLORS.get(finger, TXT_PRI)
+        name_lbl = QLabel(finger.upper())
+        name_lbl.setStyleSheet(
+            f"color: {finger_color}; font-weight: 700; font-size: 11px; {LABEL_TRANSPARENT}"
+        )
+        status_lbl = QLabel("NO HAND")
+        status_lbl.setStyleSheet(f"color: #555566; font-size: 10px; {LABEL_TRANSPARENT}")
         header.addWidget(name_lbl)
         header.addStretch(1)
         header.addWidget(status_lbl)
 
         pbar = ProgressBar()
-        pbar.setFixedHeight(6)
+        pbar.setFixedHeight(4)
         pbar.setValue(0)
         pbar.setMinimum(0)
         pbar.setMaximum(100)

@@ -181,8 +181,8 @@ class PlayModeView(QWidget):
         scroll_w = QWidget()
         scroll_w.setStyleSheet("background: transparent; border: none;")
         sw = QVBoxLayout(scroll_w)
-        sw.setContentsMargins(16, 6, 16, 16)
-        sw.setSpacing(14)
+        sw.setContentsMargins(16, 10, 16, 16)
+        sw.setSpacing(16)
 
         # 1. Finger touch probabilities
         sw.addWidget(self._section("FINGER TOUCH PROBABILITIES"))
@@ -192,7 +192,7 @@ class PlayModeView(QWidget):
         # 2. 2D Paper Layout - placed under finger indicators as requested
         sw.addWidget(self._section("2D PAPER LAYOUT"))
         self.paper_canvas = PaperLayoutCanvasWidget(scroll_w)
-        self.paper_canvas.setFixedHeight(230)
+        self.paper_canvas.setFixedHeight(260)
         sw.addWidget(self.paper_canvas)
 
         # 3. Simulated touch events
@@ -240,6 +240,7 @@ class PlayModeView(QWidget):
         self._vm.finger_probs_updated.connect(self._on_probs_updated)
         self._vm.touch_event.connect(self._on_touch_event)
         self._vm.model_changed.connect(self._on_vm_model_changed)
+        self._vm.camera_changed.connect(self.sync_camera_index)
         self._vm.pipeline_error.connect(self._on_error)
 
     def _populate_models(self) -> None:
@@ -296,13 +297,23 @@ class PlayModeView(QWidget):
                 break
         self.combo_camera.blockSignals(False)
 
+    def sync_model(self, model_name: str) -> None:
+        if not model_name:
+            return
+        self.combo_model.blockSignals(True)
+        for i in range(self.combo_model.count()):
+            if self.combo_model.itemText(i) == model_name:
+                self.combo_model.setCurrentIndex(i)
+                break
+        self.combo_model.blockSignals(False)
+
     # ── Slots ──────────────────────────────────────────────────────────────────
 
     def _on_camera_changed(self, index: int) -> None:
         if index < 0:
             return
         cam_idx = self.combo_camera.currentData()
-        if cam_idx is not None:
+        if cam_idx is not None and int(cam_idx) != self._vm.camera_index:
             self._vm.set_camera_index(int(cam_idx))
             InfoBar.success(
                 title="Camera Switched",
@@ -316,7 +327,7 @@ class PlayModeView(QWidget):
         if index < 0 or index >= len(self._models):
             return
         selected_model = self.combo_model.currentData()
-        if selected_model:
+        if selected_model and selected_model.name != self._vm.active_model_name:
             self._vm.set_model(selected_model)
             InfoBar.success(
                 title="Model Switched",
@@ -328,12 +339,7 @@ class PlayModeView(QWidget):
 
     @Slot(str)
     def _on_vm_model_changed(self, model_name: str) -> None:
-        self.combo_model.blockSignals(True)
-        for i, m in enumerate(self._models):
-            if m.name == model_name:
-                self.combo_model.setCurrentIndex(i)
-                break
-        self.combo_model.blockSignals(False)
+        self.sync_model(model_name)
 
     def _on_switch_run(self) -> None:
         self.mode_switch_requested.emit("run")
@@ -374,8 +380,21 @@ class PlayModeView(QWidget):
                 if btn.id == key_id:
                     label = btn.label
                     break
+
+        # Resolve configured command / action
+        action_str = "None (unassigned)"
+        act = self._vm.action_config.get(key_id)
+        if act and act.is_active:
+            action_str = f"[{act.type.upper()}] {act.value}"
+
         self.event_log.add_event(key_id, label, finger, prob)
-        self.paper_canvas.highlight_touch(key_id, finger, prob)
+        self.paper_canvas.highlight_touch(
+            key_id,
+            finger,
+            prob,
+            action_str=action_str,
+            key_label=label,
+        )
 
     @Slot(str)
     def _on_error(self, msg: str) -> None:

@@ -77,6 +77,7 @@ class MainWindow(FluentWindow):
             f"FluentWindow {{ background-color: {UI_BG_DARK}; }}"
         )
         self.navigationInterface.setAcrylicEnabled(False)
+        self.stackedWidget.setAnimationEnabled(False)
 
     # ── Startup Landing View (No Sidebars) ────────────────────────────────────
 
@@ -251,9 +252,22 @@ class MainWindow(FluentWindow):
     # ── Mode & Settings Synchronization ────────────────────────────────────────
 
     def _on_mode_switch_requested(self, target_mode: str) -> None:
+        active_model = self._active_det_vm.active_model_name if self._active_det_vm else ""
+        active_cam = self._active_det_vm.camera_index if self._active_det_vm else 0
+
         if target_mode == "run":
+            if self._active_det_vm is not None:
+                self._active_det_vm.set_execution_mode(ExecutionMode.RUN)
+            if hasattr(self, "_run_view"):
+                self._run_view.sync_model(active_model)
+                self._run_view.sync_camera_index(active_cam)
             self.switchTo(self._run_view)
         else:
+            if self._active_det_vm is not None:
+                self._active_det_vm.set_execution_mode(ExecutionMode.PLAY)
+            if hasattr(self, "_play_view"):
+                self._play_view.sync_model(active_model)
+                self._play_view.sync_camera_index(active_cam)
             self.switchTo(self._play_view)
 
     @Slot(int)
@@ -261,10 +275,16 @@ class MainWindow(FluentWindow):
         if self._active_det_vm is None:
             return
         widget = self.stackedWidget.widget(index)
+        active_model = self._active_det_vm.active_model_name
+        active_cam = self._active_det_vm.camera_index
         if widget is self._run_view:
             self._active_det_vm.set_execution_mode(ExecutionMode.RUN)
+            self._run_view.sync_model(active_model)
+            self._run_view.sync_camera_index(active_cam)
         elif widget is self._play_view:
             self._active_det_vm.set_execution_mode(ExecutionMode.PLAY)
+            self._play_view.sync_model(active_model)
+            self._play_view.sync_camera_index(active_cam)
 
     def _on_action_item_changed(self, button_id: str, action_type: str, value: str) -> None:
         if self._active_det_vm is not None and self._action_vm is not None:
