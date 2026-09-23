@@ -36,6 +36,23 @@ class KineticMotionFilter:
     def __init__(self, threshold: float = MIN_KINETIC_SPEED_THRESHOLD) -> None:
         self.threshold = threshold
 
+    def get_max_tip_speed(
+        self,
+        v_steps_4: list[dict[str, float]] | None,
+        finger_name: str,
+    ) -> float:
+        """Computes maximum 2D fingertip speed across velocity steps."""
+        if not v_steps_4:
+            return 0.0
+
+        tip_lm = FINGER_TIP_MAP.get(finger_name, f"{finger_name.lower()}_tip")
+        max_speed = 0.0
+        for step in v_steps_4:
+            s2 = step.get(f"{tip_lm}_speed_2d", 0.0)
+            if s2 > max_speed:
+                max_speed = s2
+        return max_speed
+
     def validate(
         self,
         v_steps_4: list[dict[str, float]] | None,
@@ -49,12 +66,4 @@ class KineticMotionFilter:
             return True
 
         limit = self.threshold if threshold is None else threshold
-        tip_lm = FINGER_TIP_MAP.get(finger_name, f"{finger_name.lower()}_tip")
-
-        max_speed = 0.0
-        for step in v_steps_4:
-            s2 = step.get(f"{tip_lm}_speed_2d", 0.0)
-            if s2 > max_speed:
-                max_speed = s2
-
-        return max_speed >= limit
+        return self.get_max_tip_speed(v_steps_4, finger_name) >= limit

@@ -240,9 +240,11 @@ def test_touch_pipeline_service_full_flow():
     plugin = LSTMAllCombinedPlugin()
     plugin.load(str(weights_path))
 
-    # Ingest 5 frames
+    # Ingest 5 frames with active finger motion so velocity threshold passes
     for i in range(5):
         pts = _create_synthetic_landmarks()
+        # Move index tip downwards to simulate tapping motion
+        pts[8] = (pts[8][0], pts[8][1] + i * 10.0, pts[8][2])
         # Mock MediaPipe landmark objects
         class MockLM:
             def __init__(self, x, y, z):
@@ -271,6 +273,56 @@ def test_touch_pipeline_service_full_flow():
         assert "touch" in results[f]
         assert "prob" in results[f]
         assert "reason" in results[f]
+
+
+def test_velocity_threshold_ignores_stationary_window():
+    """Verify that when fingertip speed is below the threshold, the window is ignored."""
+    service = TouchPipelineService(velocity_threshold=0.008)
+    weights_path = PROJECT_ROOT / "ai_model_plugins" / "lstm_all_combined" / "LSTM_All_Combined_cfg01.pth"
+    plugin = LSTMAllCombinedPlugin()
+    plugin.load(str(weights_path))
+
+    # Ingest 5 completely stationary frames (speed = 0.0)
+    for _ in range(5):
+        pts = _create_synthetic_landmarks()
+
+        class MockLM:
+            def __init__(self, x, y, z):
+                self.x = x / 640.0
+                self.y = y / 480.0
+                self.z = z / 640.0
+
+        mock_raw = [MockLM(x, y, z) for x, y, z in pts]
+        win_ready, norm_win, pix_win = service.process_frame(
+            raw_landmarks=mock_raw,
+            hand_label="Right",
+            frame_w=640,
+            frame_h=480,
+            hand_score=0.95,
+        )
+
+    assert win_ready is True
+    results = service.run_parallel_inference(plugin, norm_win)
+
+    # Window should be ignored before running deep learning model forward pass
+    assert "Window Ignored" in service.last_status
+    assert "below velocity threshold" in service.last_status
+    for f in FINGERS:
+        assert results[f]["touch"] is False
+        assert results[f]["prob"] == 0.0
+        assert "below velocity threshold" in results[f]["reason"]
+
+
+def test_velocity_threshold_adjustment():
+    """Verify that velocity threshold can be dynamically adjusted."""
+    service = TouchPipelineService(velocity_threshold=0.008)
+    assert service.velocity_threshold == 0.008
+
+    service.set_velocity_threshold(0.025)
+    assert service.velocity_threshold == 0.025
+
+    service.set_velocity_threshold(0.001)
+    assert service.velocity_threshold == 0.001
 
 
 def test_pinky_touch_does_not_trigger_index():
@@ -325,5 +377,8 @@ if __name__ == "__main__":
     test_feature_extraction_and_scaling()
     test_lstm_all_combined_plugin_inference()
     test_touch_pipeline_service_full_flow()
+    test_velocity_threshold_ignores_stationary_window()
+    test_velocity_threshold_adjustment()
     test_pinky_touch_does_not_trigger_index()
-    print("\n✅ All 8 pipeline replication and model verification tests passed successfully!")
+    print("\nAll 10 pipeline replication, velocity threshold, and model verification tests passed successfully!")
+

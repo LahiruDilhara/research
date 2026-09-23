@@ -68,6 +68,7 @@ class TouchPipelineService:
         min_kinetic_speed: float = MIN_KINETIC_SPEED_THRESHOLD,
         touch_onset_threshold: float = TOUCH_ONSET_THRESHOLD,
         touch_release_threshold: float = TOUCH_RELEASE_THRESHOLD,
+        velocity_threshold: float | None = None,
     ) -> None:
         self._window_size = window_size
         self._shift_size = shift_size
@@ -80,7 +81,10 @@ class TouchPipelineService:
             min_frame_score=quality_min_frame_score,
             max_score_drop=quality_max_score_drop,
         )
-        self._kinetic_motion_filter = KineticMotionFilter(threshold=min_kinetic_speed)
+        self._velocity_threshold = (
+            float(velocity_threshold) if velocity_threshold is not None else float(min_kinetic_speed)
+        )
+        self._kinetic_motion_filter = KineticMotionFilter(threshold=self._velocity_threshold)
 
         # Debouncing thresholds
         self._t_on = touch_onset_threshold
@@ -199,9 +203,30 @@ class TouchPipelineService:
         self._finger_touch_state = {f: False for f in FINGERS}
 
     @property
-    def finger_touch_states(self) -> dict[str, bool]:
-        """Current debounced touch state per finger."""
-        return dict(self._finger_touch_state)
+    def velocity_threshold(self) -> float:
+        """Current fingertip velocity threshold in L_hand per step."""
+        return self._velocity_threshold
+
+    def set_velocity_threshold(self, threshold: float) -> None:
+        """Update fingertip velocity threshold dynamically."""
+        self._velocity_threshold = float(threshold)
+        self._kinetic_motion_filter.threshold = float(threshold)
+        logger.info("Updated TouchPipelineService velocity threshold: %.4f", self._velocity_threshold)
+
+    @property
+    def touch_threshold(self) -> float:
+        """Current touch onset probability threshold."""
+        return self._t_on
+
+    def set_touch_threshold(self, threshold: float) -> None:
+        """Update touch probability onset and release thresholds dynamically."""
+        self._t_on = float(threshold)
+        self._t_off = max(0.10, float(threshold) - 0.15)
+        logger.info(
+            "Updated TouchPipelineService touch thresholds: onset=%.2f, release=%.2f",
+            self._t_on,
+            self._t_off,
+        )
 
     def run_parallel_inference(
         self,
@@ -213,9 +238,11 @@ class TouchPipelineService:
         1. Validates whole-hand transit movement (Step 7: displacement <= 0.155 L_hand).
         2. Validates window confidence and quality (Step 10: avg >= 0.65, min >= 0.45, drop <= 0.35).
         3. Computes 4 velocity steps across 5 frames (Step 8).
-        4. Runs active touch model inference forward-pass.
-        5. Validates finger kinetic motion (Step 9: zero-velocity filter >= 0.008).
-        6. Applies dual-threshold debouncing hysteresis (onset >= 0.55, release < 0.40).
+        4. Validates fingertip velocity threshold: if no fingertip exceeds the threshold,
+           the window is ignored and neural network inference is bypassed.
+        5. Runs active touch model inference forward-pass.
+        6. Validates finger kinetic motion (Step 9: zero-velocity filter >= threshold).
+        7. Applies dual-threshold debouncing hysteresis (onset >= 0.55, release < 0.40).
 
         Returns:
             Dict mapping each finger to {
@@ -274,6 +301,36 @@ class TouchPipelineService:
         # Step 8: Compute 4 velocity steps from normalized 5 frames
         v_steps_4 = compute_window_velocities(norm_window_5)
 
+        # Fingertip Velocity Pre-Check:
+        # Check whether any fingertip speed exceeds the velocity threshold across the 4 steps.
+        # If no fingertip exceeds the speed threshold, the hand is idling or resting.
+        # The entire window is ignored to bypass model inference and prevent false touches.
+        tip_speeds = {
+            f: self._kinetic_motion_filter.get_max_tip_speed(v_steps_4, f)
+            for f in FINGERS
+        }
+        max_any_tip_speed = max(tip_speeds.values(), default=0.0)
+
+        if max_any_tip_speed < self._velocity_threshold:
+            self.reset_touch_states()
+            self._last_status = (
+                f"Window Ignored: Max tip speed ({max_any_tip_speed:.4f}) "
+                f"below velocity threshold ({self._velocity_threshold:.4f})"
+            )
+            return {
+                f: {
+                    "touch": False,
+                    "prob": 0.0,
+                    "reason": (
+                        f"Fingertip speed ({tip_speeds[f]:.4f}) "
+                        f"below velocity threshold ({self._velocity_threshold:.4f})"
+                    ),
+                    "hand_moving": False,
+                    "disp": max_disp,
+                }
+                for f in FINGERS
+            }
+
         # Step 5: Execute active PyTorch neural network model prediction
         try:
             raw_probs = model.predict(norm_window_5)
@@ -295,9 +352,10 @@ class TouchPipelineService:
         results: dict[str, dict[str, Any]] = {}
         for f in FINGERS:
             p = float(raw_probs.get(f, 0.0))
+            f_tip_speed = tip_speeds[f]
 
-            # Step 9: Zero-velocity touch suppression
-            has_kinetic_motion = self._kinetic_motion_filter.validate(v_steps_4, f)
+            # Fingertip must individually exceed the velocity threshold
+            has_speed = f_tip_speed >= self._velocity_threshold
 
             was_touch = self._finger_touch_state.get(f, False)
             if was_touch:
@@ -305,12 +363,12 @@ class TouchPipelineService:
                 is_touch = bool(p >= self._t_off)
                 reason = "Touch Maintained (Debounce)" if is_touch else "Touch Released"
             else:
-                # Trigger new touch only if probability exceeds onset cutoff AND has kinetic motion
-                is_touch = bool(p >= self._t_on and has_kinetic_motion)
+                # Trigger new touch only if probability exceeds onset cutoff AND tip speed exceeds threshold
+                is_touch = bool(p >= self._t_on and has_speed)
                 if is_touch:
                     reason = "Touch Detected"
-                elif p >= self._t_on and not has_kinetic_motion:
-                    reason = "Zero-Velocity Suppressed"
+                elif p >= self._t_on and not has_speed:
+                    reason = f"Tip Speed Below Threshold ({f_tip_speed:.4f} < {self._velocity_threshold:.4f})"
                 else:
                     reason = "Below Onset Threshold"
 

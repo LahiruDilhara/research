@@ -35,6 +35,7 @@ from ui.views.settings_view import SettingsView
 from viewmodels.action_config_viewmodel import ActionConfigViewModel
 from viewmodels.camera_select_viewmodel import CameraSelectViewModel
 from viewmodels.detector_viewmodel import DetectorViewModel
+from viewmodels.settings_viewmodel import SettingsViewModel
 from viewmodels.startup_viewmodel import StartupViewModel
 from utils.logger import setup_logger
 
@@ -54,6 +55,11 @@ class MainWindow(FluentWindow):
         # ViewModels
         plugins_dir = str(Path(__file__).resolve().parent.parent / config.plugins_dir)
         self._startup_vm = StartupViewModel(plugins_dir, parent=self)
+        self._settings_vm = SettingsViewModel(
+            env_path=self._env_path,
+            config=self._config,
+            parent=self,
+        )
 
         self._setup_window()
         self._build_pages()
@@ -97,8 +103,9 @@ class MainWindow(FluentWindow):
         )
 
         # ── Settings page ──────────────────────────────────────────────────────
-        self._settings_view = SettingsView(self._env_path)
+        self._settings_view = SettingsView(self._settings_vm, parent=self)
         self._settings_view.setObjectName("settingsView")
+        self._settings_view.settings_applied.connect(self._on_settings_applied)
         self.addSubInterface(
             self._settings_view,
             FluentIcon.SETTING,
@@ -115,6 +122,13 @@ class MainWindow(FluentWindow):
         xml_path = self._startup_vm.layout_path
         self._splash.set_layout_loaded(layout, xml_path)
         self._config.set_last_xml_path(xml_path)
+        self._settings_vm.set_layout_xml_path(xml_path)
+
+    def _on_settings_applied(self) -> None:
+        """Propagate updated settings immediately to live detector if running."""
+        if self._active_det_vm is not None:
+            self._active_det_vm.update_settings(self._config)
+            logger.info("Propagated settings update to active DetectorViewModel.")
 
     # ── Navigation / routing ───────────────────────────────────────────────────
 

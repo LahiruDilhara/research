@@ -74,6 +74,7 @@ class DetectorViewModel(QObject):
             min_kinetic_speed=config.min_kinetic_speed,
             touch_onset_threshold=config.touch_onset_threshold,
             touch_release_threshold=config.touch_release_threshold,
+            velocity_threshold=config.fingertip_velocity_threshold,
         )
         self._resolver = TouchResolver(layout)
         self._executor = ActionExecutor()
@@ -104,6 +105,20 @@ class DetectorViewModel(QObject):
             self._worker.wait(3000)
             self._worker = None
         logger.info("Detection pipeline stopped.")
+
+    def update_settings(self, config: AppConfig) -> None:
+        """
+        Dynamically update live detector thresholds and configuration.
+        Takes effect immediately on the next inference window without stopping camera.
+        """
+        self._config = config
+        self._pipeline_service.set_velocity_threshold(config.fingertip_velocity_threshold)
+        self._pipeline_service.set_touch_threshold(config.touch_threshold)
+        logger.info(
+            "DetectorViewModel live thresholds updated: velocity_threshold=%.4f, touch_threshold=%.2f",
+            config.fingertip_velocity_threshold,
+            config.touch_threshold,
+        )
 
     # ── Model hot-swap ─────────────────────────────────────────────────────────
 

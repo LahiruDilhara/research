@@ -27,6 +27,7 @@ from .constants import (
     QUALITY_MIN_FRAME_SCORE,
     QUALITY_MAX_SCORE_DROP,
     MIN_KINETIC_SPEED_THRESHOLD,
+    FINGERTIP_VELOCITY_THRESHOLD,
 )
 
 
@@ -80,6 +81,12 @@ class AppConfig:
         )
         self._min_kinetic_speed = float(
             os.getenv("MIN_KINETIC_SPEED_THRESHOLD", str(MIN_KINETIC_SPEED_THRESHOLD))
+        )
+        self._fingertip_velocity_threshold = float(
+            os.getenv(
+                "FINGERTIP_VELOCITY_THRESHOLD",
+                os.getenv("MIN_KINETIC_SPEED_THRESHOLD", str(FINGERTIP_VELOCITY_THRESHOLD)),
+            )
         )
         self._apriltag_min_markers = int(
             os.getenv("APRILTAG_MIN_MARKERS", str(APRILTAG_MIN_MARKERS))
@@ -185,6 +192,52 @@ class AppConfig:
     @property
     def min_kinetic_speed(self) -> float:
         return self._min_kinetic_speed
+
+    @property
+    def fingertip_velocity_threshold(self) -> float:
+        return self._fingertip_velocity_threshold
+
+    def set_target_fps(self, value: float) -> None:
+        self._target_fps = float(value)
+
+    def set_touch_threshold(self, value: float) -> None:
+        self._touch_threshold = float(value)
+        self._touch_onset_threshold = float(value)
+        self._touch_release_threshold = max(0.10, float(value) - 0.15)
+
+    def set_plugins_dir(self, value: str) -> None:
+        self._plugins_dir = str(value)
+
+    def set_fingertip_velocity_threshold(self, value: float) -> None:
+        self._fingertip_velocity_threshold = float(value)
+        self._min_kinetic_speed = float(value)
+
+    def apply_dict(self, settings: dict[str, Any]) -> None:
+        """Apply a dictionary of settings directly into in-memory properties."""
+        if "TARGET_FPS" in settings:
+            try:
+                self.set_target_fps(float(settings["TARGET_FPS"]))
+            except (ValueError, TypeError):
+                pass
+        if "TOUCH_THRESHOLD" in settings:
+            try:
+                self.set_touch_threshold(float(settings["TOUCH_THRESHOLD"]))
+            except (ValueError, TypeError):
+                pass
+        if "FINGERTIP_VELOCITY_THRESHOLD" in settings:
+            try:
+                self.set_fingertip_velocity_threshold(float(settings["FINGERTIP_VELOCITY_THRESHOLD"]))
+            except (ValueError, TypeError):
+                pass
+        elif "MIN_KINETIC_SPEED_THRESHOLD" in settings:
+            try:
+                self.set_fingertip_velocity_threshold(float(settings["MIN_KINETIC_SPEED_THRESHOLD"]))
+            except (ValueError, TypeError):
+                pass
+        if "AI_MODEL_PLUGINS_DIR" in settings:
+            self.set_plugins_dir(str(settings["AI_MODEL_PLUGINS_DIR"]))
+        elif "PLUGINS_DIR" in settings:
+            self.set_plugins_dir(str(settings["PLUGINS_DIR"]))
 
     @property
     def apriltag_min_markers(self) -> int:

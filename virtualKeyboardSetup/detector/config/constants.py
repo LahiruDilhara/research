@@ -91,6 +91,7 @@ QUALITY_MAX_SCORE_DROP: float = 0.35
 
 # Kinetic motion threshold (Step 9: filter_dataset.py --remove-zero-vel-touch)
 MIN_KINETIC_SPEED_THRESHOLD: float = 0.008
+FINGERTIP_VELOCITY_THRESHOLD: float = 0.008
 
 # ── Scale normalisation (HandScaleNormalizer, stage1) ─────────────────────────
 WRIST_INDEX: int = 0
