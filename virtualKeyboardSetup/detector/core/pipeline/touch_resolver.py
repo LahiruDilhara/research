@@ -140,23 +140,47 @@ class TouchResolver:
             return None
         dip_idx = DIP_INDICES.get(finger, tip_idx - 1)
 
-        # 1. Determine exact physical touchdown frame
+        # 1. Determine physical touchdown frame and motion signature (rebound vs settled)
         touchdown_frame = self.find_touchdown_frame(tip_idx, pixel_frames)
 
-        # Candidate frames to check:
-        # Start with the touchdown frame. If touchdown occurred earlier in the window
-        # (e.g. frame 3 of 5) and the finger rested on the key through the final frame,
-        # consider the final frame as a secondary candidate in case the finger settled.
-        # We do NOT test earlier in-flight frames (0, 1, 2) that project onto back keys.
-        candidate_frames = [touchdown_frame]
+        has_rebound = False
+        steps: list[tuple[float, float, float]] = []
+        for i in range(len(pixel_frames) - 1):
+            vx = pixel_frames[i + 1][tip_idx][0] - pixel_frames[i][tip_idx][0]
+            vy = pixel_frames[i + 1][tip_idx][1] - pixel_frames[i][tip_idx][1]
+            s = math.hypot(vx, vy)
+            steps.append((vx, vy, s))
+
+        for i in range(len(steps) - 1):
+            dot = steps[i][0] * steps[i + 1][0] + steps[i][1] * steps[i + 1][1]
+            if dot < 0.0 and steps[i][2] >= 1.5:
+                has_rebound = True
+                break
+
         last_frame = len(pixel_frames) - 1
-        if last_frame != touchdown_frame and last_frame not in candidate_frames:
-            candidate_frames.append(last_frame)
+        s_last = steps[-1][2] if steps else 0.0
+
+        # Candidate frame ordering:
+        # If trajectory rebounded off paper, the turnaround apex (touchdown_frame) is primary.
+        # If finger landed and remained at rest (s_last < 2.0), the settled resting frame is primary
+        # because the finger is stationary on the surface with minimum elevation.
+        if has_rebound:
+            candidate_frames = [touchdown_frame]
+            if last_frame != touchdown_frame:
+                candidate_frames.append(last_frame)
+        elif s_last < 2.0:
+            candidate_frames = [last_frame]
+            if touchdown_frame != last_frame:
+                candidate_frames.append(touchdown_frame)
+        else:
+            candidate_frames = [touchdown_frame]
+            if last_frame != touchdown_frame:
+                candidate_frames.append(last_frame)
 
         best_hit = None
         best_tip_px, best_tip_py = 0.0, 0.0
         best_mm_x, best_mm_y = 0.0, 0.0
-        resolved_frame = touchdown_frame
+        resolved_frame = candidate_frames[0]
 
         H_inv = None
         try:
@@ -164,17 +188,47 @@ class TouchResolver:
         except Exception:
             pass
 
-        # 2. Map fingertip pixel -> mm-space via H, apply forward offset, and hit-test
+        # 2. Evaluate candidate frames with raw fingertip priority to prevent jumping to back/bottom keys
         for f_idx in candidate_frames:
             tip_px, tip_py = pixel_frames[f_idx][tip_idx][:2]
             tip_mm = self._pixel_to_mm(tip_px, tip_py, H)
             if tip_mm is None:
                 continue
 
-            mm_x, mm_y = tip_mm
+            raw_mm_x, raw_mm_y = tip_mm
             contact_px, contact_py = tip_px, tip_py
 
-            # Extrapolate touch point forward along the finger direction vector (DIP -> TIP)
+            # Check 1: Direct raw un-offset containment / tight boundary tolerance
+            # If the user's fingertip is already inside or touching a key, NEVER displace it
+            raw_hit = self._hit_test(raw_mm_x, raw_mm_y, tolerance_mm=2.0)
+            if raw_hit is not None:
+                best_hit = raw_hit
+                best_tip_px, best_tip_py = tip_px, tip_py
+                best_mm_x, best_mm_y = raw_mm_x, raw_mm_y
+                resolved_frame = f_idx
+                self._last_contact_points[finger] = (raw_mm_x, raw_mm_y, tip_px, tip_py)
+                logger.info(
+                    "Frame %d DIRECT HIT key='%s' (label='%s') at (%.1f, %.1f)mm (camera pixel=[%.1f, %.1f], raw un-offset)",
+                    f_idx, raw_hit.id, raw_hit.label, raw_mm_x, raw_mm_y, tip_px, tip_py,
+                )
+                break
+
+            # Check 2: Closest button to raw fingertip
+            raw_closest, raw_dist = self._find_closest_button(raw_mm_x, raw_mm_y)
+            if raw_closest is not None and raw_dist <= 3.0:
+                best_hit = raw_closest
+                best_tip_px, best_tip_py = tip_px, tip_py
+                best_mm_x, best_mm_y = raw_mm_x, raw_mm_y
+                resolved_frame = f_idx
+                self._last_contact_points[finger] = (raw_mm_x, raw_mm_y, tip_px, tip_py)
+                logger.info(
+                    "Frame %d RAW-ADJACENT HIT key='%s' (label='%s') at (%.1f, %.1f)mm (dist=%.2fmm <= 3.0mm)",
+                    f_idx, raw_closest.id, raw_closest.label, raw_mm_x, raw_mm_y, raw_dist,
+                )
+                break
+
+            # Check 3: Only if raw fingertip landed in empty margin or gap, evaluate forward offset
+            mm_x, mm_y = raw_mm_x, raw_mm_y
             if self._offset_enabled and self._forward_offset_mm > 0.0 and dip_idx < len(pixel_frames[f_idx]):
                 dip_px, dip_py = pixel_frames[f_idx][dip_idx][:2]
                 dip_mm = self._pixel_to_mm(dip_px, dip_py, H)
@@ -192,27 +246,45 @@ class TouchResolver:
                             if px_pt is not None:
                                 contact_px, contact_py = px_pt
 
-            hit = self._hit_test(mm_x, mm_y)
-            if hit is not None:
-                best_hit = hit
-                best_tip_px, best_tip_py = contact_px, contact_py
-                best_mm_x, best_mm_y = mm_x, mm_y
-                resolved_frame = f_idx
-                self._last_contact_points[finger] = (mm_x, mm_y, contact_px, contact_py)
-                logger.info(
-                    "Frame %d HIT key='%s' (label='%s') at (%.1f, %.1f)mm (camera pixel=[%.1f, %.1f], offset=%.1fmm)",
-                    f_idx, hit.id, hit.label, mm_x, mm_y, contact_px, contact_py,
-                    self._forward_offset_mm if self._offset_enabled else 0.0,
-                )
-                break
-            else:
-                logger.debug(
-                    "Frame %d contact at (%.1f, %.1f)mm did not intersect any key.",
-                    f_idx, mm_x, mm_y,
-                )
+                        off_hit = self._hit_test(mm_x, mm_y, tolerance_mm=2.5)
+                        if off_hit is not None:
+                            # Safeguard against jumping across keys:
+                            # Only accept if offset matches raw_closest or if finger was far in empty space
+                            if raw_closest is None or off_hit.id == raw_closest.id or raw_dist > 8.0:
+                                best_hit = off_hit
+                                best_tip_px, best_tip_py = contact_px, contact_py
+                                best_mm_x, best_mm_y = mm_x, mm_y
+                                resolved_frame = f_idx
+                                self._last_contact_points[finger] = (mm_x, mm_y, contact_px, contact_py)
+                                logger.info(
+                                    "Frame %d OFFSET HIT key='%s' (label='%s') at (%.1f, %.1f)mm (camera pixel=[%.1f, %.1f], offset=%.1fmm)",
+                                    f_idx, off_hit.id, off_hit.label, mm_x, mm_y, contact_px, contact_py,
+                                    self._forward_offset_mm,
+                                )
+                                break
+
+        if best_hit is None and candidate_frames:
+            # Fallback to closest button to raw fingertip if within 5.0 mm
+            for f_idx in candidate_frames:
+                tip_px, tip_py = pixel_frames[f_idx][tip_idx][:2]
+                tip_mm = self._pixel_to_mm(tip_px, tip_py, H)
+                if tip_mm is None:
+                    continue
+                closest_btn, dist = self._find_closest_button(tip_mm[0], tip_mm[1])
+                if closest_btn is not None and dist <= 5.0:
+                    best_hit = closest_btn
+                    best_tip_px, best_tip_py = tip_px, tip_py
+                    best_mm_x, best_mm_y = tip_mm[0], tip_mm[1]
+                    resolved_frame = f_idx
+                    self._last_contact_points[finger] = (tip_mm[0], tip_mm[1], tip_px, tip_py)
+                    logger.info(
+                        "Frame %d CLOSEST-RAW FALLBACK HIT key='%s' (dist=%.2fmm <= 5.0mm)",
+                        f_idx, closest_btn.id, dist,
+                    )
+                    break
 
         if best_hit is None:
-            tip_px, tip_py = pixel_frames[touchdown_frame][tip_idx][:2]
+            tip_px, tip_py = pixel_frames[candidate_frames[0]][tip_idx][:2]
             tip_mm = self._pixel_to_mm(tip_px, tip_py, H)
             mm_x, mm_y = tip_mm if tip_mm else (0.0, 0.0)
             closest_btn, dist = self._find_closest_button(mm_x, mm_y)

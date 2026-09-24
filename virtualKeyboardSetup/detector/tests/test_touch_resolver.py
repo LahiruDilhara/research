@@ -380,6 +380,76 @@ def test_two_window_in_flight_trajectory_bridging():
     assert hit[1] == "Index"
 
 
+def test_top_button_near_camera_does_not_resolve_to_bottom_button():
+    """
+    Verify that pressing a top button near the camera resolves to the top button
+    and does not jump to a bottom button situated further down the finger axis,
+    even when forward offset (7.0 mm) is active.
+    """
+    btn_top = ButtonData(
+        id="BTN_TOP",
+        label="Top",
+        x_mm=35.0,
+        y_mm=35.0,
+        x_max_mm=60.0,
+        y_max_mm=53.0,
+        width_mm=25.0,
+        height_mm=18.0,
+        center_x_mm=47.5,
+        center_y_mm=44.0,
+    )
+    btn_bottom = ButtonData(
+        id="BTN_BOTTOM",
+        label="Bottom",
+        x_mm=35.0,
+        y_mm=65.0,
+        x_max_mm=60.0,
+        y_max_mm=83.0,
+        width_mm=25.0,
+        height_mm=18.0,
+        center_x_mm=47.5,
+        center_y_mm=74.0,
+    )
+    layout = LayoutData(
+        paper_width_mm=297.0,
+        paper_height_mm=210.0,
+        marker_size_mm=15.0,
+        marker_family="tag36h11",
+        buttons=[btn_top, btn_bottom],
+        markers=[],
+    )
+    resolver = TouchResolver(layout, offset_enabled=True, forward_offset_mm=7.0)
+    H = np.eye(3, dtype=np.float64)
+
+    # 1. Test raw contact inside BTN_TOP near its lower border (y=52.0):
+    # Finger points downward along +y towards BTN_BOTTOM (DIP at y=32.0).
+    pts_inside = [(47.5, 30.0), (47.5, 38.0), (47.5, 46.0), (47.5, 52.0), (47.5, 52.0)]
+    pixel_frames_inside = []
+    for p in pts_inside:
+        lm = [(0.0, 0.0)] * 21
+        lm[8] = p
+        lm[7] = (p[0], p[1] - 20.0)
+        pixel_frames_inside.append(lm)
+
+    hit_inside = resolver.resolve_trajectory("Index", 0.95, pixel_frames_inside, H)
+    assert hit_inside is not None
+    assert hit_inside[0] == "BTN_TOP", f"Expected BTN_TOP but got {hit_inside[0]}"
+
+    # 2. Test raw contact in the gap just 1.5 mm outside BTN_TOP (y=54.5):
+    # Must resolve to BTN_TOP (which is 1.5 mm away) and NOT jump to BTN_BOTTOM (which is 10.5 mm away).
+    pts_gap = [(47.5, 30.0), (47.5, 40.0), (47.5, 50.0), (47.5, 54.5), (47.5, 54.5)]
+    pixel_frames_gap = []
+    for p in pts_gap:
+        lm = [(0.0, 0.0)] * 21
+        lm[8] = p
+        lm[7] = (p[0], p[1] - 20.0)
+        pixel_frames_gap.append(lm)
+
+    hit_gap = resolver.resolve_trajectory("Index", 0.95, pixel_frames_gap, H)
+    assert hit_gap is not None
+    assert hit_gap[0] == "BTN_TOP", f"Expected BTN_TOP but got {hit_gap[0]}"
+
+
 if __name__ == "__main__":
     test_rebound_tap_at_frame_3()
     test_resting_tap_at_frame_3()
@@ -390,6 +460,8 @@ if __name__ == "__main__":
     test_in_flight_frame_does_not_hijack_landing_target()
     test_front_button_vs_back_button_perspective()
     test_two_window_in_flight_trajectory_bridging()
-    print("\nAll TouchResolver front vs back button, two-window trajectory, and kinematic tests passed successfully!")
+    test_top_button_near_camera_does_not_resolve_to_bottom_button()
+    print("\nAll TouchResolver front vs back button, top vs bottom key, two-window trajectory, and kinematic tests passed successfully!")
+
 
 
