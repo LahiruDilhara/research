@@ -42,6 +42,8 @@ from .constants import (
     FINGERTIP_PAPER_ANGLE_FACTOR_MM,
     FINGERTIP_EXTRA_FRONT_MM,
     TOUCH_DEBOUNCE_COOLDOWN_S,
+    PRINTED_MARKER_WIDTH_MM,
+    PRINTED_MARKER_HEIGHT_MM,
 )
 
 
@@ -143,6 +145,12 @@ class AppConfig:
         )
         self._touch_debounce_cooldown_s = float(
             os.getenv("TOUCH_DEBOUNCE_COOLDOWN_S", str(TOUCH_DEBOUNCE_COOLDOWN_S))
+        )
+        self._printed_marker_width_mm = float(
+            os.getenv("PRINTED_MARKER_WIDTH_MM", str(PRINTED_MARKER_WIDTH_MM))
+        )
+        self._printed_marker_height_mm = float(
+            os.getenv("PRINTED_MARKER_HEIGHT_MM", str(PRINTED_MARKER_HEIGHT_MM))
         )
 
         self._env_path = env_path or (Path(__file__).resolve().parent.parent / ".env")
@@ -447,6 +455,16 @@ class AppConfig:
                 self.set_touch_debounce_cooldown_s(float(settings["TOUCH_DEBOUNCE_COOLDOWN_S"]))
             except (ValueError, TypeError):
                 pass
+        if "PRINTED_MARKER_WIDTH_MM" in settings:
+            try:
+                self.set_printed_marker_width_mm(float(settings["PRINTED_MARKER_WIDTH_MM"]))
+            except (ValueError, TypeError):
+                pass
+        if "PRINTED_MARKER_HEIGHT_MM" in settings:
+            try:
+                self.set_printed_marker_height_mm(float(settings["PRINTED_MARKER_HEIGHT_MM"]))
+            except (ValueError, TypeError):
+                pass
 
     @property
     def apriltag_min_markers(self) -> int:
@@ -493,4 +511,18 @@ class AppConfig:
     @property
     def fingertip_extra_front_mm(self) -> float:
         return self._fingertip_extra_front_mm
+
+    @property
+    def printed_marker_width_mm(self) -> float:
+        return self._printed_marker_width_mm
+
+    def set_printed_marker_width_mm(self, value: float) -> None:
+        self._printed_marker_width_mm = max(0.0, float(value))
+
+    @property
+    def printed_marker_height_mm(self) -> float:
+        return self._printed_marker_height_mm
+
+    def set_printed_marker_height_mm(self, value: float) -> None:
+        self._printed_marker_height_mm = max(0.0, float(value))
 

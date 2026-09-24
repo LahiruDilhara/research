@@ -52,6 +52,16 @@ class TouchResolver:
         self._offset_enabled = bool(enabled)
         self._forward_offset_mm = float(offset_mm)
 
+    def update_layout(self, layout: LayoutData) -> None:
+        """Dynamically updates the layout and button bounding boxes."""
+        self._buttons = layout.buttons
+        logger.info(
+            "TouchResolver layout updated (%d buttons, paper=%.1fx%.1f mm)",
+            len(layout.buttons),
+            layout.paper_width_mm,
+            layout.paper_height_mm,
+        )
+
     @property
     def last_contact_points(self) -> dict[str, tuple[float, float, float, float]]:
         """Latest resolved physical contact coordinates per finger."""
@@ -108,29 +118,45 @@ class TouchResolver:
 
     # ── Private ────────────────────────────────────────────────────────────────
 
-    def _resolve_finger(
+    def resolve_trajectory(
         self,
         finger: str,
         prob: float,
-        pixel_window_5: list[list[tuple[float, float]]],
+        pixel_frames: list[list[tuple[float, float]]],
         H: np.ndarray,
     ) -> tuple[str, str, float] | None:
-        tip_idx = FINGERTIP_INDICES[finger]
+        """
+        Resolves a single finger touch along a trajectory of frames (length >= 2,
+        e.g. 5 frames from a single window or 8 frames stitched across two windows).
+
+        Identifies the exact touchdown frame, maps to physical mm space via H,
+        applies forward offset, and returns (key_id, finger, prob) if a key is hit.
+        """
+        if len(pixel_frames) < 2 or H is None:
+            return None
+
+        tip_idx = FINGERTIP_INDICES.get(finger)
+        if tip_idx is None:
+            return None
         dip_idx = DIP_INDICES.get(finger, tip_idx - 1)
 
-        # ── Step 1: Collect candidate contact frames in priority order ────────
-        # 1. Kinematic turnaround / impact frame (moment of contact)
-        # 2. Latest landed frame in window (frame 4)
-        # In-flight frames (2, 3) are not tested blindly to avoid triggering keys passed over in flight.
-        impact_frame = self._find_impact_frame(tip_idx, pixel_window_5)
-        candidate_frames = [impact_frame]
-        if 4 not in candidate_frames:
-            candidate_frames.append(4)
+        # 1. Determine exact physical touchdown frame
+        touchdown_frame = self.find_touchdown_frame(tip_idx, pixel_frames)
+
+        # Candidate frames to check:
+        # Start with the touchdown frame. If touchdown occurred earlier in the window
+        # (e.g. frame 3 of 5) and the finger rested on the key through the final frame,
+        # consider the final frame as a secondary candidate in case the finger settled.
+        # We do NOT test earlier in-flight frames (0, 1, 2) that project onto back keys.
+        candidate_frames = [touchdown_frame]
+        last_frame = len(pixel_frames) - 1
+        if last_frame != touchdown_frame and last_frame not in candidate_frames:
+            candidate_frames.append(last_frame)
 
         best_hit = None
         best_tip_px, best_tip_py = 0.0, 0.0
         best_mm_x, best_mm_y = 0.0, 0.0
-        resolved_frame = impact_frame
+        resolved_frame = touchdown_frame
 
         H_inv = None
         try:
@@ -138,20 +164,19 @@ class TouchResolver:
         except Exception:
             pass
 
-        # ── Step 2: Map fingertip pixel → mm-space via H, apply forward offset and hit-test ─────────
+        # 2. Map fingertip pixel -> mm-space via H, apply forward offset, and hit-test
         for f_idx in candidate_frames:
-            tip_px, tip_py = pixel_window_5[f_idx][tip_idx][:2]
+            tip_px, tip_py = pixel_frames[f_idx][tip_idx][:2]
             tip_mm = self._pixel_to_mm(tip_px, tip_py, H)
             if tip_mm is None:
-                logger.warning("TouchResolver: Homography projection failed for pixel (%.1f, %.1f)", tip_px, tip_py)
                 continue
 
             mm_x, mm_y = tip_mm
             contact_px, contact_py = tip_px, tip_py
 
             # Extrapolate touch point forward along the finger direction vector (DIP -> TIP)
-            if self._offset_enabled and self._forward_offset_mm > 0.0 and dip_idx < len(pixel_window_5[f_idx]):
-                dip_px, dip_py = pixel_window_5[f_idx][dip_idx][:2]
+            if self._offset_enabled and self._forward_offset_mm > 0.0 and dip_idx < len(pixel_frames[f_idx]):
+                dip_px, dip_py = pixel_frames[f_idx][dip_idx][:2]
                 dip_mm = self._pixel_to_mm(dip_px, dip_py, H)
                 if dip_mm is not None:
                     vx = tip_mm[0] - dip_mm[0]
@@ -187,7 +212,7 @@ class TouchResolver:
                 )
 
         if best_hit is None:
-            tip_px, tip_py = pixel_window_5[impact_frame][tip_idx][:2]
+            tip_px, tip_py = pixel_frames[touchdown_frame][tip_idx][:2]
             tip_mm = self._pixel_to_mm(tip_px, tip_py, H)
             mm_x, mm_y = tip_mm if tip_mm else (0.0, 0.0)
             closest_btn, dist = self._find_closest_button(mm_x, mm_y)
@@ -199,69 +224,174 @@ class TouchResolver:
             return None
 
         logger.info(
-            "RESOLVED touch - finger=%s key='%s' prob=%.2f contact=(%.1f, %.1f)px mapped to (%.1f, %.1f)mm (impact frame=%d, forward offset=%.1fmm)",
+            "RESOLVED touch - finger=%s key='%s' prob=%.2f contact=(%.1f, %.1f)px mapped to (%.1f, %.1f)mm (touchdown frame=%d, forward offset=%.1fmm)",
             finger, best_hit.id, prob, best_tip_px, best_tip_py, best_mm_x, best_mm_y, resolved_frame,
             self._forward_offset_mm if self._offset_enabled else 0.0,
         )
         return (best_hit.id, finger, prob)
 
+    def _resolve_finger(
+        self,
+        finger: str,
+        prob: float,
+        pixel_window_5: list[list[tuple[float, float]]],
+        H: np.ndarray,
+    ) -> tuple[str, str, float] | None:
+        return self.resolve_trajectory(finger, prob, pixel_window_5, H)
 
     @staticmethod
-    def _find_impact_frame(
-        tip_idx: int,
+    def is_in_flight(
+        finger: str,
         pixel_window_5: list[list[tuple[float, float]]],
+    ) -> bool:
+        """
+        Determines whether the fingertip is still descending in mid-air at the end
+        of a 5-frame window (Frame 4).
+
+        Returns True if:
+        - The finger has significant velocity at the final step (s_3 >= 2.5 px).
+        - The motion continues along the forward approach path (V_2 . V_3 > 0).
+        - No rebound occurred in earlier frames.
+
+        If in-flight is True, resolving touch at Frame 4 would project onto a key behind
+        the target key due to perspective foreshortening. The touch must be buffered
+        and resolved across the next window when the fingertip actually contacts the surface.
+        """
+        if len(pixel_window_5) < 5 or finger not in FINGERTIP_INDICES:
+            return False
+
+        tip_idx = FINGERTIP_INDICES[finger]
+        pts = [pixel_window_5[i][tip_idx][:2] for i in range(5)]
+
+        # Check if all points are zero (e.g. mock test)
+        if all(p[0] == 0.0 and p[1] == 0.0 for p in pts):
+            return False
+
+        # Step velocities
+        v1_x = pts[2][0] - pts[1][0]
+        v1_y = pts[2][1] - pts[1][1]
+        s1 = math.hypot(v1_x, v1_y)
+
+        v2_x = pts[3][0] - pts[2][0]
+        v2_y = pts[3][1] - pts[2][1]
+        s2 = math.hypot(v2_x, v2_y)
+
+        v3_x = pts[4][0] - pts[3][0]
+        v3_y = pts[4][1] - pts[3][1]
+        s3 = math.hypot(v3_x, v3_y)
+
+        # If speed at final step is slow (< 2.0 px), finger has already landed or stopped
+        if s3 < 2.0:
+            return False
+
+        # Check for earlier rebound:
+        # Rebound at F2
+        if s1 >= 1.5 and (v1_x * v2_x + v1_y * v2_y) < 0.0:
+            return False
+        # Rebound at F3
+        if s2 >= 1.5 and (v2_x * v3_x + v2_y * v3_y) < 0.0:
+            return False
+
+        # If s3 is fast and continuing in forward direction, finger is still in-flight
+        dot23 = v2_x * v3_x + v2_y * v3_y
+        if s3 >= 2.5 and (s2 < 1e-4 or dot23 > 0.0):
+            return True
+
+        return False
+
+    @staticmethod
+    def find_touchdown_frame(
+        tip_idx: int,
+        pixel_frames: list[list[tuple[float, float]]],
     ) -> int:
         """
-        Identifies the exact physical contact frame k in [1..4] using kinematic
-        deceleration and trajectory reversal:
-        - Downward strike followed by upward rebound (direction reversal: V_{k-1} . V_k < 0)
-        - Downward strike followed by resting still on surface (sharp deceleration: s_in >> s_out)
-        - Invariant to camera tilt angle because scalar speed and 2D collinear reversal
-          do not depend on screen-axis orientation.
-        """
-        # Compute step velocities V_0, V_1, V_2, V_3 and scalar speeds
-        steps: list[tuple[float, float, float]] = []
-        for v in range(4):
-            p0 = pixel_window_5[v][tip_idx]
-            p1 = pixel_window_5[v + 1][tip_idx]
-            vx = p1[0] - p0[0]
-            vy = p1[1] - p0[1]
-            spd = math.hypot(vx, vy)
-            steps.append((vx, vy, spd))
+        Identifies the exact physical surface touchdown frame k in [0..N-1] across
+        a sequence of frames (e.g. 5 frames in a single window or 8 stitched frames across two windows).
 
-        best_frame = 3
+        In a tilted camera view, any frame before touchdown is suspended in the air
+        and projects onto keys located behind the target. The true contact point occurs at the
+        touchdown frame where the fingertip reaches maximum descent progress and stops or rebounds.
+        """
+        n_frames = len(pixel_frames)
+        if n_frames < 2:
+            return 0
+
+        # Extract fingertip (x, y) coordinates
+        pts = [pixel_frames[i][tip_idx][:2] for i in range(n_frames)]
+
+        # Compute step vectors V_i and speeds s_i
+        steps: list[tuple[float, float, float]] = []
+        for i in range(n_frames - 1):
+            vx = pts[i + 1][0] - pts[i][0]
+            vy = pts[i + 1][1] - pts[i][1]
+            s = math.hypot(vx, vy)
+            steps.append((vx, vy, s))
+
+        # Dominant approach direction vector U (from maximum velocity step)
+        max_step_idx = max(range(len(steps)), key=lambda idx: steps[idx][2])
+        max_s = steps[max_step_idx][2]
+        if max_s > 1e-4:
+            ux = steps[max_step_idx][0] / max_s
+            uy = steps[max_step_idx][1] / max_s
+        else:
+            ux, uy = 0.0, 1.0
+
+        # Approach distance progress d_i = (P_i - P_0) . U
+        p0x, p0y = pts[0]
+        d = [(pts[i][0] - p0x) * ux + (pts[i][1] - p0y) * uy for i in range(n_frames)]
+        max_d = max(d)
+        min_d = min(d)
+        span_d = max(1e-4, max_d - min_d)
+
+        best_frame = n_frames - 1
         best_score = -1e9
 
-        # Evaluate candidate contact frames k in {1, 2, 3}
-        for k in range(1, 4):
-            v_in_x, v_in_y, s_in = steps[k - 1]
-            v_out_x, v_out_y, s_out = steps[k]
+        for k in range(1, n_frames):
+            s_in = steps[k - 1][2]
+            s_out = steps[k][2] if k < len(steps) else 0.0
 
-            if s_in < 1e-4:
-                continue
+            # Progress weight: normalized to [0, 50.0]
+            progress_score = ((d[k] - min_d) / span_d) * 50.0
 
-            dot = v_in_x * v_out_x + v_in_y * v_out_y
-            cos_theta = dot / (s_in * s_out) if (s_in * s_out) > 1e-6 else 0.0
+            if k < len(steps):
+                v_in_x, v_in_y, _ = steps[k - 1]
+                v_out_x, v_out_y, _ = steps[k]
+                dot = v_in_x * v_out_x + v_in_y * v_out_y
 
-            # 1. Trajectory reversal (rebound / bounce off key)
-            if dot < 0.0:
-                # Strong reversal: incoming approach reverses, frame k is the turnaround point
-                score = s_in + (s_in - s_out) + s_in * (1.0 - cos_theta)
+                if dot < 0.0 and s_in >= 1.5:
+                    # Signature 1: Trajectory reversal (rebound off surface)
+                    reversal_score = s_in * 3.0 + (s_in - s_out) * 2.0
+                    score = 100.0 + reversal_score + progress_score
+                elif s_in >= 1.5 and s_out < 1.8:
+                    # Signature 2: Kinematic landing (stopped on surface)
+                    decel_score = (s_in - s_out) * 2.5
+                    score = 60.0 + decel_score + progress_score
+                else:
+                    # Ongoing motion
+                    score = progress_score + (s_in - s_out)
             else:
-                # 2. Kinematic deceleration (landing and staying still on key)
-                decel = s_in - s_out
-                score = decel
+                # Final frame of sequence (k = n_frames - 1)
+                if s_in >= 1.5:
+                    # Moving into final frame
+                    score = progress_score + 20.0
+                else:
+                    # Resting at final frame
+                    score = progress_score + 35.0
 
             if score > best_score:
                 best_score = score
                 best_frame = k
 
-        # Check Frame 4: if the strike occurred on step 3 (F3 -> F4) and landed at the window end
-        s3 = steps[3][2]
-        if s3 > 1.0 and s3 > best_score:
-            best_frame = 4
-
         return best_frame
+
+    @classmethod
+    def _find_impact_frame(
+        cls,
+        tip_idx: int,
+        pixel_window_5: list[list[tuple[float, float]]],
+    ) -> int:
+        """Backward-compatible alias for unit tests."""
+        return cls.find_touchdown_frame(tip_idx, pixel_window_5)
 
     @staticmethod
     def _pixel_to_mm(

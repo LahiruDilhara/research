@@ -311,6 +311,72 @@ class SettingsView(QWidget):
             ]
         ))
 
+        # ── Card 7: Printed Layout Scale Calibration ──────────────────────────
+        match_btn = PushButton(FluentIcon.PIN, "Set to Design Size")
+        match_btn.setFixedHeight(34)
+        match_btn.clicked.connect(self._on_match_design_clicked)
+
+        reset_scale_btn = PushButton(FluentIcon.CLOSE, "Clear (1.0x Scale)")
+        reset_scale_btn.setFixedHeight(34)
+        reset_scale_btn.clicked.connect(self._on_reset_scale_clicked)
+
+        actions_box = QWidget()
+        actions_box_layout = QHBoxLayout(actions_box)
+        actions_box_layout.setContentsMargins(0, 0, 0, 0)
+        actions_box_layout.setSpacing(10)
+        actions_box_layout.addWidget(match_btn)
+        actions_box_layout.addWidget(reset_scale_btn)
+
+        design_spin = self._make_double_spin(
+            value=self._vm.design_marker_size_mm,
+            mn=1.0,
+            mx=150.0,
+            attr="design_marker_size_spin",
+            step=0.5,
+            decimals=1,
+        )
+        design_spin.setEnabled(False)
+
+        content_layout.addWidget(self._make_card(
+            "Printed Layout Scale Calibration",
+            [
+                (
+                    "Layout Design Marker Size (Reference)",
+                    "Canonical AprilTag marker size specified in the layout XML file",
+                    design_spin,
+                ),
+                (
+                    "Measured Printed Marker Width (mm)",
+                    "Physical marker width measured with a ruler on printed paper (0.0 to disable scaling)",
+                    self._make_double_spin(
+                        value=self._vm.printed_marker_width_mm,
+                        mn=0.0,
+                        mx=150.0,
+                        attr="printed_marker_w_spin",
+                        step=0.1,
+                        decimals=2,
+                    ),
+                ),
+                (
+                    "Measured Printed Marker Height (mm)",
+                    "Physical marker height measured with a ruler on printed paper (0.0 to disable scaling)",
+                    self._make_double_spin(
+                        value=self._vm.printed_marker_height_mm,
+                        mn=0.0,
+                        mx=150.0,
+                        attr="printed_marker_h_spin",
+                        step=0.1,
+                        decimals=2,
+                    ),
+                ),
+                (
+                    "Quick Calibration Actions",
+                    "Quickly fill measured dimensions with design size or clear back to unscaled",
+                    actions_box,
+                ),
+            ]
+        ))
+
         content_layout.addSpacing(10)
 
         # ── Action Buttons ─────────────────────────────────────────────────────
@@ -356,6 +422,9 @@ class SettingsView(QWidget):
         self.plugins_dir_edit.setText(self._vm.plugins_dir)
         self.fingertip_offset_enabled_switch.setChecked(self._vm.fingertip_offset_enabled)
         self.fingertip_forward_offset_spin.setValue(self._vm.fingertip_forward_offset_mm)
+        self.design_marker_size_spin.setValue(self._vm.design_marker_size_mm)
+        self.printed_marker_w_spin.setValue(self._vm.printed_marker_width_mm)
+        self.printed_marker_h_spin.setValue(self._vm.printed_marker_height_mm)
 
     def _make_card(self, section: str, rows: list[tuple]) -> CardWidget:
         card = CardWidget()
@@ -461,6 +530,8 @@ class SettingsView(QWidget):
         plugins_val = self.plugins_dir_edit.text()
         ft_offset_en = self.fingertip_offset_enabled_switch.isChecked()
         ft_offset_val = self.fingertip_forward_offset_spin.value()
+        printed_w_val = self.printed_marker_w_spin.value()
+        printed_h_val = self.printed_marker_h_spin.value()
 
         self._vm.save_settings(
             fps=fps_val,
@@ -480,7 +551,20 @@ class SettingsView(QWidget):
             one_euro_d_cutoff=one_euro_d,
             fingertip_offset_enabled=ft_offset_en,
             fingertip_forward_offset_mm=ft_offset_val,
+            printed_marker_width_mm=printed_w_val,
+            printed_marker_height_mm=printed_h_val,
         )
+
+    def _on_match_design_clicked(self) -> None:
+        """Sets measured printed marker inputs to the canonical design size."""
+        design_size = self._vm.design_marker_size_mm
+        self.printed_marker_w_spin.setValue(design_size)
+        self.printed_marker_h_spin.setValue(design_size)
+
+    def _on_reset_scale_clicked(self) -> None:
+        """Resets measured printed marker inputs to 0.0 (uncalibrated / 1.0x scale)."""
+        self.printed_marker_w_spin.setValue(0.0)
+        self.printed_marker_h_spin.setValue(0.0)
 
     def _on_settings_saved(self, message: str) -> None:
         InfoBar.success(

@@ -250,6 +250,136 @@ def test_in_flight_frame_does_not_hijack_landing_target():
     assert result[0] == "KEY_A"
 
 
+def test_front_button_vs_back_button_perspective():
+    """
+    Verify that when tapping the front button, in-flight frames passing over
+    the back button do NOT hijack the touch event.
+    """
+    btn_back = ButtonData(
+        id="KEY_BACK",
+        label="Back",
+        x_mm=20.0,
+        y_mm=20.0,
+        x_max_mm=60.0,
+        y_max_mm=60.0,
+        width_mm=40.0,
+        height_mm=40.0,
+        center_x_mm=40.0,
+        center_y_mm=40.0,
+    )
+    btn_front = ButtonData(
+        id="KEY_FRONT",
+        label="Front",
+        x_mm=20.0,
+        y_mm=80.0,
+        x_max_mm=60.0,
+        y_max_mm=120.0,
+        width_mm=40.0,
+        height_mm=40.0,
+        center_x_mm=40.0,
+        center_y_mm=100.0,
+    )
+    layout = LayoutData(
+        paper_width_mm=210.0,
+        paper_height_mm=297.0,
+        marker_size_mm=15.0,
+        marker_family="tag36h11",
+        buttons=[btn_back, btn_front],
+        markers=[],
+    )
+    resolver = TouchResolver(layout, offset_enabled=False)
+    H = np.eye(3, dtype=np.float64)
+
+    # Fingertip descends from air toward front key:
+    # Frame 0: (40, 10) - high in air
+    # Frame 1: (40, 35) - in air, projected over KEY_BACK
+    # Frame 2: (40, 50) - in air, projected over KEY_BACK
+    # Frame 3: (40, 80) - entering KEY_FRONT
+    # Frame 4: (40, 100) - physical impact on KEY_FRONT (halts motion)
+    pixel_window = []
+    positions = [(40.0, 10.0), (40.0, 35.0), (40.0, 50.0), (40.0, 80.0), (40.0, 100.0)]
+    for pt in positions:
+        landmarks = [pt for _ in range(21)]
+        pixel_window.append(landmarks)
+
+    result = resolver.resolve(["Index"], {"Index": 0.94}, pixel_window, H)
+    assert result is not None
+    key_id, finger, prob = result
+    assert key_id == "KEY_FRONT", f"Expected KEY_FRONT but got {key_id}"
+    assert finger == "Index"
+
+
+def test_two_window_in_flight_trajectory_bridging():
+    """
+    Verify that an in-flight tap descending across window boundaries
+    is recognized as in-flight in window 1, and resolves cleanly onto
+    the front key when stitched across window 2.
+    """
+    btn_back = ButtonData(
+        id="KEY_BACK",
+        label="Back",
+        x_mm=20.0,
+        y_mm=20.0,
+        x_max_mm=60.0,
+        y_max_mm=60.0,
+        width_mm=40.0,
+        height_mm=40.0,
+        center_x_mm=40.0,
+        center_y_mm=40.0,
+    )
+    btn_front = ButtonData(
+        id="KEY_FRONT",
+        label="Front",
+        x_mm=20.0,
+        y_mm=80.0,
+        x_max_mm=60.0,
+        y_max_mm=120.0,
+        width_mm=40.0,
+        height_mm=40.0,
+        center_x_mm=40.0,
+        center_y_mm=100.0,
+    )
+    layout = LayoutData(
+        paper_width_mm=210.0,
+        paper_height_mm=297.0,
+        marker_size_mm=15.0,
+        marker_family="tag36h11",
+        buttons=[btn_back, btn_front],
+        markers=[],
+    )
+    resolver = TouchResolver(layout, offset_enabled=False)
+    H = np.eye(3, dtype=np.float64)
+
+    # Window 1: finger still flying in-flight at frame 4 (speed = 15 px/frame)
+    # F0: (40, 10)
+    # F1: (40, 25)
+    # F2: (40, 45) - projected over KEY_BACK
+    # F3: (40, 65)
+    # F4: (40, 80) - still moving fast at 15 px/frame
+    w1_pts = [(40.0, 10.0), (40.0, 25.0), (40.0, 45.0), (40.0, 65.0), (40.0, 80.0)]
+    w1_pixel = [[pt for _ in range(21)] for pt in w1_pts]
+
+    # Verify that window 1 is recognized as in-flight
+    assert resolver.is_in_flight("Index", w1_pixel) is True
+
+    # Window 2 arrives with stride 3 (F3, F4, F5, F6, F7):
+    # F5: (40, 100) - physical touchdown on KEY_FRONT
+    # F6: (40, 100) - resting still on KEY_FRONT
+    # F7: (40, 95) - slight rebound
+    w2_pts = [(40.0, 65.0), (40.0, 80.0), (40.0, 100.0), (40.0, 100.0), (40.0, 95.0)]
+    w2_pixel = [[pt for _ in range(21)] for pt in w2_pts]
+
+    # Stitched 8 frames: w1[:3] + w2
+    stitched = w1_pixel[:3] + w2_pixel
+    assert len(stitched) == 8
+
+    # Trajectory resolution over stitched frames must resolve KEY_FRONT!
+    hit = resolver.resolve_trajectory("Index", 0.95, stitched, H)
+    assert hit is not None
+    assert hit[0] == "KEY_FRONT"
+    assert hit[1] == "Index"
+
+
 if __name__ == "__main__":
     test_rebound_tap_at_frame_3()
     test_resting_tap_at_frame_3()
@@ -258,5 +388,8 @@ if __name__ == "__main__":
     test_simultaneous_multi_touch_resolution()
     test_forward_offset_extrapolation()
     test_in_flight_frame_does_not_hijack_landing_target()
-    print("\nAll TouchResolver kinematic deceleration, multi-touch, offset, and angle invariance tests passed successfully!")
+    test_front_button_vs_back_button_perspective()
+    test_two_window_in_flight_trajectory_bridging()
+    print("\nAll TouchResolver front vs back button, two-window trajectory, and kinematic tests passed successfully!")
+
 

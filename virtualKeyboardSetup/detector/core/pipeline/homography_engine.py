@@ -73,6 +73,12 @@ class HomographyEngine:
         """Resets temporal homography history."""
         self._smoothed_H = None
 
+    def update_layout(self, layout_data) -> None:
+        """Updates layout data and refreshes fiducial marker corner lookup."""
+        self.layout_data = layout_data
+        self._build_marker_lookup()
+        self.reset_smoothing()
+
     def detect_markers(self, frame: np.ndarray):
         """
         Detects AprilTags in the given frame.

@@ -194,7 +194,20 @@ class CameraWorker(QThread):
         self._active_button_clear_t: float = 0.0
         self._contact_points: dict[str, tuple[float, float, float, float]] = {}
         self._contact_points_clear_t: float = 0.0
+        self._apriltag_tracker: AprilTagTracker | None = None
         self.setObjectName("CameraWorker")
+
+    def update_layout(self, layout: LayoutData) -> None:
+        """Dynamically updates the layout and propagates to the AprilTag tracker."""
+        self._layout = layout
+        if self._apriltag_tracker is not None:
+            self._apriltag_tracker.update_layout(layout)
+        logger.info(
+            "CameraWorker layout updated (paper=%.1fx%.1f mm, %d buttons)",
+            layout.paper_width_mm,
+            layout.paper_height_mm,
+            len(layout.buttons),
+        )
 
     def set_show_overlay(self, show: bool) -> None:
         """Toggle displaying the keyboard overlay on the live camera feed."""
@@ -309,6 +322,7 @@ class CameraWorker(QThread):
             min_markers=self._config.apriltag_min_markers,
             smoothing_alpha=self._config.apriltag_smoothing,
         )
+        self._apriltag_tracker = apriltag
 
         # 5. Service Layer Pipeline (Manages 5 dedicated finger queues and hand identity)
         if self._pipeline_service is not None:

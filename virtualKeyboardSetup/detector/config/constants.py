@@ -116,6 +116,11 @@ FINGERTIP_PAPER_ANGLE_FACTOR_MM: float = 6.0 # paper respective cos(theta) facto
 FINGERTIP_EXTRA_FRONT_MM: float = 3.0       # frontward paper 90-degree compensation
 TOUCH_DEBOUNCE_COOLDOWN_S: float = 0.35     # Minimum cooldown between discrete key taps (prevents sliding window double triggers)
 
+# ── Print scale calibration ──────────────────────────────────────────────────
+# Measured marker size from physical printed paper (ruler measurement in mm).
+# 0.0 means uncalibrated / use layout default (scale factor = 1.0).
+PRINTED_MARKER_WIDTH_MM: float = 0.0
+PRINTED_MARKER_HEIGHT_MM: float = 0.0
 
 DIP_INDICES: dict[str, int] = {
     "Thumb": 3,

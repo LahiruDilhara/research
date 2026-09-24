@@ -80,6 +80,20 @@ class AprilTagTracker:
     def info(self) -> dict:
         return self._info
 
+    def update_layout(self, layout: LayoutData) -> None:
+        """Updates layout data and resets computed homography matrices."""
+        self._layout = layout
+        self._engine.update_layout(layout)
+        self._H = None
+        self._H_inv = None
+        logger.info(
+            "AprilTagTracker layout updated (%d markers, %d buttons, paper=%.1fx%.1f mm)",
+            len(layout.markers),
+            len(layout.buttons),
+            layout.paper_width_mm,
+            layout.paper_height_mm,
+        )
+
     def update(self, frame_bgr: np.ndarray) -> bool:
         """
         Detects AprilTags and computes homography matrix H (image pixels -> paper mm).

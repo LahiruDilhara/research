@@ -426,6 +426,137 @@ def test_one_euro_filter_settings_persistence_and_detector_update():
         env_path.unlink(missing_ok=True)
 
 
+def test_print_scale_calibration_and_layout_scaling():
+    """Verify that user ruler measurements calibrate layout scaling without overriding XML design marker size."""
+    import tempfile
+    import xml.etree.ElementTree as ET
+    from core.layout.layout_parser import ButtonData, LayoutData, MarkerData
+    from viewmodels.detector_viewmodel import DetectorViewModel
+
+    with tempfile.NamedTemporaryFile(suffix=".env", delete=False) as env_f:
+        env_path = Path(env_f.name)
+    with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as xml_f:
+        xml_path = Path(xml_f.name)
+
+    sample_xml = """<?xml version="1.0" encoding="utf-8"?>
+<PaperLayout paper_width_mm="297.0" paper_height_mm="210.0" marker_size_mm="20.0" marker_family="tag36h11">
+  <DesignerLayout>
+    <Markers>
+      <Marker id="0" center_x_mm="20.0" center_y_mm="20.0" size_mm="20.0">
+        <Corners>
+          <TopLeft x_mm="10.0" y_mm="10.0" />
+          <TopRight x_mm="30.0" y_mm="10.0" />
+          <BottomRight x_mm="30.0" y_mm="30.0" />
+          <BottomLeft x_mm="10.0" y_mm="30.0" />
+        </Corners>
+      </Marker>
+    </Markers>
+    <Buttons>
+      <Button id="btn_space" x_mm="100.0" y_mm="50.0" width_mm="40.0" height_mm="20.0">
+        <Text>Space</Text>
+      </Button>
+    </Buttons>
+  </DesignerLayout>
+</PaperLayout>
+"""
+    xml_path.write_text(sample_xml, encoding="utf-8")
+
+    try:
+        config = AppConfig(env_path=env_path)
+        vm = SettingsViewModel(env_path=env_path, config=config)
+        vm.set_layout_xml_path(str(xml_path))
+
+        # Check reference design marker size
+        assert abs(vm.design_marker_size_mm - 20.0) < 1e-4
+        assert abs(vm.printed_marker_width_mm - 0.0) < 1e-4
+        assert abs(vm.printed_marker_height_mm - 0.0) < 1e-4
+
+        # Simulate user measuring printed marker with ruler: 19.0mm width, 18.0mm height (paper shrunk on printing)
+        success = vm.save_settings(
+            fps=12.0,
+            touch_threshold=0.55,
+            velocity_threshold=0.008,
+            hand_movement_threshold=0.155,
+            detection_confidence=0.5,
+            presence_confidence=0.5,
+            tracking_confidence=0.5,
+            quality_min_avg=0.65,
+            quality_min_frame=0.45,
+            quality_max_drop=0.35,
+            plugins_dir="ai_model_plugins",
+            printed_marker_width_mm=19.0,
+            printed_marker_height_mm=18.0,
+        )
+        assert success is True
+        assert abs(config.printed_marker_width_mm - 19.0) < 1e-4
+        assert abs(config.printed_marker_height_mm - 18.0) < 1e-4
+
+        # Crucial check: verify layout actual marker_size_mm in XML is NOT overridden!
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+        assert root.attrib["marker_size_mm"] == "20.0", "XML root marker_size_mm must not be overridden"
+
+        # Verify that printed dimensions were saved as separate properties inside <DetectorSettings>
+        det_settings = root.find("DetectorSettings")
+        assert det_settings is not None
+        setting_map = {s.attrib["name"]: s.attrib["value"] for s in det_settings.findall("Setting")}
+        assert setting_map.get("PRINTED_MARKER_WIDTH_MM") == "19.00"
+        assert setting_map.get("PRINTED_MARKER_HEIGHT_MM") == "18.00"
+
+        # Verify layout scaling logic
+        btn_orig = ButtonData(
+            id="btn_space", label="Space",
+            x_mm=100.0, y_mm=50.0, x_max_mm=140.0, y_max_mm=70.0,
+            width_mm=40.0, height_mm=20.0, center_x_mm=120.0, center_y_mm=60.0,
+        )
+        marker_orig = MarkerData(
+            id=0, center_x_mm=20.0, center_y_mm=20.0, size_mm=20.0,
+            top_left=(10.0, 10.0), top_right=(30.0, 10.0),
+            bottom_right=(30.0, 30.0), bottom_left=(10.0, 30.0),
+        )
+        orig_layout = LayoutData(
+            paper_width_mm=297.0,
+            paper_height_mm=210.0,
+            marker_size_mm=20.0,
+            marker_family="tag36h11",
+            buttons=[btn_orig],
+            markers=[marker_orig],
+        )
+
+        scaled_layout, sx, sy = orig_layout.create_scaled_from_printed_marker_size(19.0, 18.0)
+        assert abs(sx - (19.0 / 20.0)) < 1e-4 # 0.95
+        assert abs(sy - (18.0 / 20.0)) < 1e-4 # 0.90
+
+        # Verify original layout remained untouched
+        assert abs(orig_layout.paper_width_mm - 297.0) < 1e-4
+        assert abs(orig_layout.buttons[0].x_mm - 100.0) < 1e-4
+        assert abs(orig_layout.buttons[0].width_mm - 40.0) < 1e-4
+
+        # Verify scaled layout dimensions
+        assert abs(scaled_layout.paper_width_mm - (297.0 * 0.95)) < 1e-4
+        assert abs(scaled_layout.paper_height_mm - (210.0 * 0.90)) < 1e-4
+        assert abs(scaled_layout.buttons[0].x_mm - 95.0) < 1e-4      # 100.0 * 0.95
+        assert abs(scaled_layout.buttons[0].y_mm - 45.0) < 1e-4      # 50.0 * 0.90
+        assert abs(scaled_layout.buttons[0].width_mm - 38.0) < 1e-4  # 40.0 * 0.95
+        assert abs(scaled_layout.buttons[0].height_mm - 18.0) < 1e-4 # 20.0 * 0.90
+
+        # Verify DetectorViewModel adapts live
+        det_vm = DetectorViewModel(layout=orig_layout, action_config={}, config=config, camera_index=0)
+        assert abs(det_vm.layout.paper_width_mm - (297.0 * 0.95)) < 1e-4
+        assert abs(det_vm.layout.buttons[0].x_mm - 95.0) < 1e-4
+
+        # Now change calibration via config and call update_settings
+        config.set_printed_marker_width_mm(0.0) # Reset to unscaled
+        config.set_printed_marker_height_mm(0.0)
+        det_vm.update_settings(config)
+        assert abs(det_vm.layout.paper_width_mm - 297.0) < 1e-4
+        assert abs(det_vm.layout.buttons[0].x_mm - 100.0) < 1e-4
+
+    finally:
+        env_path.unlink(missing_ok=True)
+        xml_path.unlink(missing_ok=True)
+
+
 if __name__ == "__main__":
     test_settings_service_roundtrip()
     test_settings_viewmodel_save_and_signals()
@@ -434,4 +565,5 @@ if __name__ == "__main__":
     test_detector_viewmodel_live_settings_update()
     test_settings_restore_defaults()
     test_one_euro_filter_settings_persistence_and_detector_update()
-    print("\nAll 7 Settings MVVM, XML persistence, One Euro filter, live update, and restore defaults tests passed successfully!")
+    test_print_scale_calibration_and_layout_scaling()
+    print("\nAll 8 Settings MVVM, XML preservation, Print Scale Calibration, live update, and restore defaults tests passed successfully!")

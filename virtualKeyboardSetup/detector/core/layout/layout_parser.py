@@ -105,6 +105,87 @@ class LayoutData:
                 return btn
         return None
 
+    def create_scaled_copy(self, scale_x: float = 1.0, scale_y: float = 1.0) -> LayoutData:
+        """
+        Creates an independent scaled copy of this layout in millimeters.
+        Leaves the original layout completely untouched.
+        """
+        if abs(scale_x - 1.0) < 1e-6 and abs(scale_y - 1.0) < 1e-6:
+            return self
+
+        avg_scale = (scale_x + scale_y) / 2.0
+
+        scaled_markers = []
+        for m in self.markers:
+            scaled_markers.append(MarkerData(
+                id=m.id,
+                center_x_mm=m.center_x_mm * scale_x,
+                center_y_mm=m.center_y_mm * scale_y,
+                size_mm=m.size_mm * avg_scale,
+                top_left=(m.top_left[0] * scale_x, m.top_left[1] * scale_y),
+                top_right=(m.top_right[0] * scale_x, m.top_right[1] * scale_y),
+                bottom_right=(m.bottom_right[0] * scale_x, m.bottom_right[1] * scale_y),
+                bottom_left=(m.bottom_left[0] * scale_x, m.bottom_left[1] * scale_y),
+            ))
+
+        scaled_buttons = []
+        for b in self.buttons:
+            scaled_buttons.append(ButtonData(
+                id=b.id,
+                label=b.label,
+                x_mm=b.x_mm * scale_x,
+                y_mm=b.y_mm * scale_y,
+                x_max_mm=b.x_max_mm * scale_x,
+                y_max_mm=b.y_max_mm * scale_y,
+                width_mm=b.width_mm * scale_x,
+                height_mm=b.height_mm * scale_y,
+                center_x_mm=b.center_x_mm * scale_x,
+                center_y_mm=b.center_y_mm * scale_y,
+            ))
+
+        return LayoutData(
+            paper_width_mm=self.paper_width_mm * scale_x,
+            paper_height_mm=self.paper_height_mm * scale_y,
+            marker_size_mm=self.marker_size_mm * avg_scale,
+            marker_family=self.marker_family,
+            project_name=self.project_name,
+            markers=MarkerList(scaled_markers),
+            buttons=scaled_buttons,
+            source_path=self.source_path,
+        )
+
+    def create_scaled_from_printed_marker_size(
+        self,
+        printed_w_mm: float,
+        printed_h_mm: float,
+    ) -> tuple[LayoutData, float, float]:
+        """
+        Calculates scale factors by comparing user-measured printed marker dimensions
+        with the designed canonical marker size, returning (scaled_layout, scale_x, scale_y).
+        If printed_w_mm <= 0 or printed_h_mm <= 0, scale factor defaults to 1.0 (unscaled).
+        """
+        design_size = self.marker_size_mm if self.marker_size_mm > 0.0 else 15.0
+
+        if printed_w_mm > 0.0 and printed_h_mm > 0.0:
+            sx = printed_w_mm / design_size
+            sy = printed_h_mm / design_size
+        elif printed_w_mm > 0.0:
+            sx = printed_w_mm / design_size
+            sy = sx
+        elif printed_h_mm > 0.0:
+            sy = printed_h_mm / design_size
+            sx = sy
+        else:
+            sx = 1.0
+            sy = 1.0
+
+        # Safety boundary clamp (prevents invalid dimensions)
+        sx = max(0.1, min(10.0, sx))
+        sy = max(0.1, min(10.0, sy))
+
+        scaled_layout = self.create_scaled_copy(sx, sy)
+        return scaled_layout, sx, sy
+
 
 # ── Parser ─────────────────────────────────────────────────────────────────────
 

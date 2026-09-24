@@ -8,8 +8,13 @@ and MainWindow navigation routing.
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 import unittest
 from unittest.mock import MagicMock, patch
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import numpy as np
 from PySide6.QtWidgets import QApplication
@@ -245,6 +250,120 @@ class TestUiModesAndTelemetry(unittest.TestCase):
         self.assertEqual(len(dyn_graph._latency_history), 80)
         self.assertAlmostEqual(dyn_graph._latency_history[-1], 2.5)
 
+    def test_two_window_in_flight_bridging_in_viewmodel(self) -> None:
+        """Verify that in-flight candidate in Window 1 delays resolution to Window 2 touchdown."""
+        vm = DetectorViewModel(
+            layout=self.layout,
+            action_config=self.actions,
+            config=self.config,
+            camera_index=0,
+        )
+        vm.set_model(self.model_entry)
+        vm.set_execution_mode(ExecutionMode.RUN)
+
+        vm._layout_found = True
+        vm._current_H = np.eye(3)
+        vm._pipeline_service.run_parallel_inference = MagicMock(return_value={
+            "Index": {"touch": True, "prob": 0.95}
+        })
+
+        actions_executed = []
+        vm.action_executed.connect(lambda t, v, k, f: actions_executed.append((t, v, k, f)))
+
+        # In Window 1: finger still moving fast (in-flight)
+        # F0..(125, 50), F1..(125, 65), F2..(125, 80), F3..(125, 95), F4..(125, 110)
+        # Final speed = 15 px/frame -> in_flight is True
+        w1_pts = [(125.0, 50.0), (125.0, 65.0), (125.0, 80.0), (125.0, 95.0), (125.0, 110.0)]
+        w1_pixel = [[pt for _ in range(21)] for pt in w1_pts]
+
+        with patch("viewmodels.detector_viewmodel.ActionExecutor.execute") as mock_exec:
+            vm._on_window_ready([], w1_pixel, 640, 480)
+
+            # Window 1 was in-flight: no execution yet, candidate buffered
+            mock_exec.assert_not_called()
+            self.assertEqual(len(actions_executed), 0)
+            self.assertIsNotNone(vm._pending_candidate)
+            self.assertEqual(vm._pending_candidate["finger"], "Index")
+
+            # Window 2 arrives with landing at (125, 125) (inside btn_1: [100..150, 100..150])
+            w2_pts = [(125.0, 95.0), (125.0, 110.0), (125.0, 125.0), (125.0, 125.0), (125.0, 120.0)]
+            w2_pixel = [[pt for _ in range(21)] for pt in w2_pts]
+
+            vm._on_window_ready([], w2_pixel, 640, 480)
+
+            # Window 2 resolved the bridged touch!
+            mock_exec.assert_called_once()
+            self.assertEqual(len(actions_executed), 1)
+            self.assertEqual(actions_executed[0], ("key", "a", "btn_1", "Index"))
+            self.assertIsNone(vm._pending_candidate)
+
+    def test_simultaneous_multi_finger_independent_actions(self) -> None:
+        """Verify that multiple fingers touching different keys in the same window all execute actions."""
+        btn_2 = ButtonData(
+            id="btn_2",
+            label="B",
+            x_mm=200.0,
+            y_mm=100.0,
+            x_max_mm=250.0,
+            y_max_mm=150.0,
+            width_mm=50.0,
+            height_mm=50.0,
+            center_x_mm=225.0,
+            center_y_mm=125.0,
+        )
+        layout_multi = LayoutData(
+            paper_width_mm=500.0,
+            paper_height_mm=300.0,
+            marker_size_mm=20.0,
+            marker_family="tag36h11",
+            buttons=[self.btn, btn_2],
+            markers=[self.marker],
+        )
+        actions_multi = {
+            "btn_1": ActionData(type="key", value="a"),
+            "btn_2": ActionData(type="key", value="b"),
+        }
+
+        vm = DetectorViewModel(
+            layout=layout_multi,
+            action_config=actions_multi,
+            config=self.config,
+            camera_index=0,
+        )
+        vm.set_model(self.model_entry)
+        vm.set_execution_mode(ExecutionMode.RUN)
+
+        vm._layout_found = True
+        vm._current_H = np.eye(3)
+        vm._pipeline_service.run_parallel_inference = MagicMock(return_value={
+            "Index": {"touch": True, "prob": 0.95},
+            "Middle": {"touch": True, "prob": 0.92},
+        })
+
+        actions_executed = []
+        vm.action_executed.connect(lambda t, v, k, f: actions_executed.append((t, v, k, f)))
+
+        # 5 frames where Index lands on btn_1 (125, 125) and Middle lands on btn_2 (225, 125)
+        pixel_window = []
+        for _ in range(5):
+            landmarks = [(0.0, 0.0) for _ in range(21)]
+            # Index tip (idx 8) at (125, 125)
+            landmarks[8] = (125.0, 125.0)
+            # Middle tip (idx 12) at (225, 125)
+            landmarks[12] = (225.0, 125.0)
+            pixel_window.append(landmarks)
+
+        with patch("viewmodels.detector_viewmodel.ActionExecutor.execute") as mock_exec:
+            vm._on_window_ready([], pixel_window, 640, 480)
+
+            # Both independent finger actions must be executed!
+            self.assertEqual(mock_exec.call_count, 2)
+            self.assertEqual(len(actions_executed), 2)
+            executed_keys = {act[2] for act in actions_executed}
+            self.assertEqual(executed_keys, {"btn_1", "btn_2"})
+            executed_fingers = {act[3] for act in actions_executed}
+            self.assertEqual(executed_fingers, {"Index", "Middle"})
+
     def test_main_window_startup_sidebar_hidden(self) -> None:
         """On startup, MainWindow must have sidebar hidden and show FileLandingView."""
         win = MainWindow(self.config)
@@ -255,3 +374,4 @@ class TestUiModesAndTelemetry(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
