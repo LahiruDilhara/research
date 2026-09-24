@@ -72,7 +72,10 @@ class FingerStatusBar(QWidget):
                 continue
             if isinstance(val, dict):
                 prob = float(val.get("prob", 0.0))
-                is_touch = bool(val.get("touch", False)) or (prob >= self._touch_threshold)
+                if "touch" in val:
+                    is_touch = bool(val["touch"])
+                else:
+                    is_touch = prob >= self._touch_threshold
                 hand_moving = bool(val.get("hand_moving", False))
             else:
                 prob = float(val)

@@ -93,6 +93,12 @@ class LayoutData:
     markers: list[MarkerData] = field(default_factory=MarkerList)
     buttons: list[ButtonData] = field(default_factory=list)
     source_path: str = ""
+    detector_settings: dict[str, str] = field(default_factory=dict)
+    design_marker_size_mm: float = 0.0
+
+    def __post_init__(self) -> None:
+        if self.design_marker_size_mm <= 0.0:
+            self.design_marker_size_mm = self.marker_size_mm if self.marker_size_mm > 0.0 else 15.0
 
     @property
     def marker_by_id(self) -> dict[int, MarkerData]:
@@ -152,29 +158,34 @@ class LayoutData:
             markers=MarkerList(scaled_markers),
             buttons=scaled_buttons,
             source_path=self.source_path,
+            detector_settings=self.detector_settings,
+            design_marker_size_mm=self.design_marker_size_mm,
         )
 
     def create_scaled_from_printed_marker_size(
         self,
-        printed_w_mm: float,
-        printed_h_mm: float,
+        printed_w_mm: float = 0.0,
+        printed_h_mm: float = 0.0,
+        printed_side_mm: float = 0.0,
     ) -> tuple[LayoutData, float, float]:
         """
         Calculates scale factors by comparing user-measured printed marker dimensions
         with the designed canonical marker size, returning (scaled_layout, scale_x, scale_y).
-        If printed_w_mm <= 0 or printed_h_mm <= 0, scale factor defaults to 1.0 (unscaled).
+        AprilTag markers are square, so side width defines the marker box size.
+        If measured side <= 0, scale factor defaults to 1.0 (unscaled).
         """
-        design_size = self.marker_size_mm if self.marker_size_mm > 0.0 else 15.0
+        design_size = self.design_marker_size_mm if self.design_marker_size_mm > 0.0 else (
+            self.marker_size_mm if self.marker_size_mm > 0.0 else 15.0
+        )
 
-        if printed_w_mm > 0.0 and printed_h_mm > 0.0:
-            sx = printed_w_mm / design_size
-            sy = printed_h_mm / design_size
-        elif printed_w_mm > 0.0:
-            sx = printed_w_mm / design_size
-            sy = sx
-        elif printed_h_mm > 0.0:
-            sy = printed_h_mm / design_size
-            sx = sy
+        side = printed_side_mm if printed_side_mm > 0.0 else (
+            printed_w_mm if printed_w_mm > 0.0 else printed_h_mm
+        )
+
+        if side > 0.0:
+            scale = side / design_size
+            sx = scale
+            sy = scale
         else:
             sx = 1.0
             sy = 1.0
@@ -295,6 +306,31 @@ class LayoutParser:
                     center_x_mm = center_x_mm,
                     center_y_mm = center_y_mm,
                 ))
+
+        # ── Parse DetectorSettings (Overrides & Settings Section) ─────────────
+        det_settings_el = root.find("DetectorSettings")
+        if det_settings_el is not None:
+            for s_el in det_settings_el.findall("Setting"):
+                name = s_el.attrib.get("name") or s_el.attrib.get("key")
+                val = s_el.attrib.get("value")
+                if name and val is not None:
+                    layout.detector_settings[name.strip()] = val.strip()
+
+        # If DetectorSettings specifies a measured printed AprilTag side width, scale the layout
+        measured_side = 0.0
+        if "PRINTED_MARKER_SIDE_WIDTH_MM" in layout.detector_settings:
+            try:
+                measured_side = float(layout.detector_settings["PRINTED_MARKER_SIDE_WIDTH_MM"])
+            except (ValueError, TypeError):
+                pass
+        elif "PRINTED_MARKER_WIDTH_MM" in layout.detector_settings:
+            try:
+                measured_side = float(layout.detector_settings["PRINTED_MARKER_WIDTH_MM"])
+            except (ValueError, TypeError):
+                pass
+
+        if measured_side > 0.0:
+            layout, _, _ = layout.create_scaled_from_printed_marker_size(printed_side_mm=measured_side)
 
         return layout
 

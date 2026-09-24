@@ -42,6 +42,7 @@ from .constants import (
     FINGERTIP_PAPER_ANGLE_FACTOR_MM,
     FINGERTIP_EXTRA_FRONT_MM,
     TOUCH_DEBOUNCE_COOLDOWN_S,
+    PRINTED_MARKER_SIDE_WIDTH_MM,
     PRINTED_MARKER_WIDTH_MM,
     PRINTED_MARKER_HEIGHT_MM,
 )
@@ -146,12 +147,14 @@ class AppConfig:
         self._touch_debounce_cooldown_s = float(
             os.getenv("TOUCH_DEBOUNCE_COOLDOWN_S", str(TOUCH_DEBOUNCE_COOLDOWN_S))
         )
-        self._printed_marker_width_mm = float(
-            os.getenv("PRINTED_MARKER_WIDTH_MM", str(PRINTED_MARKER_WIDTH_MM))
+        self._printed_marker_side_width_mm = float(
+            os.getenv(
+                "PRINTED_MARKER_SIDE_WIDTH_MM",
+                os.getenv("PRINTED_MARKER_WIDTH_MM", str(PRINTED_MARKER_SIDE_WIDTH_MM)),
+            )
         )
-        self._printed_marker_height_mm = float(
-            os.getenv("PRINTED_MARKER_HEIGHT_MM", str(PRINTED_MARKER_HEIGHT_MM))
-        )
+        self._printed_marker_width_mm = self._printed_marker_side_width_mm
+        self._printed_marker_height_mm = self._printed_marker_side_width_mm
 
         self._env_path = env_path or (Path(__file__).resolve().parent.parent / ".env")
         self._last_xml_path = os.getenv("LAST_XML_PATH", "")
@@ -315,7 +318,7 @@ class AppConfig:
     def set_touch_threshold(self, value: float) -> None:
         self._touch_threshold = float(value)
         self._touch_onset_threshold = float(value)
-        self._touch_release_threshold = max(0.10, float(value) - 0.15)
+        self._touch_release_threshold = max(0.01, min(float(value) * 0.70, float(value) - 0.02))
 
     def set_plugins_dir(self, value: str) -> None:
         self._plugins_dir = str(value)
@@ -455,14 +458,19 @@ class AppConfig:
                 self.set_touch_debounce_cooldown_s(float(settings["TOUCH_DEBOUNCE_COOLDOWN_S"]))
             except (ValueError, TypeError):
                 pass
-        if "PRINTED_MARKER_WIDTH_MM" in settings:
+        if "PRINTED_MARKER_SIDE_WIDTH_MM" in settings:
             try:
-                self.set_printed_marker_width_mm(float(settings["PRINTED_MARKER_WIDTH_MM"]))
+                self.set_printed_marker_side_width_mm(float(settings["PRINTED_MARKER_SIDE_WIDTH_MM"]))
             except (ValueError, TypeError):
                 pass
-        if "PRINTED_MARKER_HEIGHT_MM" in settings:
+        elif "PRINTED_MARKER_WIDTH_MM" in settings:
             try:
-                self.set_printed_marker_height_mm(float(settings["PRINTED_MARKER_HEIGHT_MM"]))
+                self.set_printed_marker_side_width_mm(float(settings["PRINTED_MARKER_WIDTH_MM"]))
+            except (ValueError, TypeError):
+                pass
+        elif "PRINTED_MARKER_HEIGHT_MM" in settings:
+            try:
+                self.set_printed_marker_side_width_mm(float(settings["PRINTED_MARKER_HEIGHT_MM"]))
             except (ValueError, TypeError):
                 pass
 
@@ -513,16 +521,26 @@ class AppConfig:
         return self._fingertip_extra_front_mm
 
     @property
+    def printed_marker_side_width_mm(self) -> float:
+        return self._printed_marker_side_width_mm
+
+    def set_printed_marker_side_width_mm(self, value: float) -> None:
+        val = max(0.0, float(value))
+        self._printed_marker_side_width_mm = val
+        self._printed_marker_width_mm = val
+        self._printed_marker_height_mm = val
+
+    @property
     def printed_marker_width_mm(self) -> float:
-        return self._printed_marker_width_mm
+        return self._printed_marker_side_width_mm
 
     def set_printed_marker_width_mm(self, value: float) -> None:
-        self._printed_marker_width_mm = max(0.0, float(value))
+        self.set_printed_marker_side_width_mm(value)
 
     @property
     def printed_marker_height_mm(self) -> float:
-        return self._printed_marker_height_mm
+        return self._printed_marker_side_width_mm
 
     def set_printed_marker_height_mm(self, value: float) -> None:
-        self._printed_marker_height_mm = max(0.0, float(value))
+        self.set_printed_marker_side_width_mm(value)
 

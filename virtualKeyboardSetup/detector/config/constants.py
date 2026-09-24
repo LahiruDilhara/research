@@ -118,7 +118,9 @@ TOUCH_DEBOUNCE_COOLDOWN_S: float = 0.35     # Minimum cooldown between discrete 
 
 # ── Print scale calibration ──────────────────────────────────────────────────
 # Measured marker size from physical printed paper (ruler measurement in mm).
+# AprilTag markers are square, so side width defines the marker box size.
 # 0.0 means uncalibrated / use layout default (scale factor = 1.0).
+PRINTED_MARKER_SIDE_WIDTH_MM: float = 0.0
 PRINTED_MARKER_WIDTH_MM: float = 0.0
 PRINTED_MARKER_HEIGHT_MM: float = 0.0
 

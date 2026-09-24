@@ -31,6 +31,7 @@ from config.constants import (
     QUALITY_MIN_FRAME_SCORE,
     TARGET_FPS,
     TOUCH_PROBABILITY_THRESHOLD,
+    PRINTED_MARKER_SIDE_WIDTH_MM,
     PRINTED_MARKER_WIDTH_MM,
     PRINTED_MARKER_HEIGHT_MM,
 )
@@ -211,16 +212,20 @@ class SettingsViewModel(QObject):
         return 15.0
 
     @property
-    def printed_marker_width_mm(self) -> float:
+    def printed_marker_side_width_mm(self) -> float:
         if self._config is not None:
-            return self._config.printed_marker_width_mm
-        return float(PRINTED_MARKER_WIDTH_MM)
+            val = self._config.printed_marker_side_width_mm
+            if val > 0.0:
+                return val
+        return self.design_marker_size_mm
+
+    @property
+    def printed_marker_width_mm(self) -> float:
+        return self.printed_marker_side_width_mm
 
     @property
     def printed_marker_height_mm(self) -> float:
-        if self._config is not None:
-            return self._config.printed_marker_height_mm
-        return float(PRINTED_MARKER_HEIGHT_MM)
+        return self.printed_marker_side_width_mm
 
     @property
     def env_file_name(self) -> str:
@@ -247,8 +252,9 @@ class SettingsViewModel(QObject):
         one_euro_d_cutoff: float = 1.0,
         fingertip_offset_enabled: bool = True,
         fingertip_forward_offset_mm: float = 5.0,
-        printed_marker_width_mm: float = 0.0,
-        printed_marker_height_mm: float = 0.0,
+        printed_marker_side_width_mm: float = 0.0,
+        printed_marker_width_mm: float | None = None,
+        printed_marker_height_mm: float | None = None,
     ) -> bool:
         """
         Validates and persists updated settings.
@@ -256,9 +262,18 @@ class SettingsViewModel(QObject):
         """
         clean_plugins_dir = plugins_dir.strip() or "ai_model_plugins"
 
+        # Resolve marker side width (AprilTag is square, so width == height == side)
+        side_mm = printed_marker_side_width_mm
+        if side_mm <= 0.0:
+            if printed_marker_width_mm is not None and printed_marker_width_mm > 0.0:
+                side_mm = printed_marker_width_mm
+            elif printed_marker_height_mm is not None and printed_marker_height_mm > 0.0:
+                side_mm = printed_marker_height_mm
+
         updates: dict[str, Any] = {
             "TARGET_FPS": f"{fps:.1f}",
             "TOUCH_THRESHOLD": f"{touch_threshold:.2f}",
+            "TOUCH_ONSET_THRESHOLD": f"{touch_threshold:.2f}",
             "FINGERTIP_VELOCITY_THRESHOLD": f"{velocity_threshold:.4f}",
             "MIN_KINETIC_SPEED_THRESHOLD": f"{velocity_threshold:.4f}",
             "HAND_MOVEMENT_THRESHOLD": f"{hand_movement_threshold:.4f}",
@@ -277,8 +292,9 @@ class SettingsViewModel(QObject):
             "FINGERTIP_OFFSET_ENABLED": "true" if fingertip_offset_enabled else "false",
             "FINGERTIP_FORWARD_OFFSET_MM": f"{fingertip_forward_offset_mm:.2f}",
             "FINGERTIP_EXTRA_OFFSET_MM": f"{fingertip_forward_offset_mm:.2f}",
-            "PRINTED_MARKER_WIDTH_MM": f"{printed_marker_width_mm:.2f}",
-            "PRINTED_MARKER_HEIGHT_MM": f"{printed_marker_height_mm:.2f}",
+            "PRINTED_MARKER_SIDE_WIDTH_MM": f"{side_mm:.2f}",
+            "PRINTED_MARKER_WIDTH_MM": f"{side_mm:.2f}",
+            "PRINTED_MARKER_HEIGHT_MM": f"{side_mm:.2f}",
         }
 
         # Determine XML path to save into
@@ -307,8 +323,7 @@ class SettingsViewModel(QObject):
                 self._config.set_one_euro_d_cutoff(one_euro_d_cutoff)
                 self._config.set_fingertip_offset_enabled(fingertip_offset_enabled)
                 self._config.set_fingertip_forward_offset_mm(fingertip_forward_offset_mm)
-                self._config.set_printed_marker_width_mm(printed_marker_width_mm)
-                self._config.set_printed_marker_height_mm(printed_marker_height_mm)
+                self._config.set_printed_marker_side_width_mm(side_mm)
 
             targets = [self.env_file_name]
             if xml_save_path and Path(xml_save_path).exists():
@@ -323,6 +338,100 @@ class SettingsViewModel(QObject):
             logger.error(err_msg)
             self.error_occurred.emit(err_msg)
             return False
+
+    # ── Per-Section Reset Methods ──────────────────────────────────────────────
+
+    def _persist_current_state(self) -> bool:
+        if self._config is None:
+            return True
+        return self.save_settings(
+            fps=self._config.target_fps,
+            touch_threshold=self._config.touch_threshold,
+            velocity_threshold=self._config.fingertip_velocity_threshold,
+            hand_movement_threshold=self._config.hand_movement_threshold,
+            detection_confidence=self._config.mediapipe_min_detection_confidence,
+            presence_confidence=self._config.mediapipe_min_presence_confidence,
+            tracking_confidence=self._config.mediapipe_min_tracking_confidence,
+            quality_min_avg=self._config.quality_min_avg_score,
+            quality_min_frame=self._config.quality_min_frame_score,
+            quality_max_drop=self._config.quality_max_score_drop,
+            plugins_dir=self._config.plugins_dir,
+            one_euro_enabled=self._config.one_euro_enabled,
+            one_euro_min_cutoff=self._config.one_euro_min_cutoff,
+            one_euro_beta=self._config.one_euro_beta,
+            one_euro_d_cutoff=self._config.one_euro_d_cutoff,
+            fingertip_offset_enabled=self._config.fingertip_offset_enabled,
+            fingertip_forward_offset_mm=self._config.fingertip_forward_offset_mm,
+            printed_marker_side_width_mm=self._config.printed_marker_side_width_mm,
+        )
+
+    def reset_section_pipeline(self, persist: bool = False) -> None:
+        """Reset only Capture & Processing Pipeline settings to defaults."""
+        if self._config is not None:
+            self._config.set_target_fps(float(TARGET_FPS))
+            self._config.set_touch_threshold(float(TOUCH_PROBABILITY_THRESHOLD))
+            self._config.set_fingertip_velocity_threshold(float(FINGERTIP_VELOCITY_THRESHOLD))
+            self._config.set_hand_movement_threshold(float(HAND_MOVEMENT_THRESHOLD))
+        if persist:
+            self._persist_current_state()
+        self.settings_loaded.emit()
+
+    def reset_section_mediapipe(self, persist: bool = False) -> None:
+        """Reset only MediaPipe Detector Confidences to defaults."""
+        if self._config is not None:
+            self._config.set_mediapipe_min_detection_confidence(float(MEDIAPIPE_MIN_DETECTION_CONFIDENCE))
+            self._config.set_mediapipe_min_presence_confidence(float(MEDIAPIPE_MIN_PRESENCE_CONFIDENCE))
+            self._config.set_mediapipe_min_tracking_confidence(float(MEDIAPIPE_MIN_TRACKING_CONFIDENCE))
+        if persist:
+            self._persist_current_state()
+        self.settings_loaded.emit()
+
+    def reset_section_quality(self, persist: bool = False) -> None:
+        """Reset only Window Quality Filters to defaults."""
+        if self._config is not None:
+            self._config.set_quality_min_avg_score(float(QUALITY_MIN_AVG_SCORE))
+            self._config.set_quality_min_frame_score(float(QUALITY_MIN_FRAME_SCORE))
+            self._config.set_quality_max_score_drop(float(QUALITY_MAX_SCORE_DROP))
+        if persist:
+            self._persist_current_state()
+        self.settings_loaded.emit()
+
+    def reset_section_one_euro(self, persist: bool = False) -> None:
+        """Reset only One Euro Filter settings to defaults."""
+        if self._config is not None:
+            self._config.set_one_euro_enabled(bool(ONE_EURO_ENABLED))
+            self._config.set_one_euro_min_cutoff(float(ONE_EURO_MIN_CUTOFF))
+            self._config.set_one_euro_beta(float(ONE_EURO_BETA))
+            self._config.set_one_euro_d_cutoff(float(ONE_EURO_D_CUTOFF))
+        if persist:
+            self._persist_current_state()
+        self.settings_loaded.emit()
+
+    def reset_section_plugins(self, persist: bool = False) -> None:
+        """Reset only AI Model Plugins Dir to default."""
+        if self._config is not None:
+            self._config.set_plugins_dir("ai_model_plugins")
+        if persist:
+            self._persist_current_state()
+        self.settings_loaded.emit()
+
+    def reset_section_fingertip(self, persist: bool = False) -> None:
+        """Reset only Fingertip Touch Calibration to defaults."""
+        if self._config is not None:
+            self._config.set_fingertip_offset_enabled(bool(FINGERTIP_OFFSET_ENABLED))
+            self._config.set_fingertip_forward_offset_mm(float(FINGERTIP_FORWARD_OFFSET_MM))
+        if persist:
+            self._persist_current_state()
+        self.settings_loaded.emit()
+
+    def reset_section_scale(self, persist: bool = False) -> None:
+        """Reset Printed Layout Scale Calibration to current layout designer AprilTag side width."""
+        default_side = self.design_marker_size_mm
+        if self._config is not None:
+            self._config.set_printed_marker_side_width_mm(default_side)
+        if persist:
+            self._persist_current_state()
+        self.settings_loaded.emit()
 
     def restore_defaults(self, persist: bool = True) -> bool:
         """
@@ -346,8 +455,7 @@ class SettingsViewModel(QObject):
         default_one_euro_d_cutoff = float(ONE_EURO_D_CUTOFF)
         default_fingertip_offset_enabled = bool(FINGERTIP_OFFSET_ENABLED)
         default_fingertip_forward_offset_mm = float(FINGERTIP_FORWARD_OFFSET_MM)
-        default_printed_marker_width_mm = float(PRINTED_MARKER_WIDTH_MM)
-        default_printed_marker_height_mm = float(PRINTED_MARKER_HEIGHT_MM)
+        default_printed_marker_side_mm = self.design_marker_size_mm
 
         if persist:
             success = self.save_settings(
@@ -368,8 +476,7 @@ class SettingsViewModel(QObject):
                 one_euro_d_cutoff=default_one_euro_d_cutoff,
                 fingertip_offset_enabled=default_fingertip_offset_enabled,
                 fingertip_forward_offset_mm=default_fingertip_forward_offset_mm,
-                printed_marker_width_mm=default_printed_marker_width_mm,
-                printed_marker_height_mm=default_printed_marker_height_mm,
+                printed_marker_side_width_mm=default_printed_marker_side_mm,
             )
             self.settings_loaded.emit()
             return success
@@ -392,7 +499,6 @@ class SettingsViewModel(QObject):
                 self._config.set_one_euro_d_cutoff(default_one_euro_d_cutoff)
                 self._config.set_fingertip_offset_enabled(default_fingertip_offset_enabled)
                 self._config.set_fingertip_forward_offset_mm(default_fingertip_forward_offset_mm)
-                self._config.set_printed_marker_width_mm(default_printed_marker_width_mm)
-                self._config.set_printed_marker_height_mm(default_printed_marker_height_mm)
+                self._config.set_printed_marker_side_width_mm(default_printed_marker_side_mm)
             self.settings_loaded.emit()
             return True

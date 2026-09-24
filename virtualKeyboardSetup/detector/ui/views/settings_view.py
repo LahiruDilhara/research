@@ -9,6 +9,7 @@ window quality filters, and layout configuration.
 from __future__ import annotations
 
 import re
+from typing import Callable
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
@@ -36,6 +37,7 @@ from config.constants import (
     UI_TEXT_PRI,
     UI_TEXT_SEC,
 )
+from ui.theme import btn_icon_only
 from viewmodels.settings_viewmodel import SettingsViewModel
 
 
@@ -53,6 +55,16 @@ class SettingsView(QWidget):
     @property
     def view_model(self) -> SettingsViewModel:
         return self._vm
+
+    @property
+    def printed_marker_w_spin(self) -> DoubleSpinBox:
+        """Backward-compatible alias for unit tests."""
+        return self.printed_marker_side_spin
+
+    @property
+    def printed_marker_h_spin(self) -> DoubleSpinBox:
+        """Backward-compatible alias for unit tests."""
+        return self.printed_marker_side_spin
 
     def _setup_ui(self) -> None:
         self.setStyleSheet(f"background-color: {UI_BG_DARK};")
@@ -129,7 +141,8 @@ class SettingsView(QWidget):
                         decimals=4,
                     ),
                 ),
-            ]
+            ],
+            on_reset=self._on_reset_section_pipeline,
         ))
 
         # ── Card 2: MediaPipe Detector Confidences ─────────────────────────────
@@ -172,7 +185,8 @@ class SettingsView(QWidget):
                         decimals=2,
                     ),
                 ),
-            ]
+            ],
+            on_reset=self._on_reset_section_mediapipe,
         ))
 
         # ── Card 3: Window Quality Filters (Step 10) ───────────────────────────
@@ -215,7 +229,8 @@ class SettingsView(QWidget):
                         decimals=2,
                     ),
                 ),
-            ]
+            ],
+            on_reset=self._on_reset_section_quality,
         ))
 
         # ── Card 4: One Euro (1€) Coordinate Filter ───────────────────────────
@@ -266,7 +281,8 @@ class SettingsView(QWidget):
                         decimals=2,
                     ),
                 ),
-            ]
+            ],
+            on_reset=self._on_reset_section_one_euro,
         ))
 
         # ── Card 5: AI Model Plugins Directory ─────────────────────────────────
@@ -281,7 +297,8 @@ class SettingsView(QWidget):
                         attr="plugins_dir_edit",
                     ),
                 ),
-            ]
+            ],
+            on_reset=self._on_reset_section_plugins,
         ))
 
         # ── Card 6: Fingertip Touch Calibration ────────────────────────────────
@@ -308,73 +325,28 @@ class SettingsView(QWidget):
                         decimals=1,
                     ),
                 ),
-            ]
+            ],
+            on_reset=self._on_reset_section_fingertip,
         ))
 
         # ── Card 7: Printed Layout Scale Calibration ──────────────────────────
-        match_btn = PushButton(FluentIcon.PIN, "Set to Design Size")
-        match_btn.setFixedHeight(34)
-        match_btn.clicked.connect(self._on_match_design_clicked)
-
-        reset_scale_btn = PushButton(FluentIcon.CLOSE, "Clear (1.0x Scale)")
-        reset_scale_btn.setFixedHeight(34)
-        reset_scale_btn.clicked.connect(self._on_reset_scale_clicked)
-
-        actions_box = QWidget()
-        actions_box_layout = QHBoxLayout(actions_box)
-        actions_box_layout.setContentsMargins(0, 0, 0, 0)
-        actions_box_layout.setSpacing(10)
-        actions_box_layout.addWidget(match_btn)
-        actions_box_layout.addWidget(reset_scale_btn)
-
-        design_spin = self._make_double_spin(
-            value=self._vm.design_marker_size_mm,
-            mn=1.0,
-            mx=150.0,
-            attr="design_marker_size_spin",
-            step=0.5,
-            decimals=1,
-        )
-        design_spin.setEnabled(False)
-
         content_layout.addWidget(self._make_card(
             "Printed Layout Scale Calibration",
             [
                 (
-                    "Layout Design Marker Size (Reference)",
-                    "Canonical AprilTag marker size specified in the layout XML file",
-                    design_spin,
-                ),
-                (
-                    "Measured Printed Marker Width (mm)",
-                    "Physical marker width measured with a ruler on printed paper (0.0 to disable scaling)",
+                    "Measured Printed AprilTag Side (mm)",
+                    "Physical marker side width measured with a ruler on printed paper (0.0 to disable scaling)",
                     self._make_double_spin(
-                        value=self._vm.printed_marker_width_mm,
+                        value=self._vm.printed_marker_side_width_mm,
                         mn=0.0,
                         mx=150.0,
-                        attr="printed_marker_w_spin",
+                        attr="printed_marker_side_spin",
                         step=0.1,
                         decimals=2,
                     ),
                 ),
-                (
-                    "Measured Printed Marker Height (mm)",
-                    "Physical marker height measured with a ruler on printed paper (0.0 to disable scaling)",
-                    self._make_double_spin(
-                        value=self._vm.printed_marker_height_mm,
-                        mn=0.0,
-                        mx=150.0,
-                        attr="printed_marker_h_spin",
-                        step=0.1,
-                        decimals=2,
-                    ),
-                ),
-                (
-                    "Quick Calibration Actions",
-                    "Quickly fill measured dimensions with design size or clear back to unscaled",
-                    actions_box,
-                ),
-            ]
+            ],
+            on_reset=self._on_reset_section_scale,
         ))
 
         content_layout.addSpacing(10)
@@ -422,11 +394,14 @@ class SettingsView(QWidget):
         self.plugins_dir_edit.setText(self._vm.plugins_dir)
         self.fingertip_offset_enabled_switch.setChecked(self._vm.fingertip_offset_enabled)
         self.fingertip_forward_offset_spin.setValue(self._vm.fingertip_forward_offset_mm)
-        self.design_marker_size_spin.setValue(self._vm.design_marker_size_mm)
-        self.printed_marker_w_spin.setValue(self._vm.printed_marker_width_mm)
-        self.printed_marker_h_spin.setValue(self._vm.printed_marker_height_mm)
+        self.printed_marker_side_spin.setValue(self._vm.printed_marker_side_width_mm)
 
-    def _make_card(self, section: str, rows: list[tuple]) -> CardWidget:
+    def _make_card(
+        self,
+        section: str,
+        rows: list[tuple],
+        on_reset: Callable[[], None] | None = None,
+    ) -> CardWidget:
         card = CardWidget()
         clean_section = re.sub(r"[^a-zA-Z0-9_]", "", section.replace(" ", "_").lower())
         obj_name = f"settingsCard_{clean_section}"
@@ -440,9 +415,20 @@ class SettingsView(QWidget):
         layout.setContentsMargins(24, 20, 24, 20)
         layout.setSpacing(14)
 
+        header_row = QHBoxLayout()
+        header_row.setContentsMargins(0, 0, 0, 0)
         sec_lbl = StrongBodyLabel(section)
         sec_lbl.setStyleSheet(f"color: {UI_ACCENT}; font-size: 13px;")
-        layout.addWidget(sec_lbl)
+        header_row.addWidget(sec_lbl)
+        header_row.addStretch(1)
+
+        if on_reset is not None:
+            reset_btn = btn_icon_only("↺", card, size=28)
+            reset_btn.setToolTip(f"Reset {section} to defaults")
+            reset_btn.clicked.connect(on_reset)
+            header_row.addWidget(reset_btn)
+
+        layout.addLayout(header_row)
 
         for label, hint, widget in rows:
             row_layout = QHBoxLayout()
@@ -512,6 +498,49 @@ class SettingsView(QWidget):
         setattr(self, attr, edit)
         return edit
 
+    # ── Section Reset Handlers ─────────────────────────────────────────────────
+
+    def _on_reset_section_pipeline(self) -> None:
+        self._vm.reset_section_pipeline(persist=True)
+        self.target_fps_spin.setValue(self._vm.target_fps)
+        self.touch_threshold_spin.setValue(int(round(self._vm.touch_threshold * 100)))
+        self.fingertip_vel_spin.setValue(self._vm.fingertip_velocity_threshold)
+        self.hand_movement_spin.setValue(self._vm.hand_movement_threshold)
+
+    def _on_reset_section_mediapipe(self) -> None:
+        self._vm.reset_section_mediapipe(persist=True)
+        self.mp_detection_conf_spin.setValue(self._vm.mediapipe_min_detection_confidence)
+        self.mp_presence_conf_spin.setValue(self._vm.mediapipe_min_presence_confidence)
+        self.mp_tracking_conf_spin.setValue(self._vm.mediapipe_min_tracking_confidence)
+
+    def _on_reset_section_quality(self) -> None:
+        self._vm.reset_section_quality(persist=True)
+        self.quality_min_avg_spin.setValue(self._vm.quality_min_avg_score)
+        self.quality_min_frame_spin.setValue(self._vm.quality_min_frame_score)
+        self.quality_max_drop_spin.setValue(self._vm.quality_max_score_drop)
+
+    def _on_reset_section_one_euro(self) -> None:
+        self._vm.reset_section_one_euro(persist=True)
+        self.one_euro_enabled_switch.setChecked(self._vm.one_euro_enabled)
+        self.one_euro_min_cutoff_spin.setValue(self._vm.one_euro_min_cutoff)
+        self.one_euro_beta_spin.setValue(self._vm.one_euro_beta)
+        self.one_euro_d_cutoff_spin.setValue(self._vm.one_euro_d_cutoff)
+
+    def _on_reset_section_plugins(self) -> None:
+        self._vm.reset_section_plugins(persist=True)
+        self.plugins_dir_edit.setText(self._vm.plugins_dir)
+
+    def _on_reset_section_fingertip(self) -> None:
+        self._vm.reset_section_fingertip(persist=True)
+        self.fingertip_offset_enabled_switch.setChecked(self._vm.fingertip_offset_enabled)
+        self.fingertip_forward_offset_spin.setValue(self._vm.fingertip_forward_offset_mm)
+
+    def _on_reset_section_scale(self) -> None:
+        self._vm.reset_section_scale(persist=True)
+        self.printed_marker_side_spin.setValue(self._vm.design_marker_size_mm)
+
+    # ── Action Handlers ────────────────────────────────────────────────────────
+
     def _on_save_clicked(self) -> None:
         fps_val = self.target_fps_spin.value()
         thresh_val = self.touch_threshold_spin.value() / 100.0
@@ -530,8 +559,7 @@ class SettingsView(QWidget):
         plugins_val = self.plugins_dir_edit.text()
         ft_offset_en = self.fingertip_offset_enabled_switch.isChecked()
         ft_offset_val = self.fingertip_forward_offset_spin.value()
-        printed_w_val = self.printed_marker_w_spin.value()
-        printed_h_val = self.printed_marker_h_spin.value()
+        side_val = self.printed_marker_side_spin.value()
 
         self._vm.save_settings(
             fps=fps_val,
@@ -551,20 +579,14 @@ class SettingsView(QWidget):
             one_euro_d_cutoff=one_euro_d,
             fingertip_offset_enabled=ft_offset_en,
             fingertip_forward_offset_mm=ft_offset_val,
-            printed_marker_width_mm=printed_w_val,
-            printed_marker_height_mm=printed_h_val,
+            printed_marker_side_width_mm=side_val,
+            printed_marker_width_mm=side_val,
+            printed_marker_height_mm=side_val,
         )
 
-    def _on_match_design_clicked(self) -> None:
-        """Sets measured printed marker inputs to the canonical design size."""
-        design_size = self._vm.design_marker_size_mm
-        self.printed_marker_w_spin.setValue(design_size)
-        self.printed_marker_h_spin.setValue(design_size)
-
-    def _on_reset_scale_clicked(self) -> None:
-        """Resets measured printed marker inputs to 0.0 (uncalibrated / 1.0x scale)."""
-        self.printed_marker_w_spin.setValue(0.0)
-        self.printed_marker_h_spin.setValue(0.0)
+    def _on_restore_defaults_clicked(self) -> None:
+        """Restores all input fields and saved configuration to default parameters."""
+        self._vm.restore_defaults(persist=True)
 
     def _on_settings_saved(self, message: str) -> None:
         InfoBar.success(
@@ -584,7 +606,3 @@ class SettingsView(QWidget):
             parent=self,
             duration=4000,
         )
-
-    def _on_restore_defaults_clicked(self) -> None:
-        """Restores all input fields and saved configuration to default parameters."""
-        self._vm.restore_defaults(persist=True)

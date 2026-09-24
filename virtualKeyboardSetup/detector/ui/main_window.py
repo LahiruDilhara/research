@@ -256,10 +256,15 @@ class MainWindow(FluentWindow):
         active_model = self._active_det_vm.active_model_name if self._active_det_vm else ""
         active_cam = self._active_det_vm.camera_index if self._active_det_vm else 0
 
+        if self._active_det_vm is not None:
+            self._active_det_vm.update_settings(self._config)
+            self._active_det_vm.set_touch_threshold(self._config.touch_threshold)
+
         if target_mode == "run":
             if self._active_det_vm is not None:
                 self._active_det_vm.set_execution_mode(ExecutionMode.RUN)
             if hasattr(self, "_run_view"):
+                self._run_view.set_touch_threshold(self._config.touch_threshold)
                 self._run_view.sync_model(active_model)
                 self._run_view.sync_camera_index(active_cam)
             self.switchTo(self._run_view)
@@ -267,6 +272,7 @@ class MainWindow(FluentWindow):
             if self._active_det_vm is not None:
                 self._active_det_vm.set_execution_mode(ExecutionMode.PLAY)
             if hasattr(self, "_play_view"):
+                self._play_view.set_touch_threshold(self._config.touch_threshold)
                 self._play_view.sync_model(active_model)
                 self._play_view.sync_camera_index(active_cam)
             self.switchTo(self._play_view)
@@ -278,12 +284,18 @@ class MainWindow(FluentWindow):
         widget = self.stackedWidget.widget(index)
         active_model = self._active_det_vm.active_model_name
         active_cam = self._active_det_vm.camera_index
+
+        self._active_det_vm.update_settings(self._config)
+        self._active_det_vm.set_touch_threshold(self._config.touch_threshold)
+
         if widget is self._run_view:
             self._active_det_vm.set_execution_mode(ExecutionMode.RUN)
+            self._run_view.set_touch_threshold(self._config.touch_threshold)
             self._run_view.sync_model(active_model)
             self._run_view.sync_camera_index(active_cam)
         elif widget is self._play_view:
             self._active_det_vm.set_execution_mode(ExecutionMode.PLAY)
+            self._play_view.set_touch_threshold(self._config.touch_threshold)
             self._play_view.sync_model(active_model)
             self._play_view.sync_camera_index(active_cam)
 
@@ -311,11 +323,17 @@ class MainWindow(FluentWindow):
         if self._active_det_vm is not None:
             self._active_det_vm.update_settings(self._config)
             self._active_det_vm.set_touch_threshold(self._config.touch_threshold)
+            if self._active_det_vm.is_running:
+                self._active_det_vm.restart()
         if hasattr(self, "_run_view"):
             self._run_view.set_touch_threshold(self._config.touch_threshold)
+            self._run_view.sync_camera_index(self._config.camera_index)
+            self._run_view.refresh_models()
         if hasattr(self, "_play_view"):
             self._play_view.set_touch_threshold(self._config.touch_threshold)
-        logger.info("Propagated settings update to active detector pipeline.")
+            self._play_view.sync_camera_index(self._config.camera_index)
+            self._play_view.refresh_models()
+        logger.info("Propagated settings update to active detector pipeline, play mode, and run mode.")
 
     # ── Return to Landing Page ─────────────────────────────────────────────────
 

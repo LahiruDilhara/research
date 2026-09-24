@@ -104,7 +104,7 @@ class DetectorViewModel(QObject):
             quality_min_frame_score=config.quality_min_frame_score,
             quality_max_score_drop=config.quality_max_score_drop,
             min_kinetic_speed=config.min_kinetic_speed,
-            touch_onset_threshold=config.touch_onset_threshold,
+            touch_onset_threshold=config.touch_threshold,
             touch_release_threshold=config.touch_release_threshold,
             velocity_threshold=config.fingertip_velocity_threshold,
             one_euro_enabled=config.one_euro_enabled,
@@ -173,26 +173,31 @@ class DetectorViewModel(QObject):
         """Computes the effective runtime layout scaled according to user ruler measurements."""
         if not hasattr(self._canonical_layout, "create_scaled_from_printed_marker_size"):
             return self._canonical_layout
-        pw = getattr(self._config, "printed_marker_width_mm", 0.0)
-        ph = getattr(self._config, "printed_marker_height_mm", 0.0)
-        scaled_layout, sx, sy = self._canonical_layout.create_scaled_from_printed_marker_size(pw, ph)
+        side = getattr(self._config, "printed_marker_side_width_mm", 0.0)
+        if side <= 0.0:
+            side = getattr(self._config, "printed_marker_width_mm", 0.0)
+        scaled_layout, sx, sy = self._canonical_layout.create_scaled_from_printed_marker_size(printed_side_mm=side)
         return scaled_layout
 
     def _update_effective_layout(self) -> None:
         """Recalculates effective layout and applies live to resolver and camera worker."""
         if not hasattr(self._canonical_layout, "create_scaled_from_printed_marker_size"):
             return
-        pw = getattr(self._config, "printed_marker_width_mm", 0.0)
-        ph = getattr(self._config, "printed_marker_height_mm", 0.0)
-        scaled_layout, sx, sy = self._canonical_layout.create_scaled_from_printed_marker_size(pw, ph)
+        side = getattr(self._config, "printed_marker_side_width_mm", 0.0)
+        if side <= 0.0:
+            side = getattr(self._config, "printed_marker_width_mm", 0.0)
+        scaled_layout, sx, sy = self._canonical_layout.create_scaled_from_printed_marker_size(printed_side_mm=side)
         self._layout = scaled_layout
         if hasattr(self, "_resolver") and self._resolver is not None:
             self._resolver.update_layout(scaled_layout)
         if hasattr(self, "_worker") and self._worker is not None:
             self._worker.update_layout(scaled_layout)
+        design_size = getattr(
+            self._canonical_layout, "design_marker_size_mm", getattr(self._canonical_layout, "marker_size_mm", 15.0)
+        )
         logger.info(
-            "Effective layout scaling updated: sx=%.4f, sy=%.4f (measured: %.1f x %.1f mm, design: %.1f mm)",
-            sx, sy, pw, ph, getattr(self._canonical_layout, "marker_size_mm", 15.0),
+            "Effective layout scaling updated: sx=%.4f, sy=%.4f (measured: %.1f mm, design: %.1f mm)",
+            sx, sy, side, design_size,
         )
 
     def update_layout(self, layout: LayoutData) -> None:
@@ -236,6 +241,18 @@ class DetectorViewModel(QObject):
             self._worker.wait(3000)
             self._worker = None
         logger.info("Detection pipeline stopped.")
+
+    @property
+    def is_running(self) -> bool:
+        """True if the background camera worker is currently active and processing frames."""
+        return self._worker is not None and self._worker.isRunning()
+
+    def restart(self) -> None:
+        """Restarts the camera worker cleanly to apply fundamental sensor/framework re-initialization."""
+        was_running = self.is_running
+        self.stop()
+        if was_running:
+            self.start()
 
     def update_settings(self, config: AppConfig) -> None:
         """

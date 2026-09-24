@@ -22,7 +22,13 @@ from PySide6.QtWidgets import QApplication
 from qfluentwidgets import DoubleSpinBox
 
 from config.app_config import AppConfig
-from config.constants import ONE_EURO_ENABLED
+from config.constants import (
+    ONE_EURO_ENABLED,
+    ONE_EURO_MIN_CUTOFF,
+    MEDIAPIPE_MIN_DETECTION_CONFIDENCE,
+    QUALITY_MIN_AVG_SCORE,
+    FINGERTIP_FORWARD_OFFSET_MM,
+)
 from services.settings_service import SettingsService
 from viewmodels.settings_viewmodel import SettingsViewModel
 from ui.views.settings_view import SettingsView
@@ -468,10 +474,11 @@ def test_print_scale_calibration_and_layout_scaling():
 
         # Check reference design marker size
         assert abs(vm.design_marker_size_mm - 20.0) < 1e-4
-        assert abs(vm.printed_marker_width_mm - 0.0) < 1e-4
-        assert abs(vm.printed_marker_height_mm - 0.0) < 1e-4
+        assert abs(vm.printed_marker_side_width_mm - 20.0) < 1e-4
+        assert abs(vm.printed_marker_width_mm - 20.0) < 1e-4
+        assert abs(vm.printed_marker_height_mm - 20.0) < 1e-4
 
-        # Simulate user measuring printed marker with ruler: 19.0mm width, 18.0mm height (paper shrunk on printing)
+        # Simulate user measuring printed AprilTag square marker with ruler: 19.0 mm side width
         success = vm.save_settings(
             fps=12.0,
             touch_threshold=0.55,
@@ -484,12 +491,12 @@ def test_print_scale_calibration_and_layout_scaling():
             quality_min_frame=0.45,
             quality_max_drop=0.35,
             plugins_dir="ai_model_plugins",
-            printed_marker_width_mm=19.0,
-            printed_marker_height_mm=18.0,
+            printed_marker_side_width_mm=19.0,
         )
         assert success is True
+        assert abs(config.printed_marker_side_width_mm - 19.0) < 1e-4
         assert abs(config.printed_marker_width_mm - 19.0) < 1e-4
-        assert abs(config.printed_marker_height_mm - 18.0) < 1e-4
+        assert abs(config.printed_marker_height_mm - 19.0) < 1e-4
 
         # Crucial check: verify layout actual marker_size_mm in XML is NOT overridden!
         tree = ET.parse(xml_path)
@@ -500,10 +507,9 @@ def test_print_scale_calibration_and_layout_scaling():
         det_settings = root.find("DetectorSettings")
         assert det_settings is not None
         setting_map = {s.attrib["name"]: s.attrib["value"] for s in det_settings.findall("Setting")}
-        assert setting_map.get("PRINTED_MARKER_WIDTH_MM") == "19.00"
-        assert setting_map.get("PRINTED_MARKER_HEIGHT_MM") == "18.00"
+        assert setting_map.get("PRINTED_MARKER_SIDE_WIDTH_MM") == "19.00"
 
-        # Verify layout scaling logic
+        # Verify layout scaling logic with square marker side width
         btn_orig = ButtonData(
             id="btn_space", label="Space",
             x_mm=100.0, y_mm=50.0, x_max_mm=140.0, y_max_mm=70.0,
@@ -523,9 +529,9 @@ def test_print_scale_calibration_and_layout_scaling():
             markers=[marker_orig],
         )
 
-        scaled_layout, sx, sy = orig_layout.create_scaled_from_printed_marker_size(19.0, 18.0)
+        scaled_layout, sx, sy = orig_layout.create_scaled_from_printed_marker_size(printed_side_mm=19.0)
         assert abs(sx - (19.0 / 20.0)) < 1e-4 # 0.95
-        assert abs(sy - (18.0 / 20.0)) < 1e-4 # 0.90
+        assert abs(sy - (19.0 / 20.0)) < 1e-4 # 0.95
 
         # Verify original layout remained untouched
         assert abs(orig_layout.paper_width_mm - 297.0) < 1e-4
@@ -534,11 +540,11 @@ def test_print_scale_calibration_and_layout_scaling():
 
         # Verify scaled layout dimensions
         assert abs(scaled_layout.paper_width_mm - (297.0 * 0.95)) < 1e-4
-        assert abs(scaled_layout.paper_height_mm - (210.0 * 0.90)) < 1e-4
+        assert abs(scaled_layout.paper_height_mm - (210.0 * 0.95)) < 1e-4
         assert abs(scaled_layout.buttons[0].x_mm - 95.0) < 1e-4      # 100.0 * 0.95
-        assert abs(scaled_layout.buttons[0].y_mm - 45.0) < 1e-4      # 50.0 * 0.90
+        assert abs(scaled_layout.buttons[0].y_mm - 47.5) < 1e-4      # 50.0 * 0.95
         assert abs(scaled_layout.buttons[0].width_mm - 38.0) < 1e-4  # 40.0 * 0.95
-        assert abs(scaled_layout.buttons[0].height_mm - 18.0) < 1e-4 # 20.0 * 0.90
+        assert abs(scaled_layout.buttons[0].height_mm - 19.0) < 1e-4 # 20.0 * 0.95
 
         # Verify DetectorViewModel adapts live
         det_vm = DetectorViewModel(layout=orig_layout, action_config={}, config=config, camera_index=0)
@@ -546,8 +552,7 @@ def test_print_scale_calibration_and_layout_scaling():
         assert abs(det_vm.layout.buttons[0].x_mm - 95.0) < 1e-4
 
         # Now change calibration via config and call update_settings
-        config.set_printed_marker_width_mm(0.0) # Reset to unscaled
-        config.set_printed_marker_height_mm(0.0)
+        config.set_printed_marker_side_width_mm(0.0) # Reset to unscaled
         det_vm.update_settings(config)
         assert abs(det_vm.layout.paper_width_mm - 297.0) < 1e-4
         assert abs(det_vm.layout.buttons[0].x_mm - 100.0) < 1e-4
@@ -555,6 +560,61 @@ def test_print_scale_calibration_and_layout_scaling():
     finally:
         env_path.unlink(missing_ok=True)
         xml_path.unlink(missing_ok=True)
+
+
+def test_settings_section_resets():
+    """Verify each settings section has an independent reset to default method."""
+    with tempfile.NamedTemporaryFile("w+", suffix=".env", delete=False) as f:
+        f.write("TARGET_FPS=30.0\nTOUCH_THRESHOLD=0.90\n")
+        env_path = Path(f.name)
+
+    try:
+        config = AppConfig(env_path=env_path)
+        vm = SettingsViewModel(env_path=env_path, config=config)
+
+        # Modify values in memory
+        config.set_target_fps(24.0)
+        config.set_touch_threshold(0.80)
+        config.set_mediapipe_min_detection_confidence(0.99)
+        config.set_quality_min_avg_score(0.95)
+        config.set_one_euro_min_cutoff(5.0)
+        config.set_plugins_dir("custom_plugins")
+        config.set_fingertip_forward_offset_mm(15.0)
+        config.set_printed_marker_side_width_mm(25.0)
+
+        # Test Pipeline section reset
+        vm.reset_section_pipeline(persist=False)
+        assert abs(config.target_fps - 12.0) < 1e-4
+        assert abs(config.touch_threshold - 0.55) < 1e-4
+        # Verify other sections were NOT affected
+        assert abs(config.mediapipe_min_detection_confidence - 0.99) < 1e-4
+
+        # Test MediaPipe section reset
+        vm.reset_section_mediapipe(persist=False)
+        assert abs(config.mediapipe_min_detection_confidence - float(MEDIAPIPE_MIN_DETECTION_CONFIDENCE)) < 1e-4
+
+        # Test Quality section reset
+        vm.reset_section_quality(persist=False)
+        assert abs(config.quality_min_avg_score - float(QUALITY_MIN_AVG_SCORE)) < 1e-4
+
+        # Test One Euro section reset
+        vm.reset_section_one_euro(persist=False)
+        assert abs(config.one_euro_min_cutoff - float(ONE_EURO_MIN_CUTOFF)) < 1e-4
+
+        # Test Plugins section reset
+        vm.reset_section_plugins(persist=False)
+        assert config.plugins_dir == "ai_model_plugins"
+
+        # Test Fingertip section reset
+        vm.reset_section_fingertip(persist=False)
+        assert abs(config.fingertip_forward_offset_mm - float(FINGERTIP_FORWARD_OFFSET_MM)) < 1e-4
+
+        # Test Scale section reset
+        vm.reset_section_scale(persist=False)
+        assert abs(config.printed_marker_side_width_mm - vm.design_marker_size_mm) < 1e-4
+
+    finally:
+        env_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
@@ -566,4 +626,6 @@ if __name__ == "__main__":
     test_settings_restore_defaults()
     test_one_euro_filter_settings_persistence_and_detector_update()
     test_print_scale_calibration_and_layout_scaling()
-    print("\nAll 8 Settings MVVM, XML preservation, Print Scale Calibration, live update, and restore defaults tests passed successfully!")
+    test_settings_section_resets()
+    print("\nAll 9 Settings MVVM, XML preservation, Print Scale Calibration, section resets, live update, and restore defaults tests passed successfully!")
+
