@@ -60,6 +60,7 @@ class HandMovementFilter:
             l_hand = 1.0
 
         max_disp = 0.0
+        max_joint = "none"
         for name in STATIONARY_LANDMARK_NAMES:
             p1 = f1_raw.get(name)
             p5 = f5_raw.get(name)
@@ -69,8 +70,57 @@ class HandMovementFilter:
                 dist = math.sqrt(dx * dx + dy * dy) / l_hand
                 if dist > max_disp:
                     max_disp = dist
+                    max_joint = name
 
         return max_disp
+
+    def compute_displacement_details(self, norm_frames_5: Any) -> tuple[float, str]:
+        """
+        Computes maximum stationary joint displacement between Frame 1 and Frame 5
+        and identifies which stationary joint moved the most.
+        """
+        if norm_frames_5 is None or len(norm_frames_5) < 5:
+            return 0.0, "none"
+
+        import numpy as np
+        if isinstance(norm_frames_5, np.ndarray):
+            if norm_frames_5.ndim >= 3 and norm_frames_5.shape[0] >= 5:
+                stat_indices = [0, 5, 9, 13, 17]
+                stat_names = ["wrist", "index_mcp", "middle_mcp", "ring_mcp", "pinky_mcp"]
+                p1 = norm_frames_5[0, stat_indices, :2]
+                p5 = norm_frames_5[4, stat_indices, :2]
+                diffs = p5 - p1
+                dists = np.sqrt(np.sum(diffs ** 2, axis=-1))
+                max_idx = int(np.argmax(dists))
+                return float(dists[max_idx]), stat_names[max_idx]
+            return 0.0, "none"
+
+        if not isinstance(norm_frames_5[0], dict):
+            return 0.0, "none"
+
+        f1_raw = norm_frames_5[0].get("_raw_stationary")
+        f5_raw = norm_frames_5[4].get("_raw_stationary")
+        if not f1_raw or not f5_raw:
+            return 0.0, "none"
+
+        l_hand = float(f1_raw.get("l_hand", 1.0))
+        if l_hand <= 0.0:
+            l_hand = 1.0
+
+        max_disp = 0.0
+        max_joint = "none"
+        for name in STATIONARY_LANDMARK_NAMES:
+            p1 = f1_raw.get(name)
+            p5 = f5_raw.get(name)
+            if p1 and p5:
+                dx = p5[0] - p1[0]
+                dy = p5[1] - p1[1]
+                dist = math.sqrt(dx * dx + dy * dy) / l_hand
+                if dist > max_disp:
+                    max_disp = dist
+                    max_joint = name
+
+        return max_disp, max_joint
 
     def validate(
         self,
@@ -85,7 +135,7 @@ class HandMovementFilter:
         (is_stationary, max_displacement, reason)
         """
         limit = self.threshold if threshold is None else threshold
-        max_disp = self.compute_displacement(norm_frames_5)
+        max_disp, max_joint = self.compute_displacement_details(norm_frames_5)
         if max_disp > limit:
-            return False, max_disp, f"Hand Moving ({max_disp:.3f} > {limit:.3f} L_hand)"
+            return False, max_disp, f"Hand Moving: joint '{max_joint}' moved {max_disp:.4f} > limit {limit:.4f} L_hand"
         return True, max_disp, "Stationary"

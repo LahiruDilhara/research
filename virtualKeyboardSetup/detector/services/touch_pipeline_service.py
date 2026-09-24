@@ -186,6 +186,7 @@ class TouchPipelineService:
         if not raw_landmarks or len(raw_landmarks) == 0:
             if self._hand_detected or any(len(q) > 0 for q in self._finger_queues.values()):
                 self.clear_queues()
+                logger.info("Hand tracking lost, purged all 5 finger queues.")
             self._one_euro_filter.reset()
             self._hand_detected = False
             self._last_status = "NO_HAND"
@@ -195,6 +196,7 @@ class TouchPipelineService:
         if self._last_hand_label is not None and hand_label is not None and self._last_hand_label != hand_label:
             self.clear_queues()
             self._one_euro_filter.reset()
+            logger.info("Handedness switched from %s to %s, queues reset.", self._last_hand_label, hand_label)
         self._last_hand_label = hand_label
         self._hand_detected = True
 
@@ -230,6 +232,10 @@ class TouchPipelineService:
             self._shift_counter = 0
             norm_window_5 = list(self._finger_queues["Thumb"])
             pixel_window_5 = list(self._pixel_queue)
+            logger.info(
+                "5-frame temporal window assembled (stride=%d, hand=%s, confidence=%.2f)",
+                self._shift_size, hand_label or "Active", hand_score,
+            )
             return True, norm_window_5, pixel_window_5
 
         return False, None, None
@@ -348,12 +354,27 @@ class TouchPipelineService:
                 "disp": float,
             }
         """
-        if model is None or len(norm_window_5) < self._window_size:
+        if model is None:
+            logger.warning("Pipeline: Active AI model is None. Cannot run inference.")
+            self._last_status = "No Model Loaded"
             return {
                 f: {
                     "touch": False,
                     "prob": 0.0,
-                    "reason": "No Model or Incomplete Window",
+                    "reason": "No Model Loaded",
+                    "hand_moving": False,
+                    "disp": 0.0,
+                }
+                for f in FINGERS
+            }
+        if len(norm_window_5) < self._window_size:
+            logger.warning("Pipeline: Incomplete window (%d < %d frames).", len(norm_window_5), self._window_size)
+            self._last_status = "Incomplete Window"
+            return {
+                f: {
+                    "touch": False,
+                    "prob": 0.0,
+                    "reason": "Incomplete Window",
                     "hand_moving": False,
                     "disp": 0.0,
                 }
@@ -365,6 +386,10 @@ class TouchPipelineService:
         if not is_stationary:
             self.reset_touch_states()
             self._last_status = hm_reason
+            logger.info(
+                "Pipeline Filter [Step 7 Hand Movement]: BLOCKED window - %s (stationary displacement=%.4f > limit=%.4f L_hand)",
+                hm_reason, max_disp, self._hand_movement_filter.threshold,
+            )
             return {
                 f: {
                     "touch": False,
@@ -376,15 +401,26 @@ class TouchPipelineService:
                 for f in FINGERS
             }
 
+        logger.info(
+            "Pipeline Filter [Step 7 Hand Movement]: PASSED (%s)",
+            hm_reason,
+        )
+
         # Step 10 Filtration: Window tracking confidence quality checks
         if isinstance(norm_window_5, np.ndarray):
             scores_5 = [0.85] * len(norm_window_5)
         else:
             scores_5 = [float(f.get("_hand_score", 0.85)) if isinstance(f, dict) else 0.85 for f in norm_window_5]
         is_valid_quality, q_reason = self._window_quality_filter.validate(scores_5)
+        scores_str = ", ".join(f"{s:.2f}" for s in scores_5)
         if not is_valid_quality:
             self.reset_touch_states()
             self._last_status = q_reason
+            logger.info(
+                "Pipeline Filter [Step 10 Window Quality]: BLOCKED window - %s (scores=[%s] vs min_avg=%.2f, min_frame=%.2f, max_drop=%.2f)",
+                q_reason, scores_str, self._window_quality_filter.min_avg_score,
+                self._window_quality_filter.min_frame_score, self._window_quality_filter.max_score_drop,
+            )
             return {
                 f: {
                     "touch": False,
@@ -395,6 +431,17 @@ class TouchPipelineService:
                 }
                 for f in FINGERS
             }
+
+        valid_scores = [s for s in scores_5 if s > 0.0] or [0.85]
+        avg_score = sum(valid_scores) / len(valid_scores)
+        min_score = min(valid_scores)
+        score_drop = max(valid_scores) - min(valid_scores)
+        logger.info(
+            "Pipeline Filter [Step 10 Window Quality]: PASSED (scores=[%s], avg=%.2f >= min_avg=%.2f, min=%.2f >= min_frame=%.2f, drop=%.2f <= max_drop=%.2f)",
+            scores_str, avg_score, self._window_quality_filter.min_avg_score,
+            min_score, self._window_quality_filter.min_frame_score,
+            score_drop, self._window_quality_filter.max_score_drop,
+        )
 
         # Step 8: Compute 4 velocity steps from normalized 5 frames
         v_steps_4 = compute_window_velocities(norm_window_5)
@@ -408,12 +455,20 @@ class TouchPipelineService:
             for f in FINGERS
         }
         max_any_tip_speed = max(tip_speeds.values(), default=0.0)
+        speeds_str = ", ".join(f"{f}: {tip_speeds[f]:.4f}" for f in FINGERS)
 
         if max_any_tip_speed < self._velocity_threshold:
             self.reset_touch_states()
+            reason_str = (
+                f"Fingertip speed below threshold (max={max_any_tip_speed:.4f} < limit={self._velocity_threshold:.4f})"
+            )
             self._last_status = (
                 f"Window Ignored: Max tip speed ({max_any_tip_speed:.4f}) "
                 f"below velocity threshold ({self._velocity_threshold:.4f})"
+            )
+            logger.info(
+                "Pipeline Filter [Step 8/9 Velocity Pre-Check]: BLOCKED window - %s | speeds=[%s]",
+                reason_str, speeds_str,
             )
             return {
                 f: {
@@ -429,11 +484,18 @@ class TouchPipelineService:
                 for f in FINGERS
             }
 
+        logger.info(
+            "Pipeline Filter [Step 8/9 Velocity Pre-Check]: PASSED (max_tip_speed=%.4f >= limit=%.4f L_hand | speeds=[%s])",
+            max_any_tip_speed, self._velocity_threshold, speeds_str,
+        )
+
         # Step 5: Execute active PyTorch neural network model prediction
+        model_name = getattr(model, "name", type(model).__name__)
+        logger.info("Pipeline AI Model: Evaluating 5-frame window with '%s'...", model_name)
         try:
             raw_probs = model.predict(norm_window_5)
         except Exception as exc:
-            logger.error("Parallel model inference failed: %s", exc)
+            logger.error("Parallel model inference failed on '%s': %s", model_name, exc)
             self._last_status = f"Model Error: {exc}"
             return {
                 f: {
@@ -445,6 +507,12 @@ class TouchPipelineService:
                 }
                 for f in FINGERS
             }
+
+        probs_str = ", ".join(f"{f}: {raw_probs.get(f, 0.0):.2f}" for f in FINGERS)
+        logger.info(
+            "Model Raw Predictions: [%s] (touch_onset_threshold=%.2f, release_threshold=%.2f)",
+            probs_str, self._t_on, self._t_off,
+        )
 
         # Step 9 Filtration + Dual-Threshold Hysteresis Debouncing
         results: dict[str, dict[str, Any]] = {}
@@ -470,5 +538,16 @@ class TouchPipelineService:
                 "disp": max_disp,
             }
 
+        active_touches = [f"{f} ({results[f]['prob']:.2f}, {results[f]['reason']})" for f in FINGERS if results[f]["touch"]]
+        if active_touches:
+            logger.info("Touch Hysteresis: Active touches: %s", ", ".join(active_touches))
+        else:
+            max_f = max(FINGERS, key=lambda f: results[f]["prob"])
+            logger.info(
+                "Touch Hysteresis: No finger reached onset threshold (highest=%s at %.2f, needed >= %.2f)",
+                max_f, results[max_f]["prob"], self._t_on,
+            )
+
         self._last_status = "OK"
         return results
+

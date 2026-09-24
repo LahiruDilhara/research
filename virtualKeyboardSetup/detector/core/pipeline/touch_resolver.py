@@ -143,6 +143,7 @@ class TouchResolver:
             tip_px, tip_py = pixel_window_5[f_idx][tip_idx][:2]
             tip_mm = self._pixel_to_mm(tip_px, tip_py, H)
             if tip_mm is None:
+                logger.warning("TouchResolver: Homography projection failed for pixel (%.1f, %.1f)", tip_px, tip_py)
                 continue
 
             mm_x, mm_y = tip_mm
@@ -173,20 +174,32 @@ class TouchResolver:
                 best_mm_x, best_mm_y = mm_x, mm_y
                 resolved_frame = f_idx
                 self._last_contact_points[finger] = (mm_x, mm_y, contact_px, contact_py)
+                logger.info(
+                    "Frame %d HIT key='%s' (label='%s') at (%.1f, %.1f)mm (camera pixel=[%.1f, %.1f], offset=%.1fmm)",
+                    f_idx, hit.id, hit.label, mm_x, mm_y, contact_px, contact_py,
+                    self._forward_offset_mm if self._offset_enabled else 0.0,
+                )
                 break
+            else:
+                logger.debug(
+                    "Frame %d contact at (%.1f, %.1f)mm did not intersect any key.",
+                    f_idx, mm_x, mm_y,
+                )
 
         if best_hit is None:
             tip_px, tip_py = pixel_window_5[impact_frame][tip_idx][:2]
             tip_mm = self._pixel_to_mm(tip_px, tip_py, H)
             mm_x, mm_y = tip_mm if tip_mm else (0.0, 0.0)
+            closest_btn, dist = self._find_closest_button(mm_x, mm_y)
+            closest_info = f"closest key='{closest_btn.id}' (dist={dist:.2f}mm, tolerance=3.0mm)" if closest_btn else "no keys in layout"
             logger.info(
-                "Touch candidate outside keys: finger=%s prob=%.2f tip=(%.1f, %.1f)px mapped to (%.1f, %.1f)mm (no key intersected)",
-                finger, prob, tip_px, tip_py, mm_x, mm_y,
+                "OUTSIDE keys - finger=%s prob=%.2f contact=(%.1f, %.1f)px mapped to (%.1f, %.1f)mm | %s",
+                finger, prob, tip_px, tip_py, mm_x, mm_y, closest_info,
             )
             return None
 
         logger.info(
-            "Touch resolved: finger=%s key=%s prob=%.2f contact=(%.1f, %.1f)px mapped to (%.1f, %.1f)mm (contact frame=%d, offset=%.1fmm)",
+            "RESOLVED touch - finger=%s key='%s' prob=%.2f contact=(%.1f, %.1f)px mapped to (%.1f, %.1f)mm (impact frame=%d, forward offset=%.1fmm)",
             finger, best_hit.id, prob, best_tip_px, best_tip_py, best_mm_x, best_mm_y, resolved_frame,
             self._forward_offset_mm if self._offset_enabled else 0.0,
         )
@@ -289,3 +302,19 @@ class TouchResolver:
                     best_btn = btn
 
         return best_btn
+
+    def _find_closest_button(self, mm_x: float, mm_y: float) -> tuple[ButtonData | None, float]:
+        """Finds closest button and Euclidean distance in mm to its bounding box."""
+        if not self._buttons:
+            return None, float("inf")
+        best_btn = None
+        min_dist = float("inf")
+        for btn in self._buttons:
+            dx = max(btn.x_mm - mm_x, 0.0, mm_x - btn.x_max_mm)
+            dy = max(btn.y_mm - mm_y, 0.0, mm_y - btn.y_max_mm)
+            dist = math.hypot(dx, dy)
+            if dist < min_dist:
+                min_dist = dist
+                best_btn = btn
+        return best_btn, min_dist
+

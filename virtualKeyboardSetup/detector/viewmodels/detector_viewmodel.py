@@ -341,6 +341,7 @@ class DetectorViewModel(QObject):
         frame_h: int,
     ) -> None:
         if self._active_model is None:
+            logger.warning("DetectorViewModel: Window received, but no AI model is active. Please select a model.")
             return
 
         # ── Parallel 5-Finger Model Inference (Service Layer) ───────────────
@@ -356,19 +357,27 @@ class DetectorViewModel(QObject):
         if touch_fingers:
             candidates_str = ", ".join(f"{f}: {results[f].get('prob', 0.0):.2f}" for f in touch_fingers)
             logger.info("Touch candidate onset: [%s] (latency=%.1f ms)", candidates_str, latency_ms)
+        else:
+            max_f = max(FINGERS, key=lambda f: results[f].get("prob", 0.0))
+            max_p = results[max_f].get("prob", 0.0)
+            reason = results[max_f].get("reason", "Below Threshold")
+            logger.info(
+                "Window evaluated (inference=%.1f ms): No touch detected (%s | highest=%s at %.2f)",
+                latency_ms, reason, max_f, max_p,
+            )
+            return
 
         if not self._layout_found or self._current_H is None:
-            if touch_fingers:
-                logger.warning("Touch candidate ignored: AprilTag layout homography is not locked.")
+            logger.warning(
+                "Touch candidate(s) [%s] detected, but blocked: AprilTag paper layout is not tracked (homography missing).",
+                candidates_str,
+            )
             return
 
         # Check if all fingers have released
         all_released = not any(data.get("touch", False) for data in results.values())
         if all_released:
             self._last_pressed_key = None
-
-        if not touch_fingers:
-            return
 
         probs = {f: float(data.get("prob", 0.0)) for f, data in results.items()}
 
@@ -377,6 +386,10 @@ class DetectorViewModel(QObject):
             touch_fingers, probs, pixel_window, self._current_H
         )
         if primary_hit is None:
+            logger.info(
+                "Touch candidate(s) [%s] rejected: Fingertip contact point did not hit any button in layout.",
+                candidates_str,
+            )
             return
 
         key_id, finger, prob = primary_hit
@@ -387,9 +400,10 @@ class DetectorViewModel(QObject):
         # and prevents drifting to an adjacent key during landing/rebound.
         is_cooldown_active = (now - self._last_press_time) < self._debounce_cooldown
         if is_cooldown_active and self._last_pressed_key is not None:
-            logger.debug(
-                "Debounce suppressed repeat/drift: key='%s' ignored (active='%s')",
-                key_id, self._last_pressed_key,
+            cooldown_rem = self._debounce_cooldown - (now - self._last_press_time)
+            logger.info(
+                "Debounce cooldown active (%.2fs remaining): repeat/drift press suppressed for key='%s' (current active='%s')",
+                cooldown_rem, key_id, self._last_pressed_key,
             )
             if self._worker:
                 self._worker.set_active_buttons([self._last_pressed_key])

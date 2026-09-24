@@ -59,6 +59,7 @@ class ActionExecutor:
 
     def execute(self, action: ActionData) -> None:
         if not action.is_active:
+            logger.info("ActionExecutor: Action is inactive or empty, skipping.")
             return
         dispatch = {
             "keystroke": self._keystroke,
@@ -69,9 +70,12 @@ class ActionExecutor:
         handler = dispatch.get(action.type)
         if handler:
             try:
+                logger.info("ActionExecutor: Executing action [type=%s, value='%s']", action.type.upper(), action.value.strip())
                 handler(action.value.strip())
             except Exception as exc:
                 logger.error("Action execution failed (%s): %s", action.type, exc)
+        else:
+            logger.warning("ActionExecutor: Unknown action type '%s'", action.type)
 
     # ── Private handlers ───────────────────────────────────────────────────────
 
@@ -81,8 +85,10 @@ class ActionExecutor:
             key = self._resolve_key(value)
             self._keyboard.press(key)
             self._keyboard.release(key)
+            logger.info("ActionExecutor: Keystroke '%s' dispatched via pynput.", value)
         else:
             subprocess.Popen(["xdotool", "key", value])
+            logger.info("ActionExecutor: Keystroke '%s' dispatched via xdotool.", value)
 
     def _shortcut(self, value: str) -> None:
         """Press a key combination like 'ctrl+c'."""
@@ -105,16 +111,20 @@ class ActionExecutor:
                 self._keyboard.release(main_key)
             for m in reversed(modifiers):
                 self._keyboard.release(m)
+            logger.info("ActionExecutor: Shortcut '%s' dispatched via pynput.", value)
         else:
             # xdotool uses '+' separator
             subprocess.Popen(["xdotool", "key", value.replace(" ", "")])
+            logger.info("ActionExecutor: Shortcut '%s' dispatched via xdotool.", value)
 
     def _shell(self, value: str) -> None:
         """Run a shell command string non-blocking."""
         subprocess.Popen(shlex.split(value))
+        logger.info("ActionExecutor: Shell command '%s' spawned.", value)
 
     def _macro(self, value: str) -> None:
         """Execute colon-separated steps; integers are interpreted as ms delays."""
+        logger.info("ActionExecutor: Starting macro execution '%s'", value)
         for step in value.split(":"):
             step = step.strip()
             if not step:

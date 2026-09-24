@@ -368,7 +368,7 @@ class CameraWorker(QThread):
                 if apriltag.is_valid and not prev_layout_valid:
                     logger.info("AprilTag: Tracking locked (%d markers visible, homography valid).", apriltag.markers_used)
                 elif not apriltag.is_valid and prev_layout_valid:
-                    logger.warning("AprilTag: Tracking lost. Searching for layout markers...")
+                    logger.warning("AprilTag: Tracking lost (detected %d markers, min required=%d). Searching for layout markers...", apriltag.markers_used, self._config.apriltag_min_markers)
                 prev_layout_valid = apriltag.is_valid
 
                 # ── 2. MediaPipe landmark detection (runs on raw camera frame) ───
@@ -398,6 +398,7 @@ class CameraWorker(QThread):
                 )
 
                 if win_ready and norm_window and pixel_window:
+                    logger.info("CameraWorker: Emitting window_ready event to detection viewmodel (%dx%d frame)", frame_w, frame_h)
                     self.window_ready.emit(
                         norm_window,
                         pixel_window,
@@ -406,7 +407,7 @@ class CameraWorker(QThread):
                     )
 
                 if hand_detected and not prev_hand_detected:
-                    logger.info("MediaPipe: Hand entered camera frame (%s, score=%.2f)", hand_label or "Active", hand_score)
+                    logger.info("MediaPipe: Hand detected in frame (%s, confidence=%.2f, landmarks=%d)", hand_label or "Active", hand_score, len(raw_lm) if raw_lm else 0)
                 elif not hand_detected and prev_hand_detected:
                     logger.info("MediaPipe: Hand exited camera frame.")
                 prev_hand_detected = hand_detected
