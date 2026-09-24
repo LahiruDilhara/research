@@ -106,6 +106,39 @@ MIDDLE_MCP_INDEX: int = 9
 RING_MCP_INDEX: int = 13
 PINKY_MCP_INDEX: int = 17
 
+# ── Fingertip Physical Contact Extrapolation ──────────────────────────────────
+# Compensates for MediaPipe nail-bed landmark placement and paper perspective tilt
+FINGERTIP_OFFSET_ENABLED: bool = True
+FINGERTIP_FORWARD_OFFSET_MM: float = 5.0     # Millimeter forward extension along finger direction
+FINGERTIP_PHALANX_RATIO: float = 0.45       # fraction of distal phalanx length
+FINGERTIP_EXTRA_OFFSET_MM: float = 5.0      # extra base millimeter offset
+FINGERTIP_PAPER_ANGLE_FACTOR_MM: float = 6.0 # paper respective cos(theta) factor
+FINGERTIP_EXTRA_FRONT_MM: float = 3.0       # frontward paper 90-degree compensation
+TOUCH_DEBOUNCE_COOLDOWN_S: float = 0.35     # Minimum cooldown between discrete key taps (prevents sliding window double triggers)
+
+
+DIP_INDICES: dict[str, int] = {
+    "Thumb": 3,
+    "Index": 7,
+    "Middle": 11,
+    "Ring": 15,
+    "Pinky": 19,
+}
+PIP_INDICES: dict[str, int] = {
+    "Thumb": 2,
+    "Index": 6,
+    "Middle": 10,
+    "Ring": 14,
+    "Pinky": 18,
+}
+MCP_INDICES: dict[str, int] = {
+    "Thumb": 1,
+    "Index": 5,
+    "Middle": 9,
+    "Ring": 13,
+    "Pinky": 17,
+}
+
 # ── UI theme colours (matches designer) ───────────────────────────────────────
 UI_BG_DARK     = "#202020"
 UI_BG_CARD     = "#1A1A24"

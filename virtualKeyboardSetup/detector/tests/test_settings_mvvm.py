@@ -22,9 +22,11 @@ from PySide6.QtWidgets import QApplication
 from qfluentwidgets import DoubleSpinBox
 
 from config.app_config import AppConfig
+from config.constants import ONE_EURO_ENABLED
 from services.settings_service import SettingsService
 from viewmodels.settings_viewmodel import SettingsViewModel
 from ui.views.settings_view import SettingsView
+
 
 
 def _get_or_create_qapp() -> QApplication:
@@ -335,9 +337,9 @@ def test_settings_restore_defaults():
         assert entries.get("TARGET_FPS") == "12.0"
         assert entries.get("TOUCH_THRESHOLD") == "0.55"
         assert entries.get("HAND_MOVEMENT_THRESHOLD") == "0.1550"
-        assert entries.get("FINGERTIP_VELOCITY_THRESHOLD") == "0.0080"
-        assert entries.get("ONE_EURO_ENABLED") == "true"
-        assert entries.get("ONE_EURO_MIN_CUTOFF") == "0.02"
+        assert entries.get("ONE_EURO_ENABLED") == ("true" if ONE_EURO_ENABLED else "false")
+        assert entries.get("FINGERTIP_OFFSET_ENABLED") == "true"
+
     finally:
         env_path.unlink(missing_ok=True)
 

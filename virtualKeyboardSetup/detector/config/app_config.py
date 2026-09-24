@@ -35,6 +35,13 @@ from .constants import (
     ONE_EURO_MIN_CUTOFF,
     ONE_EURO_BETA,
     ONE_EURO_D_CUTOFF,
+    FINGERTIP_OFFSET_ENABLED,
+    FINGERTIP_FORWARD_OFFSET_MM,
+    FINGERTIP_PHALANX_RATIO,
+    FINGERTIP_EXTRA_OFFSET_MM,
+    FINGERTIP_PAPER_ANGLE_FACTOR_MM,
+    FINGERTIP_EXTRA_FRONT_MM,
+    TOUCH_DEBOUNCE_COOLDOWN_S,
 )
 
 
@@ -114,6 +121,29 @@ class AppConfig:
         self._one_euro_min_cutoff = float(os.getenv("ONE_EURO_MIN_CUTOFF", str(ONE_EURO_MIN_CUTOFF)))
         self._one_euro_beta = float(os.getenv("ONE_EURO_BETA", str(ONE_EURO_BETA)))
         self._one_euro_d_cutoff = float(os.getenv("ONE_EURO_D_CUTOFF", str(ONE_EURO_D_CUTOFF)))
+
+        self._fingertip_offset_enabled = (
+            os.getenv("FINGERTIP_OFFSET_ENABLED", str(FINGERTIP_OFFSET_ENABLED)).lower()
+            in ("true", "1", "yes")
+        )
+        self._fingertip_forward_offset_mm = float(
+            os.getenv("FINGERTIP_FORWARD_OFFSET_MM", str(FINGERTIP_FORWARD_OFFSET_MM))
+        )
+        self._fingertip_phalanx_ratio = float(
+            os.getenv("FINGERTIP_PHALANX_RATIO", str(FINGERTIP_PHALANX_RATIO))
+        )
+        self._fingertip_extra_offset_mm = float(
+            os.getenv("FINGERTIP_EXTRA_OFFSET_MM", str(FINGERTIP_EXTRA_OFFSET_MM))
+        )
+        self._fingertip_paper_angle_factor_mm = float(
+            os.getenv("FINGERTIP_PAPER_ANGLE_FACTOR_MM", str(FINGERTIP_PAPER_ANGLE_FACTOR_MM))
+        )
+        self._fingertip_extra_front_mm = float(
+            os.getenv("FINGERTIP_EXTRA_FRONT_MM", str(FINGERTIP_EXTRA_FRONT_MM))
+        )
+        self._touch_debounce_cooldown_s = float(
+            os.getenv("TOUCH_DEBOUNCE_COOLDOWN_S", str(TOUCH_DEBOUNCE_COOLDOWN_S))
+        )
 
         self._env_path = env_path or (Path(__file__).resolve().parent.parent / ".env")
         self._last_xml_path = os.getenv("LAST_XML_PATH", "")
@@ -396,6 +426,27 @@ class AppConfig:
             self.set_plugins_dir(str(settings["AI_MODEL_PLUGINS_DIR"]))
         elif "PLUGINS_DIR" in settings:
             self.set_plugins_dir(str(settings["PLUGINS_DIR"]))
+        if "FINGERTIP_OFFSET_ENABLED" in settings:
+            val = settings["FINGERTIP_OFFSET_ENABLED"]
+            if isinstance(val, bool):
+                self.set_fingertip_offset_enabled(val)
+            else:
+                self.set_fingertip_offset_enabled(str(val).lower() in ("true", "1", "yes"))
+        if "FINGERTIP_FORWARD_OFFSET_MM" in settings:
+            try:
+                self.set_fingertip_forward_offset_mm(float(settings["FINGERTIP_FORWARD_OFFSET_MM"]))
+            except (ValueError, TypeError):
+                pass
+        elif "FINGERTIP_EXTRA_OFFSET_MM" in settings:
+            try:
+                self.set_fingertip_forward_offset_mm(float(settings["FINGERTIP_EXTRA_OFFSET_MM"]))
+            except (ValueError, TypeError):
+                pass
+        if "TOUCH_DEBOUNCE_COOLDOWN_S" in settings:
+            try:
+                self.set_touch_debounce_cooldown_s(float(settings["TOUCH_DEBOUNCE_COOLDOWN_S"]))
+            except (ValueError, TypeError):
+                pass
 
     @property
     def apriltag_min_markers(self) -> int:
@@ -404,4 +455,42 @@ class AppConfig:
     @property
     def apriltag_smoothing(self) -> float:
         return self._apriltag_smoothing
+
+    @property
+    def fingertip_offset_enabled(self) -> bool:
+        return self._fingertip_offset_enabled
+
+    def set_fingertip_offset_enabled(self, value: bool) -> None:
+        self._fingertip_offset_enabled = bool(value)
+
+    @property
+    def fingertip_forward_offset_mm(self) -> float:
+        return self._fingertip_forward_offset_mm
+
+    def set_fingertip_forward_offset_mm(self, value: float) -> None:
+        self._fingertip_forward_offset_mm = float(value)
+        self._fingertip_extra_offset_mm = float(value)
+
+    @property
+    def touch_debounce_cooldown_s(self) -> float:
+        return self._touch_debounce_cooldown_s
+
+    def set_touch_debounce_cooldown_s(self, value: float) -> None:
+        self._touch_debounce_cooldown_s = float(value)
+
+    @property
+    def fingertip_phalanx_ratio(self) -> float:
+        return self._fingertip_phalanx_ratio
+
+    @property
+    def fingertip_extra_offset_mm(self) -> float:
+        return self._fingertip_forward_offset_mm
+
+    @property
+    def fingertip_paper_angle_factor_mm(self) -> float:
+        return self._fingertip_paper_angle_factor_mm
+
+    @property
+    def fingertip_extra_front_mm(self) -> float:
+        return self._fingertip_extra_front_mm
 

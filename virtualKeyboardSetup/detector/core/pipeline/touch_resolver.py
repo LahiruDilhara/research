@@ -26,7 +26,7 @@ import math
 import cv2
 import numpy as np
 
-from config.constants import FINGERTIP_INDICES
+from config.constants import DIP_INDICES, FINGERTIP_INDICES
 from core.layout.layout_parser import ButtonData, LayoutData
 from utils.logger import setup_logger
 
@@ -36,8 +36,26 @@ logger = setup_logger("TouchResolver")
 class TouchResolver:
     """Resolves per-finger touch predictions into key press events."""
 
-    def __init__(self, layout: LayoutData) -> None:
+    def __init__(
+        self,
+        layout: LayoutData,
+        offset_enabled: bool = True,
+        forward_offset_mm: float = 5.0,
+    ) -> None:
         self._buttons = layout.buttons
+        self._offset_enabled = bool(offset_enabled)
+        self._forward_offset_mm = float(forward_offset_mm)
+        self._last_contact_points: dict[str, tuple[float, float, float, float]] = {}  # finger -> (mm_x, mm_y, px, py)
+
+    def set_fingertip_offset(self, enabled: bool, offset_mm: float) -> None:
+        """Dynamically update forward fingertip offset settings."""
+        self._offset_enabled = bool(enabled)
+        self._forward_offset_mm = float(offset_mm)
+
+    @property
+    def last_contact_points(self) -> dict[str, tuple[float, float, float, float]]:
+        """Latest resolved physical contact coordinates per finger."""
+        return self._last_contact_points
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
@@ -98,41 +116,69 @@ class TouchResolver:
         H: np.ndarray,
     ) -> tuple[str, str, float] | None:
         tip_idx = FINGERTIP_INDICES[finger]
+        dip_idx = DIP_INDICES.get(finger, tip_idx - 1)
 
         # ── Step 1: Collect candidate contact frames in priority order ────────
-        # 1. Kinematic turnaround / impact turnaround frame
-        # 2. Latest frame in window (frame 4, where finger lands on key surface)
-        # 3. Intermediate contact frames (frame 3, frame 2)
+        # 1. Kinematic turnaround / impact frame (moment of contact)
+        # 2. Latest landed frame in window (frame 4)
+        # In-flight frames (2, 3) are not tested blindly to avoid triggering keys passed over in flight.
         impact_frame = self._find_impact_frame(tip_idx, pixel_window_5)
         candidate_frames = [impact_frame]
-        for f_idx in [4, 3, 2]:
-            if f_idx not in candidate_frames:
-                candidate_frames.append(f_idx)
+        if 4 not in candidate_frames:
+            candidate_frames.append(4)
 
         best_hit = None
         best_tip_px, best_tip_py = 0.0, 0.0
         best_mm_x, best_mm_y = 0.0, 0.0
         resolved_frame = impact_frame
 
-        # ── Step 2: Map fingertip pixel → mm-space via H and hit-test ─────────
+        H_inv = None
+        try:
+            H_inv = np.linalg.inv(H)
+        except Exception:
+            pass
+
+        # ── Step 2: Map fingertip pixel → mm-space via H, apply forward offset and hit-test ─────────
         for f_idx in candidate_frames:
             tip_px, tip_py = pixel_window_5[f_idx][tip_idx][:2]
-            mm_point = self._pixel_to_mm(tip_px, tip_py, H)
-            if mm_point is None:
+            tip_mm = self._pixel_to_mm(tip_px, tip_py, H)
+            if tip_mm is None:
                 continue
-            mm_x, mm_y = mm_point
+
+            mm_x, mm_y = tip_mm
+            contact_px, contact_py = tip_px, tip_py
+
+            # Extrapolate touch point forward along the finger direction vector (DIP -> TIP)
+            if self._offset_enabled and self._forward_offset_mm > 0.0 and dip_idx < len(pixel_window_5[f_idx]):
+                dip_px, dip_py = pixel_window_5[f_idx][dip_idx][:2]
+                dip_mm = self._pixel_to_mm(dip_px, dip_py, H)
+                if dip_mm is not None:
+                    vx = tip_mm[0] - dip_mm[0]
+                    vy = tip_mm[1] - dip_mm[1]
+                    v_len = math.hypot(vx, vy)
+                    if v_len > 1e-4:
+                        ux = vx / v_len
+                        uy = vy / v_len
+                        mm_x = tip_mm[0] + self._forward_offset_mm * ux
+                        mm_y = tip_mm[1] + self._forward_offset_mm * uy
+                        if H_inv is not None:
+                            px_pt = self._mm_to_pixel(mm_x, mm_y, H_inv)
+                            if px_pt is not None:
+                                contact_px, contact_py = px_pt
+
             hit = self._hit_test(mm_x, mm_y)
             if hit is not None:
                 best_hit = hit
-                best_tip_px, best_tip_py = tip_px, tip_py
+                best_tip_px, best_tip_py = contact_px, contact_py
                 best_mm_x, best_mm_y = mm_x, mm_y
                 resolved_frame = f_idx
+                self._last_contact_points[finger] = (mm_x, mm_y, contact_px, contact_py)
                 break
 
         if best_hit is None:
-            tip_px, tip_py = pixel_window_5[impact_frame][tip_idx]
-            mm_point = self._pixel_to_mm(tip_px, tip_py, H)
-            mm_x, mm_y = mm_point if mm_point else (0.0, 0.0)
+            tip_px, tip_py = pixel_window_5[impact_frame][tip_idx][:2]
+            tip_mm = self._pixel_to_mm(tip_px, tip_py, H)
+            mm_x, mm_y = tip_mm if tip_mm else (0.0, 0.0)
             logger.info(
                 "Touch candidate outside keys: finger=%s prob=%.2f tip=(%.1f, %.1f)px mapped to (%.1f, %.1f)mm (no key intersected)",
                 finger, prob, tip_px, tip_py, mm_x, mm_y,
@@ -140,10 +186,12 @@ class TouchResolver:
             return None
 
         logger.info(
-            "Touch resolved: finger=%s key=%s prob=%.2f tip=(%.1f, %.1f)px mapped to (%.1f, %.1f)mm (contact frame=%d)",
+            "Touch resolved: finger=%s key=%s prob=%.2f contact=(%.1f, %.1f)px mapped to (%.1f, %.1f)mm (contact frame=%d, offset=%.1fmm)",
             finger, best_hit.id, prob, best_tip_px, best_tip_py, best_mm_x, best_mm_y, resolved_frame,
+            self._forward_offset_mm if self._offset_enabled else 0.0,
         )
         return (best_hit.id, finger, prob)
+
 
     @staticmethod
     def _find_impact_frame(
@@ -211,6 +259,17 @@ class TouchResolver:
         pt_src = np.array([[[px, py]]], dtype=np.float32)
         pt_dst = cv2.perspectiveTransform(pt_src, H.astype(np.float32))
         return float(pt_dst[0][0][0]), float(pt_dst[0][0][1])
+
+    @staticmethod
+    def _mm_to_pixel(
+        x_mm: float, y_mm: float, H_inv: np.ndarray
+    ) -> tuple[float, float] | None:
+        if H_inv is None:
+            return None
+        pt_src = np.array([[[x_mm, y_mm]]], dtype=np.float32)
+        pt_dst = cv2.perspectiveTransform(pt_src, H_inv.astype(np.float32))
+        return float(pt_dst[0][0][0]), float(pt_dst[0][0][1])
+
 
     def _hit_test(self, mm_x: float, mm_y: float, tolerance_mm: float = 3.0) -> ButtonData | None:
         # 1. Exact button containment

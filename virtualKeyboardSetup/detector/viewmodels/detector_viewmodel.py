@@ -110,10 +110,17 @@ class DetectorViewModel(QObject):
             one_euro_beta=config.one_euro_beta,
             one_euro_d_cutoff=config.one_euro_d_cutoff,
         )
-        self._resolver = TouchResolver(layout)
+        self._resolver = TouchResolver(
+            layout,
+            offset_enabled=config.fingertip_offset_enabled,
+            forward_offset_mm=config.fingertip_forward_offset_mm,
+        )
         self._executor = ActionExecutor()
         self._worker: CameraWorker | None = None
         self._overlay_enabled: bool = True
+        self._last_pressed_key: str | None = None
+        self._last_press_time: float = 0.0
+        self._debounce_cooldown: float = config.touch_debounce_cooldown_s
 
     # ── Operational Mode & Properties ──────────────────────────────────────────
 
@@ -195,6 +202,11 @@ class DetectorViewModel(QObject):
             beta=config.one_euro_beta,
             d_cutoff=config.one_euro_d_cutoff,
         )
+        self._resolver.set_fingertip_offset(
+            config.fingertip_offset_enabled,
+            config.fingertip_forward_offset_mm,
+        )
+        self._debounce_cooldown = config.touch_debounce_cooldown_s
         logger.info(
             "DetectorViewModel live thresholds updated: velocity_threshold=%.4f, touch_threshold=%.2f, hand_movement=%.4f, one_euro=%s",
             config.fingertip_velocity_threshold,
@@ -316,6 +328,7 @@ class DetectorViewModel(QObject):
         self._layout_found = bool(layout_found and self._current_H is not None)
         if not hand_detected:
             self._pipeline_service.reset_touch_states()
+            self._last_pressed_key = None
         self.fps_updated.emit(fps)
         self.frame_updated.emit(frame, fps, hand_detected, self._layout_found)
 
@@ -349,45 +362,70 @@ class DetectorViewModel(QObject):
                 logger.warning("Touch candidate ignored: AprilTag layout homography is not locked.")
             return
 
+        # Check if all fingers have released
+        all_released = not any(data.get("touch", False) for data in results.values())
+        if all_released:
+            self._last_pressed_key = None
+
         if not touch_fingers:
             return
 
         probs = {f: float(data.get("prob", 0.0)) for f, data in results.items()}
-        hits = self._resolver.resolve_all(
+
+        # Single Primary Touch: highest confidence touching finger resolves first
+        primary_hit = self._resolver.resolve(
             touch_fingers, probs, pixel_window, self._current_H
         )
-        if not hits:
+        if primary_hit is None:
             return
 
-        active_keys = [key_id for key_id, _, _ in hits]
+        key_id, finger, prob = primary_hit
+        now = time.perf_counter()
+
+        # Check debounce cooldown:
+        # Prevents continuous re-triggers across sliding windows during the same physical tap,
+        # and prevents drifting to an adjacent key during landing/rebound.
+        is_cooldown_active = (now - self._last_press_time) < self._debounce_cooldown
+        if is_cooldown_active and self._last_pressed_key is not None:
+            logger.debug(
+                "Debounce suppressed repeat/drift: key='%s' ignored (active='%s')",
+                key_id, self._last_pressed_key,
+            )
+            if self._worker:
+                self._worker.set_active_buttons([self._last_pressed_key])
+            return
+
+        self._last_pressed_key = key_id
+        self._last_press_time = now
+
         if self._worker:
-            self._worker.set_active_buttons(active_keys)
+            self._worker.set_active_buttons([key_id])
+            self._worker.set_contact_points(self._resolver.last_contact_points)
 
-        for key_id, finger, prob in hits:
-            # ── Action execution (Run Mode only) ─────────────────────────────────
-            if self._mode == ExecutionMode.RUN:
-                action = self._action_config.get(key_id)
-                if action and action.is_active:
-                    self._executor.execute(action)
-                    self.action_executed.emit(action.type, action.value, key_id, finger)
-                    logger.info(
-                        "[RUN MODE ACTION EXECUTED] Key='%s' Finger=%s Action=[%s: %s] (prob=%.2f, latency=%.1f ms)",
-                        key_id, finger, action.type.upper(), action.value, prob, latency_ms,
-                    )
-                else:
-                    logger.info(
-                        "[RUN MODE TOUCH] Key='%s' Finger=%s (No digital action bound) (prob=%.2f)",
-                        key_id, finger, prob,
-                    )
-            else:
-                action = self._action_config.get(key_id)
-                action_desc = f"[{action.type.upper()}: {action.value}]" if (action and action.is_active) else "[No Action]"
+        # ── Action execution (Run Mode only) ─────────────────────────────────
+        if self._mode == ExecutionMode.RUN:
+            action = self._action_config.get(key_id)
+            if action and action.is_active:
+                self._executor.execute(action)
+                self.action_executed.emit(action.type, action.value, key_id, finger)
                 logger.info(
-                    "[PLAY MODE SIMULATED TOUCH] Key='%s' Finger=%s Simulated=%s (prob=%.2f, latency=%.1f ms)",
-                    key_id, finger, action_desc, prob, latency_ms,
+                    "[RUN MODE ACTION EXECUTED] Key='%s' Finger=%s Action=[%s: %s] (prob=%.2f, latency=%.1f ms)",
+                    key_id, finger, action.type.upper(), action.value, prob, latency_ms,
                 )
+            else:
+                logger.info(
+                    "[RUN MODE TOUCH] Key='%s' Finger=%s (No digital action bound) (prob=%.2f)",
+                    key_id, finger, prob,
+                )
+        else:
+            action = self._action_config.get(key_id)
+            action_desc = f"[{action.type.upper()}: {action.value}]" if (action and action.is_active) else "[No Action]"
+            logger.info(
+                "[PLAY MODE SIMULATED TOUCH] Key='%s' Finger=%s Simulated=%s (prob=%.2f, latency=%.1f ms)",
+                key_id, finger, action_desc, prob, latency_ms,
+            )
 
-            self.touch_event.emit(key_id, finger, prob)
+        self.touch_event.emit(key_id, finger, prob)
 
     @Slot(str)
     def _on_error(self, message: str) -> None:

@@ -40,6 +40,7 @@ Signals
   error(message: str)
 """
 
+import math
 import os
 import sys
 import threading
@@ -191,6 +192,8 @@ class CameraWorker(QThread):
         self._show_overlay = True
         self._active_button_ids: set[str] = set()
         self._active_button_clear_t: float = 0.0
+        self._contact_points: dict[str, tuple[float, float, float, float]] = {}
+        self._contact_points_clear_t: float = 0.0
         self.setObjectName("CameraWorker")
 
     def set_show_overlay(self, show: bool) -> None:
@@ -209,6 +212,11 @@ class CameraWorker(QThread):
     def set_active_button(self, button_id: str | None) -> None:
         """Single-button compatibility method."""
         self.set_active_buttons([button_id] if button_id else [])
+
+    def set_contact_points(self, points: dict[str, tuple[float, float, float, float]]) -> None:
+        """Stores extrapolated contact points for visual overlay rendering."""
+        self._contact_points = dict(points)
+        self._contact_points_clear_t = time.perf_counter() + 0.35
 
     @property
     def render_video(self) -> bool:
@@ -469,6 +477,28 @@ class CameraWorker(QThread):
                 color = FINGER_COLORS_BGR.get(finger, (200, 200, 200)) if finger else (200, 200, 200)
                 radius = 6 if idx in _TIP_INDICES else 4
                 cv2.circle(frame, (x, y), radius, color, -1)
+
+        # Draw forward-extrapolated contact point indicators if offset is enabled
+        if self._config and self._config.fingertip_offset_enabled:
+            from config.constants import DIP_INDICES
+            offset_mm = self._config.fingertip_forward_offset_mm
+            for finger, tip_idx in FINGERTIP_INDICES.items():
+                dip_idx = DIP_INDICES.get(finger)
+                if dip_idx is not None and tip_idx < len(pts_pixel) and dip_idx < len(pts_pixel):
+                    t_px, t_py = pts_pixel[tip_idx][:2]
+                    d_px, d_py = pts_pixel[dip_idx][:2]
+                    vx, vy = t_px - d_px, t_py - d_py
+                    v_len = math.hypot(vx, vy)
+                    if v_len > 1e-3:
+                        # Extrapolate along distal segment in pixels
+                        scale = (offset_mm / 25.0) * v_len
+                        c_px = int(round(t_px + (vx / v_len) * scale))
+                        c_py = int(round(t_py + (vy / v_len) * scale))
+
+                        # Draw guide line and contact point ring
+                        cv2.line(frame, (int(t_px), int(t_py)), (c_px, c_py), (0, 255, 255), 1, cv2.LINE_AA)
+                        cv2.circle(frame, (c_px, c_py), 4, (0, 255, 255), -1, cv2.LINE_AA)
+                        cv2.circle(frame, (c_px, c_py), 6, (255, 255, 255), 1, cv2.LINE_AA)
 
     def _ensure_mediapipe_model(self) -> str | None:
         """Download hand_landmarker.task if it is not already present and valid."""

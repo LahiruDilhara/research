@@ -15,6 +15,8 @@ from PySide6.QtCore import QObject, Signal
 
 from config.app_config import AppConfig
 from config.constants import (
+    FINGERTIP_OFFSET_ENABLED,
+    FINGERTIP_FORWARD_OFFSET_MM,
     FINGERTIP_VELOCITY_THRESHOLD,
     HAND_MOVEMENT_THRESHOLD,
     MEDIAPIPE_MIN_DETECTION_CONFIDENCE,
@@ -179,6 +181,18 @@ class SettingsViewModel(QObject):
         return float(ONE_EURO_D_CUTOFF)
 
     @property
+    def fingertip_offset_enabled(self) -> bool:
+        if self._config is not None:
+            return self._config.fingertip_offset_enabled
+        return bool(FINGERTIP_OFFSET_ENABLED)
+
+    @property
+    def fingertip_forward_offset_mm(self) -> float:
+        if self._config is not None:
+            return self._config.fingertip_forward_offset_mm
+        return float(FINGERTIP_FORWARD_OFFSET_MM)
+
+    @property
     def env_file_name(self) -> str:
         return self._service.env_path.name
 
@@ -201,6 +215,8 @@ class SettingsViewModel(QObject):
         one_euro_min_cutoff: float = 1.0,
         one_euro_beta: float = 1.0,
         one_euro_d_cutoff: float = 1.0,
+        fingertip_offset_enabled: bool = True,
+        fingertip_forward_offset_mm: float = 5.0,
     ) -> bool:
         """
         Validates and persists updated settings.
@@ -226,6 +242,9 @@ class SettingsViewModel(QObject):
             "ONE_EURO_MIN_CUTOFF": f"{one_euro_min_cutoff:.2f}",
             "ONE_EURO_BETA": f"{one_euro_beta:.2f}",
             "ONE_EURO_D_CUTOFF": f"{one_euro_d_cutoff:.2f}",
+            "FINGERTIP_OFFSET_ENABLED": "true" if fingertip_offset_enabled else "false",
+            "FINGERTIP_FORWARD_OFFSET_MM": f"{fingertip_forward_offset_mm:.2f}",
+            "FINGERTIP_EXTRA_OFFSET_MM": f"{fingertip_forward_offset_mm:.2f}",
         }
 
         # Determine XML path to save into
@@ -252,6 +271,8 @@ class SettingsViewModel(QObject):
                 self._config.set_one_euro_min_cutoff(one_euro_min_cutoff)
                 self._config.set_one_euro_beta(one_euro_beta)
                 self._config.set_one_euro_d_cutoff(one_euro_d_cutoff)
+                self._config.set_fingertip_offset_enabled(fingertip_offset_enabled)
+                self._config.set_fingertip_forward_offset_mm(fingertip_forward_offset_mm)
 
             targets = [self.env_file_name]
             if xml_save_path and Path(xml_save_path).exists():
@@ -287,6 +308,8 @@ class SettingsViewModel(QObject):
         default_one_euro_min_cutoff = float(ONE_EURO_MIN_CUTOFF)
         default_one_euro_beta = float(ONE_EURO_BETA)
         default_one_euro_d_cutoff = float(ONE_EURO_D_CUTOFF)
+        default_fingertip_offset_enabled = bool(FINGERTIP_OFFSET_ENABLED)
+        default_fingertip_forward_offset_mm = float(FINGERTIP_FORWARD_OFFSET_MM)
 
         if persist:
             success = self.save_settings(
@@ -305,6 +328,8 @@ class SettingsViewModel(QObject):
                 one_euro_min_cutoff=default_one_euro_min_cutoff,
                 one_euro_beta=default_one_euro_beta,
                 one_euro_d_cutoff=default_one_euro_d_cutoff,
+                fingertip_offset_enabled=default_fingertip_offset_enabled,
+                fingertip_forward_offset_mm=default_fingertip_forward_offset_mm,
             )
             self.settings_loaded.emit()
             return success
@@ -325,5 +350,7 @@ class SettingsViewModel(QObject):
                 self._config.set_one_euro_min_cutoff(default_one_euro_min_cutoff)
                 self._config.set_one_euro_beta(default_one_euro_beta)
                 self._config.set_one_euro_d_cutoff(default_one_euro_d_cutoff)
+                self._config.set_fingertip_offset_enabled(default_fingertip_offset_enabled)
+                self._config.set_fingertip_forward_offset_mm(default_fingertip_forward_offset_mm)
             self.settings_loaded.emit()
             return True

@@ -284,6 +284,33 @@ class SettingsView(QWidget):
             ]
         ))
 
+        # ── Card 6: Fingertip Touch Calibration ────────────────────────────────
+        content_layout.addWidget(self._make_card(
+            "Fingertip Touch Calibration",
+            [
+                (
+                    "Enable Fingertip Forward Offset",
+                    "Compensate for MediaPipe nail-bed landmark placement by projecting touch point forward",
+                    self._make_switch(
+                        checked=self._vm.fingertip_offset_enabled,
+                        attr="fingertip_offset_enabled_switch",
+                    ),
+                ),
+                (
+                    "Fingertip Forward Offset (mm)",
+                    "Forward distance in paper millimeters along distal finger segment (default 5.0 mm)",
+                    self._make_double_spin(
+                        value=self._vm.fingertip_forward_offset_mm,
+                        mn=0.0,
+                        mx=25.0,
+                        attr="fingertip_forward_offset_spin",
+                        step=0.5,
+                        decimals=1,
+                    ),
+                ),
+            ]
+        ))
+
         content_layout.addSpacing(10)
 
         # ── Action Buttons ─────────────────────────────────────────────────────
@@ -327,6 +354,8 @@ class SettingsView(QWidget):
         self.one_euro_beta_spin.setValue(self._vm.one_euro_beta)
         self.one_euro_d_cutoff_spin.setValue(self._vm.one_euro_d_cutoff)
         self.plugins_dir_edit.setText(self._vm.plugins_dir)
+        self.fingertip_offset_enabled_switch.setChecked(self._vm.fingertip_offset_enabled)
+        self.fingertip_forward_offset_spin.setValue(self._vm.fingertip_forward_offset_mm)
 
     def _make_card(self, section: str, rows: list[tuple]) -> CardWidget:
         card = CardWidget()
@@ -430,6 +459,8 @@ class SettingsView(QWidget):
         one_euro_b = self.one_euro_beta_spin.value()
         one_euro_d = self.one_euro_d_cutoff_spin.value()
         plugins_val = self.plugins_dir_edit.text()
+        ft_offset_en = self.fingertip_offset_enabled_switch.isChecked()
+        ft_offset_val = self.fingertip_forward_offset_spin.value()
 
         self._vm.save_settings(
             fps=fps_val,
@@ -447,6 +478,8 @@ class SettingsView(QWidget):
             one_euro_min_cutoff=one_euro_min,
             one_euro_beta=one_euro_b,
             one_euro_d_cutoff=one_euro_d,
+            fingertip_offset_enabled=ft_offset_en,
+            fingertip_forward_offset_mm=ft_offset_val,
         )
 
     def _on_settings_saved(self, message: str) -> None:

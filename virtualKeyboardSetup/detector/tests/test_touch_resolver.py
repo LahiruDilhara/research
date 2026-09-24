@@ -203,10 +203,60 @@ def test_simultaneous_multi_touch_resolution():
     assert keys_resolved == {"KEY_A", "KEY_B"}
 
 
+def test_forward_offset_extrapolation():
+    """Verify that when landmark tip is slightly behind key boundary, forward offset shifts contact into key."""
+    layout = _create_mock_layout()
+    # KEY_A is in y in [20, 60] mm
+    # DIP at (40, 10), TIP at (40, 17) -> direction is +y (forward)
+    # Without offset: TIP at y=17 is outside KEY_A
+    # With offset=6.0mm: contact is at (40, 23), inside KEY_A!
+    resolver = TouchResolver(layout, offset_enabled=True, forward_offset_mm=6.0)
+    H = np.eye(3, dtype=np.float64)
+
+    pixel_window = []
+    for _ in range(5):
+        landmarks = [(40.0, 10.0) for _ in range(21)]
+        # Index DIP (idx 7) at (40, 10)
+        landmarks[7] = (40.0, 10.0)
+        # Index TIP (idx 8) at (40, 17)
+        landmarks[8] = (40.0, 17.0)
+        pixel_window.append(landmarks)
+
+    result = resolver.resolve(["Index"], {"Index": 0.95}, pixel_window, H)
+    assert result is not None
+    assert result[0] == "KEY_A"
+
+
+def test_in_flight_frame_does_not_hijack_landing_target():
+    """Verify that in-flight motion over KEY_B does not falsely resolve KEY_B when landing on KEY_A."""
+    layout = _create_mock_layout()
+    resolver = TouchResolver(layout, offset_enabled=False)
+    H = np.eye(3, dtype=np.float64)
+
+    # Frame 0: in air at (100, 10)
+    # Frame 1: in air at (100, 20)
+    # Frame 2: passing over KEY_B at (100, 40)
+    # Frame 3: moving toward KEY_A at (60, 40)
+    # Frame 4: landed firmly on KEY_A at (40, 40)
+    pixel_window = []
+    positions = [(100.0, 10.0), (100.0, 20.0), (100.0, 40.0), (60.0, 40.0), (40.0, 40.0)]
+    for pt in positions:
+        landmarks = [pt for _ in range(21)]
+        pixel_window.append(landmarks)
+
+    result = resolver.resolve(["Index"], {"Index": 0.95}, pixel_window, H)
+    assert result is not None
+    # Must resolve landed target KEY_A, NOT in-flight KEY_B!
+    assert result[0] == "KEY_A"
+
+
 if __name__ == "__main__":
     test_rebound_tap_at_frame_3()
     test_resting_tap_at_frame_3()
     test_early_rebound_at_frame_2()
     test_angled_camera_motion_invariance()
     test_simultaneous_multi_touch_resolution()
-    print("\nAll TouchResolver kinematic deceleration, multi-touch, and angle invariance tests passed successfully!")
+    test_forward_offset_extrapolation()
+    test_in_flight_frame_does_not_hijack_landing_target()
+    print("\nAll TouchResolver kinematic deceleration, multi-touch, offset, and angle invariance tests passed successfully!")
+
