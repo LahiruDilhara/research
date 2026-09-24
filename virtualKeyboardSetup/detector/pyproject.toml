@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "dt-apriltags>=3.1.7",
+    'dt-apriltags>=3.1.7; sys_platform != "win32"',
     "mediapipe>=1.0.1",
     "numpy>=2.5.3",
     "opencv-python>=5.0.0.93",
