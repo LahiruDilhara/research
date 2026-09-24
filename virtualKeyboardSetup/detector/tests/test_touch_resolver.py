@@ -176,9 +176,37 @@ def test_angled_camera_motion_invariance():
     assert result[0] == "KEY_A"
 
 
+def test_simultaneous_multi_touch_resolution():
+    """Verify that multiple fingers touching different keys simultaneously are all resolved."""
+    layout = _create_mock_layout()
+    resolver = TouchResolver(layout)
+    H = np.eye(3, dtype=np.float64)
+
+    # Frame 0 to 4:
+    # Index finger (idx 8) strikes KEY_A at (40, 45)
+    # Middle finger (idx 12) strikes KEY_B at (100, 45)
+    pixel_window = []
+    for _ in range(5):
+        landmarks = [(0.0, 0.0) for _ in range(21)]
+        # Index tip
+        landmarks[8] = (40.0, 45.0)
+        # Middle tip
+        landmarks[12] = (100.0, 45.0)
+        pixel_window.append(landmarks)
+
+    probs = {"Index": 0.95, "Middle": 0.91}
+    touch_fingers = ["Index", "Middle"]
+
+    hits = resolver.resolve_all(touch_fingers, probs, pixel_window, H)
+    assert len(hits) == 2
+    keys_resolved = {h[0] for h in hits}
+    assert keys_resolved == {"KEY_A", "KEY_B"}
+
+
 if __name__ == "__main__":
     test_rebound_tap_at_frame_3()
     test_resting_tap_at_frame_3()
     test_early_rebound_at_frame_2()
     test_angled_camera_motion_invariance()
-    print("\nAll TouchResolver kinematic deceleration and angle invariance tests passed successfully!")
+    test_simultaneous_multi_touch_resolution()
+    print("\nAll TouchResolver kinematic deceleration, multi-touch, and angle invariance tests passed successfully!")

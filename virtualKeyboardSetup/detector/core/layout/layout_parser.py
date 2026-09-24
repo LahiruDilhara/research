@@ -29,9 +29,33 @@ class MarkerData:
 
     @property
     def corners_mm(self) -> list[tuple[float, float]]:
-        """All 4 corners in the same order dt_apriltags returns image corners:
-        bottom-left, bottom-right, top-right, top-left."""
-        return [self.bottom_left, self.bottom_right, self.top_right, self.top_left]
+        """All 4 corners in canonical clockwise order:
+        top-left, top-right, bottom-right, bottom-left."""
+        return [self.top_left, self.top_right, self.bottom_right, self.bottom_left]
+
+    def __getitem__(self, key: str):
+        return getattr(self, key)
+
+
+class MarkerList(list):
+    """List of MarkerData that also provides dict-like items() and ID lookup for analyzer compatibility."""
+    def items(self):
+        return [(m.id, m) for m in self]
+
+    def __contains__(self, key):
+        if super().__contains__(key):
+            return True
+        if isinstance(key, int):
+            return any(m.id == key for m in self)
+        return False
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            if key < 0 or key >= len(self):
+                for m in self:
+                    if m.id == key:
+                        return m
+        return super().__getitem__(key)
 
 
 @dataclass
@@ -52,6 +76,11 @@ class ButtonData:
         """True if the mm-space point (x, y) falls inside this button's bounding box."""
         return self.x_mm <= x <= self.x_max_mm and self.y_mm <= y <= self.y_max_mm
 
+    def __getitem__(self, key: str):
+        if key == "text":
+            return self.label
+        return getattr(self, key)
+
 
 @dataclass
 class LayoutData:
@@ -61,13 +90,20 @@ class LayoutData:
     marker_size_mm: float
     marker_family: str
     project_name: str = "Paper Virtual Keyboard"
-    markers: list[MarkerData] = field(default_factory=list)
+    markers: list[MarkerData] = field(default_factory=MarkerList)
     buttons: list[ButtonData] = field(default_factory=list)
     source_path: str = ""
 
     @property
     def marker_by_id(self) -> dict[int, MarkerData]:
         return {m.id: m for m in self.markers}
+
+    def find_button_at(self, x_mm: float, y_mm: float) -> ButtonData | None:
+        """Returns the button if (x_mm, y_mm) falls inside its bounding box, else None."""
+        for btn in self.buttons:
+            if btn.contains_mm(x_mm, y_mm):
+                return btn
+        return None
 
 
 # ── Parser ─────────────────────────────────────────────────────────────────────
@@ -103,10 +139,11 @@ class LayoutParser:
         if not proj_name:
             proj_name = path.stem.replace("_", " ").title()
 
+        marker_size_mm = float(root.attrib.get("marker_size_mm", "15.0"))
         layout = LayoutData(
             paper_width_mm  = float(root.attrib["paper_width_mm"]),
             paper_height_mm = float(root.attrib["paper_height_mm"]),
-            marker_size_mm  = float(root.attrib.get("marker_size_mm", "15.0")),
+            marker_size_mm  = marker_size_mm,
             marker_family   = root.attrib.get("marker_family", "DICT_APRILTAG_36h11"),
             project_name    = proj_name,
             source_path     = str(path),
@@ -120,18 +157,34 @@ class LayoutParser:
         markers_el = designer_el.find("Markers")
         if markers_el is not None:
             for m_el in markers_el.findall("Marker"):
+                m_id = int(m_el.attrib["id"])
+                cx = float(m_el.attrib["center_x_mm"])
+                cy = float(m_el.attrib["center_y_mm"])
+                size = float(m_el.attrib.get("size_mm", marker_size_mm))
                 corners_el = m_el.find("Corners")
-                if corners_el is None:
-                    continue
+
+                if corners_el is not None:
+                    try:
+                        tl = self._corner(corners_el, "TopLeft")
+                        tr = self._corner(corners_el, "TopRight")
+                        br = self._corner(corners_el, "BottomRight")
+                        bl = self._corner(corners_el, "BottomLeft")
+                    except Exception:
+                        h = size / 2.0
+                        tl, tr, br, bl = (cx - h, cy - h), (cx + h, cy - h), (cx + h, cy + h), (cx - h, cy + h)
+                else:
+                    h = size / 2.0
+                    tl, tr, br, bl = (cx - h, cy - h), (cx + h, cy - h), (cx + h, cy + h), (cx - h, cy + h)
+
                 layout.markers.append(MarkerData(
-                    id            = int(m_el.attrib["id"]),
-                    center_x_mm   = float(m_el.attrib["center_x_mm"]),
-                    center_y_mm   = float(m_el.attrib["center_y_mm"]),
-                    size_mm       = float(m_el.attrib["size_mm"]),
-                    top_left      = self._corner(corners_el, "TopLeft"),
-                    top_right     = self._corner(corners_el, "TopRight"),
-                    bottom_right  = self._corner(corners_el, "BottomRight"),
-                    bottom_left   = self._corner(corners_el, "BottomLeft"),
+                    id            = m_id,
+                    center_x_mm   = cx,
+                    center_y_mm   = cy,
+                    size_mm       = size,
+                    top_left      = tl,
+                    top_right     = tr,
+                    bottom_right  = br,
+                    bottom_left   = bl,
                 ))
 
         # ── Parse buttons ─────────────────────────────────────────────────────
@@ -140,17 +193,26 @@ class LayoutParser:
             for b_el in buttons_el.findall("Button"):
                 text_el = b_el.find("Text")
                 label = text_el.text.strip() if text_el is not None and text_el.text else b_el.attrib["id"]
+                x_mm = float(b_el.attrib["x_mm"])
+                y_mm = float(b_el.attrib["y_mm"])
+                width_mm = float(b_el.attrib["width_mm"])
+                height_mm = float(b_el.attrib["height_mm"])
+                x_max_mm = float(b_el.attrib.get("x_max_mm", x_mm + width_mm))
+                y_max_mm = float(b_el.attrib.get("y_max_mm", y_mm + height_mm))
+                center_x_mm = float(b_el.attrib.get("center_x_mm", x_mm + width_mm / 2.0))
+                center_y_mm = float(b_el.attrib.get("center_y_mm", y_mm + height_mm / 2.0))
+
                 layout.buttons.append(ButtonData(
                     id          = b_el.attrib["id"],
                     label       = label,
-                    x_mm        = float(b_el.attrib["x_mm"]),
-                    y_mm        = float(b_el.attrib["y_mm"]),
-                    x_max_mm    = float(b_el.attrib["x_max_mm"]),
-                    y_max_mm    = float(b_el.attrib["y_max_mm"]),
-                    width_mm    = float(b_el.attrib["width_mm"]),
-                    height_mm   = float(b_el.attrib["height_mm"]),
-                    center_x_mm = float(b_el.attrib["center_x_mm"]),
-                    center_y_mm = float(b_el.attrib["center_y_mm"]),
+                    x_mm        = x_mm,
+                    y_mm        = y_mm,
+                    x_max_mm    = x_max_mm,
+                    y_max_mm    = y_max_mm,
+                    width_mm    = width_mm,
+                    height_mm   = height_mm,
+                    center_x_mm = center_x_mm,
+                    center_y_mm = center_y_mm,
                 ))
 
         return layout

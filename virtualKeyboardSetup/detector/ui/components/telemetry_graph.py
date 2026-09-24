@@ -120,16 +120,18 @@ class TelemetryGraphWidget(QWidget):
                 f"{g:.1f}",
             )
 
-        # 3. Touch Threshold Marker Line
+        # 3. Touch Threshold Cutoff Marker Line (Dashed Horizontal Line)
         thresh_y = top_m + plot_h * (1.0 - self._threshold)
-        painter.setPen(QPen(QColor(255, 215, 0, 140), 1.5, Qt.DashLine))
+        painter.setPen(QPen(QColor(255, 205, 50, 220), 1.6, Qt.DashLine))
         painter.drawLine(QPointF(left_m, thresh_y), QPointF(left_m + plot_w, thresh_y))
 
-        painter.setPen(QColor(255, 215, 0, 180))
+        pct_val = int(round(self._threshold * 100))
+        painter.setFont(QFont("Segoe UI", 8, QFont.Bold))
+        painter.setPen(QColor(255, 215, 60))
         painter.drawText(
-            QRectF(left_m + plot_w - 75, thresh_y - 14, 70, 12),
+            QRectF(left_m + plot_w - 100, thresh_y - 14, 95, 12),
             Qt.AlignRight,
-            f"Thr: {self._threshold:.2f}",
+            f"Cutoff: {pct_val}%",
         )
 
         # 4. Finger Probability Curves

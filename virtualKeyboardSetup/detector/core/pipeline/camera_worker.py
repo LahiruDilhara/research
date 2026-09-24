@@ -8,7 +8,7 @@ Exact pipeline (matches mediapipeDetector/realtimeprocess/camera_thread.py):
 Per loop iteration (~83.3 ms):
   1. Enforce 12 FPS with a monotonic perf_counter timer.
   2. Read one BGR frame from cv2.VideoCapture.
-  3. Flip frame horizontally (natural mirror view).
+  3. Process raw frame directly (unflipped) so AprilTags and layout match physical space.
   4. Increment the monotonic VIDEO-mode timestamp (ms).
   5. Run MediaPipe HandLandmarker.detect_for_video().
   6. If hand detected:
@@ -188,7 +188,27 @@ class CameraWorker(QThread):
         self._pipeline_service = pipeline_service
         self._render_video = True
         self._running = False
+        self._show_overlay = True
+        self._active_button_ids: set[str] = set()
+        self._active_button_clear_t: float = 0.0
         self.setObjectName("CameraWorker")
+
+    def set_show_overlay(self, show: bool) -> None:
+        """Toggle displaying the keyboard overlay on the live camera feed."""
+        self._show_overlay = bool(show)
+
+    @property
+    def show_overlay(self) -> bool:
+        return self._show_overlay
+
+    def set_active_buttons(self, button_ids: list[str] | set[str] | None) -> None:
+        """Flash active pressed buttons in green on live camera overlay (supports multi-touch)."""
+        self._active_button_ids = set(button_ids) if button_ids else set()
+        self._active_button_clear_t = time.perf_counter() + 0.35
+
+    def set_active_button(self, button_id: str | None) -> None:
+        """Single-button compatibility method."""
+        self.set_active_buttons([button_id] if button_id else [])
 
     @property
     def render_video(self) -> bool:
@@ -327,9 +347,6 @@ class CameraWorker(QThread):
                 # Monotonic timestamp for MediaPipe VIDEO mode
                 frame_timestamp_ms += int(frame_interval * 1000)
 
-                # Mirror flip (natural user view)
-                frame = cv2.flip(raw_frame, 1)
-
                 # ── FPS meter ──────────────────────────────────────────────
                 fps_counter += 1
                 dur = time.perf_counter() - fps_start
@@ -338,8 +355,16 @@ class CameraWorker(QThread):
                     fps_counter = 0
                     fps_start = time.perf_counter()
 
-                # ── MediaPipe landmark detection ───────────────────────────
-                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                # ── 1. AprilTag fiducial homography (runs on raw camera frame) ──
+                apriltag.update(raw_frame)
+                if apriltag.is_valid and not prev_layout_valid:
+                    logger.info("AprilTag: Tracking locked (%d markers visible, homography valid).", apriltag.markers_used)
+                elif not apriltag.is_valid and prev_layout_valid:
+                    logger.warning("AprilTag: Tracking lost. Searching for layout markers...")
+                prev_layout_valid = apriltag.is_valid
+
+                # ── 2. MediaPipe landmark detection (runs on raw camera frame) ───
+                rgb = cv2.cvtColor(raw_frame, cv2.COLOR_BGR2RGB)
                 mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
                 result = landmarker.detect_for_video(mp_image, frame_timestamp_ms)
 
@@ -379,18 +404,17 @@ class CameraWorker(QThread):
                 prev_hand_detected = hand_detected
 
                 # ── Visual rendering (Play Mode only) ────────────────────────
-                apriltag.update(frame)
-                if apriltag.is_valid and not prev_layout_valid:
-                    logger.info("AprilTag: Tracking locked (%d markers visible, homography valid).", len(apriltag.last_detections))
-                elif not apriltag.is_valid and prev_layout_valid:
-                    logger.warning("AprilTag: Tracking lost. Searching for layout markers...")
-                prev_layout_valid = apriltag.is_valid
-
                 if self._render_video:
+                    display_frame = raw_frame.copy()
+                    if self._active_button_ids and time.perf_counter() > self._active_button_clear_t:
+                        self._active_button_ids.clear()
+                    if self._show_overlay and apriltag.is_valid:
+                        display_frame = apriltag.annotate_frame(
+                            display_frame, self._layout, active_button_ids=self._active_button_ids
+                        )
                     if hand_detected and pipeline_service.last_pixel_coords is not None:
-                        self._draw_skeleton(frame, pipeline_service.last_pixel_coords)
-                    apriltag.annotate_frame(frame, self._layout)
-                    out_frame = frame.copy()
+                        self._draw_skeleton(display_frame, pipeline_service.last_pixel_coords)
+                    out_frame = display_frame
                 else:
                     out_frame = None
 
@@ -399,7 +423,7 @@ class CameraWorker(QThread):
                     out_frame,
                     actual_fps,
                     hand_detected,
-                    apriltag.H.copy() if apriltag.H is not None else None,
+                    apriltag.H.copy() if apriltag.is_valid else None,
                     apriltag.is_valid,
                 )
 

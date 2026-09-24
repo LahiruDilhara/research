@@ -249,7 +249,8 @@ class RunModeView(QWidget):
         g1_header.addWidget(g1_sub)
         g1_layout.addLayout(g1_header)
 
-        self.graph_widget = TelemetryGraphWidget(threshold=0.5, parent=graph1_card)
+        init_thresh = self._vm.touch_threshold if hasattr(self._vm, "touch_threshold") else 0.55
+        self.graph_widget = TelemetryGraphWidget(threshold=init_thresh, parent=graph1_card)
         g1_layout.addWidget(self.graph_widget, 1)
         graphs_col.addWidget(graph1_card, 1)
 

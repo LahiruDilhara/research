@@ -94,7 +94,7 @@ MIN_KINETIC_SPEED_THRESHOLD: float = 0.008
 FINGERTIP_VELOCITY_THRESHOLD: float = 0.008
 
 # ── One Euro (1€) Landmark Coordinate Filter ──────────────────────────────────
-ONE_EURO_ENABLED: bool = True
+ONE_EURO_ENABLED: bool = False
 ONE_EURO_MIN_CUTOFF: float = 0.02
 ONE_EURO_BETA: float = 0.08
 ONE_EURO_D_CUTOFF: float = 1.0

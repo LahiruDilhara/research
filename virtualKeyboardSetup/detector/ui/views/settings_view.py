@@ -23,6 +23,7 @@ from qfluentwidgets import (
     PrimaryPushButton,
     PushButton,
     SmoothScrollArea,
+    SpinBox,
     StrongBodyLabel,
     SubtitleLabel,
     SwitchButton,
@@ -94,14 +95,14 @@ class SettingsView(QWidget):
                 ),
                 (
                     "Touch Threshold Percentage",
-                    "Percentage a finger probability must exceed to detect a touch (0.01 to 1.00 = 1% to 100%, default 0.55 = 55%)",
-                    self._make_double_spin(
-                        value=self._vm.touch_threshold,
-                        mn=0.01,
-                        mx=1.00,
+                    "Probability percentage a finger must exceed to trigger a touch (1% to 100%, default 55%)",
+                    self._make_spin(
+                        value=int(round(self._vm.touch_threshold * 100)),
+                        mn=1,
+                        mx=100,
                         attr="touch_threshold_spin",
-                        step=0.05,
-                        decimals=3,
+                        step=1,
+                        suffix=" %",
                     ),
                 ),
                 (
@@ -312,7 +313,7 @@ class SettingsView(QWidget):
 
     def _refresh_fields(self) -> None:
         self.target_fps_spin.setValue(self._vm.target_fps)
-        self.touch_threshold_spin.setValue(self._vm.touch_threshold)
+        self.touch_threshold_spin.setValue(int(round(self._vm.touch_threshold * 100)))
         self.fingertip_vel_spin.setValue(self._vm.fingertip_velocity_threshold)
         self.hand_movement_spin.setValue(self._vm.hand_movement_threshold)
         self.mp_detection_conf_spin.setValue(self._vm.mediapipe_min_detection_confidence)
@@ -360,6 +361,26 @@ class SettingsView(QWidget):
 
         return card
 
+    def _make_spin(
+        self,
+        value: int,
+        mn: int,
+        mx: int,
+        attr: str,
+        step: int = 1,
+        suffix: str = "",
+    ) -> SpinBox:
+        spin = SpinBox()
+        spin.setRange(mn, mx)
+        spin.setSingleStep(step)
+        if suffix:
+            spin.setSuffix(suffix)
+        spin.setValue(value)
+        spin.setFixedWidth(180)
+        spin.setFixedHeight(34)
+        setattr(self, attr, spin)
+        return spin
+
     def _make_double_spin(
         self,
         value: float,
@@ -395,7 +416,7 @@ class SettingsView(QWidget):
 
     def _on_save_clicked(self) -> None:
         fps_val = self.target_fps_spin.value()
-        thresh_val = self.touch_threshold_spin.value()
+        thresh_val = self.touch_threshold_spin.value() / 100.0
         vel_val = self.fingertip_vel_spin.value()
         hand_mov_val = self.hand_movement_spin.value()
         mp_det_val = self.mp_detection_conf_spin.value()

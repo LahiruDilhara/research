@@ -26,6 +26,7 @@ from qfluentwidgets import (
     InfoBarPosition,
     SingleDirectionScrollArea,
     SpinBox,
+    SwitchButton,
 )
 
 from ui.theme import (
@@ -119,6 +120,16 @@ class PlayModeView(QWidget):
         self.combo_model.currentIndexChanged.connect(self._on_model_changed)
         h_row.addWidget(self.combo_model)
 
+        # Keyboard Overlay toggler
+        h_row.addWidget(self._hdr_label("Overlay:", header))
+        self.switch_overlay = SwitchButton(header)
+        self.switch_overlay.setChecked(True)
+        self.switch_overlay.setOnText("On")
+        self.switch_overlay.setOffText("Off")
+        self.switch_overlay.setToolTip("Toggle projected keyboard overlay to clearly inspect hand skeleton")
+        self.switch_overlay.checkedChanged.connect(self._on_overlay_toggled)
+        h_row.addWidget(self.switch_overlay)
+
         # Switch to Run Mode
         self.btn_run_mode = btn_primary("Switch to Run Mode", header, height=32)
         self.btn_run_mode.clicked.connect(self._on_switch_run)
@@ -133,6 +144,7 @@ class PlayModeView(QWidget):
 
         # Camera feed (left)
         self.feed = CameraFeedWidget()
+        self.feed.frame_clicked.connect(self._on_feed_clicked)
         content.addWidget(self.feed, 1)
 
         # Sidebar (right) - border: none to remove the vertical line
@@ -198,8 +210,8 @@ class PlayModeView(QWidget):
         thresh_row.addStretch(1)
 
         self.spin_thresh = SpinBox(scroll_w)
-        self.spin_thresh.setRange(5, 99)
-        self.spin_thresh.setSingleStep(5)
+        self.spin_thresh.setRange(1, 100)
+        self.spin_thresh.setSingleStep(1)
         self.spin_thresh.setSuffix(" %")
         self.spin_thresh.setFixedWidth(130)
         self.spin_thresh.setFixedHeight(30)
@@ -356,6 +368,10 @@ class PlayModeView(QWidget):
 
     # ── Slots ──────────────────────────────────────────────────────────────────
 
+    def _on_feed_clicked(self, px: int, py: int) -> None:
+        if hasattr(self._vm, "simulate_touch_at_pixel"):
+            self._vm.simulate_touch_at_pixel(px, py)
+
     def _on_camera_changed(self, index: int) -> None:
         if index < 0:
             return
@@ -390,6 +406,9 @@ class PlayModeView(QWidget):
 
     def _on_switch_run(self) -> None:
         self.mode_switch_requested.emit("run")
+
+    def _on_overlay_toggled(self, checked: bool) -> None:
+        self._vm.set_keyboard_overlay_enabled(checked)
 
     @Slot(object, float, bool, bool)
     def _on_frame_updated(self, frame, fps: float, hand_detected: bool, layout_found: bool) -> None:

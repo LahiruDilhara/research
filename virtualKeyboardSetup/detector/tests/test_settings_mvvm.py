@@ -325,7 +325,7 @@ def test_settings_restore_defaults():
 
         # Verify view inputs refreshed
         assert abs(view.target_fps_spin.value() - 12.0) < 1e-4
-        assert abs(view.touch_threshold_spin.value() - 0.55) < 1e-4
+        assert abs(view.touch_threshold_spin.value() - 55) < 1e-4
         assert abs(view.hand_movement_spin.value() - 0.1550) < 1e-4
         assert abs(view.fingertip_vel_spin.value() - 0.0080) < 1e-4
 

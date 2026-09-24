@@ -113,6 +113,7 @@ class DetectorViewModel(QObject):
         self._resolver = TouchResolver(layout)
         self._executor = ActionExecutor()
         self._worker: CameraWorker | None = None
+        self._overlay_enabled: bool = True
 
     # ── Operational Mode & Properties ──────────────────────────────────────────
 
@@ -159,6 +160,7 @@ class DetectorViewModel(QObject):
             parent=None,
         )
         self._worker.render_video = (self._mode == ExecutionMode.PLAY)
+        self._worker.set_show_overlay(self._overlay_enabled)
         self._worker.frame_ready.connect(self._on_frame_ready)
         self._worker.window_ready.connect(self._on_window_ready)
         self._worker.error.connect(self._on_error)
@@ -261,6 +263,44 @@ class DetectorViewModel(QObject):
             self.stop()
             self.start()
 
+    @property
+    def current_H(self) -> np.ndarray | None:
+        return self._current_H if self._layout_found else None
+
+    @property
+    def layout_found(self) -> bool:
+        return self._layout_found
+
+    def simulate_touch_at_pixel(self, px: float, py: float) -> str | None:
+        """Simulate touch at raw camera pixel coordinates replicating analyzer/main.py."""
+        if self._current_H is None or not self._layout_found:
+            return None
+        import cv2
+        pt_src = np.array([[[float(px), float(py)]]], dtype=np.float32)
+        pt_dst = cv2.perspectiveTransform(pt_src, self._current_H.astype(np.float32))
+        mm_x, mm_y = float(pt_dst[0][0][0]), float(pt_dst[0][0][1])
+
+        hit = self._layout.find_button_at(mm_x, mm_y) if hasattr(self._layout, "find_button_at") else None
+        if hit is None:
+            for b in self._layout.buttons:
+                if b.contains_mm(mm_x, mm_y):
+                    hit = b
+                    break
+
+        if hit is not None:
+            if self._worker:
+                self._worker.set_active_button(hit.id)
+            logger.info("Simulated canvas touch at (%d, %d)px -> (%.1f, %.1f)mm -> Key '%s'", px, py, mm_x, mm_y, hit.id)
+            self.touch_event.emit(hit.id, "Index", 1.0)
+            return hit.id
+        return None
+
+    def set_keyboard_overlay_enabled(self, enabled: bool) -> None:
+        """Enable or disable projected keyboard overlay on video feed."""
+        self._overlay_enabled = enabled
+        if self._worker:
+            self._worker.set_show_overlay(enabled)
+
     # ── Slots ──────────────────────────────────────────────────────────────────
 
     @Slot(object, float, bool, object, bool)
@@ -272,12 +312,12 @@ class DetectorViewModel(QObject):
         H,
         layout_found: bool,
     ) -> None:
-        self._current_H = H
-        self._layout_found = layout_found
+        self._current_H = H if layout_found else None
+        self._layout_found = bool(layout_found and self._current_H is not None)
         if not hand_detected:
             self._pipeline_service.reset_touch_states()
         self.fps_updated.emit(fps)
-        self.frame_updated.emit(frame, fps, hand_detected, layout_found)
+        self.frame_updated.emit(frame, fps, hand_detected, self._layout_found)
 
     @Slot(list, list, int, int)
     def _on_window_ready(
@@ -313,38 +353,41 @@ class DetectorViewModel(QObject):
             return
 
         probs = {f: float(data.get("prob", 0.0)) for f, data in results.items()}
-        result = self._resolver.resolve(
+        hits = self._resolver.resolve_all(
             touch_fingers, probs, pixel_window, self._current_H
         )
-        if result is None:
+        if not hits:
             return
 
-        key_id, finger, prob = result
+        active_keys = [key_id for key_id, _, _ in hits]
+        if self._worker:
+            self._worker.set_active_buttons(active_keys)
 
-        # ── Action execution (Run Mode only) ─────────────────────────────────
-        if self._mode == ExecutionMode.RUN:
-            action = self._action_config.get(key_id)
-            if action and action.is_active:
-                self._executor.execute(action)
-                self.action_executed.emit(action.type, action.value, key_id, finger)
-                logger.info(
-                    "[RUN MODE ACTION EXECUTED] Key='%s' Finger=%s Action=[%s: %s] (prob=%.2f, latency=%.1f ms)",
-                    key_id, finger, action.type.upper(), action.value, prob, latency_ms,
-                )
+        for key_id, finger, prob in hits:
+            # ── Action execution (Run Mode only) ─────────────────────────────────
+            if self._mode == ExecutionMode.RUN:
+                action = self._action_config.get(key_id)
+                if action and action.is_active:
+                    self._executor.execute(action)
+                    self.action_executed.emit(action.type, action.value, key_id, finger)
+                    logger.info(
+                        "[RUN MODE ACTION EXECUTED] Key='%s' Finger=%s Action=[%s: %s] (prob=%.2f, latency=%.1f ms)",
+                        key_id, finger, action.type.upper(), action.value, prob, latency_ms,
+                    )
+                else:
+                    logger.info(
+                        "[RUN MODE TOUCH] Key='%s' Finger=%s (No digital action bound) (prob=%.2f)",
+                        key_id, finger, prob,
+                    )
             else:
+                action = self._action_config.get(key_id)
+                action_desc = f"[{action.type.upper()}: {action.value}]" if (action and action.is_active) else "[No Action]"
                 logger.info(
-                    "[RUN MODE TOUCH] Key='%s' Finger=%s (No digital action bound) (prob=%.2f)",
-                    key_id, finger, prob,
+                    "[PLAY MODE SIMULATED TOUCH] Key='%s' Finger=%s Simulated=%s (prob=%.2f, latency=%.1f ms)",
+                    key_id, finger, action_desc, prob, latency_ms,
                 )
-        else:
-            action = self._action_config.get(key_id)
-            action_desc = f"[{action.type.upper()}: {action.value}]" if (action and action.is_active) else "[No Action]"
-            logger.info(
-                "[PLAY MODE SIMULATED TOUCH] Key='%s' Finger=%s Simulated=%s (prob=%.2f, latency=%.1f ms)",
-                key_id, finger, action_desc, prob, latency_ms,
-            )
 
-        self.touch_event.emit(key_id, finger, prob)
+            self.touch_event.emit(key_id, finger, prob)
 
     @Slot(str)
     def _on_error(self, message: str) -> None:
