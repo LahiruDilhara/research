@@ -38,9 +38,14 @@ class CameraFeedWidget(QLabel):
 
         h, w, ch = bgr_frame.shape
         self._raw_frame_size = (w, h)
-        # Convert BGR → RGB (contiguous buffer for QImage)
-        rgb = np.ascontiguousarray(bgr_frame[:, :, ::-1])
-        q_img = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888)
+        
+        # Use QImage.Format_BGR888 if contiguous, avoiding costly np.ascontiguousarray reversing
+        if bgr_frame.flags["C_CONTIGUOUS"] and hasattr(QImage, "Format_BGR888"):
+            q_img = QImage(bgr_frame.data, w, h, ch * w, QImage.Format_BGR888)
+        else:
+            rgb = np.ascontiguousarray(bgr_frame[:, :, ::-1])
+            q_img = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888)
+
         self._current_pixmap = QPixmap.fromImage(q_img)
         self._render_current()
 

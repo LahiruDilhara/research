@@ -69,7 +69,7 @@ FINGER_COLORS_BGR: dict[str, tuple[int, int, int]] = {
 # ── AprilTag homography ────────────────────────────────────────────────────────
 APRILTAG_FAMILY: str = "tag36h11"
 APRILTAG_MIN_MARKERS: int = 1
-APRILTAG_SMOOTHING_ALPHA: float = 0.75   # blending weight for previous H
+APRILTAG_SMOOTHING_ALPHA: float = 0.85   # blending weight for previous H (higher = more stable, less jitter)
 APRILTAG_NTHREADS: int = 1
 
 # ── Touch detection & debouncing ───────────────────────────────────────────────

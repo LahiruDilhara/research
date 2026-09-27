@@ -40,8 +40,8 @@ class AprilTagTracker:
         self._min_markers = min_markers
         self._alpha = smoothing_alpha
 
-        # Core CV & Homography engine from designer/analyzer
-        self._engine = HomographyEngine(layout, ransac_thresh_mm=5.0)
+        # Core CV & Homography engine — pass smoothing_alpha so tracker config is actually used
+        self._engine = HomographyEngine(layout, ransac_thresh_mm=5.0, smoothing_alpha=smoothing_alpha)
 
         self._H: np.ndarray | None = None
         self._H_inv: np.ndarray | None = None
@@ -117,8 +117,13 @@ class AprilTagTracker:
             self._H = None
             self._H_inv = None
             self._markers_used = 0
+            self._cached_corners = None
+            self._cached_ids = None
             return False
 
+        # Cache detected marker corners & ids from info to avoid duplicate detectMarkers call in annotate_frame
+        self._cached_corners = self._info.get("corners", None)
+        self._cached_ids = self._info.get("ids", None)
         return True
 
     def pixel_to_mm(self, px: float, py: float) -> tuple[float, float] | None:
@@ -163,8 +168,13 @@ class AprilTagTracker:
         if not self.is_valid or self._H is None:
             return frame_bgr
 
-        # Draw detected marker outlines & IDs
-        corners, ids, annotated_frame = self._engine.detect_markers(frame_bgr)
+        # Reuse cached marker corners if available to avoid duplicate detection on low-end hardware
+        if self._cached_ids is not None and len(self._cached_ids) > 0 and self._cached_corners is not None:
+            annotated_frame = frame_bgr.copy()
+            cv2.aruco.drawDetectedMarkers(annotated_frame, self._cached_corners, self._cached_ids)
+        else:
+            corners, ids, annotated_frame = self._engine.detect_markers(frame_bgr)
+
         # Draw paper boundary, buttons, center crosshairs, corner tick marks, and active button highlights
         return self._engine.draw_paper_and_buttons_overlay(
             annotated_frame, self._H, active_button_ids=active_button_ids

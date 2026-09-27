@@ -147,6 +147,8 @@ class _FrameGrabber(threading.Thread):
                 continue
             with self._lock:
                 self._latest_frame = frame
+            # Cooperative yield so GUI and processing threads are not starved on low-spec multi-core CPUs
+            time.sleep(0.001)
 
     def get_latest_frame(self) -> np.ndarray | None:
         with self._lock:
@@ -405,18 +407,15 @@ class CameraWorker(QThread):
                     fps_start = time.perf_counter()
 
                 # ── 1. AprilTag fiducial homography (runs on raw camera frame) ──
-                # If homography is already tracked and locked, re-evaluate every 3 frames (~4 Hz update).
-                # If tracking is lost or uninitialized, evaluate every frame for immediate lock-on.
+                # Evaluate AprilTag homography on every frame for immediate, smooth layout tracking
+                # when the paper moves or tilts.
                 apriltag_frame_counter += 1
-                should_update_apriltag = (not apriltag.is_valid) or (apriltag_frame_counter % 3 == 0)
-
-                if should_update_apriltag:
-                    apriltag.update(raw_frame)
-                    if apriltag.is_valid and not prev_layout_valid:
-                        logger.info("AprilTag: Tracking locked (%d markers visible, homography valid).", apriltag.markers_used)
-                    elif not apriltag.is_valid and prev_layout_valid:
-                        logger.warning("AprilTag: Tracking lost (detected %d markers, min required=%d). Searching for layout markers...", apriltag.markers_used, self._config.apriltag_min_markers)
-                    prev_layout_valid = apriltag.is_valid
+                apriltag.update(raw_frame)
+                if apriltag.is_valid and not prev_layout_valid:
+                    logger.info("AprilTag: Tracking locked (%d markers visible, homography valid).", apriltag.markers_used)
+                elif not apriltag.is_valid and prev_layout_valid:
+                    logger.warning("AprilTag: Tracking lost (detected %d markers, min required=%d). Searching for layout markers...", apriltag.markers_used, self._config.apriltag_min_markers)
+                prev_layout_valid = apriltag.is_valid
 
                 # ── 2. MediaPipe landmark detection (runs on raw camera frame) ───
                 rgb = cv2.cvtColor(raw_frame, cv2.COLOR_BGR2RGB)
