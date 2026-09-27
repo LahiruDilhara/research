@@ -372,6 +372,33 @@ class TestUiModesAndTelemetry(unittest.TestCase):
         self.assertEqual(win.stackedWidget.currentWidget().objectName(), "fileLandingView")
         win.close()
 
+    def test_primary_model_decorator_and_registry(self) -> None:
+        """Verify @primaryModel designates the primary model and ModelRegistry selects it."""
+        from core.interfaces.touch_model import primaryModel, ModelRegistry, ITouchModel
+
+        class SecondaryDummy(ITouchModel):
+            @classmethod
+            def model_name(cls) -> str:
+                return "Secondary Model"
+            def predict_touch(self, window):
+                return {}
+
+        @primaryModel
+        class PrimaryDummy(ITouchModel):
+            @classmethod
+            def model_name(cls) -> str:
+                return "Primary Model"
+            def predict_touch(self, window):
+                return {}
+
+        self.assertTrue(getattr(PrimaryDummy, "_is_primary", False))
+        self.assertFalse(getattr(SecondaryDummy, "_is_primary", False))
+
+        primary_entry = ModelRegistry.get_primary()
+        self.assertIsNotNone(primary_entry)
+        self.assertTrue(primary_entry.is_primary)
+        self.assertEqual(primary_entry.name, "LSTM Touch Detector")
+
 
 if __name__ == "__main__":
     unittest.main()

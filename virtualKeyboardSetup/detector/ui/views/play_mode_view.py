@@ -113,13 +113,6 @@ class PlayModeView(QWidget):
         self.btn_refresh_cams.clicked.connect(self._refresh_cameras)
         h_row.addWidget(self.btn_refresh_cams)
 
-        # Model selector
-        h_row.addWidget(self._hdr_label("Model:", header))
-        self.combo_model = ComboBox(header)
-        self.combo_model.setFixedWidth(185)
-        self.combo_model.currentIndexChanged.connect(self._on_model_changed)
-        h_row.addWidget(self.combo_model)
-
         # Keyboard Overlay toggler
         h_row.addWidget(self._hdr_label("Overlay:", header))
         self.switch_overlay = SwitchButton(header)
@@ -285,19 +278,6 @@ class PlayModeView(QWidget):
 
     def _populate_models(self) -> None:
         self._models = ModelRegistry.all_entries()
-        self.combo_model.blockSignals(True)
-        self.combo_model.clear()
-        active_idx = 0
-        current_name = self._vm.active_model_name
-        for i, m in enumerate(self._models):
-            self.combo_model.addItem(m.name, userData=m)
-            if current_name and m.name == current_name:
-                active_idx = i
-            elif not current_name and ("lstm" in m.name.lower() or "best" in m.name.lower()):
-                active_idx = i
-        if self._models:
-            self.combo_model.setCurrentIndex(active_idx)
-        self.combo_model.blockSignals(False)
 
     def _refresh_cameras(self) -> None:
         self._cameras = discover_cameras(max_index=6)
@@ -327,7 +307,7 @@ class PlayModeView(QWidget):
         self.paper_canvas.set_layout(layout_data)
 
     def refresh_models(self) -> None:
-        self._populate_models()
+        self._models = ModelRegistry.all_entries()
 
     def sync_camera_index(self, index: int) -> None:
         self.combo_camera.blockSignals(True)
@@ -338,14 +318,7 @@ class PlayModeView(QWidget):
         self.combo_camera.blockSignals(False)
 
     def sync_model(self, model_name: str) -> None:
-        if not model_name:
-            return
-        self.combo_model.blockSignals(True)
-        for i in range(self.combo_model.count()):
-            if self.combo_model.itemText(i) == model_name:
-                self.combo_model.setCurrentIndex(i)
-                break
-        self.combo_model.blockSignals(False)
+        pass
 
     def set_touch_threshold(self, threshold: float) -> None:
         """Update the touch percentage spinbox and finger status bar threshold."""
@@ -381,20 +354,6 @@ class PlayModeView(QWidget):
             InfoBar.success(
                 title="Camera Switched",
                 content=f"Capture device switched to Camera {cam_idx}.",
-                position=InfoBarPosition.TOP,
-                parent=self,
-                duration=2500,
-            )
-
-    def _on_model_changed(self, index: int) -> None:
-        if index < 0 or index >= len(self._models):
-            return
-        selected_model = self.combo_model.currentData()
-        if selected_model and selected_model.name != self._vm.active_model_name:
-            self._vm.set_model(selected_model)
-            InfoBar.success(
-                title="Model Switched",
-                content=f"Active detector set to {selected_model.name}.",
                 position=InfoBarPosition.TOP,
                 parent=self,
                 duration=2500,

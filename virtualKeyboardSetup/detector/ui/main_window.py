@@ -117,15 +117,8 @@ class MainWindow(FluentWindow):
         btn_ids = [b.id for b in layout_data.buttons]
         action_config = svc.load(xml_path, btn_ids)
 
-        # Choose best default model from registry
-        models = ModelRegistry.all_entries()
-        default_model = None
-        for m in models:
-            if "lstm" in m.name.lower() or "best" in m.name.lower():
-                default_model = m
-                break
-        if default_model is None and models:
-            default_model = models[0]
+        # Choose primary model from plugin registry
+        default_model = ModelRegistry.get_primary()
 
         # Resolve best available camera index without blocking UI thread
         active_cam_idx = self._config.camera_index
