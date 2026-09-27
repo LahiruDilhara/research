@@ -90,7 +90,7 @@ Based on the results in Table~\ref{tab:non_functional_test_cases}, all target no
 \label{sec:test_workflow}
 The testing and evaluation process was conducted across four main phases:
 \begin{enumerate}
-    \item \textbf{Phase 1 (Deep Learning Classifier Evaluation):} Evaluated 22 pure 2D model architecture combinations in \texttt{mediapipeDetector/}\linebreak[1]\texttt{deepLearningModels/}\linebreak[1]\texttt{run\_all.py} using 5-fold cross-validation, measuring Precision, Recall, F1-Score, and runtime latency.
+    \item \textbf{Phase 1 (Deep Learning Classifier Evaluation):} Evaluated 22 pure 2D model architecture combinations in \texttt{modelBenchmark/}\linebreak[1]\texttt{benchmark\_engine.py} using 5-fold cross-validation, measuring Precision, Recall, F1-Score, and runtime latency.
     \item \textbf{Phase 2 (Feature and Window Size Ablation):} Tested temporal window lengths ($W \in \{1, 3, 5, 7, 9\}$), stride values, scale normalization ($L_{\text{hand}}$ versus raw features), and CPU execution performance across various video resolutions.
     \item \textbf{Phase 3 (Tracking and Homography Accuracy):} Evaluated AprilTag corner detection accuracy, sub-pixel fitting, and planar homography reprojection error across camera tilt angles from $0^\circ$ to $75^\circ$.
     \item \textbf{Phase 4 (Real-Time Pipeline Latency and User Typing Metrics):} Evaluated end-to-end system throughput, latency breakdowns across pipeline components, key hit recognition performance, Words Per Minute (WPM), and Character Error Rate (CER) during live typing sessions with users.
@@ -102,7 +102,7 @@ Here, we present the numerical benchmarking results, comparative tables, and ana
 
 \subsection{Deep Learning Model Architecture Benchmark Evaluation}
 \label{subsec:test_model_benchmark}
-The benchmarking driver (\texttt{mediapipeDetector/}\linebreak[1]\texttt{deepLearningModels/}\linebreak[1]\texttt{run\_all.py}) was used to train and validate 22 pure 2D deep learning models by means of 5-fold cross-validation.
+The benchmarking driver (\texttt{modelBenchmark/}\linebreak[1]\texttt{benchmark\_engine.py}) was used to train and validate 22 pure 2D deep learning models by means of 5-fold cross-validation.
 
 Table~\ref{tab:model_architecture_comparison} shows the comparison results across representative model types and feature representations.
 

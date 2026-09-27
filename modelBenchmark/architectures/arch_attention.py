@@ -1,0 +1,33 @@
+"""
+arch_attention.py
+=================
+Architecture variant: Attention
+Data Feature Variant: combined_2d
+"""
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from model_arch import (
+    TouchAttentionNet, run_model_benchmark
+)
+
+ARCH_NAME = "Attention"
+VARIANT   = "combined_2d"
+CONFIGS   = [{'id': 1, 'embed_dim': 32, 'num_heads': 2, 'dropout': 0.25, 'lr': 0.001, 'bs': 32}]
+
+def create_model(feature_dim, cfg):
+    return TouchAttentionNet(input_features=feature_dim, embed_dim=cfg.get("embed_dim", 32), num_heads=cfg.get("num_heads", 2), dropout=cfg.get("dropout", 0.25))
+
+def main():
+    run_model_benchmark(
+        arch_name=ARCH_NAME,
+        variant_name=VARIANT,
+        create_model_fn=create_model,
+        configs=CONFIGS,
+        default_epochs=70
+    )
+
+if __name__ == "__main__":
+    main()
