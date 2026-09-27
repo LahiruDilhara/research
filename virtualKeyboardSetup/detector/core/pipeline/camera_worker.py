@@ -255,10 +255,23 @@ class CameraWorker(QThread):
         # 2. Open camera with automatic fallback to any discovered working camera
         cap = None
         with _suppress_c_stderr():
-            candidate_cap = cv2.VideoCapture(self._camera_index, cv2.CAP_V4L2)
-            if not candidate_cap.isOpened():
-                candidate_cap = cv2.VideoCapture(self._camera_index)
+            if sys.platform == "win32":
+                candidate_cap = cv2.VideoCapture(self._camera_index, cv2.CAP_DSHOW)
+                if not candidate_cap.isOpened():
+                    candidate_cap = cv2.VideoCapture(self._camera_index)
+            else:
+                candidate_cap = cv2.VideoCapture(self._camera_index, cv2.CAP_V4L2)
+                if not candidate_cap.isOpened():
+                    candidate_cap = cv2.VideoCapture(self._camera_index)
+
             if candidate_cap.isOpened():
+                candidate_cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                candidate_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                candidate_cap.set(cv2.CAP_PROP_FPS, 30)
+                try:
+                    candidate_cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                except Exception:
+                    pass
                 ret, _ = candidate_cap.read()
                 if ret:
                     cap = candidate_cap
@@ -267,13 +280,26 @@ class CameraWorker(QThread):
 
         if cap is None:
             from services.camera_discovery import discover_cameras
-            discovered = discover_cameras(max_index=6)
+            discovered = discover_cameras(max_index=4)
             for c in discovered:
                 with _suppress_c_stderr():
-                    fallback_cap = cv2.VideoCapture(c.index, cv2.CAP_V4L2)
-                    if not fallback_cap.isOpened():
-                        fallback_cap = cv2.VideoCapture(c.index)
+                    if sys.platform == "win32":
+                        fallback_cap = cv2.VideoCapture(c.index, cv2.CAP_DSHOW)
+                        if not fallback_cap.isOpened():
+                            fallback_cap = cv2.VideoCapture(c.index)
+                    else:
+                        fallback_cap = cv2.VideoCapture(c.index, cv2.CAP_V4L2)
+                        if not fallback_cap.isOpened():
+                            fallback_cap = cv2.VideoCapture(c.index)
+
                     if fallback_cap.isOpened():
+                        fallback_cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                        fallback_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                        fallback_cap.set(cv2.CAP_PROP_FPS, 30)
+                        try:
+                            fallback_cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                        except Exception:
+                            pass
                         ret, _ = fallback_cap.read()
                         if ret:
                             logger.info(
@@ -346,6 +372,7 @@ class CameraWorker(QThread):
         actual_fps = TARGET_FPS
         prev_hand_detected = False
         prev_layout_valid = False
+        apriltag_frame_counter = 0
 
         # 6. Main loop
         try:
@@ -378,12 +405,18 @@ class CameraWorker(QThread):
                     fps_start = time.perf_counter()
 
                 # ── 1. AprilTag fiducial homography (runs on raw camera frame) ──
-                apriltag.update(raw_frame)
-                if apriltag.is_valid and not prev_layout_valid:
-                    logger.info("AprilTag: Tracking locked (%d markers visible, homography valid).", apriltag.markers_used)
-                elif not apriltag.is_valid and prev_layout_valid:
-                    logger.warning("AprilTag: Tracking lost (detected %d markers, min required=%d). Searching for layout markers...", apriltag.markers_used, self._config.apriltag_min_markers)
-                prev_layout_valid = apriltag.is_valid
+                # If homography is already tracked and locked, re-evaluate every 3 frames (~4 Hz update).
+                # If tracking is lost or uninitialized, evaluate every frame for immediate lock-on.
+                apriltag_frame_counter += 1
+                should_update_apriltag = (not apriltag.is_valid) or (apriltag_frame_counter % 3 == 0)
+
+                if should_update_apriltag:
+                    apriltag.update(raw_frame)
+                    if apriltag.is_valid and not prev_layout_valid:
+                        logger.info("AprilTag: Tracking locked (%d markers visible, homography valid).", apriltag.markers_used)
+                    elif not apriltag.is_valid and prev_layout_valid:
+                        logger.warning("AprilTag: Tracking lost (detected %d markers, min required=%d). Searching for layout markers...", apriltag.markers_used, self._config.apriltag_min_markers)
+                    prev_layout_valid = apriltag.is_valid
 
                 # ── 2. MediaPipe landmark detection (runs on raw camera frame) ───
                 rgb = cv2.cvtColor(raw_frame, cv2.COLOR_BGR2RGB)

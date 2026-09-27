@@ -48,7 +48,30 @@ class CameraInfo:
     fps: float
 
 
-def discover_cameras(max_index: int = 10) -> list[CameraInfo]:
+def is_camera_available(index: int) -> bool:
+    """Quickly check if a single camera index can be opened and read without scanning all devices."""
+    with suppress_c_stderr():
+        if sys.platform == "win32":
+            cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+            if not cap.isOpened():
+                cap = cv2.VideoCapture(index)
+        else:
+            dev_videos = glob.glob("/dev/video*")
+            if dev_videos:
+                cap = cv2.VideoCapture(index, cv2.CAP_V4L2)
+            else:
+                cap = cv2.VideoCapture(index)
+
+        if not cap.isOpened():
+            cap.release()
+            return False
+
+        ret, _ = cap.read()
+        cap.release()
+        return bool(ret)
+
+
+def discover_cameras(max_index: int = 6) -> list[CameraInfo]:
     """
     Probes video capture devices and returns those that produce a readable frame.
 
@@ -83,6 +106,7 @@ def discover_cameras(max_index: int = 10) -> list[CameraInfo]:
 
     found: list[CameraInfo] = []
     seen: set[int] = set()
+    consecutive_failures = 0
 
     for idx in sorted(candidates):
         if idx in seen:
@@ -90,21 +114,35 @@ def discover_cameras(max_index: int = 10) -> list[CameraInfo]:
         seen.add(idx)
 
         with suppress_c_stderr():
-            # On Linux try V4L2 first to avoid FFMPEG/OBSENSOR fallback spam
+            # On Linux try V4L2 first to avoid FFMPEG/OBSENSOR fallback spam.
+            # On Windows use DirectShow (CAP_DSHOW) to prevent multi-second MSMF device timeouts.
             if dev_videos:
                 cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
+            elif sys.platform == "win32":
+                cap = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
+                if not cap.isOpened():
+                    cap = cv2.VideoCapture(idx)
             else:
                 cap = cv2.VideoCapture(idx)
 
             if not cap.isOpened():
                 cap.release()
+                if not dev_videos:
+                    consecutive_failures += 1
+                    if consecutive_failures >= 2 and idx > 0:
+                        break
                 continue
 
             ret, _ = cap.read()
             if not ret:
                 cap.release()
+                if not dev_videos:
+                    consecutive_failures += 1
+                    if consecutive_failures >= 2 and idx > 0:
+                        break
                 continue
 
+            consecutive_failures = 0
             w   = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             h   = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             fps = cap.get(cv2.CAP_PROP_FPS) or 0.0
@@ -112,7 +150,7 @@ def discover_cameras(max_index: int = 10) -> list[CameraInfo]:
 
         info = CameraInfo(
             index=idx,
-            name=f"Camera {idx}  (/dev/video{idx})",
+            name=f"Camera {idx}" + (f" (/dev/video{idx})" if dev_videos else ""),
             width=w,
             height=h,
             fps=fps,

@@ -82,6 +82,7 @@ class TestUiModesAndTelemetry(unittest.TestCase):
         )
         self.actions = {"btn_1": ActionData(type="key", value="a")}
         self.config = AppConfig()
+        self.config.set_printed_marker_side_width_mm(0.0)
         self.model_instance = DummyTouchModel()
         self.model_entry = ModelEntry(
             name="Dummy LSTM",

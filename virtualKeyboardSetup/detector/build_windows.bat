@@ -56,7 +56,6 @@ uv run pyinstaller ^
     --add-data ".env.example;." ^
     --collect-all "qfluentwidgets" ^
     --collect-all "mediapipe" ^
-    --collect-all "dt_apriltags" ^
     --hidden-import "torch" ^
     --hidden-import "torchvision" ^
     --hidden-import "sklearn" ^
