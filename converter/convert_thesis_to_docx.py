@@ -317,7 +317,7 @@ def main():
     shutil.copy(WORKSPACE_ROOT / "research-db" / "references.bib", build_research_db / "references.bib")
     
     csl_file = WORKSPACE_ROOT / "converter" / "ieee.csl"
-    out_dir = WORKSPACE_ROOT / "out"
+    out_dir = WORKSPACE_ROOT / "output"
     out_dir.mkdir(parents=True, exist_ok=True)
     output_docx = out_dir / "thesis.docx"
     
@@ -357,6 +357,12 @@ def main():
         sys.exit(1)
         
     print(res_style.stdout)
+    
+    # Sync with out/ directory for backward compatibility
+    out_compat = WORKSPACE_ROOT / "out"
+    if out_compat.exists():
+        shutil.copy2(output_docx, out_compat / "thesis.docx")
+
     size_mb = output_docx.stat().st_size / (1024*1024)
     print(f"\n[COMPLETED] Polished Thesis DOCX ready at:\n{output_docx} ({size_mb:.2f} MB)")
 
