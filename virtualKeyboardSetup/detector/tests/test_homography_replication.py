@@ -17,10 +17,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-RESEARCH_ROOT = PROJECT_ROOT.parent.parent
-ANALYZER_DIR = RESEARCH_ROOT / "designer" / "analyzer"
-if str(ANALYZER_DIR) not in sys.path:
-    sys.path.insert(0, str(ANALYZER_DIR))
+TESTS_DIR = Path(__file__).resolve().parent
+if str(TESTS_DIR) not in sys.path:
+    sys.path.insert(0, str(TESTS_DIR))
 
 from core.layout.layout_parser import LayoutParser, LayoutData, ButtonData, MarkerData
 from core.pipeline.homography_engine import HomographyEngine
@@ -30,7 +29,7 @@ from synthetic_generator import generate_synthetic_camera_frame
 
 class TestHomographyReplication(unittest.TestCase):
     def setUp(self):
-        xml_path = RESEARCH_ROOT / "designer" / "layout.xml"
+        xml_path = TESTS_DIR / "fixtures" / "layout.xml"
         self.assertTrue(xml_path.exists(), f"layout.xml not found at {xml_path}")
         self.layout = LayoutParser().parse(str(xml_path))
         self.engine = HomographyEngine(self.layout)

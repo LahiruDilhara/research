@@ -8,10 +8,10 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON_BIN="python3"
 
-if [ -f "$SCRIPT_DIR/mediapipeDetector/.venv/bin/python3" ]; then
-    PYTHON_BIN="$SCRIPT_DIR/mediapipeDetector/.venv/bin/python3"
-elif [ -f "$SCRIPT_DIR/virtualKeyboardSetup/detector/.venv/bin/python3" ]; then
+if [ -f "$SCRIPT_DIR/virtualKeyboardSetup/detector/.venv/bin/python3" ]; then
     PYTHON_BIN="$SCRIPT_DIR/virtualKeyboardSetup/detector/.venv/bin/python3"
+elif [ -f "$SCRIPT_DIR/mediapipeDetector/.venv/bin/python3" ]; then
+    PYTHON_BIN="$SCRIPT_DIR/mediapipeDetector/.venv/bin/python3"
 fi
 
 echo "========================================================================"

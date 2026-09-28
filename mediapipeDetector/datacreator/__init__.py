@@ -1,3 +1,0 @@
-"""
-datacreator package initialization
-"""

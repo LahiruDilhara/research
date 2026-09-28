@@ -2,6 +2,7 @@
 *.pdf
 *.json
 *.xml
+!virtualKeyboardSetup/detector/tests/fixtures/*.xml
 *.png
 *.webm
 #*.csv

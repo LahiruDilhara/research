@@ -1,0 +1,194 @@
+<?xml version="1.0" ?>
+<PaperLayout paper_width_mm="297.0" paper_height_mm="210.0" marker_size_mm="15.0" marker_margin_mm="8.0" marker_spacing_mm="40.0" marker_family="DICT_APRILTAG_36h11" coordinate_origin="top_left_paper_corner (x_right, y_down)">
+  <PaperMargin margin_mm="8.000" top_mm="8.000" bottom_mm="8.000" left_mm="8.000" right_mm="8.000"/>
+  <MarkerRingZone outer_x_min_mm="8.000" outer_y_min_mm="8.000" outer_x_max_mm="289.000" outer_y_max_mm="202.000" inner_x_min_mm="23.000" inner_y_min_mm="23.000" inner_x_max_mm="274.000" inner_y_max_mm="187.000"/>
+  <InteriorRegion x_min_mm="28.000" y_min_mm="28.000" x_max_mm="269.000" y_max_mm="182.000" width_mm="241.000" height_mm="154.000"/>
+  <Markers count="22">
+    <Marker id="0" center_x_mm="15.500" center_y_mm="15.500" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="8.000" y_mm="8.000"/>
+        <TopRight x_mm="23.000" y_mm="8.000"/>
+        <BottomRight x_mm="23.000" y_mm="23.000"/>
+        <BottomLeft x_mm="8.000" y_mm="23.000"/>
+      </Corners>
+    </Marker>
+    <Marker id="1" center_x_mm="53.500" center_y_mm="15.500" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="46.000" y_mm="8.000"/>
+        <TopRight x_mm="61.000" y_mm="8.000"/>
+        <BottomRight x_mm="61.000" y_mm="23.000"/>
+        <BottomLeft x_mm="46.000" y_mm="23.000"/>
+      </Corners>
+    </Marker>
+    <Marker id="2" center_x_mm="91.500" center_y_mm="15.500" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="84.000" y_mm="8.000"/>
+        <TopRight x_mm="99.000" y_mm="8.000"/>
+        <BottomRight x_mm="99.000" y_mm="23.000"/>
+        <BottomLeft x_mm="84.000" y_mm="23.000"/>
+      </Corners>
+    </Marker>
+    <Marker id="3" center_x_mm="129.500" center_y_mm="15.500" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="122.000" y_mm="8.000"/>
+        <TopRight x_mm="137.000" y_mm="8.000"/>
+        <BottomRight x_mm="137.000" y_mm="23.000"/>
+        <BottomLeft x_mm="122.000" y_mm="23.000"/>
+      </Corners>
+    </Marker>
+    <Marker id="4" center_x_mm="167.500" center_y_mm="15.500" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="160.000" y_mm="8.000"/>
+        <TopRight x_mm="175.000" y_mm="8.000"/>
+        <BottomRight x_mm="175.000" y_mm="23.000"/>
+        <BottomLeft x_mm="160.000" y_mm="23.000"/>
+      </Corners>
+    </Marker>
+    <Marker id="5" center_x_mm="205.500" center_y_mm="15.500" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="198.000" y_mm="8.000"/>
+        <TopRight x_mm="213.000" y_mm="8.000"/>
+        <BottomRight x_mm="213.000" y_mm="23.000"/>
+        <BottomLeft x_mm="198.000" y_mm="23.000"/>
+      </Corners>
+    </Marker>
+    <Marker id="6" center_x_mm="243.500" center_y_mm="15.500" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="236.000" y_mm="8.000"/>
+        <TopRight x_mm="251.000" y_mm="8.000"/>
+        <BottomRight x_mm="251.000" y_mm="23.000"/>
+        <BottomLeft x_mm="236.000" y_mm="23.000"/>
+      </Corners>
+    </Marker>
+    <Marker id="7" center_x_mm="281.500" center_y_mm="15.500" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="274.000" y_mm="8.000"/>
+        <TopRight x_mm="289.000" y_mm="8.000"/>
+        <BottomRight x_mm="289.000" y_mm="23.000"/>
+        <BottomLeft x_mm="274.000" y_mm="23.000"/>
+      </Corners>
+    </Marker>
+    <Marker id="8" center_x_mm="281.500" center_y_mm="60.250" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="274.000" y_mm="52.750"/>
+        <TopRight x_mm="289.000" y_mm="52.750"/>
+        <BottomRight x_mm="289.000" y_mm="67.750"/>
+        <BottomLeft x_mm="274.000" y_mm="67.750"/>
+      </Corners>
+    </Marker>
+    <Marker id="9" center_x_mm="281.500" center_y_mm="105.000" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="274.000" y_mm="97.500"/>
+        <TopRight x_mm="289.000" y_mm="97.500"/>
+        <BottomRight x_mm="289.000" y_mm="112.500"/>
+        <BottomLeft x_mm="274.000" y_mm="112.500"/>
+      </Corners>
+    </Marker>
+    <Marker id="10" center_x_mm="281.500" center_y_mm="149.750" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="274.000" y_mm="142.250"/>
+        <TopRight x_mm="289.000" y_mm="142.250"/>
+        <BottomRight x_mm="289.000" y_mm="157.250"/>
+        <BottomLeft x_mm="274.000" y_mm="157.250"/>
+      </Corners>
+    </Marker>
+    <Marker id="11" center_x_mm="281.500" center_y_mm="194.500" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="274.000" y_mm="187.000"/>
+        <TopRight x_mm="289.000" y_mm="187.000"/>
+        <BottomRight x_mm="289.000" y_mm="202.000"/>
+        <BottomLeft x_mm="274.000" y_mm="202.000"/>
+      </Corners>
+    </Marker>
+    <Marker id="12" center_x_mm="243.500" center_y_mm="194.500" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="236.000" y_mm="187.000"/>
+        <TopRight x_mm="251.000" y_mm="187.000"/>
+        <BottomRight x_mm="251.000" y_mm="202.000"/>
+        <BottomLeft x_mm="236.000" y_mm="202.000"/>
+      </Corners>
+    </Marker>
+    <Marker id="13" center_x_mm="205.500" center_y_mm="194.500" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="198.000" y_mm="187.000"/>
+        <TopRight x_mm="213.000" y_mm="187.000"/>
+        <BottomRight x_mm="213.000" y_mm="202.000"/>
+        <BottomLeft x_mm="198.000" y_mm="202.000"/>
+      </Corners>
+    </Marker>
+    <Marker id="14" center_x_mm="167.500" center_y_mm="194.500" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="160.000" y_mm="187.000"/>
+        <TopRight x_mm="175.000" y_mm="187.000"/>
+        <BottomRight x_mm="175.000" y_mm="202.000"/>
+        <BottomLeft x_mm="160.000" y_mm="202.000"/>
+      </Corners>
+    </Marker>
+    <Marker id="15" center_x_mm="129.500" center_y_mm="194.500" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="122.000" y_mm="187.000"/>
+        <TopRight x_mm="137.000" y_mm="187.000"/>
+        <BottomRight x_mm="137.000" y_mm="202.000"/>
+        <BottomLeft x_mm="122.000" y_mm="202.000"/>
+      </Corners>
+    </Marker>
+    <Marker id="16" center_x_mm="91.500" center_y_mm="194.500" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="84.000" y_mm="187.000"/>
+        <TopRight x_mm="99.000" y_mm="187.000"/>
+        <BottomRight x_mm="99.000" y_mm="202.000"/>
+        <BottomLeft x_mm="84.000" y_mm="202.000"/>
+      </Corners>
+    </Marker>
+    <Marker id="17" center_x_mm="53.500" center_y_mm="194.500" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="46.000" y_mm="187.000"/>
+        <TopRight x_mm="61.000" y_mm="187.000"/>
+        <BottomRight x_mm="61.000" y_mm="202.000"/>
+        <BottomLeft x_mm="46.000" y_mm="202.000"/>
+      </Corners>
+    </Marker>
+    <Marker id="18" center_x_mm="15.500" center_y_mm="194.500" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="8.000" y_mm="187.000"/>
+        <TopRight x_mm="23.000" y_mm="187.000"/>
+        <BottomRight x_mm="23.000" y_mm="202.000"/>
+        <BottomLeft x_mm="8.000" y_mm="202.000"/>
+      </Corners>
+    </Marker>
+    <Marker id="19" center_x_mm="15.500" center_y_mm="149.750" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="8.000" y_mm="142.250"/>
+        <TopRight x_mm="23.000" y_mm="142.250"/>
+        <BottomRight x_mm="23.000" y_mm="157.250"/>
+        <BottomLeft x_mm="8.000" y_mm="157.250"/>
+      </Corners>
+    </Marker>
+    <Marker id="20" center_x_mm="15.500" center_y_mm="105.000" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="8.000" y_mm="97.500"/>
+        <TopRight x_mm="23.000" y_mm="97.500"/>
+        <BottomRight x_mm="23.000" y_mm="112.500"/>
+        <BottomLeft x_mm="8.000" y_mm="112.500"/>
+      </Corners>
+    </Marker>
+    <Marker id="21" center_x_mm="15.500" center_y_mm="60.250" size_mm="15.000">
+      <Corners>
+        <TopLeft x_mm="8.000" y_mm="52.750"/>
+        <TopRight x_mm="23.000" y_mm="52.750"/>
+        <BottomRight x_mm="23.000" y_mm="67.750"/>
+        <BottomLeft x_mm="8.000" y_mm="67.750"/>
+      </Corners>
+    </Marker>
+  </Markers>
+  <Buttons count="2">
+    <Button id="btn_1" x_mm="40.000" y_mm="40.000" width_mm="50.000" height_mm="30.000" x_max_mm="90.000" y_max_mm="70.000" center_x_mm="65.000" center_y_mm="55.000">
+      <Style font_size_pt="14" stroke_width_mm="1.5" corner_radius_mm="0"/>
+      <Text>Spacebar</Text>
+    </Button>
+    <Button id="btn_2" x_mm="100.000" y_mm="40.000" width_mm="40.000" height_mm="30.000" x_max_mm="140.000" y_max_mm="70.000" center_x_mm="120.000" center_y_mm="55.000">
+      <Style font_size_pt="14" stroke_width_mm="1.5" corner_radius_mm="0"/>
+      <Text>Enter</Text>
+    </Button>
+  </Buttons>
+</PaperLayout>
