@@ -230,32 +230,15 @@ class TouchResolver:
             hit = self._hit_test(raw_mm_x, raw_mm_y, tolerance_mm=3.0)
 
             # 2. If raw point did not hit a key, extrapolate forward if enabled
-            if (
-                hit is None
-                and self._offset_enabled
-                and self._forward_offset_mm > 0.0
-                and dip_idx is not None
-                and dip_idx < len(pixel_frames[f_idx])
-            ):
+            if hit is None and dip_idx is not None and dip_idx < len(pixel_frames[f_idx]):
                 dip_px, dip_py = pixel_frames[f_idx][dip_idx][:2]
                 dip_mm = self._pixel_to_mm(dip_px, dip_py, H)
-                if dip_mm is not None:
-                    vx = tip_mm[0] - dip_mm[0]
-                    vy = tip_mm[1] - dip_mm[1]
-                    v_len = math.hypot(vx, vy)
-                    if v_len > 1e-4:
-                        ux = vx / v_len
-                        uy = vy / v_len
-                        off_mm_x = tip_mm[0] + self._forward_offset_mm * ux
-                        off_mm_y = tip_mm[1] + self._forward_offset_mm * uy
-                        offset_hit = self._hit_test(off_mm_x, off_mm_y, tolerance_mm=3.0)
-                        if offset_hit is not None:
-                            hit = offset_hit
-                            raw_mm_x, raw_mm_y = off_mm_x, off_mm_y
-                            if H_inv is not None:
-                                px_pt = self._mm_to_pixel(off_mm_x, off_mm_y, H_inv)
-                                if px_pt is not None:
-                                    contact_px, contact_py = px_pt
+                off_mm, off_px = self._apply_distal_offset(tip_mm, dip_mm, (tip_px, tip_py), H_inv)
+                offset_hit = self._hit_test(off_mm[0], off_mm[1], tolerance_mm=3.0)
+                if offset_hit is not None:
+                    hit = offset_hit
+                    raw_mm_x, raw_mm_y = off_mm
+                    contact_px, contact_py = off_px
 
             if hit is not None:
                 best_hit = hit
@@ -280,27 +263,12 @@ class TouchResolver:
                     continue
                 mm_x, mm_y = tip_mm
                 contact_px, contact_py = tip_px, tip_py
-                if (
-                    self._offset_enabled
-                    and self._forward_offset_mm > 0.0
-                    and dip_idx is not None
-                    and dip_idx < len(pixel_frames[f_idx])
-                ):
+                if dip_idx is not None and dip_idx < len(pixel_frames[f_idx]):
                     dip_px, dip_py = pixel_frames[f_idx][dip_idx][:2]
                     dip_mm = self._pixel_to_mm(dip_px, dip_py, H)
-                    if dip_mm is not None:
-                        vx = tip_mm[0] - dip_mm[0]
-                        vy = tip_mm[1] - dip_mm[1]
-                        v_len = math.hypot(vx, vy)
-                        if v_len > 1e-4:
-                            ux = vx / v_len
-                            uy = vy / v_len
-                            mm_x = tip_mm[0] + self._forward_offset_mm * ux
-                            mm_y = tip_mm[1] + self._forward_offset_mm * uy
-                            if H_inv is not None:
-                                px_pt = self._mm_to_pixel(mm_x, mm_y, H_inv)
-                                if px_pt is not None:
-                                    contact_px, contact_py = px_pt
+                    (mm_x, mm_y), (contact_px, contact_py) = self._apply_distal_offset(
+                        tip_mm, dip_mm, (tip_px, tip_py), H_inv
+                    )
 
                 closest_btn, dist = self._find_closest_button(mm_x, mm_y)
                 if closest_btn is not None and dist <= 5.0:
@@ -545,27 +513,47 @@ class TouchResolver:
         return float(pt_dst[0][0][0]), float(pt_dst[0][0][1])
 
 
+    def _apply_distal_offset(
+        self,
+        tip_mm: tuple[float, float],
+        dip_mm: tuple[float, float] | None,
+        tip_px: tuple[float, float],
+        H_inv: np.ndarray | None,
+    ) -> tuple[tuple[float, float], tuple[float, float]]:
+        """Project fingertip contact forward along the distal finger vector (DIP -> TIP)."""
+        if (
+            not self._offset_enabled
+            or self._forward_offset_mm <= 0.0
+            or dip_mm is None
+        ):
+            return tip_mm, tip_px
+
+        vx = tip_mm[0] - dip_mm[0]
+        vy = tip_mm[1] - dip_mm[1]
+        v_len = math.hypot(vx, vy)
+        if v_len <= 1e-4:
+            return tip_mm, tip_px
+
+        ux = vx / v_len
+        uy = vy / v_len
+        off_x = tip_mm[0] + self._forward_offset_mm * ux
+        off_y = tip_mm[1] + self._forward_offset_mm * uy
+        px, py = tip_px
+        if H_inv is not None:
+            px_pt = self._mm_to_pixel(off_x, off_y, H_inv)
+            if px_pt is not None:
+                px, py = px_pt
+        return (off_x, off_y), (px, py)
+
     def _hit_test(self, mm_x: float, mm_y: float, tolerance_mm: float = 3.0) -> ButtonData | None:
-        # 1. Exact button containment (fingertip is inside the key bounding box)
+        """Exact bounding box containment with fallback to closest button within tolerance_mm."""
         for btn in self._buttons:
             if btn.contains_mm(mm_x, mm_y):
                 return btn
-
-        # 2. Nearest key by edge distance within tolerance_mm.
-        # Edge distance is the Chebyshev distance to the key border, same metric as
-        # _find_closest_button.  Using edge distance (not center distance) ensures
-        # a fingertip landing 1-2mm outside a key edge correctly registers on that key.
-        best_btn = None
-        min_edge_dist = float("inf")
-        for btn in self._buttons:
-            dx = max(btn.x_mm - mm_x, 0.0, mm_x - btn.x_max_mm)
-            dy = max(btn.y_mm - mm_y, 0.0, mm_y - btn.y_max_mm)
-            edge_dist = math.hypot(dx, dy)
-            if edge_dist <= tolerance_mm and edge_dist < min_edge_dist:
-                min_edge_dist = edge_dist
-                best_btn = btn
-
-        return best_btn
+        closest_btn, dist = self._find_closest_button(mm_x, mm_y)
+        if closest_btn is not None and dist <= tolerance_mm:
+            return closest_btn
+        return None
 
     def _find_closest_button(self, mm_x: float, mm_y: float) -> tuple[ButtonData | None, float]:
         """Finds closest button and Euclidean distance in mm to its bounding box."""

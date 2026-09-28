@@ -128,25 +128,22 @@ class DetectorViewModel(QObject):
         self._last_press_per_finger: dict[str, tuple[str, float]] = {}  # finger -> (key_id, timestamp)
         self._last_pressed_keys: set[str] = set()
         self._pending_candidates: dict[str, dict[str, Any]] = {}  # finger -> candidate dict (legacy, kept for test compat)
-        # Touch-release algorithm state (per finger, independent):
-        #   _touch_streak     — how many consecutive windows had touch on this finger
-        #   _release_streak   — how many consecutive no-touch windows followed the last touch streak
-        #   _touch_pending_hit — last resolved (key_id, finger, prob) during the touch streak
-        # Fire condition: release_streak reaches 2 (sustained lift, not a bounce).
+        # Touch-release buffer state (per finger, independent):
+        #   _touch_streak: consecutive windows with active touch on this finger
+        #   _touch_pending_hit: last resolved (key_id, finger, prob) during active touch
+        #   _finger_touch_active: whether finger is currently in active touch state
+        #   _finger_non_touch_count: count of non-touch windows waiting for release confirmation
+        #   _finger_last_touched_*: buffer of the latest touched window
+        #   _finger_last_candidate_key: current candidate key for overlay preview
+        #   _finger_cooldown_until: timestamp until which post-fire retract motion is ignored
         self._touch_streak: dict[str, int] = {}
-        self._release_streak: dict[str, int] = {}
         self._touch_pending_hit: dict[str, tuple] = {}
-        self._touch_has_fired: dict[str, bool] = {}
         self._finger_touch_active: dict[str, bool] = {}
         self._finger_non_touch_count: dict[str, int] = {}
         self._finger_last_touched_window: dict[str, list] = {}
         self._finger_last_touched_prob: dict[str, float] = {}
         self._finger_last_touched_H: dict[str, np.ndarray] = {}
         self._finger_last_candidate_key: dict[str, str] = {}
-        self._finger_best_touched_window: dict[str, list] = {}
-        self._finger_best_touched_prob: dict[str, float] = {}
-        self._finger_best_touched_H: dict[str, np.ndarray] = {}
-        self._finger_last_contact_mm: dict[str, tuple[float, float]] = {}
         self._finger_cooldown_until: dict[str, float] = {}
 
     @property
@@ -431,19 +428,13 @@ class DetectorViewModel(QObject):
             self._last_press_per_finger.clear()
             self._pending_candidates.clear()
             self._touch_streak.clear()
-            self._release_streak.clear()
             self._touch_pending_hit.clear()
-            self._touch_has_fired.clear()
             self._finger_touch_active.clear()
             self._finger_non_touch_count.clear()
             self._finger_last_touched_window.clear()
             self._finger_last_touched_prob.clear()
             self._finger_last_touched_H.clear()
             self._finger_last_candidate_key.clear()
-            self._finger_best_touched_window.clear()
-            self._finger_best_touched_prob.clear()
-            self._finger_best_touched_H.clear()
-            self._finger_last_contact_mm.clear()
             if self._worker:
                 self._worker.set_active_buttons([])
         self.fps_updated.emit(fps)
@@ -588,10 +579,6 @@ class DetectorViewModel(QObject):
         if not isinstance(required_release_windows, int) or required_release_windows < 1:
             required_release_windows = 2
 
-        max_stationary_dist_mm = getattr(self._config, "touch_max_stationary_distance_mm", 4.0)
-        if not isinstance(max_stationary_dist_mm, (int, float)) or max_stationary_dist_mm <= 0.0:
-            max_stationary_dist_mm = 4.0
-
         for finger in all_fingers:
             # During post-press retraction phase (350 ms), ignore transient airborne onsets as hand pulls away
             if now < self._finger_cooldown_until.get(finger, 0.0):
@@ -601,7 +588,6 @@ class DetectorViewModel(QObject):
                 self._finger_last_touched_prob.pop(finger, None)
                 self._finger_last_touched_H.pop(finger, None)
                 self._finger_last_candidate_key.pop(finger, None)
-                self._finger_last_contact_mm.pop(finger, None)
                 self._touch_streak[finger] = 0
                 self._touch_pending_hit.pop(finger, None)
                 continue
@@ -629,9 +615,6 @@ class DetectorViewModel(QObject):
                     self._finger_last_candidate_key[finger] = preview_hit[0]
                     self._touch_pending_hit[finger] = preview_hit
                     active_preview_keys.add(preview_hit[0])
-                    raw_tip_coords = self._resolver.last_raw_tip_points.get(finger)
-                    if raw_tip_coords is not None:
-                        self._finger_last_contact_mm[finger] = raw_tip_coords
                     logger.debug(
                         "Finger %s touching (prob=%.2f, preview key='%s'), buffering until release...",
                         finger, finger_prob, preview_hit[0],
@@ -657,7 +640,6 @@ class DetectorViewModel(QObject):
                         self._finger_touch_active[finger] = False
                         self._finger_non_touch_count[finger] = 0
                         self._finger_last_candidate_key.pop(finger, None)
-                        self._finger_last_contact_mm.pop(finger, None)
                         self._touch_streak[finger] = 0
                         self._touch_pending_hit.pop(finger, None)
 
