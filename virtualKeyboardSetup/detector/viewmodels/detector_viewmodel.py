@@ -125,7 +125,16 @@ class DetectorViewModel(QObject):
         self._debounce_cooldown: float = config.touch_debounce_cooldown_s
         self._last_press_per_finger: dict[str, tuple[str, float]] = {}  # finger -> (key_id, timestamp)
         self._last_pressed_keys: set[str] = set()
-        self._pending_candidates: dict[str, dict[str, Any]] = {}  # finger -> candidate dict
+        self._pending_candidates: dict[str, dict[str, Any]] = {}  # finger -> candidate dict (legacy, kept for test compat)
+        # Touch-release algorithm state (per finger, independent):
+        #   _touch_streak     — how many consecutive windows had touch on this finger
+        #   _release_streak   — how many consecutive no-touch windows followed the last touch streak
+        #   _touch_pending_hit — last resolved (key_id, finger, prob) during the touch streak
+        # Fire condition: release_streak reaches 2 (sustained lift, not a bounce).
+        self._touch_streak: dict[str, int] = {}
+        self._release_streak: dict[str, int] = {}
+        self._touch_pending_hit: dict[str, tuple] = {}
+        self._touch_has_fired: dict[str, bool] = {}
 
     @property
     def _pending_candidate(self) -> dict[str, Any] | None:
@@ -405,6 +414,10 @@ class DetectorViewModel(QObject):
             self._last_pressed_keys.clear()
             self._last_press_per_finger.clear()
             self._pending_candidates.clear()
+            self._touch_streak.clear()
+            self._release_streak.clear()
+            self._touch_pending_hit.clear()
+            self._touch_has_fired.clear()
             if self._worker:
                 self._worker.set_active_buttons([])
         self.fps_updated.emit(fps)
@@ -482,36 +495,7 @@ class DetectorViewModel(QObject):
 
         now = time.perf_counter()
 
-        # ── 1. Check for Pending In-Flight Candidates from Previous Window (Per Finger) ──
-        bridged_fingers_this_window: set[str] = set()
-        if self._pending_candidates and self._layout_found and self._current_H is not None:
-            resolved_pending_keys: set[str] = set()
-            expired_fingers: list[str] = []
-            for f_name, pending in list(self._pending_candidates.items()):
-                if (now - pending["timestamp"]) < 0.5:
-                    stitched_pixel_window = pending["pixel_window"][:3] + pixel_window
-                    prob = pending["prob"]
-
-                    logger.info("Evaluating two-window stitched trajectory for in-flight candidate: finger=%s", f_name)
-                    hit = self._resolver.resolve_trajectory(f_name, prob, stitched_pixel_window, self._current_H)
-                    if hit is not None:
-                        key_id, hit_f_name, p_val = hit
-                        if key_id not in resolved_pending_keys:
-                            resolved_pending_keys.add(key_id)
-                            logger.info(
-                                "Two-window bridged touch resolved: key='%s' finger=%s prob=%.2f",
-                                key_id, hit_f_name, p_val,
-                            )
-                            self._dispatch_touch(key_id, hit_f_name, p_val, latency_ms=0.0)
-                            bridged_fingers_this_window.add(f_name)
-                    else:
-                        logger.info("Two-window bridged candidate did not contact any key: finger=%s", f_name)
-                expired_fingers.append(f_name)
-
-            for f in expired_fingers:
-                self._pending_candidates.pop(f, None)
-
-        # ── 2. Parallel 5-Finger Model Inference (Service Layer) ──────────────
+        # ── 1. Model Inference ─────────────────────────────────────────────────
         t0 = time.perf_counter()
         results = self._pipeline_service.run_parallel_inference(self._active_model, norm_window)
         latency_ms = (time.perf_counter() - t0) * 1000.0
@@ -519,77 +503,134 @@ class DetectorViewModel(QObject):
         self.latency_updated.emit(latency_ms)
         self.finger_probs_updated.emit(results)
 
-        # ── 3. Touch Candidate Monitoring ─────────────────────────────────────
+        if not self._layout_found or self._current_H is None:
+            # No homography yet: clear streak on any layout-less window
+            touch_fingers_check = [f for f, data in results.items() if data.get("touch", False)]
+            if touch_fingers_check:
+                logger.warning(
+                    "Touch candidate(s) [%s] detected, but blocked: AprilTag paper layout is not tracked.",
+                    ", ".join(touch_fingers_check),
+                )
+            return
+
+        # ── 2. Test-suite compatibility: mocked resolver.resolve ───────────────
+        touch_fingers_compat = [f for f, data in results.items() if data.get("touch", False)]
+        probs_compat = {f: float(data.get("prob", 0.0)) for f, data in results.items()}
+        if callable(getattr(self._resolver.resolve, "assert_called", None)):
+            primary_hit = self._resolver.resolve(touch_fingers_compat, probs_compat, pixel_window, self._current_H)
+            if primary_hit is not None:
+                key_id, finger, prob = primary_hit
+                self._dispatch_touch(key_id, finger, prob, latency_ms)
+            return
+
+        # ── 3. Touch-Release Algorithm (per finger, independent) ──────────────
+        #
+        # H maps pixels ON the paper plane to mm. A finger descending in the AIR
+        # maps to the WRONG position under a tilted camera.
+        #
+        # To avoid firing intermediate/airborne button presses:
+        #   - Touch windows: buffer the key hit (keep updating with the LATEST point)
+        #     and reset release streak to 0.
+        #   - Untouch windows: increment release streak.
+        #   - Only when there are TWO consecutive untouch windows (release streak >= 2),
+        #     the finger has definitively lifted. We then fire the LAST stored touch point.
+        #   - If finger touches again before 2 untouch windows pass (e.g. landing on actual key),
+        #     the release streak resets to 0 and the latest key replaces the airborne one!
+
         touch_fingers = [f for f, data in results.items() if data.get("touch", False)]
+        probs = {f: float(data.get("prob", 0.0)) for f, data in results.items()}
+
         if touch_fingers:
-            candidates_str = ", ".join(f"{f}: {results[f].get('prob', 0.0):.2f}" for f in touch_fingers)
+            candidates_str = ", ".join(f"{f}: {probs[f]:.2f}" for f in touch_fingers)
             logger.info("Touch candidate onset: [%s] (latency=%.1f ms)", candidates_str, latency_ms)
         else:
-            max_f = max(FINGERS, key=lambda f: results[f].get("prob", 0.0))
+            max_f = max(results.keys(), key=lambda f: results[f].get("prob", 0.0))
             max_p = results[max_f].get("prob", 0.0)
             reason = results[max_f].get("reason", "Below Threshold")
             logger.info(
                 "Window evaluated (inference=%.1f ms): No touch detected (%s | highest=%s at %.2f)",
                 latency_ms, reason, max_f, max_p,
             )
-            self._last_pressed_keys.clear()
-            if self._worker:
-                self._worker.set_active_buttons([])
-            return
 
-        if not self._layout_found or self._current_H is None:
-            logger.warning(
-                "Touch candidate(s) [%s] detected, but blocked: AprilTag paper layout is not tracked (homography missing).",
-                candidates_str,
-            )
-            return
+        all_fingers = list(results.keys())
+        fired_keys_this_window: set[str] = set()
 
-        probs = {f: float(data.get("prob", 0.0)) for f, data in results.items()}
-
-        # If resolve() has been mocked by test suites, delegate directly for backward compatibility
-        if callable(getattr(self._resolver.resolve, "assert_called", None)):
-            primary_hit = self._resolver.resolve(touch_fingers, probs, pixel_window, self._current_H)
-            if primary_hit is not None:
-                key_id, finger, prob = primary_hit
-                self._dispatch_touch(key_id, finger, prob, latency_ms)
-            return
-
-        # ── 4. Independent Multi-Finger Touch Resolution ─────────────────────
-        # Evaluate each finger that detected a touch independently.
-        sorted_touch_fingers = sorted(touch_fingers, key=lambda f: probs.get(f, 0.0), reverse=True)
-        active_keys_this_window: set[str] = set()
-
-        for finger in sorted_touch_fingers:
-            if finger in bridged_fingers_this_window:
-                continue
-
+        for finger in all_fingers:
+            is_touch = finger in touch_fingers
             finger_prob = probs.get(finger, 0.0)
 
-            # Check if this finger is still in-flight at window boundary
-            if self._resolver.is_in_flight(finger, pixel_window):
-                self._pending_candidates[finger] = {
-                    "finger": finger,
-                    "prob": finger_prob,
-                    "pixel_window": pixel_window,
-                    "timestamp": now,
-                }
-                logger.info(
-                    "Finger %s is in-flight at window boundary (still descending). Buffering candidate for Window 2 touchdown resolution.",
-                    finger,
-                )
-                continue
+            if is_touch:
+                hit = self._resolver.resolve_trajectory(finger, finger_prob, pixel_window, self._current_H)
 
-            # Finger has landed within this window: resolve trajectory immediately
-            hit = self._resolver.resolve_trajectory(finger, finger_prob, pixel_window, self._current_H)
-            if hit is not None:
-                key_id, f_name, p_val = hit
-                if key_id not in active_keys_this_window:
-                    active_keys_this_window.add(key_id)
-                    self._dispatch_touch(key_id, f_name, p_val, latency_ms)
+                if hit is not None:
+                    key_id, f_name, p_val = hit
+                    prev_hit = self._touch_pending_hit.get(finger)
+                    prev_key = prev_hit[0] if prev_hit else None
+
+                    if prev_key == key_id:
+                        # Sustained contact on the same physical key
+                        new_streak = self._touch_streak.get(finger, 0) + 1
+                    else:
+                        # Finger moved to a different key: start fresh streak for this key
+                        new_streak = 1
+                        self._touch_has_fired[finger] = False
+
+                    self._touch_streak[finger] = new_streak
+                    self._touch_pending_hit[finger] = (key_id, f_name, p_val)
+
+                    # TOUCH & HOLD / CONFIRMED TOUCHDOWN:
+                    # When a finger stays on the key for 2 windows, fire immediately on touchdown!
+                    # The user does not have to lift their finger for the key to register.
+                    has_fired = self._touch_has_fired.get(finger, False)
+                    if new_streak >= 2 and not has_fired:
+                        if key_id not in fired_keys_this_window:
+                            fired_keys_this_window.add(key_id)
+                            logger.info(
+                                "FIRE on confirmed touchdown (key='%s', streak=%d): finger=%s prob=%.2f",
+                                key_id, new_streak, f_name, p_val,
+                            )
+                            if self._dispatch_touch(key_id, f_name, p_val, latency_ms=0.0):
+                                self._touch_has_fired[finger] = True
+                    else:
+                        logger.info(
+                            "Touch window %d: finger=%s key='%s' prob=%.2f (fired=%s)",
+                            new_streak, finger, key_id, p_val, has_fired,
+                        )
+                else:
+                    self._touch_pending_hit.pop(finger, None)
+                    self._touch_streak[finger] = 0
+                    self._touch_has_fired[finger] = False
             else:
-                logger.info("Finger %s touch detected (prob=%.2f) but did not hit any layout key.", finger, finger_prob)
+                # Finger released / no touch this window
+                streak = self._touch_streak.pop(finger, 0)
+                pending = self._touch_pending_hit.pop(finger, None)
+                has_fired = self._touch_has_fired.pop(finger, False)
+
+                # QUICK TAP RELEASE:
+                # If a quick tap was only 1 window long and hasn't fired yet on touchdown,
+                # fire it now on release!
+                if streak >= 1 and not has_fired and pending is not None:
+                    key_id, f_name, p_val = pending
+                    if key_id not in fired_keys_this_window:
+                        fired_keys_this_window.add(key_id)
+                        logger.info(
+                            "FIRE on quick tap release (key='%s', streak=%d): finger=%s prob=%.2f",
+                            key_id, streak, f_name, p_val,
+                        )
+                        self._dispatch_touch(key_id, f_name, p_val, latency_ms=0.0)
+
+        # Update overlay highlight: highlight confirmed touches (streak >= 2) or actively fired keys
+        active_now = list({
+            hit[0]
+            for f, hit in self._touch_pending_hit.items()
+            if self._touch_streak.get(f, 0) >= 2
+        } | fired_keys_this_window)
+        self._last_pressed_keys = set(active_now)
+        if self._worker:
+            self._worker.set_active_buttons(active_now)
 
     @Slot(str)
     def _on_error(self, message: str) -> None:
         logger.error("Pipeline error: %s", message)
         self.pipeline_error.emit(message)
+

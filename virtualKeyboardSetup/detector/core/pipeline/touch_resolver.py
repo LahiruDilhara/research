@@ -138,7 +138,6 @@ class TouchResolver:
         tip_idx = FINGERTIP_INDICES.get(finger)
         if tip_idx is None:
             return None
-        dip_idx = DIP_INDICES.get(finger, tip_idx - 1)
 
         # 1. Determine physical touchdown frame and motion signature (rebound vs settled)
         touchdown_frame = self.find_touchdown_frame(tip_idx, pixel_frames)
@@ -158,37 +157,36 @@ class TouchResolver:
                 break
 
         last_frame = len(pixel_frames) - 1
-        s_last = steps[-1][2] if steps else 0.0
 
-        # Candidate frame ordering:
-        # If trajectory rebounded off paper, the turnaround apex (touchdown_frame) is primary.
-        # If finger landed and remained at rest (s_last < 2.0), the settled resting frame is primary
-        # because the finger is stationary on the surface with minimum elevation.
+        # Candidate frame priority:
+        #
+        # has_rebound → touchdown_frame FIRST:
+        #   The finger hit paper and bounced. last_frame is the bounce-up position
+        #   (finger moving away from paper) so H maps it wrong. Use the apex (touchdown).
+        #
+        # no rebound → last_frame FIRST (always):
+        #   last_frame is the most advanced frame in the sequence — closest to the paper.
+        #   Even if the finger hasn't fully stopped, it's the least-airborne position and
+        #   maps most accurately through H. touchdown_frame might be an early frame where
+        #   the finger was still clearly in the air → wrong key.
         if has_rebound:
             candidate_frames = [touchdown_frame]
             if last_frame != touchdown_frame:
                 candidate_frames.append(last_frame)
-        elif s_last < 2.0:
+        else:
             candidate_frames = [last_frame]
             if touchdown_frame != last_frame:
                 candidate_frames.append(touchdown_frame)
-        else:
-            candidate_frames = [touchdown_frame]
-            if last_frame != touchdown_frame:
-                candidate_frames.append(last_frame)
 
         best_hit = None
         best_tip_px, best_tip_py = 0.0, 0.0
         best_mm_x, best_mm_y = 0.0, 0.0
         resolved_frame = candidate_frames[0]
 
-        H_inv = None
-        try:
-            H_inv = np.linalg.inv(H)
-        except Exception:
-            pass
-
-        # 2. Evaluate candidate frames with raw fingertip priority to prevent jumping to back/bottom keys
+        # Evaluate candidate frames: map raw fingertip pixel → mm → hit test.
+        # With offset disabled, the homography maps the fingertip pixel directly to
+        # the correct paper position.  We use edge distance for the hit test so a
+        # fingertip landing just inside or just outside a key border always resolves.
         for f_idx in candidate_frames:
             tip_px, tip_py = pixel_frames[f_idx][tip_idx][:2]
             tip_mm = self._pixel_to_mm(tip_px, tip_py, H)
@@ -196,75 +194,23 @@ class TouchResolver:
                 continue
 
             raw_mm_x, raw_mm_y = tip_mm
-            contact_px, contact_py = tip_px, tip_py
 
-            # Check 1: Direct raw un-offset containment / tight boundary tolerance
-            # If the user's fingertip is already inside or touching a key, NEVER displace it
-            raw_hit = self._hit_test(raw_mm_x, raw_mm_y, tolerance_mm=2.0)
-            if raw_hit is not None:
-                best_hit = raw_hit
+            # Edge-distance hit test (3 mm tolerance covers small gaps between keys)
+            hit = self._hit_test(raw_mm_x, raw_mm_y, tolerance_mm=3.0)
+            if hit is not None:
+                best_hit = hit
                 best_tip_px, best_tip_py = tip_px, tip_py
                 best_mm_x, best_mm_y = raw_mm_x, raw_mm_y
                 resolved_frame = f_idx
                 self._last_contact_points[finger] = (raw_mm_x, raw_mm_y, tip_px, tip_py)
                 logger.info(
-                    "Frame %d DIRECT HIT key='%s' (label='%s') at (%.1f, %.1f)mm (camera pixel=[%.1f, %.1f], raw un-offset)",
-                    f_idx, raw_hit.id, raw_hit.label, raw_mm_x, raw_mm_y, tip_px, tip_py,
+                    "Frame %d HIT key='%s' (label='%s') at (%.1f, %.1f)mm (pixel=[%.1f, %.1f])",
+                    f_idx, hit.id, hit.label, raw_mm_x, raw_mm_y, tip_px, tip_py,
                 )
                 break
 
-            # Check 2: Closest button to raw fingertip
-            raw_closest, raw_dist = self._find_closest_button(raw_mm_x, raw_mm_y)
-            if raw_closest is not None and raw_dist <= 3.0:
-                best_hit = raw_closest
-                best_tip_px, best_tip_py = tip_px, tip_py
-                best_mm_x, best_mm_y = raw_mm_x, raw_mm_y
-                resolved_frame = f_idx
-                self._last_contact_points[finger] = (raw_mm_x, raw_mm_y, tip_px, tip_py)
-                logger.info(
-                    "Frame %d RAW-ADJACENT HIT key='%s' (label='%s') at (%.1f, %.1f)mm (dist=%.2fmm <= 3.0mm)",
-                    f_idx, raw_closest.id, raw_closest.label, raw_mm_x, raw_mm_y, raw_dist,
-                )
-                break
-
-            # Check 3: Only if raw fingertip landed in empty margin or gap, evaluate forward offset
-            mm_x, mm_y = raw_mm_x, raw_mm_y
-            if self._offset_enabled and self._forward_offset_mm > 0.0 and dip_idx < len(pixel_frames[f_idx]):
-                dip_px, dip_py = pixel_frames[f_idx][dip_idx][:2]
-                dip_mm = self._pixel_to_mm(dip_px, dip_py, H)
-                if dip_mm is not None:
-                    vx = tip_mm[0] - dip_mm[0]
-                    vy = tip_mm[1] - dip_mm[1]
-                    v_len = math.hypot(vx, vy)
-                    if v_len > 1e-4:
-                        ux = vx / v_len
-                        uy = vy / v_len
-                        mm_x = tip_mm[0] + self._forward_offset_mm * ux
-                        mm_y = tip_mm[1] + self._forward_offset_mm * uy
-                        if H_inv is not None:
-                            px_pt = self._mm_to_pixel(mm_x, mm_y, H_inv)
-                            if px_pt is not None:
-                                contact_px, contact_py = px_pt
-
-                        off_hit = self._hit_test(mm_x, mm_y, tolerance_mm=2.5)
-                        if off_hit is not None:
-                            # Safeguard against jumping across keys:
-                            # Only accept if offset matches raw_closest or if finger was far in empty space
-                            if raw_closest is None or off_hit.id == raw_closest.id or raw_dist > 8.0:
-                                best_hit = off_hit
-                                best_tip_px, best_tip_py = contact_px, contact_py
-                                best_mm_x, best_mm_y = mm_x, mm_y
-                                resolved_frame = f_idx
-                                self._last_contact_points[finger] = (mm_x, mm_y, contact_px, contact_py)
-                                logger.info(
-                                    "Frame %d OFFSET HIT key='%s' (label='%s') at (%.1f, %.1f)mm (camera pixel=[%.1f, %.1f], offset=%.1fmm)",
-                                    f_idx, off_hit.id, off_hit.label, mm_x, mm_y, contact_px, contact_py,
-                                    self._forward_offset_mm,
-                                )
-                                break
-
-        if best_hit is None and candidate_frames:
-            # Fallback to closest button to raw fingertip if within 5.0 mm
+        # Fallback: closest key by edge distance within 5 mm (handles large gaps/margins)
+        if best_hit is None:
             for f_idx in candidate_frames:
                 tip_px, tip_py = pixel_frames[f_idx][tip_idx][:2]
                 tip_mm = self._pixel_to_mm(tip_px, tip_py, H)
@@ -278,7 +224,7 @@ class TouchResolver:
                     resolved_frame = f_idx
                     self._last_contact_points[finger] = (tip_mm[0], tip_mm[1], tip_px, tip_py)
                     logger.info(
-                        "Frame %d CLOSEST-RAW FALLBACK HIT key='%s' (dist=%.2fmm <= 5.0mm)",
+                        "Frame %d CLOSEST FALLBACK key='%s' (edge dist=%.2f mm)",
                         f_idx, closest_btn.id, dist,
                     )
                     break
@@ -320,14 +266,13 @@ class TouchResolver:
         Determines whether the fingertip is still descending in mid-air at the end
         of a 5-frame window (Frame 4).
 
-        Returns True if:
-        - The finger has significant velocity at the final step (s_3 >= 2.5 px).
-        - The motion continues along the forward approach path (V_2 . V_3 > 0).
-        - No rebound occurred in earlier frames.
+        Returns True if the finger is still moving toward the paper in the approach
+        direction at the final step with no surface rebound detected.
 
-        If in-flight is True, resolving touch at Frame 4 would project onto a key behind
-        the target key due to perspective foreshortening. The touch must be buffered
-        and resolved across the next window when the fingertip actually contacts the surface.
+        If in-flight is True, resolving touch now would map the airborne fingertip
+        through H onto the wrong paper position (H is only valid for points ON the
+        paper plane). The touch is buffered and re-evaluated in the next window when
+        the fingertip actually contacts the surface.
         """
         if len(pixel_window_5) < 5 or finger not in FINGERTIP_INDICES:
             return False
@@ -352,22 +297,25 @@ class TouchResolver:
         v3_y = pts[4][1] - pts[3][1]
         s3 = math.hypot(v3_x, v3_y)
 
-        # If speed at final step is slow (< 2.0 px), finger has already landed or stopped
-        if s3 < 2.0:
-            return False
-
-        # Check for earlier rebound:
-        # Rebound at F2
+        # Check for surface rebound (direction reversal with meaningful speed).
+        # If rebound already happened in this window, the finger touched the paper
+        # and is now bouncing — this is NOT in-flight, it IS a valid touch event.
+        # Rebound at F1→F2
         if s1 >= 1.5 and (v1_x * v2_x + v1_y * v2_y) < 0.0:
             return False
-        # Rebound at F3
+        # Rebound at F2→F3
         if s2 >= 1.5 and (v2_x * v3_x + v2_y * v3_y) < 0.0:
             return False
 
-        # If s3 is fast and continuing in forward direction, finger is still in-flight
-        dot23 = v2_x * v3_x + v2_y * v3_y
-        if s3 >= 2.5 and (s2 < 1e-4 or dot23 > 0.0):
-            return True
+        # If the final step is still moving >= 1.5 px AND continuing in the same
+        # approach direction as the previous step, the finger has not yet landed.
+        # Threshold of 1.5 px/frame at 12 FPS covers both fast and slow approaches.
+        # (Old code had a dead zone: < 2.0 → False, >= 2.5 → True, 2.0..2.5 → False.)
+        if s3 >= 1.5:
+            dot23 = v2_x * v3_x + v2_y * v3_y
+            # Still moving in same direction as previous step (approaching)
+            if s2 < 1e-4 or dot23 > 0.0:
+                return True
 
         return False
 
@@ -487,21 +435,24 @@ class TouchResolver:
 
 
     def _hit_test(self, mm_x: float, mm_y: float, tolerance_mm: float = 3.0) -> ButtonData | None:
-        # 1. Exact button containment
+        # 1. Exact button containment (fingertip is inside the key bounding box)
         for btn in self._buttons:
             if btn.contains_mm(mm_x, mm_y):
                 return btn
 
-        # 2. Tolerant boundary hit test (within tolerance_mm of key border)
+        # 2. Nearest key by edge distance within tolerance_mm.
+        # Edge distance is the Chebyshev distance to the key border, same metric as
+        # _find_closest_button.  Using edge distance (not center distance) ensures
+        # a fingertip landing 1-2mm outside a key edge correctly registers on that key.
         best_btn = None
-        min_dist = float("inf")
+        min_edge_dist = float("inf")
         for btn in self._buttons:
-            if (btn.x_mm - tolerance_mm) <= mm_x <= (btn.x_max_mm + tolerance_mm) and \
-               (btn.y_mm - tolerance_mm) <= mm_y <= (btn.y_max_mm + tolerance_mm):
-                dist = math.hypot(mm_x - btn.center_x_mm, mm_y - btn.center_y_mm)
-                if dist < min_dist:
-                    min_dist = dist
-                    best_btn = btn
+            dx = max(btn.x_mm - mm_x, 0.0, mm_x - btn.x_max_mm)
+            dy = max(btn.y_mm - mm_y, 0.0, mm_y - btn.y_max_mm)
+            edge_dist = math.hypot(dx, dy)
+            if edge_dist <= tolerance_mm and edge_dist < min_edge_dist:
+                min_edge_dist = edge_dist
+                best_btn = btn
 
         return best_btn
 
