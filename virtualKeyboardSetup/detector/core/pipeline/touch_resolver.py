@@ -41,16 +41,23 @@ class TouchResolver:
         layout: LayoutData,
         offset_enabled: bool = True,
         forward_offset_mm: float = 5.0,
+        max_stationary_distance_mm: float = 4.0,
     ) -> None:
         self._buttons = layout.buttons
         self._offset_enabled = bool(offset_enabled)
         self._forward_offset_mm = float(forward_offset_mm)
+        self._max_stationary_distance_mm = float(max_stationary_distance_mm)
         self._last_contact_points: dict[str, tuple[float, float, float, float]] = {}  # finger -> (mm_x, mm_y, px, py)
+        self._last_raw_tip_points: dict[str, tuple[float, float]] = {}  # finger -> (raw_tip_mm_x, raw_tip_mm_y)
 
     def set_fingertip_offset(self, enabled: bool, offset_mm: float) -> None:
         """Dynamically update forward fingertip offset settings."""
         self._offset_enabled = bool(enabled)
         self._forward_offset_mm = float(offset_mm)
+
+    def set_max_stationary_distance_mm(self, value: float) -> None:
+        """Update maximum allowed fingertip movement on paper for a still touch."""
+        self._max_stationary_distance_mm = max(0.5, float(value))
 
     def update_layout(self, layout: LayoutData) -> None:
         """Dynamically updates the layout and button bounding boxes."""
@@ -66,6 +73,11 @@ class TouchResolver:
     def last_contact_points(self) -> dict[str, tuple[float, float, float, float]]:
         """Latest resolved physical contact coordinates per finger."""
         return self._last_contact_points
+
+    @property
+    def last_raw_tip_points(self) -> dict[str, tuple[float, float]]:
+        """Latest resolved raw physical fingertip coordinates (without forward offset) per finger."""
+        return self._last_raw_tip_points
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
@@ -141,34 +153,35 @@ class TouchResolver:
 
         # 1. Determine physical touchdown frame and motion signature (rebound vs settled)
         touchdown_frame = self.find_touchdown_frame(tip_idx, pixel_frames)
-
-        has_rebound = False
-        steps: list[tuple[float, float, float]] = []
-        for i in range(len(pixel_frames) - 1):
-            vx = pixel_frames[i + 1][tip_idx][0] - pixel_frames[i][tip_idx][0]
-            vy = pixel_frames[i + 1][tip_idx][1] - pixel_frames[i][tip_idx][1]
-            s = math.hypot(vx, vy)
-            steps.append((vx, vy, s))
-
-        for i in range(len(steps) - 1):
-            dot = steps[i][0] * steps[i + 1][0] + steps[i][1] * steps[i + 1][1]
-            if dot < 0.0 and steps[i][2] >= 1.5:
-                has_rebound = True
-                break
-
         last_frame = len(pixel_frames) - 1
 
+        last_tip_px, last_tip_py = pixel_frames[last_frame][tip_idx][:2]
+        last_mm = self._pixel_to_mm(last_tip_px, last_tip_py, H)
+
+        has_rebound = False
+        if 1 <= touchdown_frame < last_frame:
+            p_prev = pixel_frames[touchdown_frame - 1][tip_idx][:2]
+            p_td = pixel_frames[touchdown_frame][tip_idx][:2]
+            p_next = pixel_frames[touchdown_frame + 1][tip_idx][:2]
+            v_in_x = p_td[0] - p_prev[0]
+            v_in_y = p_td[1] - p_prev[1]
+            v_out_x = p_next[0] - p_td[0]
+            v_out_y = p_next[1] - p_td[1]
+            s_in = math.hypot(v_in_x, v_in_y)
+            s_out = math.hypot(v_out_x, v_out_y)
+            if s_in >= 2.0 and s_out >= 1.5:
+                cos_val = (v_in_x * v_out_x + v_in_y * v_out_y) / (s_in * s_out)
+                if cos_val < -0.35:
+                    td_mm = self._pixel_to_mm(p_td[0], p_td[1], H)
+                    if td_mm is not None and last_mm is not None:
+                        rebound_drift = math.hypot(last_mm[0] - td_mm[0], last_mm[1] - td_mm[1])
+                        if rebound_drift <= 10.0:
+                            has_rebound = True
+
         # Candidate frame priority:
-        #
-        # has_rebound → touchdown_frame FIRST:
-        #   The finger hit paper and bounced. last_frame is the bounce-up position
-        #   (finger moving away from paper) so H maps it wrong. Use the apex (touchdown).
-        #
-        # no rebound → last_frame FIRST (always):
-        #   last_frame is the most advanced frame in the sequence — closest to the paper.
-        #   Even if the finger hasn't fully stopped, it's the least-airborne position and
-        #   maps most accurately through H. touchdown_frame might be an early frame where
-        #   the finger was still clearly in the air → wrong key.
+        # If rebound occurred (bounce back), touchdown_frame is the contact point.
+        # Otherwise (finger landed / settling on key), the final frame (last_frame) is where
+        # the finger actually arrived and settled, preventing hover over behind keys.
         if has_rebound:
             candidate_frames = [touchdown_frame]
             if last_frame != touchdown_frame:
@@ -183,29 +196,78 @@ class TouchResolver:
         best_mm_x, best_mm_y = 0.0, 0.0
         resolved_frame = candidate_frames[0]
 
-        # Evaluate candidate frames: map raw fingertip pixel → mm → hit test.
-        # With offset disabled, the homography maps the fingertip pixel directly to
-        # the correct paper position.  We use edge distance for the hit test so a
-        # fingertip landing just inside or just outside a key border always resolves.
+        dip_idx = DIP_INDICES.get(finger)
+        H_inv = None
+        try:
+            H_inv = np.linalg.inv(H)
+        except Exception:
+            pass
+
+        # Evaluate candidate frames: map raw fingertip pixel -> mm -> hit test.
+        # If fingertip offset is enabled, project the contact point forward along
+        # the distal finger vector (DIP -> TIP) to compensate for nail-bed tracking.
         for f_idx in candidate_frames:
             tip_px, tip_py = pixel_frames[f_idx][tip_idx][:2]
             tip_mm = self._pixel_to_mm(tip_px, tip_py, H)
             if tip_mm is None:
                 continue
 
-            raw_mm_x, raw_mm_y = tip_mm
+            # Reject candidate frame if it drifted significantly from where the finger settled (in-flight hover)
+            if f_idx != last_frame and last_mm is not None:
+                max_allowed = 10.0 if has_rebound else self._max_stationary_distance_mm
+                in_window_drift = math.hypot(last_mm[0] - tip_mm[0], last_mm[1] - tip_mm[1])
+                if in_window_drift > max_allowed:
+                    logger.debug(
+                        "Frame %d rejected for %s: in-window drift %.1f mm exceeded limit %.1f mm (in-flight hover)",
+                        f_idx, finger, in_window_drift, max_allowed,
+                    )
+                    continue
 
-            # Edge-distance hit test (3 mm tolerance covers small gaps between keys)
+            raw_mm_x, raw_mm_y = tip_mm
+            contact_px, contact_py = tip_px, tip_py
+
+            # 1. Test raw fingertip containment first
             hit = self._hit_test(raw_mm_x, raw_mm_y, tolerance_mm=3.0)
+
+            # 2. If raw point did not hit a key, extrapolate forward if enabled
+            if (
+                hit is None
+                and self._offset_enabled
+                and self._forward_offset_mm > 0.0
+                and dip_idx is not None
+                and dip_idx < len(pixel_frames[f_idx])
+            ):
+                dip_px, dip_py = pixel_frames[f_idx][dip_idx][:2]
+                dip_mm = self._pixel_to_mm(dip_px, dip_py, H)
+                if dip_mm is not None:
+                    vx = tip_mm[0] - dip_mm[0]
+                    vy = tip_mm[1] - dip_mm[1]
+                    v_len = math.hypot(vx, vy)
+                    if v_len > 1e-4:
+                        ux = vx / v_len
+                        uy = vy / v_len
+                        off_mm_x = tip_mm[0] + self._forward_offset_mm * ux
+                        off_mm_y = tip_mm[1] + self._forward_offset_mm * uy
+                        offset_hit = self._hit_test(off_mm_x, off_mm_y, tolerance_mm=3.0)
+                        if offset_hit is not None:
+                            hit = offset_hit
+                            raw_mm_x, raw_mm_y = off_mm_x, off_mm_y
+                            if H_inv is not None:
+                                px_pt = self._mm_to_pixel(off_mm_x, off_mm_y, H_inv)
+                                if px_pt is not None:
+                                    contact_px, contact_py = px_pt
+
             if hit is not None:
                 best_hit = hit
-                best_tip_px, best_tip_py = tip_px, tip_py
+                best_tip_px, best_tip_py = contact_px, contact_py
                 best_mm_x, best_mm_y = raw_mm_x, raw_mm_y
                 resolved_frame = f_idx
-                self._last_contact_points[finger] = (raw_mm_x, raw_mm_y, tip_px, tip_py)
+                self._last_contact_points[finger] = (raw_mm_x, raw_mm_y, contact_px, contact_py)
+                self._last_raw_tip_points[finger] = (tip_mm[0], tip_mm[1])
                 logger.info(
-                    "Frame %d HIT key='%s' (label='%s') at (%.1f, %.1f)mm (pixel=[%.1f, %.1f])",
-                    f_idx, hit.id, hit.label, raw_mm_x, raw_mm_y, tip_px, tip_py,
+                    "Frame %d HIT key='%s' (label='%s') at (%.1f, %.1f)mm (pixel=[%.1f, %.1f], offset=%.1fmm)",
+                    f_idx, hit.id, hit.label, raw_mm_x, raw_mm_y, contact_px, contact_py,
+                    self._forward_offset_mm if self._offset_enabled else 0.0,
                 )
                 break
 
@@ -216,13 +278,38 @@ class TouchResolver:
                 tip_mm = self._pixel_to_mm(tip_px, tip_py, H)
                 if tip_mm is None:
                     continue
-                closest_btn, dist = self._find_closest_button(tip_mm[0], tip_mm[1])
+                mm_x, mm_y = tip_mm
+                contact_px, contact_py = tip_px, tip_py
+                if (
+                    self._offset_enabled
+                    and self._forward_offset_mm > 0.0
+                    and dip_idx is not None
+                    and dip_idx < len(pixel_frames[f_idx])
+                ):
+                    dip_px, dip_py = pixel_frames[f_idx][dip_idx][:2]
+                    dip_mm = self._pixel_to_mm(dip_px, dip_py, H)
+                    if dip_mm is not None:
+                        vx = tip_mm[0] - dip_mm[0]
+                        vy = tip_mm[1] - dip_mm[1]
+                        v_len = math.hypot(vx, vy)
+                        if v_len > 1e-4:
+                            ux = vx / v_len
+                            uy = vy / v_len
+                            mm_x = tip_mm[0] + self._forward_offset_mm * ux
+                            mm_y = tip_mm[1] + self._forward_offset_mm * uy
+                            if H_inv is not None:
+                                px_pt = self._mm_to_pixel(mm_x, mm_y, H_inv)
+                                if px_pt is not None:
+                                    contact_px, contact_py = px_pt
+
+                closest_btn, dist = self._find_closest_button(mm_x, mm_y)
                 if closest_btn is not None and dist <= 5.0:
                     best_hit = closest_btn
-                    best_tip_px, best_tip_py = tip_px, tip_py
-                    best_mm_x, best_mm_y = tip_mm[0], tip_mm[1]
+                    best_tip_px, best_tip_py = contact_px, contact_py
+                    best_mm_x, best_mm_y = mm_x, mm_y
                     resolved_frame = f_idx
-                    self._last_contact_points[finger] = (tip_mm[0], tip_mm[1], tip_px, tip_py)
+                    self._last_contact_points[finger] = (mm_x, mm_y, contact_px, contact_py)
+                    self._last_raw_tip_points[finger] = (tip_mm[0], tip_mm[1])
                     logger.info(
                         "Frame %d CLOSEST FALLBACK key='%s' (edge dist=%.2f mm)",
                         f_idx, closest_btn.id, dist,
@@ -255,6 +342,19 @@ class TouchResolver:
         pixel_window_5: list[list[tuple[float, float]]],
         H: np.ndarray,
     ) -> tuple[str, str, float] | None:
+        return self.resolve_trajectory(finger, prob, pixel_window_5, H)
+
+    def resolve_finger_down_point(
+        self,
+        finger: str,
+        prob: float,
+        pixel_window_5: list[list[tuple[float, float]]],
+        H: np.ndarray,
+    ) -> tuple[str, str, float] | None:
+        """
+        Calculates the physical down point on the entire window for the given finger
+        and resolves it to a layout key via homography H.
+        """
         return self.resolve_trajectory(finger, prob, pixel_window_5, H)
 
     @staticmethod
@@ -338,6 +438,26 @@ class TouchResolver:
 
         # Extract fingertip (x, y) coordinates
         pts = [pixel_frames[i][tip_idx][:2] for i in range(n_frames)]
+        p0x, p0y = pts[0]
+
+        # Find frame with maximum displacement from starting point P_0
+        displacements = [math.hypot(pts[i][0] - p0x, pts[i][1] - p0y) for i in range(n_frames)]
+        max_disp_idx = max(range(n_frames), key=lambda i: displacements[i])
+        max_disp = displacements[max_disp_idx]
+
+        # If total motion across window is negligible (< 1.5 px), finger was resting still on surface
+        if max_disp < 1.5:
+            return n_frames - 1
+
+        # The approach direction vector U points from P_0 toward the furthest excursion of the stroke
+        ux = (pts[max_disp_idx][0] - p0x) / max_disp
+        uy = (pts[max_disp_idx][1] - p0y) / max_disp
+
+        # Approach distance progress d_i = (P_i - P_0) . U
+        d = [(pts[i][0] - p0x) * ux + (pts[i][1] - p0y) * uy for i in range(n_frames)]
+        max_d = max(d)
+        min_d = min(d)
+        span_d = max(1e-4, max_d - min_d)
 
         # Compute step vectors V_i and speeds s_i
         steps: list[tuple[float, float, float]] = []
@@ -347,56 +467,47 @@ class TouchResolver:
             s = math.hypot(vx, vy)
             steps.append((vx, vy, s))
 
-        # Dominant approach direction vector U (from maximum velocity step)
-        max_step_idx = max(range(len(steps)), key=lambda idx: steps[idx][2])
-        max_s = steps[max_step_idx][2]
-        if max_s > 1e-4:
-            ux = steps[max_step_idx][0] / max_s
-            uy = steps[max_step_idx][1] / max_s
-        else:
-            ux, uy = 0.0, 1.0
-
-        # Approach distance progress d_i = (P_i - P_0) . U
-        p0x, p0y = pts[0]
-        d = [(pts[i][0] - p0x) * ux + (pts[i][1] - p0y) * uy for i in range(n_frames)]
-        max_d = max(d)
-        min_d = min(d)
-        span_d = max(1e-4, max_d - min_d)
-
         best_frame = n_frames - 1
         best_score = -1e9
 
         for k in range(1, n_frames):
+            progress_ratio = (d[k] - min_d) / span_d
             s_in = steps[k - 1][2]
             s_out = steps[k][2] if k < len(steps) else 0.0
 
-            # Progress weight: normalized to [0, 50.0]
-            progress_score = ((d[k] - min_d) / span_d) * 50.0
+            # A physical surface touchdown can only happen near the deepest point of the stroke (>= 0.70).
+            # Any early frame (< 0.70) is still airborne in the approach flight, hovering over keys behind the target.
+            is_near_peak = progress_ratio >= 0.70
 
-            if k < len(steps):
-                v_in_x, v_in_y, _ = steps[k - 1]
-                v_out_x, v_out_y, _ = steps[k]
-                dot = v_in_x * v_out_x + v_in_y * v_out_y
+            if is_near_peak:
+                if k < len(steps):
+                    v_in_x, v_in_y, _ = steps[k - 1]
+                    v_out_x, v_out_y, _ = steps[k]
+                    dot = v_in_x * v_out_x + v_in_y * v_out_y
 
-                if dot < 0.0 and s_in >= 1.5:
-                    # Signature 1: Trajectory reversal (rebound off surface)
-                    reversal_score = s_in * 3.0 + (s_in - s_out) * 2.0
-                    score = 100.0 + reversal_score + progress_score
-                elif s_in >= 1.5 and s_out < 1.8:
-                    # Signature 2: Kinematic landing (stopped on surface)
-                    decel_score = (s_in - s_out) * 2.5
-                    score = 60.0 + decel_score + progress_score
+                    # Reversal requires true turnaround (cos < -0.35, s_in >= 2.0, s_out >= 1.5, k >= 2)
+                    is_turnaround = False
+                    if k >= 2 and s_in >= 2.0 and s_out >= 1.5:
+                        cos_val = dot / (s_in * s_out)
+                        if cos_val < -0.35:
+                            is_turnaround = True
+
+                    if is_turnaround:
+                        # Surface turnaround impact (rebound off key)
+                        reversal_score = s_in * 3.0 + (s_in - s_out) * 2.0
+                        score = 100.0 + reversal_score + progress_ratio * 50.0
+                    elif s_in >= 1.2 and s_out < 1.8:
+                        # Kinematic landing / resting on key
+                        decel_score = (s_in - s_out) * 2.5
+                        score = 70.0 + decel_score + progress_ratio * 50.0
+                    else:
+                        score = 50.0 + progress_ratio * 50.0 + (s_in - s_out)
                 else:
-                    # Ongoing motion
-                    score = progress_score + (s_in - s_out)
+                    # Final frame at peak descent
+                    score = 65.0 + progress_ratio * 50.0
             else:
-                # Final frame of sequence (k = n_frames - 1)
-                if s_in >= 1.5:
-                    # Moving into final frame
-                    score = progress_score + 20.0
-                else:
-                    # Resting at final frame
-                    score = progress_score + 35.0
+                # Still airborne in descent approach: heavily penalize so it never beats surface touchdown
+                score = progress_ratio * 20.0
 
             if score > best_score:
                 best_score = score

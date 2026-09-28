@@ -450,6 +450,68 @@ def test_top_button_near_camera_does_not_resolve_to_bottom_button():
     assert hit_gap[0] == "BTN_TOP", f"Expected BTN_TOP but got {hit_gap[0]}"
 
 
+def test_hover_over_bottom_key_does_not_trigger_bottom_key():
+    """
+    Regression test: When moving forward from an airborne hover over a bottom key
+    (with slight approach jitter) to strike a target key in front, the resolver must
+    select the target key at peak descent and NOT the bottom key behind it.
+    """
+    btn_bottom = ButtonData(
+        id="BTN_BOTTOM",
+        label="BottomKey",
+        x_mm=40.0,
+        y_mm=10.0,
+        x_max_mm=60.0,
+        y_max_mm=30.0,
+        width_mm=20.0,
+        height_mm=20.0,
+        center_x_mm=50.0,
+        center_y_mm=20.0,
+    )
+    btn_target = ButtonData(
+        id="BTN_TARGET",
+        label="TargetKey",
+        x_mm=40.0,
+        y_mm=50.0,
+        x_max_mm=60.0,
+        y_max_mm=70.0,
+        width_mm=20.0,
+        height_mm=20.0,
+        center_x_mm=50.0,
+        center_y_mm=60.0,
+    )
+    layout = LayoutData(
+        paper_width_mm=210.0,
+        paper_height_mm=297.0,
+        marker_size_mm=15.0,
+        marker_family="tag36h11",
+        buttons=[btn_bottom, btn_target],
+        markers=[],
+    )
+    resolver = TouchResolver(layout, offset_enabled=False, forward_offset_mm=0.0)
+    H = np.eye(3, dtype=np.float64)
+
+    # Frame 0: (50, 18) - airborne above BTN_BOTTOM
+    # Frame 1: (50, 16) - slight flight jitter (speed 2.0, dot < 0 with forward step)
+    # Frame 2: (50, 35) - descending forward
+    # Frame 3: (50, 60) - strikes BTN_TARGET at peak descent
+    # Frame 4: (50, 52) - rebounds up
+    y_coords = [18.0, 16.0, 35.0, 60.0, 52.0]
+    pixel_frames = []
+    for y in y_coords:
+        lm = [(0.0, 0.0)] * 21
+        lm[8] = (50.0, y)
+        lm[7] = (50.0, y - 20.0)
+        pixel_frames.append(lm)
+
+    impact_frame = resolver._find_impact_frame(8, pixel_frames)
+    assert impact_frame == 3, f"Expected touchdown at frame 3 (BTN_TARGET) but got {impact_frame}"
+
+    result = resolver.resolve_trajectory("Index", 0.95, pixel_frames, H)
+    assert result is not None
+    assert result[0] == "BTN_TARGET", f"Expected BTN_TARGET but got {result[0]}"
+
+
 if __name__ == "__main__":
     test_rebound_tap_at_frame_3()
     test_resting_tap_at_frame_3()
@@ -461,6 +523,7 @@ if __name__ == "__main__":
     test_front_button_vs_back_button_perspective()
     test_two_window_in_flight_trajectory_bridging()
     test_top_button_near_camera_does_not_resolve_to_bottom_button()
+    test_hover_over_bottom_key_does_not_trigger_bottom_key()
     print("\nAll TouchResolver front vs back button, top vs bottom key, two-window trajectory, and kinematic tests passed successfully!")
 
 

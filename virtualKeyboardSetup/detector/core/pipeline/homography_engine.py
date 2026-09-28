@@ -34,7 +34,7 @@ def get_aruco_dictionary(family_str: str):
 
 
 class HomographyEngine:
-    def __init__(self, layout_data, ransac_thresh_mm: float = 5.0, smoothing_alpha: float = 0.65):
+    def __init__(self, layout_data, ransac_thresh_mm: float = 5.0, smoothing_alpha: float = 0.85):
         """
         layout_data: LayoutData instance (supports both object attributes and dict structures)
         ransac_thresh_mm: RANSAC threshold in destination (paper mm) units
@@ -47,8 +47,9 @@ class HomographyEngine:
         family = getattr(layout_data, "marker_family", "DICT_APRILTAG_36h11")
         dictionary = get_aruco_dictionary(family)
         detector_params = cv2.aruco.DetectorParameters()
-        # CORNER_REFINE_CONTOUR is more stable than SUBPIX at low resolutions (360p/480p/720p).
-        # SUBPIX iterates in a tiny window and amplifies noise when marker pixels are small.
+        # CORNER_REFINE_CONTOUR is much more stable than SUBPIX at low-to-medium resolutions (360p/480p/720p).
+        # SUBPIX searches in a tiny local gradient window, amplifying sensor pixel noise and causing corner jitter.
+        # CONTOUR fits lines to the entire perimeter contour of each marker border, averaging out noise.
         detector_params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_CONTOUR
         self.detector = cv2.aruco.ArucoDetector(dictionary, detector_params)
 
@@ -184,43 +185,52 @@ class HomographyEngine:
                 "detected_markers_count": 0,
                 "used_marker_ids": [],
                 "inliers_count": 0,
+                "total_points": 0,
                 "identified_buttons_count": 0,
                 "total_buttons": total_buttons,
                 "identified_buttons": [],
                 "annotated_frame": annotated_frame,
+                "corners": corners,
+                "ids": ids,
                 "message": "No AprilTag markers detected in frame.",
             }
 
-        # ── Per-marker homography averaging (deterministic, no RANSAC) ──────────
-        # Each valid marker contributes one exact H via getPerspectiveTransform.
-        # Averaging N independent exact Hs gives a stable, noise-resistant estimate.
+        # ── Pooled Least-Squares DLT Homography (deterministic, no RANSAC) ───────
         H, used_ids, n_pts = self._compute_H_from_markers(corners, ids)
-        inliers_count = n_pts  # all corners from detected markers are genuine inliers
+        inliers_count = n_pts
 
         if not used_ids:
             self._smoothed_H = None
+            num_detected = len(ids) if ids is not None else 0
             return None, {
                 "success": False,
                 "detected_markers_count": 0,
                 "used_marker_ids": [],
                 "inliers_count": 0,
+                "total_points": 0,
                 "identified_buttons_count": 0,
                 "total_buttons": total_buttons,
                 "identified_buttons": [],
                 "annotated_frame": annotated_frame,
-                "message": f"Detected {len(ids)} markers but none matched known layout markers.",
+                "corners": corners,
+                "ids": ids,
+                "message": f"Detected {num_detected} markers but none matched known layout markers.",
             }
 
         if H is not None:
-            # Simple exponential moving average for stable H.
-            # No adaptive jump-detection: a fixed high alpha suppresses per-frame noise
-            # while still tracking intentional paper movement within a couple of frames.
+            # Canonical normalization: projectively equivalent, ensures stable blending
+            if abs(H[2, 2]) > 1e-7:
+                H = H / H[2, 2]
+
             if self._smoothed_H is None:
                 self._smoothed_H = H.copy()
             else:
-                self._smoothed_H = (
-                    self.smoothing_alpha * self._smoothed_H + (1.0 - self.smoothing_alpha) * H
-                )
+                # When only 1 marker is visible, use higher damping (0.94) to eliminate single-marker leverage jitter.
+                # When 2+ markers are visible, use standard alpha (0.85) for snappy responsiveness.
+                alpha = 0.94 if len(used_ids) == 1 else self.smoothing_alpha
+                self._smoothed_H = alpha * self._smoothed_H + (1.0 - alpha) * H
+                if abs(self._smoothed_H[2, 2]) > 1e-7:
+                    self._smoothed_H = self._smoothed_H / self._smoothed_H[2, 2]
             H_final = self._smoothed_H
         else:
             self._smoothed_H = None
@@ -341,39 +351,49 @@ class HomographyEngine:
                 "detected_markers_count": 0,
                 "used_marker_ids": [],
                 "inliers_count": 0,
+                "total_points": 0,
                 "identified_buttons_count": 0,
                 "total_buttons": total_buttons,
                 "identified_buttons": [],
                 "annotated_frame": annotated_frame,
+                "corners": corners,
+                "ids": ids,
                 "message": "No AprilTag markers detected in frame.",
             }
 
-        # ── Per-marker homography averaging (deterministic, no RANSAC) ──────────
+        # ── Pooled Least-Squares DLT Homography (deterministic, no RANSAC) ───────
         H, used_ids, n_pts = self._compute_H_from_markers(corners, ids)
         inliers_count = n_pts
 
         if not used_ids:
             self._smoothed_H = None
+            num_detected = len(ids) if ids is not None else 0
             return None, {
                 "success": False,
                 "detected_markers_count": 0,
                 "used_marker_ids": [],
                 "inliers_count": 0,
+                "total_points": 0,
                 "identified_buttons_count": 0,
                 "total_buttons": total_buttons,
                 "identified_buttons": [],
                 "annotated_frame": annotated_frame,
-                "message": f"Detected {len(ids)} markers but none matched layout.",
+                "corners": corners,
+                "ids": ids,
+                "message": f"Detected {num_detected} markers but none matched layout.",
             }
 
         if H is not None:
-            # Simple exponential moving average — same as compute_homography path.
+            if abs(H[2, 2]) > 1e-7:
+                H = H / H[2, 2]
+
             if self._smoothed_H is None:
                 self._smoothed_H = H.copy()
             else:
-                self._smoothed_H = (
-                    self.smoothing_alpha * self._smoothed_H + (1.0 - self.smoothing_alpha) * H
-                )
+                alpha = 0.94 if len(used_ids) == 1 else self.smoothing_alpha
+                self._smoothed_H = alpha * self._smoothed_H + (1.0 - alpha) * H
+                if abs(self._smoothed_H[2, 2]) > 1e-7:
+                    self._smoothed_H = self._smoothed_H / self._smoothed_H[2, 2]
             H_final = self._smoothed_H
         else:
             self._smoothed_H = None

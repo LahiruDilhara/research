@@ -85,6 +85,26 @@ class TestHomographyReplication(unittest.TestCase):
         annotated = tracker.annotate_frame(frame.copy(), self.layout, active_button_id="btn_1")
         self.assertEqual(annotated.shape, frame.shape)
 
+    def test_tracking_loss_sequence_no_crash(self):
+        """
+        Regression test: Verify that transitioning from tracked markers to 0 markers (ids=None)
+        over multiple consecutive frames does not raise TypeError: object of type 'NoneType' has no len().
+        """
+        tracker = AprilTagTracker(self.layout, min_markers=1)
+        valid_frame = generate_synthetic_camera_frame(self.layout, frame_w=1280, frame_h=720, skew_amount=0.15)
+        self.assertTrue(tracker.update(valid_frame))
+        self.assertTrue(tracker.is_valid)
+
+        blank = np.zeros((720, 1280, 3), dtype=np.uint8)
+        # Feed multiple consecutive blank frames to trigger marker loss handling
+        for frame_idx in range(10):
+            try:
+                res = tracker.update(blank)
+                self.assertFalse(res)
+                self.assertFalse(tracker.is_valid)
+            except Exception as exc:
+                self.fail(f"tracker.update raised an unexpected exception on lost frame {frame_idx}: {exc}")
+
 
 if __name__ == "__main__":
     unittest.main()

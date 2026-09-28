@@ -108,13 +108,15 @@ PINKY_MCP_INDEX: int = 17
 
 # ── Fingertip Physical Contact Extrapolation ──────────────────────────────────
 # Compensates for MediaPipe nail-bed landmark placement and paper perspective tilt
-FINGERTIP_OFFSET_ENABLED: bool = False
-FINGERTIP_FORWARD_OFFSET_MM: float = 0.0     # Disabled: homography now accurate, offset causes wrong-key fires under tilt
+FINGERTIP_OFFSET_ENABLED: bool = True
+FINGERTIP_FORWARD_OFFSET_MM: float = 5.0     # Forward distance in paper millimeters along distal finger segment
 FINGERTIP_PHALANX_RATIO: float = 0.45       # fraction of distal phalanx length
 FINGERTIP_EXTRA_OFFSET_MM: float = 5.0      # extra base millimeter offset
 FINGERTIP_PAPER_ANGLE_FACTOR_MM: float = 6.0 # paper respective cos(theta) factor
 FINGERTIP_EXTRA_FRONT_MM: float = 3.0       # frontward paper 90-degree compensation
 TOUCH_DEBOUNCE_COOLDOWN_S: float = 0.20     # Minimum cooldown between discrete key taps (prevents sliding window double triggers)
+TOUCH_RELEASE_WINDOWS: int = 2              # Number of non-touch windows required to confirm key release (default 2)
+TOUCH_MAX_STATIONARY_DISTANCE_MM: float = 4.0 # Maximum allowed fingertip movement on paper (mm) during touch; larger motion is in-flight hover
 
 # ── Print scale calibration ──────────────────────────────────────────────────
 # Measured marker size from physical printed paper (ruler measurement in mm).
