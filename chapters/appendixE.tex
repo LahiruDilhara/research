@@ -1,0 +1,56 @@
+\chapter{Empirical Model Benchmarking and Latency Profiling}
+\label{ch:appendix_evaluation_benchmarks}
+
+\section{Overview of Empirical Benchmark Charts}
+\label{sec:appendix_benchmarks_overview}
+This appendix provides graphs and charts of the experimental evaluation results discussed in Chapter~\ref{ch:results}. These include comparisons between deep learning models, confusion matrices for each finger, AprilTag homography tracking accuracy at different camera tilt angles, and runtime CPU latency breakdowns.
+
+\section{Model Architecture Accuracy versus CPU Latency}
+\label{sec:appendix_model_benchmark_chart}
+Figure~\ref{fig:appendix_benchmark_acc} compares the Macro F1-score and CPU inference time for different deep learning models tested in our benchmark. The uni-directional LSTM model using scale-normalized positions and velocities gives the best balance, achieving an F1-score of 0.963 with an inference time of only 2.08~ms on the CPU.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.88\textwidth]{figures/fig_model_benchmark_acc.png}
+\caption{Comparison of Macro F1-score and CPU inference latency across evaluated deep learning model architecture families.}
+\label{fig:appendix_benchmark_acc}
+\end{figure}
+
+\newpage
+
+\section{Per-Digit Touch Confusion Matrix}
+\label{sec:appendix_confusion_matrix_chart}
+Figure~\ref{fig:appendix_confusion_matrix} shows the normalized confusion matrix for our selected PyTorch LSTM model across 5,000 test windows. All five fingers show touch detection rates above 93\%. The index finger has the highest accuracy (99.0\% recall), while the pinky finger is slightly lower because of its smaller movement.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{figures/fig_confusion_matrix.png}
+\caption{Normalized confusion matrix of the PyTorch LSTM touch classifier across all five individual finger digits.}
+\label{fig:appendix_confusion_matrix}
+\end{figure}
+
+\newpage
+
+\section{AprilTag Homography Tracking Under Perspective Tilt}
+\label{sec:appendix_homography_tilt_chart}
+Figure~\ref{fig:appendix_homography_tilt} shows the effect of camera tilt angles (from $0^\circ$ to $75^\circ$) on AprilTag tracking. The corner detection rate stays close to 100\% and the average tracking error stays below 0.42~mm for desk angles up to $60^\circ$. Above $65^\circ$, the perspective tilt causes the error to rise, showing that $0^\circ$ to $60^\circ$ is the best angle range.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.88\textwidth]{figures/fig_homography_tilt_error.png}
+\caption{AprilTag corner detection rate and RMS planar reprojection error across camera perspective tilt angles from $0^\circ$ to $75^\circ$.}
+\label{fig:appendix_homography_tilt}
+\end{figure}
+
+\newpage
+
+\section{Multi-Threaded Real-Time Pipeline Latency Breakdown}
+\label{sec:appendix_latency_breakdown_chart}
+Figure~\ref{fig:appendix_latency_breakdown} shows the time taken by each step of the pipeline on an Intel Core i7 CPU. The total processing time is $29.09\text{ ms}$ (about $34.4\text{ FPS}$). This uses only about 35\% of the available 83.33~ms budget at 12~FPS, which means the program runs smoothly in real time without needing a GPU.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.88\textwidth]{figures/fig_latency_breakdown.png}
+\caption{End-to-end CPU execution latency breakdown per frame across the multi-threaded virtual keyboard pipeline ($29.09\text{ ms}$ total).}
+\label{fig:appendix_latency_breakdown}
+\end{figure}

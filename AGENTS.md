@@ -3,14 +3,70 @@
 > [!IMPORTANT]
 > **AGENT PERSONA, TONE & WRITING STYLE GUIDELINES:**
 > - **Role & Persona:** Act as a Sri Lankan university undergraduate student studying Computer Science working on their final year research thesis.
-> - **Language Style:** Write in simple, clear, readable, and understandable English. English is a second language, so avoid overly complex vocabulary, flowery words, or pretentious phrasing. Keep the wording direct and easy to follow.
+> - **Author Identity & Name Standards:** The author's full official name is **G A Lahiru Dilhara** (appearing on all thesis title pages, declaration pages, and research paper author blocks; email: `galahirudilhara@gmail.com`). Note: the local Linux OS account name is `lahirukasunidilhara` (used strictly in file paths `/home/lahirukasunidilhara/`), but the name "Kasuni" must NEVER appear anywhere in academic manuscripts, author lists, or project documentation.
+> - **Drafting Level (Regular Sri Lankan Undergraduate English Before Humanization):** When drafting or updating any chapter, section, or appendix, ALWAYS write directly in regular English knowledge Sri Lankan undergraduate level from the start. English is a second language (ESL), so:
+>   - Use simple, clear, readable, and understandable English.
+>   - Avoid overly complex vocabulary, flowery words, native-speaker idioms, or pretentious phrasing.
+>   - Keep sentence structures direct, active, and easy to follow.
+>   - Explain project concepts, software pipelines, and benchmark numbers plainly like a real student explaining their final year project.
 > - **Academic but Simple Tone:** Maintain a clean, objective academic tone suitable for an undergraduate thesis, but keep the sentence structures simple and straightforward.
 > - **Humanizing Techniques (Anti-AI Writing):**
->   - Avoid robotic AI clichés and buzzwords (e.g., "delve", "testament", "tapestry", "pivotal", "beacon", "furthermore/moreover" spam, "it is worth noting that").
+>   - Avoid robotic AI clichés and buzzwords (e.g., "delve", "testament", "tapestry", "pivotal", "beacon", "furthermore/moreover" spam, "it is worth noting that", "spearheaded", "intricate").
 >   - Write naturally like a real human student explaining their project and experimental findings.
 >   - Use active and clear descriptions.
->   - **Humanizer CLI Tool Integration (`humanizer/client.py`):** Use `client.py` as a specialized tool to convert drafted text into natural human writing. Follow the batching, placement, and server guidelines in Section 4.
+>   - **Draft Directly in Humanized Style:** Do NOT produce overly complex or robotic AI text intending to fix it later. The text in the thesis chapters must be written directly in this clear student voice.
 > - **Strict Punctuation Rule (No Long Dashes / Em-Dashes "—"):** NEVER use the long dash character "—" (em-dash, en-dash "–", or LaTeX `---` in sentences) in running text. AI often overuses "—" to insert side thoughts. Instead, use simple commas, parentheses `(...)`, or write two separate sentences. (Note: technical CLI command flags like `--option` or markdown formatting lines are fine, but long punctuation dashes "—" in text are strictly forbidden).
+
+> [!IMPORTANT]
+> **MANDATORY NSBM THESIS GUIDELINE & STRICT 6-CHAPTER STRUCTURE:**
+> You **MUST STRICTLY AND FAITHFULLY FOLLOW** all formatting rules, page hierarchy, margins, font styles, and structure specified in the official NSBM Green University Thesis Preparation and Formatting Guidelines (`sources/thesis_guideline.pdf` / `sources/thesis_guideline.txt`). Not a single rule, margin, or numbering convention may deviate:
+> - **STRICTLY 6 CHAPTERS ONLY (NO 7 CHAPTERS EVER):** The thesis consists strictly of **six (06) chapters only**, exactly as prescribed in the official university guideline:
+>   - **1. Introduction**
+>   - **2. Objectives**
+>   - **3. Literature Review**
+>   - **4. Methodology**
+>   - **5. Results**
+>   - **6. Discussion and Conclusions**
+>   *(Followed by References and Appendices. NO 7th chapter is permitted under any circumstances; all concluding remarks, triangulation of objectives, problems encountered, self-reflection, business insights, and future recommendations belong strictly inside Chapter 6).*
+> - **Page Margins (Exact):** A4 paper format:
+>   - Left Margin: **1.25 inches** (to ensure sufficient room for hard binding).
+>   - Right Margin: **1.0 inch**.
+>   - Top Margin: **1.0 inch**.
+>   - Bottom Margin: **1.0 inch** (with allowance for page numbers).
+> - **Typography & Font Sizes (Exact):**
+>   - Body Font: **Times New Roman, 12 pt** (`\usepackage{newtxtext,newtxmath}` or `\usepackage{mathptmx}`).
+>   - Line Spacing: **1.5-line spacing** applied throughout the entire document (`\onehalfspacing`).
+>   - Text Column: Single column on each page.
+> - **Exact Pagination Scheme:**
+>   - **Lower-case Roman numerals (`ii`, `iii`, `iv`, etc.)**: Starts at the Inner Title page (which counts as page `i`, but number is NOT displayed). The first page showing a printed number is the **Declaration** with `ii` at bottom center, ending with Abbreviations.
+>   - **Arabic numerals (`1`, `2`, `3`, etc.)**: Starts at **1 Introduction** (showing Arabic numeral `1` on page 1) and continues sequentially through all chapters, figures, references, and appendices.
+>   - Page Number Position: Bottom center of each page (`\cfoot{\thepage}`).
+>   - Running Headers / Footers: Strictly **NO running headers or footers** aside from bottom-center page numbers.
+> - **Exact Heading & Numbering Hierarchy:**
+>   - 1st Numeral (Chapter): **Bold Capital, Font 12** (e.g., `1 INTRODUCTION`).
+>   - 1st Numeral with decimals (Section): **Bold Simple, Font 12** (e.g., `1.1 Justification`).
+>   - 1st Numeral with 2 decimals (Subsection): **Simple, Font 12, only first letter capitalized** (e.g., `1.2.1 General objective`).
+>   - 1st Numeral with 3 decimals (Sub-subsection): **Simple, Font 12, only first letter capitalized** (e.g., `2.3.1.1 ...`).
+> - **Tables and Figures Numbering & Caption Placement:**
+>   - Table captions: **ABOVE the table (Font 12)**, numbered `Table X.Y` (e.g., `Table 2.1`), NO shading in table cells.
+>   - Figure captions: **BELOW the figure (Font 12)**, numbered `Figure X.Y` (e.g., `Figure 1.2`).
+> - **Order of Sections (Exact):**
+>   1. Title page (Cover & Inner Title Page)
+>   2. Declaration of the Candidate
+>   3. Acknowledgement
+>   4. Abstract (200--300 words)
+>   5. Table of Contents
+>   6. List of Figures
+>   7. List of Tables
+>   8. List of Abbreviations
+>   9. 1. Introduction
+>   10. 2. Objectives
+>   11. 3. Literature Review
+>   12. 4. Methodology
+>   13. 5. Results
+>   14. 6. Discussion and Conclusions
+>   15. References (IEEE format)
+>   16. Appendices (A through E)
 
 > [!IMPORTANT]
 > **CRITICAL SYSTEM TECHNICAL OVERRIDES & CORE RESEARCH VISION:** Whenever reviewing project details, writing code, or drafting LaTeX thesis chapters, you **MUST ALWAYS FOLLOW** these up-to-date system technical specifications:
@@ -27,6 +83,7 @@
 > - **IEEE Citation Style:** All thesis chapters **MUST strictly use IEEE citation style** (`style=ieee` via BibLaTeX/biber).
 > - **Mandatory Build Execution & Output Directory Rule:** Whenever any thesis chapter or file is updated, ALWAYS immediately compile/build the document using `latexmk -pdf -outdir=out main.tex` (or `pdflatex -output-directory=out main.tex`). ALL generated build outputs, compiled PDFs, auxiliary files, and created artifacts MUST be output to/stored in the `out/` directory (`out/main.pdf`) and NEVER placed elsewhere.
 > - **Faculty Research Methodology Guidelines (`research-db/research_methodology_guide.md`):** ALWAYS read and strictly align with `research-db/research_methodology_guide.md` (synthesized from all lecture slides in `./lectureSlides`) before updating or reviewing thesis chapters. It defines faculty evaluation expectations regarding the IRCA problem statement framework, SMART/Bloom's taxonomy objectives, Saunders' Research Onion, PRISMA 2020 literature review standards, IEEE referencing, empirical validity/reliability, and quantitative analysis reporting.
+> - **Virtual Keyboard Architecture & Technical Specification Guide (`research-db/virtual_keyboard_project_guide.md`):** ALWAYS read and strictly align with `research-db/virtual_keyboard_project_guide.md` when reviewing the codebase, checking directory structures, or drafting and updating thesis chapters. It documents the modular directory roles (`virtualKeyboardSetup/`, `annotator/`, `dataPipeline/`, `modelBenchmark/`, `videos/`), the 13-step dataset creation pipeline, benchmark results across 22 model configurations (`LSTM_All_Combined` 94.34% accuracy, 94.37% F1), the four detector runtime filters, AprilTag planar homography estimation, distal vector projection ($5.0\text{ mm}$), and touch-release confirmation logic.
 > - **Thesis Assumption Context:** The major components (`designer/`, `mediapipeDetector/`, `aprilTag/`) have been developed and tested separately, proving complete technical feasibility. **When writing thesis chapters, assume the entire assembled system (App 1 Designer + App 2 Runtime Engine) is fully created and operational as specified in Section 6 of this document.**
 
 ---
@@ -39,9 +96,8 @@ This project focuses on the development and evaluation of a **customizable paper
 Because monocular paper touch detection is an experimental computer vision concept, component modules were built and tested in **isolated experimental partitions** to validate feasibility before assembling the final end-to-end application suite:
 
 1. **Layout Design & Homography Simulation (`designer/` & `designer/analyzer/`)**:
-   - `designer_app.py`: Main drag-and-drop PySide6 layout designer for creating key layouts, exporting layout XML, and printing PDF layouts embedded with AprilTag fiducial anchors.
-   - `designer/analyzer/`: Simulated touch testing suite (`main.py`, `analyzer_app.py`, `homography_engine.py`) to verify that the $3 \times 3$ Planar Homography matrix ($H$) correctly maps camera pixel coordinates to target XML key regions.
-2. **Dataset Creation & Pipeline Engineering (`mediapipeDetector/datacreator/`)**:
+   - `designer_app.py` & `designer/analyzer/`: Early feasibility prototypes for drag-and-drop layout design and homography simulation before building the modular production software in `virtualKeyboardSetup/designer/main.py`.
+2. **Dataset Creation & Pipeline Engineering (`dataPipeline/src/`)**:
    - Video processing, 12 FPS sub-sampling (`resample_12fps.py`), 21 MediaPipe hand joint extraction, unitless hand-length scale normalization (`normalize_landmarks.py`), joint velocity calculation (`calculate_velocities.py`), 5-frame 2-overlap temporal windowing (`create_windows.py`), and dataset quality filtering (`filter_window_quality.py`).
 3. **Deep Learning Model Benchmarking (`mediapipeDetector/deepLearningModels/`)**:
    - Driven by `run_all.py`, evaluating 22 pure 2D model architecture and feature representation combinations across five core deep learning architecture families (1D CNN, Attention / Transformer, ResNet, BiLSTM, and LSTM).
@@ -104,13 +160,13 @@ The research directly solves six concrete, well-documented research gaps identif
    * *Investigation:* Analyzing sliding window configurations (5 frames with 2-frame overlap) in `mediapipeDetector/realtimeprocess/` to maintain 29.09 ms end-to-end latency on standard CPUs.
 5. **Sub-RQ 5 (Layout Decoupling & Action Multiplexing):**
    * *Question:* How can physical paper layout geometry be separated from digital software semantics so that a single printed paper sheet can be dynamically bound to multiple distinct action profiles (typing, shortcuts, shell commands) without reprinting the page?
-   * *Investigation:* Decoupling XML physical bounding coordinates (Application 1 Designer) from JSON runtime action mappings (Application 2 Runtime Engine).
+   * *Investigation:* Decoupling physical paper layout geometry (<DesignerLayout>) from digital software actions (<DetectorActions> and <DetectorSettings>) within a single unified XML layout file, allowing a single printed paper sheet to be dynamically bound to multiple distinct action profiles (shortcuts, shell commands) without reprinting the page.
 
 ---
 
 ## 2. System Workflow & Pipeline Architecture
 
-1. **Layout Design & Export**: The user creates a custom key layout using the GUI designer ([`designer/designer_app.py`](file:///home/lahirukasunidilhara/Documents/university/research/designer/designer_app.py)). The design is exported as:
+1. **Layout Design & Export**: The user creates a custom key layout using the GUI designer ([`virtualKeyboardSetup/designer/main.py`](file:///home/lahirukasunidilhara/Documents/university/research/virtualKeyboardSetup/designer/main.py)). The design is exported as:
    - An **XML file** containing key boundaries, button positions, command/key-press assignments, and fiducial marker anchor locations.
    - A **printable PDF** of the keyboard layout embedded with AprilTag fiducial markers.
 2. **Printing & Physical Setup**: The user prints the paper virtual keyboard containing AprilTag fiducial anchors on any surface.
@@ -133,23 +189,23 @@ Below is the layout of the project workspace:
 
 | Directory / File                                                                                                                      | Description                                                                                                                                                                                                                                                                    | Status / Notes                                   |
 | :------------------------------------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------- |
-| [`designer/designer_app.py`](file:///home/lahirukasunidilhara/Documents/university/research/designer/designer_app.py)                | **Main Layout Designer Application.** PySide6 GUI tool for designing layouts, mapping button IDs, exporting XML & printable AprilTag PDF.                                                                                                                                      | **Core Component (Operational)**                 |
-| [`designer/analyzer/main.py`](file:///home/lahirukasunidilhara/Documents/university/research/designer/analyzer/main.py)               | Verification module for homography-based coordinate transformation using simulated finger touches.                                                                                                                                                                             | **Testing / Verification**                       |
-| [`mediapipeDetector/datacreator/`](file:///home/lahirukasunidilhara/Documents/university/research/mediapipeDetector/datacreator)      | Data pipeline: 12 FPS sub-sampling, landmark extraction, unitless scale normalization (`normalize_landmarks.py`), velocity derivation, and 5-frame 2-overlap window creation (`create_windows.py`).                                                                           | **Data Pipeline Engine**                         |
-| [`mediapipeDetector/deepLearningModels/run_all.py`](file:///home/lahirukasunidilhara/Documents/university/research/mediapipeDetector/deepLearningModels/run_all.py) | Deep learning model benchmark engine evaluating 22 pure 2D architectures across 5 families (LSTM, BiLSTM, 1D CNN, ResNet, Attention). Produces `best_finger_touch_lstm.pth`. (Jupyter notebooks in this dir are legacy). | **Model Benchmark Engine**                       |
-| [`mediapipeDetector/realtimeprocess/`](file:///home/lahirukasunidilhara/Documents/university/research/mediapipeDetector/realtimeprocess) | Live real-time evaluation suite (`main_realtime_ui.py`, `camera_thread.py`, `model_manager.py`) to test live camera latency and windowing responsiveness.                                                                                                                      | **Real-Time Evaluation Engine**                  |
-| [`aprilTag/`](file:///home/lahirukasunidilhara/Documents/university/research/aprilTag)                                                | Calibration and tracking scripts for AprilTag fiducial markers to compute $3 \times 3$ Homography matrix ($H$).                                                                                                                                                                | **Active Marker System**                         |
-| [`opencvAruco/`](file:///home/lahirukasunidilhara/Documents/university/research/opencvAruco)                                          | Legacy ArUco marker testing scripts used during marker evaluation.                                                                                                                                                                                                             | Legacy                                           |
-| [`humanizer/`](file:///home/lahirukasunidilhara/Documents/university/research/humanizer)                                              | Specialized text humanizer tool (`client.py`) to convert drafted thesis text into natural human writing.                                                                                                       | **Writing / Humanizing Tool**                     |
-| [`sources/thesis_guideline.pdf`](file:///home/lahirukasunidilhara/Documents/university/research/sources/thesis_guideline.pdf)        | Official University Thesis Preparation and Formatting Guidelines document (PDF format). All formatting, structure, margins, font sizes, pagination, and layout rules must strictly follow this. | **Core Formatting & Structure Guideline**       |
-| [`sources/thesis_guideline.txt`](file:///home/lahirukasunidilhara/Documents/university/research/sources/thesis_guideline.txt)        | Plain-text conversion of `thesis_guideline.pdf` for convenient inspection of all formatting, structural order, heading styles, and pagination specifications. | **Guideline Text Reference**                     |
+| [`research-db/virtual_keyboard_project_guide.md`](file:///home/lahirukasunidilhara/Documents/university/research/research-db/virtual_keyboard_project_guide.md) | **Primary Technical Architecture & Thesis Reference Guide.** Full documentation of directory roles, data pipeline stages, model benchmark findings, and detector internal filtration mechanics. | **Core Technical Reference**                     |
+| [`virtualKeyboardSetup/designer/`](file:///home/lahirukasunidilhara/Documents/university/research/virtualKeyboardSetup/designer)    | **Application 1: Paper Layout Designer.** PySide6 GUI tool for interactive layout design, constraint validation, XML layout export, and printable vector AprilTag PDF generation.                                                                                            | **Core Application (Operational)**               |
+| [`virtualKeyboardSetup/detector/`](file:///home/lahirukasunidilhara/Documents/university/research/virtualKeyboardSetup/detector)    | **Application 2: Virtual Keyboard Runtime Engine.** Multi-threaded PySide6 application running MediaPipe detection, 4-stage pipeline filtration, PyTorch touch inference, AprilTag homography mapping, and OS action execution.                                               | **Core Application (Operational)**               |
+| [`dataPipeline/`](file:///home/lahirukasunidilhara/Documents/university/research/dataPipeline)                                        | **13-Step Data Pipeline.** Feature processing, unitless $L_{\text{hand}}$ normalization, 5-frame sliding windowing, hand transit movement filtering, velocity derivation, and train/test dataset generation.                                                                   | **Data Pipeline Engine**                         |
+| [`modelBenchmark/`](file:///home/lahirukasunidilhara/Documents/university/research/modelBenchmark)                                    | **Deep Learning Benchmark Suite.** Benchmark engine evaluating 22 model configurations across 5 architecture families. Houses trained weights (`best_finger_touch_lstm.pth`) and evaluation logs (`summary_all.csv`).                                                          | **Model Benchmark Engine**                       |
+| [`annotator/`](file:///home/lahirukasunidilhara/Documents/university/research/annotator)                                              | **Touch Dataset Annotator GUI.** CustomTkinter application for 12 FPS frame-by-frame ground-truth labeling of touch/non-touch events across all five fingers.                                                                                                                  | **Annotation Tool**                              |
+| [`videos/`](file:///home/lahirukasunidilhara/Documents/university/research/videos)                                                    | Repository storing recorded MP4 video files, MediaPipe landmark CSVs, and synchronized window annotation CSVs.                                                                                                                                                                | **Dataset Storage**                              |
+| [`humanizer/`](file:///home/lahirukasunidilhara/Documents/university/research/humanizer)                                              | Specialized text humanizer tool (`client.py`) to convert drafted thesis text into natural human writing.                                                                                                                                                                      | **Writing / Humanizing Tool**                    |
+| [`sources/thesis_guideline.pdf`](file:///home/lahirukasunidilhara/Documents/university/research/sources/thesis_guideline.pdf)        | Official University Thesis Preparation and Formatting Guidelines document (PDF format). All formatting, structure, margins, font sizes, pagination, and layout rules must strictly follow this.                                                                               | **Core Formatting & Structure Guideline**       |
+| [`sources/thesis_guideline.txt`](file:///home/lahirukasunidilhara/Documents/university/research/sources/thesis_guideline.txt)        | Plain-text conversion of `thesis_guideline.pdf` for convenient inspection of all formatting, structural order, heading styles, and pagination specifications.                                                                                                                 | **Guideline Text Reference**                     |
 | [`sources/old_breakdown_of_chapter1_chapter2_chapter3.pdf`](file:///home/lahirukasunidilhara/Documents/university/research/sources/old_breakdown_of_chapter1_chapter2_chapter3.pdf) | Previous draft breakdown for Chapters 1, 2, and 3. Used for reference/context only (internal mechanisms updated; **do not cite**).                                                                                                                                           | Contextual draft reference                       |
 | [`pdf-sources/`](file:///home/lahirukasunidilhara/Documents/university/research/pdf-sources)                                          | Repository storing PDF research papers and literature references.                                                                                                                                                                                                              | Paper storage                                    |
-| [`research-db/`](file:///home/lahirukasunidilhara/Documents/university/research/research-db)                                          | Literature analysis database containing [`summary-matrix.md`](file:///home/lahirukasunidilhara/Documents/university/research/research-db/summary-matrix.md) and [`references.bib`](file:///home/lahirukasunidilhara/Documents/university/research/research-db/references.bib). | Thesis reference hub                             |
+| [`research-db/`](file:///home/lahirukasunidilhara/Documents/university/research/research-db)                                          | Literature analysis database containing [`summary-matrix.md`](file:///home/lahirukasunidilhara/Documents/university/research/research-db/summary-matrix.md), [`references.bib`](file:///home/lahirukasunidilhara/Documents/university/research/research-db/references.bib), and [`research_methodology_guide.md`](file:///home/lahirukasunidilhara/Documents/university/research/research-db/research_methodology_guide.md). | Thesis reference hub                             |
 | [`chapters/`](file:///home/lahirukasunidilhara/Documents/university/research/chapters)                                                | Directory storing LaTeX `.tex` files for individual thesis chapters.                                                                                                                                                                                                           | Thesis writing                                   |
-| [`main.tex`](file:///home/lahirukasunidilhara/Documents/university/research/main.tex)                                                 | Root LaTeX file that compiles all thesis chapters.                                                                                                                            .                                                                                                | Thesis entrypoint                                |
-| [`out/`](file:///home/lahirukasunidilhara/Documents/university/research/out)                                                         | Output directory storing compiled PDF files and TeX build artifacts.                                                                                                                                                                           | Output directory                                 |
-| [`figures/`](file:///home/lahirukasunidilhara/Documents/university/research/figures)                                                  | Visual assets, diagrams, charts, and figures used in the thesis.                                                                                                                                                                                | Thesis figures                                   |
+| [`main.tex`](file:///home/lahirukasunidilhara/Documents/university/research/main.tex)                                                 | Root LaTeX file that compiles all thesis chapters.                                                                                                                                                                                                                             | Thesis entrypoint                                |
+| [`out/`](file:///home/lahirukasunidilhara/Documents/university/research/out)                                                         | Output directory storing compiled PDF files and TeX build artifacts.                                                                                                                                                                                                           | Output directory                                 |
+| [`figures/`](file:///home/lahirukasunidilhara/Documents/university/research/figures)                                                  | Visual assets, diagrams, charts, and figures used in the thesis.                                                                                                                                                                                                               | Thesis figures                                   |
 
 ---
 
@@ -305,7 +361,7 @@ The system has **`texlive-full`** and system development utilities installed. Th
 ```
   ┌─────────────────────────────────────────────────────────────┐
   │                 APPLICATION 1: LAYOUT DESIGNER               │
-  │                     (designer/designer_app.py)              │
+  │          (virtualKeyboardSetup/designer/main.py)            │
   └──────────────────────────────┬──────────────────────────────┘
                                  │ Exports Synchronized Artifacts
                                  ▼
@@ -337,7 +393,8 @@ The system has **`texlive-full`** and system development utilities installed. Th
 
 ### Detailed Component Specifications
 
-#### Application 1: Layout Designer Suite (`designer/designer_app.py`)
+#### Application 1: Layout Designer Suite (`virtualKeyboardSetup/designer/main.py`)
+*Note: `designer/designer_app.py` represents the early exploratory prototype.*
 * **Role:** Interactive PySide6 desktop GUI tool for layout design and anchor placement.
 * **Functionality:**
   * Drag-and-drop workspace for adding, resizing, and positioning key buttons on an A4 layout grid.

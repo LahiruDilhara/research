@@ -1,0 +1,88 @@
+\chapter{Application 2: Runtime Virtual Keyboard Engine and Live Tracking}
+\label{ch:appendix_detector_runtime}
+
+\section{Overview of the Runtime Engine}
+\label{sec:appendix_detector_overview}
+This appendix shows screenshots of Application~2, which is the runtime virtual keyboard program. This application tracks the AprilTag markers, tracks hand joints using MediaPipe, detects finger touches using our PyTorch LSTM model, and runs the assigned keyboard shortcuts.
+
+Figure~\ref{fig:appendix_detector_home} shows the start screen where the user selects the webcam, loads the layout XML file, and chooses an action profile.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.88\textwidth]{figures/detector_home_screen.png}
+\caption{Application~2 home screen for camera device selection and layout loading.}
+\label{fig:appendix_detector_home}
+\end{figure}
+
+\newpage
+
+\section{Action Rebinding and Profile Management}
+\label{sec:appendix_detector_rebinding}
+Figure~\ref{fig:appendix_detector_edit} shows the action rebinding window. Users can change the action of any key to standard keyboard shortcuts (like Ctrl+C or Alt+Tab) or terminal scripts. Both applications use the exact same XML file, saving key actions and detector settings directly into the \texttt{<DetectorActions>} and \texttt{<DetectorSettings>} sections of the layout XML. This removes the need for separate files, allowing users to switch between different XML action profiles on the same printed paper sheet without printing again.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/detector_layout_edit_mode.png}
+\caption{Application~2 action rebinding interface for assigning keystrokes and shell commands to macro keys.}
+\label{fig:appendix_detector_edit}
+\end{figure}
+
+\newpage
+
+\section{Live Camera Tracking in Idle and Contact States}
+\label{sec:appendix_detector_live_states}
+Figure~\ref{fig:appendix_detector_idle} shows the live camera view when no hand is present. The software finds the four AprilTags at the corners, calculates the homography matrix $H$, and draws the key boxes onto the camera video.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.88\textwidth]{figures/detector_playmode_without_hand_just_idle.png}
+\caption{Application~2 idle monitoring state showing detected AprilTags, homography alignment, and key bounding boxes.}
+\label{fig:appendix_detector_idle}
+\end{figure}
+
+Figure~\ref{fig:appendix_detector_touch} shows what happens when a finger touches a key. MediaPipe tracks the 21 hand joints in real time. When the index finger hits the paper, our PyTorch LSTM model predicts a 96\% touch probability for the index finger. The program calculates which key was touched, highlights the key in green on the screen, and sends the keystroke to the computer.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.88\textwidth]{figures/detector_playmode_exacty_index_finger_touch_happening_on_a_key.png}
+\caption{Application~2 live contact detection showing MediaPipe skeleton, 96\% index touch probability, and highlighted key impact.}
+\label{fig:appendix_detector_touch}
+\end{figure}
+
+\newpage
+
+\section{Production Run Mode and Action Event Log}
+\label{sec:appendix_detector_run_mode}
+Figure~\ref{fig:appendix_detector_run} shows the live run mode. A line graph shows the touch probabilities for each finger over time. The screen shows that the program runs smoothly at 11.9~FPS with an inference time of only 2.3~ms on the CPU. The list on the right shows recent key presses.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/detector_run_mode_multipl_touches_happend.png}
+\caption{Application~2 production run mode showing real-time multi-finger probability history, pipeline FPS, and action event log.}
+\label{fig:appendix_detector_run}
+\end{figure}
+
+\newpage
+
+\section{Runtime Engine Preferences and Detection Parameters}
+\label{sec:appendix_detector_settings}
+Figure~\ref{fig:appendix_detector_settings_1} and Figure~\ref{fig:appendix_detector_settings_2} show the settings screens. Users can change the touch threshold ($\tau_{\text{touch}}$), delay times between presses, and camera update rates.
+
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/detector_settings_page_1.png}
+    \caption{Touch sensitivity and classification thresholds.}
+    \label{fig:appendix_detector_settings_1}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/detector_settings_page_2.png}
+    \caption{Homography smoothing and dispatch settings.}
+    \label{fig:appendix_detector_settings_2}
+\end{subfigure}
+\caption{Application~2 configuration settings for vision tracking and touch triggering.}
+\label{fig:appendix_detector_settings}
+\end{figure}

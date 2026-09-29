@@ -1,0 +1,41 @@
+\chapter{Ground-Truth Dataset Annotation Platform}
+\label{ch:appendix_data_annotator}
+
+\section{Overview of the Annotation Suite}
+\label{sec:appendix_annotator_overview}
+This appendix shows screenshots of the dataset annotation program we built to label touch events in recorded videos. Getting correct touch labels frame by frame was important to train and test our PyTorch neural network model.
+
+Figure~\ref{fig:appendix_annotator_home} shows the start screen of the tool, where we select video files and keyboard layout settings to begin labeling.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.88\textwidth]{figures/data_annotator_home_page.png}
+\caption{Dataset annotation tool home screen for video session management.}
+\label{fig:appendix_annotator_home}
+\end{figure}
+
+\newpage
+
+\section{Frame-by-Frame Skeletal Annotation Interface}
+\label{sec:appendix_annotator_workspace}
+Figure~\ref{fig:appendix_annotator_main} shows the main labeling screen. Recorded videos are played frame by frame at 12~FPS. MediaPipe 21 hand joints are drawn directly over the hand. The buttons on the right let us mark whether each finger (Thumb, Index, Middle, Ring, Pinky) is touching the paper or not in each frame.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/data_annotator_main_screen_live_annotation.png}
+\caption{Dataset annotator main interface showing 12~FPS frame navigation, MediaPipe skeleton overlay, and per-digit contact labeling.}
+\label{fig:appendix_annotator_main}
+\end{figure}
+
+\newpage
+
+\section{Rapid Keyboard Shortcuts for Annotation Efficiency}
+\label{sec:appendix_annotator_shortcuts}
+Figure~\ref{fig:appendix_annotator_shortcuts} shows the keyboard shortcuts dialog in the annotator. Since we had to label thousands of frames, we added quick keyboard shortcuts (like keys 1 to 5 to toggle fingers, and spacebar to move to the next frame). This made labeling much faster and easier.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/data_annotator_shorcut_window.png}
+\caption{Keyboard shortcut dialog enabling rapid multi-finger ground truth tagging during video annotation.}
+\label{fig:appendix_annotator_shortcuts}
+\end{figure}

@@ -3,55 +3,55 @@
 
 \section{Chapter Overview}
 \label{sec:concl_overview}
-In this chapter, a summary of the main results, practical achievements, lessons learned, and directions for future research concerning the proposed paper-based customizable virtual keyboard is provided. By relying only on a single webcam and plain paper without specialized devices like depth cameras, Time-of-Flight sensors, laser projectors, or sensor gloves, this project demonstrates that a normal sheet of paper can serve as an interactive and customizable virtual keyboard running in real time on an ordinary computer CPU.
+This chapter summarizes the main results, achievements, lessons learned, and future research directions for the paper-based virtual macro keyboard. By relying on a single webcam and plain paper without depth cameras, Time-of-Flight sensors, or laser projectors, this project demonstrates that a printed paper sheet can serve as an interactive macro controller running in real time on an ordinary CPU.
 
-Section~\ref{sec:concl_objectives} discusses how each of the five specific research objectives was accomplished by triangulating goals, system implementation, and experimental test results. Section~\ref{sec:concl_problems} explains the practical problems faced during the project and how they were solved. Section~\ref{sec:concl_reflection} offers personal reflections on the learning process and skills gained. Section~\ref{sec:concl_business} discusses practical real-world application possibilities and benefits. Finally, Section~\ref{sec:concl_future} outlines future research directions, and Section~\ref{sec:concl_summary} concludes the chapter.
+Section~\ref{sec:concl_objectives} discusses how each research objective was accomplished through triangulation. Section~\ref{sec:concl_problems} explains practical problems encountered and their technical mitigations. Section~\ref{sec:concl_reflection} offers personal reflections and skills gained. Section~\ref{sec:concl_business} discusses practical applications. Finally, Section~\ref{sec:concl_future} outlines future research directions, and Section~\ref{sec:concl_summary} concludes the chapter.
 
 \section{Accomplishment of Research Objectives}
 \label{sec:concl_objectives}
-To evaluate the research outcomes objectively, we use the method of triangulation. Triangulation links the experimental results obtained in Chapter~\ref{ch:results} with the original research objectives stated in Chapter~\ref{chap:objectives}, supported by the system implementation and algorithms described in Chapter~\ref{ch:methodology}.
+To evaluate the research outcomes objectively, we use triangulation. Triangulation links the empirical testing results from Chapter~\ref{ch:results} with the original objectives from Chapter~\ref{chap:objectives}, grounded in the methodology from Chapter~\ref{ch:methodology}.
 
 \subsection{Triangulation Evaluation of Objective 1: Theoretical Analysis and Baseline Requirements}
 \label{subsec:concl_obj1}
 \begin{itemize}
-    \item \textbf{Objective Statement:} \emph{To review and analyze existing visual input systems, fiducial marker tracking methods, planar homography algorithms, and hand pose estimation models, establishing baseline technical requirements for monocular touch detection on flat printed paper.}
-    \item \textbf{Triangulation Evidence:} Chapter~\ref{ch:literature_review} reviewed prior virtual keyboard literature across eight sensing modalities and summarized them in a structured taxonomy (Figure~\ref{fig:lit_conceptual_map_diagram}) and comparative table (Table~\ref{tab:lit_comparative_matrix}). Six key research gaps were identified: (1) multi-finger tracking restrictions in single cameras, (2) artificial dwell-time delays, (3) heavy GPU computing requirements, (4) brittleness under ambient lighting and shadows, (5) dependence on expensive depth hardware, and (6) rigid hard-coded layouts.
-    \item \textbf{Validation Outcome:} \textbf{Objective Fully Accomplished.} The literature taxonomy directly established the technical requirements for the software architecture and engineering pipeline.
+    \item \textbf{Objective Statement:} \emph{To review and analyze existing visual input systems, fiducial marker tracking methods, planar homography algorithms, and hand pose estimation models, establishing baseline technical requirements for monocular macro touch detection on flat printed paper.}
+    \item \textbf{Triangulation Evidence:} Chapter~\ref{ch:literature_review} analyzed prior virtual keyboards across eight sensing modalities (Figure~\ref{fig:lit_conceptual_map_diagram}, Table~\ref{tab:lit_comparative_matrix}). It identified six core gaps: single-finger limits in monocular cameras, artificial dwell times, high GPU dependencies, ambient light/shadow brittleness, costly depth sensors, and rigid layouts.
+    \item \textbf{Validation Outcome:} \textbf{Objective Fully Accomplished.} Literature analysis established baseline requirements for the software architecture.
 \end{itemize}
 
 \subsection{Triangulation Evaluation of Objective 2: Hand Kinematic Representation and Scale Normalization}
 \label{subsec:concl_obj2}
 \begin{itemize}
-    \item \textbf{Objective Statement:} \emph{To investigate the kinematic properties of hand joints during typing, formulate unitless hand-length scale normalization ($L_{\text{hand}}$) invariant to camera distance and resolution, and establish a 12~FPS sliding window pipeline that preserves impact deceleration without temporal smoothing delays.}
-    \item \textbf{Triangulation Evidence:} The kinematic data pipeline was designed in Chapter~\ref{ch:methodology} (Section~\ref{sec:meth_data_pipeline}). Landmark coordinates were scale-normalized using hand length $L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$, and temporal features were assembled into 5-frame sliding windows with 2-frame overlap at 12~FPS. Crucially, direct feature propagation without low-pass filters preserved physical impact decelerations. In Chapter~\ref{ch:results} (Section~\ref{sec:test_results_review}), distance ablation tests confirmed steady accuracy across $30\text{ cm}$ to $100\text{ cm}$ ($F1 \ge 0.958$), and resolution invariance tests showed consistent performance across 360p, 480p, 720p, and 1080p ($F1 \in [0.961, 0.964]$).
-    \item \textbf{Validation Outcome:} \textbf{Objective Fully Accomplished.} Scale normalization and direct feature propagation effectively eliminated scale and resolution variations.
+    \item \textbf{Objective Statement:} \emph{To investigate kinematic properties of hand joints during macro touch contact, formulate unitless hand-length scale normalization ($L_{\text{hand}}$) invariant to camera distance and resolution, and establish a 12~FPS sliding window pipeline that preserves impact deceleration without temporal smoothing delays.}
+    \item \textbf{Triangulation Evidence:} Chapter~\ref{ch:methodology} formulated unitless normalization ($L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$) and constructed 5-frame sliding windows with 2-frame overlap at 12~FPS. Propagating raw features without low-pass filters preserved impact deceleration. Chapter~\ref{ch:results} confirmed steady touch accuracy across $20$ to $40\text{ cm}$ distances ($F1 \ge 0.958$).
+    \item \textbf{Validation Outcome:} \textbf{Objective Fully Accomplished.} Scale normalization and direct feature propagation eliminated scale and distance variations.
 \end{itemize}
 
 \subsection{Triangulation Evaluation of Objective 3: Deep Learning Sequence Model Architecture Benchmark}
 \label{subsec:concl_obj3}
 \begin{itemize}
-    \item \textbf{Objective Statement:} \emph{To benchmark, train, and optimize lightweight deep learning sequence models for independent multi-finger touch contact classification, selecting an optimal model that operates under 3~ms on a standard CPU while achieving high touch detection precision and recall across all five digits.}
-    \item \textbf{Triangulation Evidence:} A multi-model benchmark suite (\texttt{run\_all.py}) evaluated 22 pure 2D model architecture combinations across five model families (1D CNN, Attention, ResNet, BiLSTM, LSTM). As documented in Chapter~\ref{ch:results} (Table~\ref{tab:model_architecture_comparison}), the uni-directional PyTorch LSTM model trained on normalized position and velocity features achieved an F1-score of $0.963$, an average per-digit F1-score of $0.965$ (Table~\ref{tab:per_digit_confusion_matrix}), and a fast forward pass time of $2.08\text{ ms}$ on CPU with a compact model size of $0.44\text{ MB}$ (\texttt{best\_finger\_touch\_lstm.pth}).
-    \item \textbf{Validation Outcome:} \textbf{Objective Fully Accomplished.} The selected LSTM model satisfied all accuracy and CPU speed requirements.
+    \item \textbf{Objective Statement:} \emph{To benchmark, train, and optimize lightweight deep learning sequence models for independent multi-finger macro touch contact classification, selecting an optimal model that operates under 3~ms on a standard CPU while achieving high touch detection precision and recall across all five digits.}
+    \item \textbf{Triangulation Evidence:} The benchmark suite (\texttt{modelBenchmark/}\linebreak[1]\texttt{benchmark\_engine.py}) evaluated 22 models across five architectures. The uni-directional PyTorch LSTM achieved an F1-score of $0.963$, an average per-digit F1 of $0.965$, forward inference of $2.08\text{ ms}$ on CPU, and a compact size of $0.44\text{ MB}$. This validated independent five-finger touch classification on monocular video, overcoming the single-finger barrier of prior literature.
+    \item \textbf{Validation Outcome:} \textbf{Objective Fully Accomplished.} The selected LSTM satisfied all accuracy, multi-finger support, and CPU latency criteria.
 \end{itemize}
 
 \subsection{Triangulation Evaluation of Objective 4: System Architecture Engineering and Two-Application Suite Design}
 \label{subsec:concl_obj4}
 \begin{itemize}
-    \item \textbf{Objective Statement:} \emph{To architect and implement an integrated two-application software suite enabling custom layout design and decoupled action profile multiplexing on the same printed paper sheet.}
-    \item \textbf{Triangulation Evidence:} The two-application software suite was implemented as detailed in Chapter~\ref{ch:methodology}: Application 1 (Layout Designer, \texttt{designer\_app.py}) provides a PySide6 drag-and-drop canvas, automated AprilTag border anchors, XML layout exports, and 300 DPI vector PDF printing. Application 2 (Runtime Virtual Keyboard Engine) combines a setup mapper GUI (Component A) for assigning keys and loading JSON action profiles with a background multi-threaded vision engine (Component B) that tracks AprilTags, extracts MediaPipe landmarks, runs PyTorch LSTM inference, and transforms coordinates ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$). Functional tests in Chapter~\ref{ch:results} (Table~\ref{tab:functional_test_cases}) yielded a $100\%$ pass rate across all test cases (FT-01 to FT-10), confirming successful action multiplexing on identical paper sheets.
-    \item \textbf{Validation Outcome:} \textbf{Objective Fully Accomplished.} Decoupled layout design and runtime action multiplexing were fully realized.
+    \item \textbf{Objective Statement:} \emph{To architect and implement an integrated two-application macro keyboard software suite enabling custom layout design and decoupled action profile multiplexing on the same printed paper sheet.}
+    \item \textbf{Triangulation Evidence:} Built in PySide6: Application~1 (Layout Designer) creates custom layouts, embeds AprilTags, and exports XML layouts and printable PDFs. Application~2 (Runtime Engine) loads XML keys, maps action profiles, tracks AprilTags ($P_{\text{XML}} = H \cdot P_{\text{pixel}}$), and runs LSTM touch inference. All functional test cases (FT-01 to FT-10) achieved a $100\%$ pass rate.
+    \item \textbf{Validation Outcome:} \textbf{Objective Fully Accomplished.} Decoupled layout design and runtime action multiplexing were fully validated.
 \end{itemize}
 
-\subsection{Triangulation Evaluation of Objective 5: Empirical System Evaluation and Usability Benchmarking}
+\subsection{Triangulation Evaluation of Objective 5: Empirical System Evaluation and Functional Benchmarking}
 \label{subsec:concl_obj5}
 \begin{itemize}
-    \item \textbf{Objective Statement:} \emph{To experimentally evaluate the complete virtual keyboard pipeline across touch detection accuracy, homography stability under tilt, end-to-end CPU execution latency, typing performance (WPM and CER), and user interaction feedback.}
-    \item \textbf{Triangulation Evidence:} Empirical testing in Chapter~\ref{ch:results} confirmed an end-to-end CPU latency of $29.09\text{ ms}$ ($34.4\text{ FPS}$), operating well within the $83.33\text{ ms}$ budget at 12~FPS, with low resource consumption ($142.5\text{ MB}$ RAM, $24.8\%$ single-core CPU load). AprilTag homography tracking maintained an RMS error under $0.42\text{ mm}$ for camera tilts up to $60^\circ$. User typing tests with ten participants achieved an average typing speed of $24.6\text{ WPM}$ and a Character Error Rate of $5.2\%$, substantially outperforming prior single-camera virtual keyboard baselines ($12.8\text{ WPM}$, $11.4\%$ CER \cite{Ji2018Local}).
-    \item \textbf{Validation Outcome:} \textbf{Objective Fully Accomplished.} Rigorous benchmarks validated real-time response, tracking stability, and usability.
+    \item \textbf{Objective Statement:} \emph{To experimentally evaluate the complete virtual macro keyboard pipeline across touch detection accuracy, homography stability under tilt, end-to-end CPU execution latency, and macro action dispatch verification across functional test cases FT-01 to FT-10.}
+    \item \textbf{Triangulation Evidence:} System benchmarks confirmed an end-to-end CPU latency of $29.09\text{ ms}$ ($34.4\text{ FPS}$) within the $83.33\text{ ms}$ budget at 12~FPS, using $142.5\text{ MB}$ RAM and $24.8\%$ CPU. AprilTag homography maintained RMS error under $0.42\text{ mm}$ up to $60^\circ$ tilt. Held-out test evaluation confirmed $94.34\%$ accuracy and $94.37\%$ F1-score ($20$ false positives out of $318$ non-touch windows, $6.29\%$), alongside a $100\%$ pass rate on FT-01 to FT-10.
+    \item \textbf{Validation Outcome:} \textbf{Objective Fully Accomplished.} Comprehensive benchmarks validated real-time response, tracking stability, and reliable macro action dispatch.
 \end{itemize}
 
-Table~\ref{tab:objective_triangulation_summary} presents the objective accomplishment and triangulation matrix across all five specific objectives.
+Table~\ref{tab:objective_triangulation_summary} summarizes the triangulation mapping across all five research objectives.
 
 \begin{table}[htbp]
 \centering
@@ -64,13 +64,13 @@ Table~\ref{tab:objective_triangulation_summary} presents the objective accomplis
 \midrule
 \textbf{O1: Baseline Requirements and Literature Gaps} & Chapter 3 Literature Review & Research DB (\texttt{references.bib}, \texttt{summary-matrix.md}) & Identified 6 key gaps; established evaluation baseline. & \textbf{ACCOMPLISHED} \\
 \midrule
-\textbf{O2: Scale Normalization and Kinematic Pipeline} & Chapter 4 Methodology & Partition 2 (\texttt{datacreator/}) scripts & Distance invariance ($30$--$100\text{ cm}$); resolution invariance ($360$p--$1080$p). & \textbf{ACCOMPLISHED} \\
+\textbf{O2: Scale Normalization and Kinematic Pipeline} & Chapter 4 Methodology & Partition 2 (\texttt{dataPipeline/}) scripts & Distance invariance ($20$--$40\text{ cm}$) via unitless scale normalization. & \textbf{ACCOMPLISHED} \\
 \midrule
-\textbf{O3: Deep Learning Sequence Architecture Benchmark} & Chapter 4 Methodology & Partition 3 (\texttt{run\_all.py}) benchmark & F1-score $0.963$; CPU inference $2.08\text{ ms}$; model size $0.44\text{ MB}$. & \textbf{ACCOMPLISHED} \\
+\textbf{O3: Deep Learning Sequence Architecture Benchmark} & Chapter 4 Methodology & Partition 3 (\texttt{modelBenchmark/}) benchmark & F1-score $0.963$; CPU inference $2.08\text{ ms}$; model size $0.44\text{ MB}$. & \textbf{ACCOMPLISHED} \\
 \midrule
-\textbf{O4: Two-Application System Suite Creation} & Chapter 4 Methodology & Application 1 (\texttt{designer\_app.py}) and Application 2 Suite & $100\%$ pass rate across FT-01--FT-10; same-layout action profile switching. & \textbf{ACCOMPLISHED} \\
+\textbf{O4: Two-Application System Suite Creation} & Chapter 4 Methodology & Application 1 (Designer) and Application 2 (Detector) & $100\%$ pass rate across FT-01--FT-10; same-layout action profile switching. & \textbf{ACCOMPLISHED} \\
 \midrule
-\textbf{O5: Empirical Latency and Typing Usability Evaluation} & Chapter 5 Results & Multi-threaded Engine and Evaluation Scripts & Latency $29.09\text{ ms}$ ($34.4\text{ FPS}$); $24.6\text{ WPM}$; $5.2\%\text{ CER}$; tilt up to $60^\circ$. & \textbf{ACCOMPLISHED} \\
+\textbf{O5: Empirical Latency and Functional Benchmarking} & Chapter 5 Results & Multi-threaded Engine and Evaluation Scripts & Latency $29.09\text{ ms}$ ($34.4\text{ FPS}$); $94.34\%$ accuracy ($94.37\%$ F1); $100\%$ FT pass rate; tilt up to $60^\circ$. & \textbf{ACCOMPLISHED} \\
 \bottomrule
 \end{tabular}%
 }
@@ -78,94 +78,104 @@ Table~\ref{tab:objective_triangulation_summary} presents the objective accomplis
 
 \section{Problems Encountered and Technical Mitigations}
 \label{sec:concl_problems}
-A number of practical issues arose during the development and testing of the system, requiring specific technical mitigations.
+During system development and testing, several practical problems were encountered and solved through technical mitigations.
 
-\subsection{Motion Blur from Standard Rolling Shutter Webcams}
-Standard commodity webcams capture video at $30\text{ FPS}$ using rolling shutter sensors that produce motion blur during rapid finger taps \cite{Thomas2013Camera}. Quick downward finger motions occasionally caused slight landmark tracking jitter.
+\subsection{Webcam Image Quality and the 13~FPS Hardware Discovery}
+\label{subsec:concl_prob_fps}
+Initial testing used an ordinary budget webcam. Although driver software reported $30\text{ FPS}$, MediaPipe tracking displayed noticeable jitter.
 \begin{itemize}
-    \item \textbf{Technical Mitigation:} Resampling training video feeds to a uniform 12~FPS rate (\texttt{resample\_12fps.py}) trained the PyTorch LSTM network on motion patterns across consistent time intervals. The temporal windowing allows the model to handle slight frame blur during live camera typing without missing key events.
+    \item \textbf{Technical Mitigation:} A Python diagnostic script revealed that the camera delivered only $13\text{ FPS}$ despite system reports. Recurrent models evaluate discrete time steps ($\Delta t$), so frame rate fluctuations distorted velocities. Standardizing the pipeline to $12\text{ FPS}$ stabilized temporal features and established an $83.33\text{ ms}$ budget, operating comfortably within the measured $29.09\text{ ms}$ CPU latency.
 \end{itemize}
 
-\subsection{Lighting Changes, Shadows, and Surface Reflections}
-Sudden changes in room lighting, window shadows, and glare on paper surfaces can disrupt image thresholding and marker detection \cite{ReviewVirtualKeyboard2020}. Shadows cast by user hands across the paper can interfere with corner tracking.
-\begin{itemize}
-    \item \textbf{Technical Mitigation:} The AprilTag detector applies adaptive local thresholding before finding marker boundaries (\texttt{aprilTag/estimater.py}). In addition, placing the four fiducial tags at the outer corners of the sheet ensures that when hands type in the center, at least one pair of markers remains clearly visible. If a marker is momentarily blocked, the system keeps the previous valid homography matrix ($H$) in memory until all markers are visible again.
-\end{itemize}
+\subsection{Failure of Hand-Drawn Paper Layouts and Freehand Vision}
+\label{subsec:concl_prob_freehand}
+The initial concept allowed users to draw key boxes and markers with a pen, using OpenCV contour scanning. In practice, irregular lines, varying ink contrasts, and lighting shifts caused contour detection to fail on low-resolution feeds. Furthermore, this required an inconvenient initialization step where users had to present the bare paper to the camera without hands.
+\textbf{Technical Mitigation:} Layout design was transitioned to Application~1 (Layout Designer). Because the layout is designed digitally and loaded directly via XML, the initialization scan was eliminated. The software already knows all key boundaries, allowing users to interact immediately with hands over the paper.
 
-\subsection{Tendon Coupling Between Adjacent Fingers}
-Human hand anatomy features shared flexor tendons, especially between the ring and pinky fingers. When a user presses a key firmly with the ring finger, the pinky finger often moves downward involuntarily, which could lead to accidental key presses in simple thresholding systems.
-\begin{itemize}
-    \item \textbf{Technical Mitigation:} The PyTorch LSTM network evaluates all five fingers simultaneously using a multi-label Binary Cross-Entropy loss ($\mathcal{L}_{\text{BCE}}$). By observing joint angles across the full 21-joint skeleton rather than tracking fingertips alone, the neural network learns to distinguish an intentional finger strike from passive sympathetic movements.
-\end{itemize}
+\subsection{Corner Marker Occlusion and the Coordinate Projection Breakthrough}
+\label{subsec:concl_prob_markers}
+Early prototypes placed four corner markers on the sheet. However, user hands frequently occluded the corners during typing, breaking 4-point homography.
+\textbf{Technical Mitigation:} Two breakthroughs solved this. First, pre-loading layout geometry eliminated key-box visual scanning; the vision pipeline only computes paper homography and projects boundaries mathematically. Second, AprilTags demonstrated superior detection under tilt angles. Distributing redundant AprilTags along page margins ensures that visible tags provide sufficient corners to compute $H$ reliably even during partial hand occlusions.
 
-\subsection{Absence of Physical Switch Feedback}
-Typing on a sheet of paper laid flat on a table provides a solid stopping surface, but there is no mechanical button travel or switch click sound. In early tests, users were sometimes unsure whether their keystroke had registered and pressed down harder than necessary.
-\begin{itemize}
-    \item \textbf{Technical Mitigation:} Application 2 provides immediate visual and audio feedback whenever a touch is confirmed ($p_k > 0.90$). The system plays a short click sound (latency under $5\text{ ms}$) and highlights the touched key in green on the screen overlay, giving users clear feedback that their action was registered.
-\end{itemize}
+\subsection{False Touch Triggers During Hand Translation and the 82\% Model Ceiling}
+\label{subsec:concl_prob_dataset}
+In the first training iteration, data extracted only fingertip coordinates, causing model accuracy to plateau at $82\%$. Whole-hand transit movements across keys were misclassified as intentional taps.
+\textbf{Technical Mitigation:} The annotator was rewritten to capture all 21 raw MediaPipe landmarks, and all 3,800 seconds of video were re-annotated from scratch. The wrist landmark provided a stationary reference to separate hand translation from intentional finger taps, raising test accuracy over $94\%$.
+
+\subsection{Tendon Coupling and Absence of Mechanical Tactile Feedback}
+\label{subsec:concl_prob_feedback}
+Human finger flexor tendons are anatomically linked, causing sympathetic downward motion in adjacent fingers during taps. In addition, flat paper lacks mechanical switch travel.
+\textbf{Technical Mitigation:} The PyTorch LSTM was trained with multi-label loss ($\mathcal{L}_{\text{BCE}}$) across all five fingers simultaneously, learning whole-hand kinematics to separate intentional taps from sympathetic finger movements. For tactile feedback, Application~2 provides instantaneous audio clicks (under $5\text{ ms}$) and highlights touched keys in green on the screen overlay.
 
 \section{Self-Reflection}
 \label{sec:concl_reflection}
-Working on this final year research project provided valuable theoretical knowledge and practical hands-on experience in computer vision, deep learning, and software development.
+Working on this research provided valuable technical knowledge, practical engineering experience, and personal insights.
 
-\subsection{Shifting Views on Vision-Based Touch Interfaces}
-Before starting this research, I assumed that creating a responsive virtual keyboard would require expensive hardware accessories, such as Time-of-Flight depth sensors, laser projectors, or sensor gloves. However, studying projective homography and hand kinematics showed me that thoughtful software design can often replace specialized hardware. By combining standard printed paper, a basic webcam, and a lightweight LSTM network running on a commodity CPU, an interactive virtual input surface can be created at virtually zero extra cost. This experience showed me how software solutions can make computer interfaces more accessible in resource-limited settings.
+\subsection{Your Ideology About the Research Carried Out}
+\label{subsec:concl_ideology}
+When I began this research, it felt like an exciting creative dream. I wanted to build an enjoyable, unique project that brought an old idea to life: creating an extensible, touch-based macro keyboard. At first, my thinking was ambitious but naive. I assumed users could simply draw keys on plain paper with a pen, measure corner boxes, show the sheet to a webcam during an initialization scan, and type without any printing or special markers.
 
-\subsection{Technical Skills Gained Across Domains}
-During this project, I gained practical skills across four key areas of computer science:
+Through hands-on experiments and failures, my understanding matured. I realized that freehand drawing with a low-cost webcam suffers severely from optical distortion and lighting sensitivity. The most important breakthrough came when I realized the power of software abstraction: by designing layouts digitally and loading them into the software, exact key coordinates are already known by the computer. This gave the great advantage of eliminating the camera initialization step entirely, as users no longer need to present an empty sheet to the camera before typing. The camera does not need to detect individual keys at all; it only needs to calculate the planar homography of the paper sheet.
+
+This experience reshaped my philosophy on computer vision and HCI. I initially assumed that building a responsive virtual touch interface required expensive hardware, such as Time-of-Flight sensors, laser projectors, or high-end GPUs. This project proved that careful software engineering, projective mathematics, and unified sequence models can replace specialized hardware, enabling real-time multi-finger touch interaction on a commodity CPU at virtually zero cost.
+
+\subsection{Benefits Gained}
+\label{subsec:concl_benefits}
+This research developed my technical skills across four core areas of computer science:
 \begin{enumerate}
-    \item \textbf{Computer Vision and Projective Geometry:} Learned camera matrix calibration ($K$), lens distortion correction ($\mathbf{D}$), AprilTag detection, and solving planar homography matrices ($H \in \mathbb{R}^{3 \times 3}$) using the Direct Linear Transform (DLT) and Singular Value Decomposition (SVD).
-    \item \textbf{Deep Learning for Time-Series Signals:} Gained hands-on experience in designing and training recurrent neural networks with PyTorch, writing an automated benchmark suite (\texttt{run\_all.py}), implementing unitless scale normalization ($L_{\text{hand}}$), and assembling temporal sliding windows.
-    \item \textbf{Multi-Threaded Programming in Python and Qt:} Implemented producer-consumer thread architectures in PySide6 (\texttt{QThread}, \texttt{QMutex}, \texttt{QWaitCondition}) to separate camera capture from neural network inference, preventing UI freezes and maintaining real-time throughput ($34.4\text{ FPS}$).
-    \item \textbf{Academic Research and Testing:} Developed skills in designing structured test cases, measuring HCI typing metrics (Words Per Minute and Character Error Rate), and writing a technical dissertation in LaTeX using IEEE reference formatting.
+    \item \textbf{Computer Vision and Projective Geometry:} Mastered camera calibration, intrinsic matrices ($K$), lens distortion correction ($\mathbf{D}$), AprilTag tracking, and planar homography ($H \in \mathbb{R}^{3 \times 3}$) using the Direct Linear Transform and Singular Value Decomposition (SVD).
+    \item \textbf{Deep Learning for Kinematic Sequences:} Transitioned from static image classification to temporal motion modeling. Learned to implement unitless scale normalization ($L_{\text{hand}}$), structure sliding temporal windows, design PyTorch LSTMs, and run automated multi-model benchmarks (\texttt{run\_all.py}).
+    \item \textbf{Full-Stack Desktop Engineering:} Built production desktop tools in PySide6 (Application~1 Layout Designer and Application~2 Runtime Engine), implementing multi-threaded producer-consumer architectures (\texttt{QThread}, \texttt{QMutex}) to decouple camera capture from neural inference. Created custom annotation software and a 13-step offline data filtering pipeline.
+    \item \textbf{Academic Research Rigor:} Developed skills in structured experimental testing, evaluating empirical classification metrics (precision, recall, F1-score, and end-to-end CPU latency), and writing a technical dissertation in LaTeX following IEEE standards.
 \end{enumerate}
 
-\subsection{Key Challenges and Methodological Reflections}
+\subsection{Learning Curves}
 \label{subsec:concl_learning_curves}
-A major learning challenge in this project was balancing computational complexity with real-time response on an ordinary laptop CPU. Initially, my instinct was to process video at 30 to 60~FPS using large deep learning models. However, testing showed that large models caused CPU bottlenecks and high latency without a dedicated GPU, making the system impractical for regular computers.
+The research process involved several steep learning curves and practical lessons:
+\begin{itemize}
+    \item \textbf{Verifying Hardware Reality (The 13~FPS Discovery):} I learned not to trust reported software specifications blindly. When MediaPipe experienced jitter, writing a diagnostic script revealed that my camera delivered only $13\text{ FPS}$ despite the OS reporting $30\text{ FPS}$. Capping the pipeline at $12\text{ FPS}$ standardized temporal inputs across varied consumer hardware.
+    \item \textbf{Per-Finger Extraction and Avoiding Multi-Model Overhead:} With MediaPipe, I realized I had the ability to capture each finger separately with ease because skeletal landmarks are cleanly mapped per digit. When deciding on neural network architectures, I initially considered evaluating each finger separately using individual CNN models. However, I realized that running five separate model evaluations would multiply computation and slow down execution. Choosing not to process each finger with separate models, and instead feeding all hand landmarks together into a single unified LSTM sequence classifier, allowed concurrent five-finger touch detection in just $2.08\text{ ms}$, making the whole system much faster.
+    \item \textbf{Overcoming the 82\% Accuracy Plateau:} Diagnosing why models plateaued at $82\%$ taught me the importance of spatial reference anchors. Discovering that moving hands caused false touches due to missing wrist coordinates led to rewriting the annotator and re-annotating all 3,800 seconds of footage, which raised accuracy to $94\%+$.
+    \item \textbf{Temporal Window Overlap:} Static 5-frame windows split physical tap events across window boundaries. Introducing a 2-frame overlap/stride solved this issue, capturing full impact decelerations while generating responsive predictions on every 2-frame shift.
+    \item \textbf{Marker Redundancy and Physical Printer Calibration:} Distributing redundant AprilTags along page margins eliminated occlusion failures. In addition, addressing printer scaling discrepancies by adding a ruler measurement calibration feature ensured millimeter-accurate tracking.
+\end{itemize}
 
-Through profiling, I discovered that sub-sampling video to a steady 12~FPS rate captured the necessary impact deceleration information while providing an $83.33\text{ ms}$ processing window. This allowed the entire vision and deep learning pipeline to run in just $29.09\text{ ms}$ on a commodity CPU, leaving plenty of room for background tasks. Unitless hand scale normalization and SVD homography also ensured that touch detection accuracy ($F1 \approx 0.963$) remained consistent even when testing with lower-resolution camera streams, such as 360p or 480p.
-
-\section{Practical Applications and Real-World Impact}
+\section{Business Insight of the Proposed Concept}
 \label{sec:concl_business}
-The customizable paper virtual keyboard offers several practical benefits over traditional mechanical keyboards, including low production costs, user-defined layouts, easy sanitization, and flexible action mapping.
+The paper-based virtual macro keyboard provides notable practical and commercial benefits, driven by low deployment cost, physical flexibility, and software-defined versatility.
 
-\subsection{Hygienic Input in Medical and Laboratory Environments}
-In hospital wards, clinics, and cleanrooms, regular mechanical keyboards and touchscreens are difficult to clean thoroughly and can harbor germs and pathogens. In contrast, a paper keyboard with AprilTag anchors can be laminated for wipe-down disinfection or simply discarded and replaced with a fresh printout for pennies per sheet, providing a sterile input solution for healthcare staff.
+\subsection{Commercial Viability and Cost Efficiency}
+\label{subsec:concl_commercial}
+Hardware macro controllers cost between \$50 and \$250. In contrast, this virtual macro keyboard requires only an ordinary paper sheet (under \$0.02) and a basic webcam. Running on commodity CPUs without a GPU, deployment cost is virtually zero for users with a computer. Action profile multiplexing lets users switch between software profiles (video editing, audio mixing, gaming, coding) on the exact same printed sheet.
 
-\subsection{Hazardous Cleanrooms and Industrial Environments}
-In chemical laboratories and cleanrooms where electrical equipment must be non-sparking, standard keyboards can pose dust or electrical hazards. A plain paper keyboard sheet is completely passive and carries no electrical currents, making it safe to use on work surfaces in sensitive environments.
-
-\subsection{Accessible Classrooms in Developing Regions}
-In schools and computer labs in developing areas, purchasing hardware accessories or replacing damaged keyboards is often a financial challenge. Using Application 1 (Layout Designer), teachers can print custom keyboard layouts, math pads, piano keys, or interactive exercise sheets on standard A4 paper. Connected to a budget PC with a basic webcam, students can type and interact directly on printed paper sheets.
-
-\subsection{Custom Macro Controllers and Accessibility Tools}
-Hardware macro pads for digital audio workstations (like Ableton Live), video editing suites, or design software are expensive and have fixed keys. With Application 2, users can switch between different software action profiles (for example, recording, editing, or mixing shortcuts) on the exact same printed sheet of paper without reprinting. Additionally, users with motor impairments can design custom layouts with enlarged keys tailored to their range of movement, switching between typing, navigation, and shortcuts on the same physical sheet.
+\subsection{Real-World Application Possibilities}
+\label{subsec:concl_applications}
+The system enables six compelling real-world applications across diverse domains:
+\begin{enumerate}
+    \item \textbf{Digital Content Creation (Video Editing, Graphic Design, and Audio DAWs):} Dedicated macro consoles (such as stream decks and editing surfaces) cost between \$150 and \$300+, posing a barrier for students and independent creators. Using this system, a creator can design an A4 layout with large buttons for frequent shortcuts (such as razor cut, ripple delete, zoom, render, or audio track mute and record). Through action profile multiplexing, the user keeps the exact same physical sheet on their desk and switches software profiles in Application~2 between Premiere Pro, Photoshop, Blender, and Ableton Live without purchasing extra hardware.
+    \item \textbf{Software Development, DevOps, and Terminal Automation:} Software engineers repeatedly type lengthy terminal commands and build scripts throughout the day (such as \texttt{docker-compose up -d}, \texttt{git push origin main}, \texttt{pytest}, and server restarts). Because Application~2 directly executes native shell commands via XML action mappings, developers can place a custom paper macro pad beside their physical keyboard. A single finger tap cleans a build cache, spins up local containers, or tails server logs, serving as an instant physical deployment console.
+    \item \textbf{Sterile Healthcare and Clinical Environments:} Mechanical keyboards harbor bacteria in key crevices and are difficult to sanitize with chemical agents without damaging electronic circuitry. A paper keyboard can be sealed in a plastic laminate pouch for aggressive alcohol or chlorine disinfection, or discarded and reprinted between patients for under \$0.02, providing a sterile input method for medical staff to view diagnostic scans and navigate patient records.
+    \item \textbf{Hazardous Cleanrooms and Industrial Areas:} In industrial environments containing volatile chemical vapors or spray painting booths, electronic macro pads require expensive explosion-proof certifications because micro-sparks from mechanical switches create fire hazards. Plain paper carries zero electrical current, zero wiring, and zero battery, allowing completely safe interaction while the camera operates from a safe distance or behind a sealed glass viewing port.
+    \item \textbf{Accessible Education in Developing Regions:} In under-funded classrooms where damaged keyboards go unreplaced, schools can print custom interactive learning pads, math calculation sheets, and programming command blocks on plain paper for budget laptop or desktop setups.
+    \item \textbf{Customizable Assistive Accessibility Keypads:} Individuals with motor impairments or tremors often find standard mechanical keyboards difficult to navigate. Caregivers can use Application~1 to design enlarged custom keypads ($4\text{ cm} \times 4\text{ cm}$) with wide spacing tailored directly to the individual user's physical range of motion.
+\end{enumerate}
 
 \section{Future Recommendations}
 \label{sec:concl_future}
-While the system performs reliably, several interesting directions remain for future research:
-
-\subsection{Lightweight Monocular Neural Depth Estimation}
-Future research could explore integrating lightweight neural depth estimation models (such as MiDaS-nano or Depth Anything) directly into the pipeline. Combining 2D skeletal joint positions with coarse depth maps could provide millimeter-level Z-axis information to further refine touch contact classification.
-
-\subsection{Multi-Camera Setup for Occlusion Reduction}
-Using two webcams placed at different angles instead of a single camera could help solve the hand occlusion problem. Cross-view 3D triangulation would keep tracking active even when user hands or sleeves temporarily block one camera perspective.
-
-\subsection{Two-Handed (Bimanual) Typing Extensions}
-While the current system is optimized for single-handed typing to keep CPU usage low and avoid covering fiducial anchors on A4 paper, the modular architecture can be extended to two hands. Future work can set MediaPipe to track two hands (\texttt{num\_hands=2}) with separate sliding window buffers. Because the PyTorch LSTM forward pass takes only $2.08\text{ ms}$ on CPU, dual-hand inference would take approximately $33\text{ ms}$ total, remaining well within the $83.33\text{ ms}$ budget at 12~FPS.
-
-\subsection{Mid-Air Ultrasonic and Acoustic Haptic Feedback}
-Ultrasonic haptic arrays could be investigated to provide tactile feedback without mechanical switches. Directing acoustic pressure waves toward the active fingertip upon key press confirmation would provide a physical sensation of contact in mid-air.
-
-\subsection{Deep Learning Based Fiducial Marker Tracking}
-While traditional AprilTag tracking runs efficiently on CPU, future work could test compact convolutional tag detectors like DeepTag \cite{Zhang2022DeepTag}. Direct neural keypoint detection could improve homography stability under severe motion blur or partial marker occlusion.
-
-\subsection{Temporal Transformer Architectures}
-Although the uni-directional PyTorch LSTM model achieves high accuracy ($F1 = 0.963$), exploring lightweight temporal Transformer models could help model long-term sequential typing habits and further reduce Character Error Rates during fast typing.
+While empirical testing confirms system reliability, several directions remain for future research:
+\begin{itemize}
+    \item \textbf{Multi-Angle Training Dataset Expansion:} The current training dataset was captured primarily from front-facing camera perspectives. Future work can collect and incorporate training data recorded from left and right oblique side angles. This will allow the neural network to learn side-angle finger kinematics, giving users the freedom to mount the webcam on either side of their desk without sacrificing touch detection accuracy.
+    \item \textbf{Direct Frame-Level Touch Pinpointing from the Model:} Currently, the neural network evaluates a 5-frame sliding window and predicts contact over the window, which requires downstream post-processing logic to calculate the exact touchdown frame. Future model architectures could directly predict the exact frame index within the window where impact occurs, eliminating manual post-window calculations and simplifying trigger dispatch.
+    \item \textbf{Integration of Higher-Quality and High-Speed Camera Sensors:} While the framework operates reliably on low-cost webcams at 12~FPS, deploying higher-quality cameras with lower sensor noise or higher native frame rates will reduce motion blur during rapid typing and provide even cleaner MediaPipe landmarks to boost touch classification precision.
+    \item \textbf{Monocular Neural Depth Estimation:} Integrating lightweight neural depth models (such as MiDaS-nano) could provide coarse Z-axis depth maps to augment 2D kinematic touch classification.
+    \item \textbf{Bimanual Two-Handed Typing:} Extending tracking to two hands (\texttt{num\_hands=2}) is supported by the modular architecture, requiring approximately $33\text{ ms}$ inference time on CPU within the $83.33\text{ ms}$ budget at 12~FPS.
+    \item \textbf{Deep Learning Fiducial Tracking:} Evaluating learned fiducial detectors (such as DeepTag \cite{Zhang2022DeepTag}) could improve corner tracking under severe lens blur.
+    \item \textbf{Temporal Transformer Models:} Testing lightweight Transformers could capture long-range interaction sequences and further reduce false trigger rates.
+\end{itemize}
 
 \section{Chapter Summary}
 \label{sec:concl_summary}
-This chapter concluded the thesis by reviewing the achievement of all five research objectives, discussing technical challenges and solutions, reflecting on personal learning experiences, presenting practical application scenarios, and outlining directions for future work.
+This chapter concluded the thesis by reviewing the accomplishment of all five research objectives through triangulation and presenting practical mitigations for technical challenges. It detailed personal self-reflections on shifting ideologies, benefits gained, and learning curves, analyzed the commercial viability and application possibilities of the concept, and outlined future research directions.
 
-The research demonstrated that a customizable paper virtual keyboard powered by a single monocular webcam, unitless hand scale normalization ($L_{\text{hand}}$), AprilTag homography ($H$), and a lightweight PyTorch LSTM network (\texttt{best\_finger\_touch\_lstm.pth}) delivers accurate, real-time typing ($29.09\text{ ms}$ latency, $34.4\text{ FPS}$, $24.6\text{ WPM}$) on standard computer CPUs without a GPU. By replacing specialized hardware with software engineering, this work provides an accessible, hygienic, and flexible human-computer interaction interface.
+The research conclusively proves that an extensible paper-based virtual macro keyboard powered by a single webcam, scale normalization ($L_{\text{hand}}$), AprilTag homography ($H$), and a lightweight PyTorch LSTM network achieves accurate, real-time touch detection ($29.09\text{ ms}$ latency, $34.4\text{ FPS}$, $94.34\%$ accuracy, $94.37\%$ F1-score) on standard CPUs without a GPU. By replacing specialized hardware with software engineering and projective mathematics, this work provides an accessible, hygienic, and versatile human-computer interaction solution.
+

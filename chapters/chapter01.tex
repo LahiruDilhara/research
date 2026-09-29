@@ -3,21 +3,21 @@
 
 \section{Chapter Overview}
 \label{sec:chapter_overview}
-The domain of Human-Computer Interaction (HCI) has evolved rapidly over recent years. Researchers have consistently sought natural, intuitive, and inexpensive ways for humans to interact with computers. Traditionally, physical input devices such as mechanical keyboards, membrane keypads, and touchscreens have served as primary interfaces for text and command entry. Although physical keyboards provide tactile feedback that enables rapid touch typing, their rigid mechanical construction presents several practical limitations \cite{ReviewVirtualKeyboard2020, Lee2022Virtual}. Physical keyboards occupy permanent desk space, cannot be modified once manufactured, and are difficult to sanitize in hospital wards and public kiosks \cite{ReviewVirtualKeyboard2020}.
+The domain of Human-Computer Interaction (HCI) has evolved rapidly over recent years. While standard mechanical keyboards excel at continuous prose text entry due to tactile switch depression and key travel, modern digital workflows increasingly demand auxiliary macro keypads, shortcut controllers, and specialized command palettes (such as developer hotkeys, video editing shortcuts, digital audio controls, and laboratory panels) \cite{ReviewVirtualKeyboard2020, Lee2022Virtual}. However, commercial hardware macro controllers are expensive, physically fixed, and difficult to sanitize. Prior virtual keyboard literature attempted to replace general typing keyboards using camera tracking, but struggled because flat surfaces lack tactile key travel, causing user fatigue and high error rates during continuous blind typing \cite{ReviewVirtualKeyboard2020}.
 
-To address these limitations, this research presents a customizable paper-based virtual keyboard framework powered by a single monocular RGB camera, AprilTag fiducial tracking, and PyTorch deep learning. Users design arbitrary key arrangements using an interactive desktop application and print them onto standard plain paper using common desktop printers. When placed on any flat surface, the printed paper is monitored by a standard webcam. Hand motions are tracked using the Google MediaPipe Hand Landmarker, and coordinates are normalized relative to hand length. A lightweight PyTorch Long Short-Term Memory (LSTM) network detects physical surface impacts across all five fingers in real time on a commodity CPU without requiring a GPU. Upon touch confirmation, planar homography maps camera pixels to layout key boundaries to trigger keystrokes or system commands. Crucially, the physical paper layout is completely decoupled from digital actions, enabling a single printed sheet to serve multiple distinct software profiles without reprinting.
+To overcome these challenges, this research presents a customizable paper-based virtual macro keyboard framework engineered specifically for application shortcuts, command execution, and macro tasks, powered by a single monocular RGB camera, AprilTag fiducial tracking, and PyTorch deep learning. The system serves as an auxiliary macro controller rather than a replacement for general typing keyboards. Users design task-specific macro layouts using an interactive desktop application and print them onto plain paper using standard printers. When placed on any flat surface, the printed paper is monitored by a standard webcam. Hand motions are tracked using Google MediaPipe Hands, and coordinates are normalized relative to hand length. A lightweight PyTorch LSTM network detects physical surface impacts across all five fingers in real time on a commodity CPU without requiring a GPU. Upon touch confirmation, planar homography maps camera pixels to layout key boundaries to trigger hotkeys, application shortcuts, or shell commands. Crucially, physical layouts are completely decoupled from digital actions, enabling a single printed sheet to serve multiple macro profiles (such as code editing, media production, or terminal commands) without reprinting.
 
-This introductory chapter establishes the foundational context of the research. Section~\ref{sec:problem_background} outlines the history and limitations of existing input hardware. Section~\ref{sec:problem_statement} formulates the general and specific research problems. Section~\ref{sec:research_question} defines the primary and secondary research questions. Section~\ref{sec:research_motivation} explains the practical motivations for the study. Section~\ref{sec:research_aim} presents the overarching research aim. Section~\ref{sec:research_text_objectives} introduces the project objectives. Section~\ref{sec:rich_picture} illustrates the operational architecture. Section~\ref{sec:resource_requirements} outlines hardware and software requirements. Section~\ref{sec:project_scope} details project scope boundaries. Section~\ref{sec:thesis_organization} outlines the dissertation structure, and Section~\ref{sec:chapter_summary} summarizes the chapter.
+This introductory chapter establishes the research context. Section~\ref{sec:problem_background} reviews the background of existing input hardware, while Section~\ref{sec:problem_statement} formulates the core problem using the IRCA framework. Sections~\ref{sec:research_question} to~\ref{sec:research_text_objectives} present the research questions, motivations, overarching aim, and specific objectives. Sections~\ref{sec:rich_picture} through~\ref{sec:chapter_summary} outline the operational system architecture, resource requirements, project scope, and chapter summary.
 
 \section{Problem Background}
 \label{sec:problem_background}
-Physical keyboards have remained the standard computer input interface for over half a century. While physical keys provide immediate tactile response, their fixed mechanical design prevents users from altering key sizes, reorganizing layouts for one-handed operation, or creating custom shortcut palettes \cite{ReviewVirtualKeyboard2020}.
+Physical keyboards have remained the standard computer input interface for general text entry for decades. However, creative professionals, developers, and computer users frequently require auxiliary macro controllers to streamline repetitive tasks. Commercial hardware macro devices (such as dedicated keypads or stream controllers) are costly, bulky, and restricted to rigid physical switch grids \cite{ReviewVirtualKeyboard2020}.
 
-To overcome these constraints, researchers developed optical and camera-based virtual keyboards \cite{Zhang2001Visual, Srivastava2012RealTime, Khare2019QWERTY, Ji2018Local}. Early systems employed optical laser projectors paired with infrared receivers or Time-of-Flight (ToF) depth cameras \cite{Lee2019Virtual, Kudale2016RealTime}. While depth sensors measure distance along the optical Z-axis directly, they are expensive, consume significant power, and are rarely integrated into consumer laptops. Alternative systems attempted touch detection using standard webcams by analyzing fingertip shadows \cite{Thomas2013Camera, Posner2012Single}. However, shadow tracking fails under diffuse room lighting, multiple light sources, and dark desk surfaces \cite{Yue2014Blind}.
+To overcome hardware rigidity, researchers explored camera-based virtual keyboards \cite{Zhang2001Visual, Srivastava2012RealTime, Khare2019QWERTY, Ji2018Local}. However, prior research predominantly attempted to replace standard typing keyboards. Because flat tables lack mechanical key depression, continuous touch typing on virtual surfaces causes significant cognitive load, finger fatigue, and typing errors. Early optical systems also required expensive Time-of-Flight (ToF) depth cameras or laser projectors \cite{Lee2019Virtual, Kudale2016RealTime}, while standard webcam approaches relied on fragile fingertip shadow analysis \cite{Thomas2013Camera, Posner2012Single, Yue2014Blind}.
 
-Recent advances in computer vision have produced efficient landmark tracking libraries, such as Google MediaPipe Hands, which extracts 21 skeletal hand joints from RGB video in real time on standard CPUs \cite{Zhang2020MediaPipe, GilMartin2023Hand, Andriyanov2025Improving}. While skeletal tracking has become robust across diverse skin tones and lighting conditions \cite{SanchezBrizuela2023Lightweight}, detecting physical surface contact using a single 2D camera remains difficult \cite{Li2021CNN, Lee2022Virtual}. Standard webcams provide no depth measurements, and variations in hand size and camera distance prevent simple position thresholds from distinguishing touching from hovering \cite{Maman2023TypeNet, Yoo2026WordLevel}.
+Recent advances in computer vision produced efficient landmark tracking libraries, such as Google MediaPipe Hands, which extracts 21 skeletal joints from RGB video in real time on standard CPUs \cite{Zhang2020MediaPipe, GilMartin2023Hand, Andriyanov2025Improving}. While skeletal tracking is robust across diverse skin tones and lighting conditions \cite{SanchezBrizuela2023Lightweight}, detecting physical surface contact using a single 2D camera remains difficult without depth sensors \cite{Li2021CNN, Lee2022Virtual}. Variations in hand size and camera distance prevent simple position thresholds from distinguishing touching from hovering \cite{Maman2023TypeNet, Yoo2026WordLevel}.
 
-Furthermore, existing virtual keyboard implementations hard-code static QWERTY layouts into their applications. If the paper sheet moves or the camera angle changes, fixed coordinate mappings fail completely \cite{Wang2016AprilTag2, Kallwies2020Determining, Pirchheim2011Homography}. Consequently, there is an evident need for an integrated system combining custom printable layouts, fiducial planar tracking, scale-normalized hand kinematics, and real-time deep learning touch detection on commodity CPUs.
+In addition, prior virtual keyboards hard-coded static QWERTY layouts into their applications. If the paper sheet moves or the camera angle changes, fixed coordinate mappings fail completely \cite{Wang2016AprilTag2, Kallwies2020Determining, Pirchheim2011Homography}. Consequently, there is a clear need for an accessible, low-cost virtual macro keyboard that focuses on discrete shortcut triggering and macro tasks, using dynamic fiducial tracking, scale-normalized kinematics, and real-time deep learning on commodity CPUs.
 
 \section{Problem Statement}
 \label{sec:problem_statement}
@@ -25,15 +25,16 @@ Writing a rigorous problem statement in computing research requires converting g
 
 \subsection{Ideally}
 \label{subsec:irca_ideally}
-Ideally, users should be able to transform any flat, ordinary desk surface into an interactive, highly customizable, and responsive multi-finger text and command input device using low-cost commodity hardware. Such an interface should operate using standard printed paper and an everyday monocular RGB webcam, running efficiently on a standard consumer CPU without requiring dedicated GPUs, specialized 3D depth sensors, or active electronic components. Users should have the freedom to design custom layouts and bind multiple distinct action profiles to the same physical sheet.
+Ideally, users should be able to transform any flat, ordinary desk surface into an interactive, highly customizable, and responsive auxiliary macro keyboard and shortcut controller using low-cost commodity hardware. Rather than attempting to replace mechanical keyboards for continuous prose typing, such an interface should provide on-demand macro palettes for application shortcuts, tool switching, and system commands. It should operate using standard printed paper and an everyday monocular RGB webcam, running efficiently on a standard consumer CPU without requiring dedicated GPUs, specialized 3D depth sensors, or active electronic components. Users should have the freedom to design custom macro layouts and bind multiple distinct action profiles to the same physical sheet.
 
 \subsection{Reality}
 \label{subsec:irca_reality}
-In reality, vision-based virtual keyboards remain hindered by severe practical and algorithmic limitations:
+In reality, vision-based virtual input interfaces and macro controllers remain hindered by severe practical and algorithmic limitations:
 \begin{enumerate}
-    \item \textbf{Single-Finger Restriction:} Prior monocular systems track only one finger at a time (usually the index digit), because optical shadow methods collapse when multiple fingers move closely together \cite{Thomas2013Camera, Posner2012Single, Ji2018Local}.
+    \item \textbf{Misaligned Use Case and Lack of Tactile Travel:} Prior virtual keyboards attempted to replace general-purpose typing keyboards. Without physical key switches and tactile travel, continuous touch typing on flat surfaces causes high user fatigue and error rates \cite{ReviewVirtualKeyboard2020}.
+    \item \textbf{Universal Single-Finger Restriction in Monocular Systems:} Prior monocular RGB surface keyboards are universally restricted to single-finger tracking (typically tracking exclusively the index finger or the single fastest-moving digit) \cite{Thomas2013Camera, Posner2012Single, Ji2018Local, Khare2019QWERTY}. Optical shadow methods collapse when adjacent finger shadows merge, while 2D motion methods cannot resolve multi-finger depth ambiguity on a flat surface without specialized 3D depth cameras.
     \item \textbf{High Latency and GPU Dependence:} Modern computer vision and deep learning pipelines require heavy GPU acceleration or drop below usable frame rates on standard CPUs \cite{Enkhbat2020HandKey, Ji2018Local}.
-    \item \textbf{Artificial Dwell Delays:} Because standard webcams lack 3D depth perception along the optical Z-axis, prior systems force users to freeze their finger over a key for 500 to 1000~ms to confirm a press, making natural touch typing impossible \cite{Khare2019QWERTY, Chen2024Gaze}.
+    \item \textbf{Artificial Dwell Delays:} Because standard webcams lack 3D depth perception along the optical Z-axis, prior systems force users to freeze their finger over a key for 500 to 1000~ms to confirm a press, making fluid shortcut triggering impossible \cite{Khare2019QWERTY, Chen2024Gaze}.
     \item \textbf{Environmental Sensitivity:} Classical shadow and skin-color thresholding break under diffuse lighting, multiple light sources, and diverse skin tones \cite{Thomas2013Camera, Yue2014Blind}.
     \item \textbf{Rigid Mounts and Paper Shifts:} Prior systems require rigid perpendicular camera mounts; any paper displacement or camera tilt breaks key registration \cite{Wang2016AprilTag2, Kallwies2020Determining}.
     \item \textbf{Fixed Layouts:} Existing applications hard-code fixed QWERTY layouts with no action multiplexing \cite{ReviewVirtualKeyboard2020}.
@@ -41,18 +42,18 @@ In reality, vision-based virtual keyboards remain hindered by severe practical a
 
 \subsection{Consequences}
 \label{subsec:irca_consequences}
-Consequently, monocular vision-based keyboards have failed to become viable alternatives to physical hardware. Users cannot achieve natural typing speeds, interaction is slow and fatiguing, and deployments in cost-sensitive settings (such as classrooms, public kiosks, and rural healthcare facilities) remain impractical.
+Consequently, computer users lack accessible, customizable macro controllers for specialized workflows. Commercial macro hardware remains cost-prohibitive for many users, while vision-based interfaces have remained impractical because they targeted continuous text entry rather than auxiliary macro interaction. Prior systems are slow, fatiguing, and unreliable for practical desktop tasks.
 
 \subsection{Aim}
 \label{subsec:irca_aim}
-To resolve this contradiction, this study aims to develop and evaluate a monocular paper-based virtual keyboard system. The system combines MediaPipe 21-joint skeletal tracking, unitless hand-length scale normalization ($L_{\text{hand}}$), lightweight PyTorch LSTM sequence classification, and dynamic AprilTag planar homography tracking ($H$) to achieve real-time ($29.09\text{ ms}$), multi-finger interaction on commodity CPUs.
+To resolve this contradiction, this study aims to develop and evaluate a monocular paper-based virtual macro keyboard system for shortcuts and macro tasks. The system serves as an auxiliary controller rather than a general typing keyboard replacement. It combines MediaPipe 21-joint skeletal tracking, unitless hand-length scale normalization ($L_{\text{hand}}$), lightweight PyTorch LSTM sequence classification, and dynamic AprilTag planar homography tracking ($H$) to achieve real-time ($29.09\text{ ms}$), multi-finger macro interaction on commodity CPUs.
 
 \section{Research Question}
 \label{sec:research_question}
 To address these technical challenges, the primary research question is formulated as follows:
 
 \begin{quote}
-\textit{How can a monocular computer vision framework using strictly a single regular RGB camera and plain printed paper enable accurate, real-time, and flexible virtual keyboard interaction on flat surfaces (allowing users to design custom layouts and link different action combinations to the same physical printed sheet), executing entirely on standard commodity CPUs without requiring specialized hardware or dedicated GPUs, across regular and low camera resolutions?}
+\textit{How can a monocular computer vision framework using strictly a single regular RGB camera and plain printed paper enable accurate, real-time, and flexible virtual macro keyboard interaction on flat surfaces (allowing users to design custom shortcut layouts and link different macro action combinations to the same physical printed sheet), executing entirely on standard commodity CPUs without requiring specialized hardware or dedicated GPUs, across regular and low camera resolutions?}
 \end{quote}
 
 This primary question is addressed through five secondary research questions (Sub-RQs):
@@ -61,23 +62,24 @@ This primary question is addressed through five secondary research questions (Su
     \item \textbf{Sub-RQ 2 (Landmark Subsets and Kinematic Representation):} Which combination of the 21 MediaPipe hand landmarks, combined with unitless hand-length scale normalization and joint velocities, provides the most discriminative signals to identify finger touch contact without temporal smoothing delays?
     \item \textbf{Sub-RQ 3 (Deep Learning Sequence Architecture Optimization):} Which neural network architecture family (1D CNN, Attention, ResNet, BiLSTM, or LSTM) achieves the highest classification accuracy (F1-score) while maintaining near real-time inference speeds (under 3 ms) on a standard commodity CPU?
     \item \textbf{Sub-RQ 4 (Temporal Windowing and CPU Synchronization):} What temporal sliding window length, step size, and sampling rate capture impact deceleration dynamics reliably while running at a 12 FPS rate on consumer CPUs without a GPU?
-    \item \textbf{Sub-RQ 5 (Layout Decoupling and Action Multiplexing):} How can physical paper layout geometry be separated from digital software semantics so that a single printed paper sheet can be dynamically bound to multiple distinct action profiles without reprinting the page?
+    \item \textbf{Sub-RQ 5 (Layout Decoupling and Action Multiplexing):} How can physical paper layout geometry be separated from digital software semantics so that a single printed paper sheet can be dynamically bound to multiple distinct macro action profiles without reprinting the page?
 \end{enumerate}
 
 \section{Research Motivation}
 \label{sec:research_motivation}
 Several practical considerations motivate this research:
 \begin{itemize}
-    \item \textbf{Cost-Effective Accessibility:} By relying entirely on standard printer paper, common webcams, and commodity CPUs, the system provides affordable computing input for classrooms, developing regions, and budget workstations \cite{Khare2019QWERTY, Sreenath2021Monocular}.
-    \item \textbf{Flexible and Customizable Layouts:} Users can design custom keypads for numeric data entry, gaming, or assistive typing on a single sheet of paper, and bind different software actions to the same physical page without reprinting.
-    \item \textbf{Hardware Independence:} Real-time execution on standard CPUs at low-to-medium resolutions (360p, 480p, 720p) enables deployment on older or budget computers without dedicated GPUs.
-    \item \textbf{Hygienic and Disposable Interfaces:} Paper layouts with AprilTag anchors can be laminated for easy sanitization or discarded after use, providing a clean input solution for medical clinics and laboratory environments \cite{ReviewVirtualKeyboard2020}.
+    \item \textbf{Cost-Effective Macro Accessibility:} Dedicated physical macro pads (such as stream controllers and editing consoles) are expensive. Relying entirely on standard printer paper, common webcams, and commodity CPUs provides affordable macro input for software development, video editing, audio production, and general workstations \cite{Khare2019QWERTY, Sreenath2021Monocular}.
+    \item \textbf{Flexible and Customizable Macro Layouts:} Users can design custom keypads for application hotkeys, numeric data entry, gaming commands, or assistive shortcut triggering on a single sheet of paper, and bind different software actions to the same physical page without reprinting.
+    \item \textbf{Novel Multi-Finger Interaction with Single-Hand Ergonomics:} While prior monocular RGB keyboards forced users into single-finger index-pointing, this system achieves independent multi-finger touch detection across all five individual digits (Thumb, Index, Middle, Ring, Pinky). It is optimized for single-handed auxiliary operation alongside a mouse or primary keyboard.
+    \item \textbf{Hardware Independence:} Real-time execution on standard CPUs enables deployment on older or budget computers without dedicated GPUs.
+    \item \textbf{Hygienic and Disposable Interfaces:} Paper layouts with AprilTag anchors can be laminated for easy sanitization or discarded after use, providing a clean input solution for medical clinics, workshops, and laboratory environments \cite{ReviewVirtualKeyboard2020}.
     \item \textbf{Efficient CPU-Based Deep Learning:} Implementing a lightweight PyTorch LSTM model to detect impact dynamics on standard CPUs demonstrates an effective pattern for edge vision applications \cite{Hochreiter1997LSTM, Zhang2020MediaPipe, GilMartin2023Hand}.
 \end{itemize}
 
 \section{Research Aim}
 \label{sec:research_aim}
-The overarching aim of this research is to design, implement, and evaluate an accessible, customizable paper-based virtual keyboard system. The system enables users to create personalized key layouts on plain paper and multiplex the same physical sheet across multiple action profiles (such as text entry, application shortcuts, and shell scripts), running in real time on a commodity CPU using a single standard monocular RGB camera without specialized hardware or dedicated GPUs.
+The overarching aim of this research is to design, implement, and evaluate an accessible, customizable paper-based virtual macro keyboard system specifically for application shortcuts, command execution, and macro tasks. The system serves as an auxiliary controller rather than a regular typing keyboard replacement, enabling users to create personalized key layouts on plain paper and multiplex the same physical sheet across multiple action profiles (such as developer shortcuts, multimedia controls, and shell scripts), running in real time on a commodity CPU using a single standard monocular RGB camera without specialized hardware or dedicated GPUs.
 
 \section{Research Objectives Overview}
 \label{sec:research_text_objectives}
@@ -153,7 +155,7 @@ Figure~\ref{fig:rich_picture_diagram} illustrates the overall system architectur
 The pipeline executes through seven operational steps:
 \begin{enumerate}
     \item \textbf{Layout Design and Export:} The user designs key boundaries and assigns commands using the PySide6 designer, exporting synchronized XML configuration and printable AprilTag PDF files.
-    \item \textbf{Physical Setup:} The PDF layout is printed on standard paper, placed on a flat surface, and captured by an ordinary RGB webcam.
+    \item \textbf{Physical Setup:} The PDF layout is printed on standard paper, placed on a flat surface, and captured by an ordinary RGB webcam (see physical setup photographs and printable layout artifacts in Appendix~\ref{ch:appendix_physical_setup}).
     \item \textbf{AprilTag Tracking and Homography:} Corner fiducials are tracked to compute the $3 \times 3$ planar homography matrix $H$, mapping image pixels to layout coordinates \cite{Wang2016AprilTag2, Kallwies2020Determining}.
     \item \textbf{Hand Tracking and Normalization:} MediaPipe extracts 21 skeletal landmarks \cite{Zhang2020MediaPipe}, which are scale-normalized relative to unitless hand length ($L_{\text{hand}}$) without temporal smoothing.
     \item \textbf{Temporal Windowing:} Normalized coordinates and joint velocities are grouped into 5-frame sliding windows with 2-frame overlap at 12 FPS \cite{Simao2016Unsupervised}.
@@ -167,7 +169,7 @@ The pipeline executes through seven operational steps:
 \subsection{Hardware Requirements}
 \label{subsec:hardware_req}
 \begin{itemize}
-    \item \textbf{Camera Sensor:} Standard USB webcam or integrated laptop camera supporting resolutions from 360p to 1080p. High-speed cameras or depth sensors are not required.
+    \item \textbf{Camera Sensor:} Standard USB webcam or integrated laptop camera supporting regular video resolutions. High-speed cameras or depth sensors are not required.
     \item \textbf{Host Computer:} Standard commodity PC or laptop with an x86\_64 or ARM processor (such as Intel Core i3/i5 or AMD Ryzen) and at least 4 GB of RAM.
     \item \textbf{Graphics Hardware:} Dedicated GPUs are not required; all runtime inference runs entirely on the host CPU.
     \item \textbf{Physical Media:} Standard desktop laser or inkjet printer using ordinary A4 or US Letter paper.
@@ -197,7 +199,9 @@ Table~\ref{tab:project_scope} defines the technical boundaries of the research.
 \toprule
 \textbf{In-Scope System Elements} & \textbf{Out-of-Scope System Elements} \\
 \midrule
-Single standard monocular RGB camera (USB or laptop webcam) operating at resolutions of 360p, 480p, 720p, or 1080p at 12 FPS. & Depth cameras, Time-of-Flight sensors, infrared illuminators, or stereo camera rigs. \\
+Customizable paper-based virtual macro keyboard for application shortcuts, command execution, and macro tasks. & Direct replacement for general-purpose high-speed continuous prose typing keyboards. \\
+\addlinespace
+Single standard monocular RGB camera (USB or laptop webcam) operating at 12 FPS. & Depth cameras, Time-of-Flight sensors, infrared illuminators, or stereo camera rigs. \\
 \addlinespace
 Single active hand tracking with 21 landmarks, evaluating independent touch probabilities across all five fingers. & Bimanual (two-handed) typing, deferred to future work to avoid tag occlusion on compact A4 paper. \\
 \addlinespace
@@ -209,35 +213,24 @@ PySide6 desktop application for designing custom layouts, exporting XML maps, an
 \addlinespace
 AprilTag fiducial tracking with $3 \times 3$ planar homography under perspective tilt. & Non-planar or curved 3D surfaces (such as cylinders or spheres). \\
 \addlinespace
-Unitless hand-length scale normalization ($L_{\text{hand}}$) with direct feature propagation for resolution invariance. & Biomechanical muscle force modeling or finger joint pressure estimation. \\
+Unitless hand-length scale normalization ($L_{\text{hand}}$) with direct feature propagation for distance and scale invariance. & Biomechanical muscle force modeling or finger joint pressure estimation. \\
 \addlinespace
-Compact PyTorch LSTM sequence classifier using 5-frame sliding windows on CPU. & Large language model auto-correction or word prediction engines. \\
+Compact PyTorch LSTM sequence classifier using 5-frame sliding windows on CPU. & Large language model auto-correction or continuous text prediction engines. \\
 \addlinespace
-Real-time keystroke dispatch and XML key boundary lookup for flat surfaces. & Multi-user simultaneous input on a single paper sheet. \\
+Real-time keystroke dispatch, shortcut hotkeys, shell scripts, and XML key boundary lookup. & Multi-user simultaneous input on a single paper sheet. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \subsection{In-Scope Technical Boundaries}
 \label{subsec:in_scope_boundaries}
-The system operates using a single standard monocular RGB webcam and plain printed paper \cite{Posner2012Single, Enkhbat2020HandKey, Sreenath2021Monocular}. It functions reliably on common low-to-medium resolutions (360p, 480p, 720p, 1080p) without requiring studio optics or depth sensors. Layouts are printed on standard A4 or Letter paper with no embedded electronics.
+The system operates using a single standard monocular RGB webcam and plain printed paper without studio optics or depth sensors \cite{Posner2012Single, Sreenath2021Monocular}. Crucially, while prior monocular RGB keyboards were universally limited to single-finger interaction, this research presents the first monocular RGB virtual keyboard framework to achieve independent five-finger touch detection across all individual digits (Thumb, Index, Middle, Ring, Pinky) on a flat physical surface without requiring specialized 3D depth sensors or wearable markers. As an auxiliary macro controller rather than a general typing keyboard, discrete key taps eliminate the fatigue of continuous blind typing on flat surfaces.
 
-Interaction is optimized for single-handed typing, tracking 21 skeletal joints of one active hand. Touch probabilities are evaluated independently across all five fingers (Thumb, Index, Middle, Ring, Pinky). Single-handed tracking achieves a low latency of 29.09 ms on standard CPUs and prevents hand occlusion of the border AprilTags on compact A4 sheets. The PySide6 Layout Designer decouples physical geometry from digital semantics, allowing one printed sheet to be bound to multiple action profiles (text typing, developer shortcuts, audio controls, shell commands) without reprinting \cite{Doan2022Efficient, Li2021CNN, Lee2022Virtual}. AprilTag homography dynamically compensates for camera tilt and paper movement \cite{Wang2016AprilTag2, Kalaitzakis2021Fiducial}. Landmark coordinates are scale-normalized relative to hand length ($L_{\text{hand}}$) at 12 FPS and classified using the lightweight PyTorch LSTM model on standard CPUs \cite{Hochreiter1997LSTM, Zhang2020MediaPipe, GilMartin2023Hand}.
+Interaction is optimized for single-handed use, tracking 21 skeletal joints of one active hand while the user's other hand operates a mouse or primary keyboard. Single-handed tracking achieves 29.09 ms latency on commodity CPUs and avoids AprilTag occlusions on A4 paper. The PySide6 Layout Designer decouples geometry from actions, allowing one printed sheet to be bound to multiple action profiles (developer shortcuts, audio controls, shell scripts) without reprinting \cite{Doan2022Efficient, Lee2022Virtual}. AprilTag homography dynamically compensates for camera tilt up to $75^\circ$ and paper shifts \cite{Wang2016AprilTag2, Kalaitzakis2021Fiducial}. Landmarks are scale-normalized relative to hand length ($L_{\text{hand}}$) at 12 FPS and classified using the PyTorch LSTM model on CPU \cite{Zhang2020MediaPipe, GilMartin2023Hand}.
 
 \subsection{Out-of-Scope Boundaries and Future Extensions}
 \label{subsec:out_scope_boundaries}
-To ensure feasibility and low-cost deployment on commodity hardware, several elements remain outside the scope of this project. Specialized hardware sensors (such as ToF cameras, stereo pairs, infrared projectors, and data gloves) are excluded \cite{Lee2019Virtual, Kudale2016RealTime}. Non-planar 3D surfaces (such as cylinders or spheres) are omitted, focusing strictly on flat desktop planes. Two-handed bimanual typing and multi-user interaction are excluded from the current prototype to prevent AprilTag occlusion on standard A4 paper and minimize CPU load. Finally, physical touch force measurement and language model predictive auto-correction are reserved for future work.
-
-\section{Thesis Organization}
-\label{sec:thesis_organization}
-The remainder of this dissertation is organized into five subsequent chapters:
-\begin{itemize}
-    \item \textbf{Chapter 2 (Objectives):} Defines the general research aim and details the five specific research and engineering objectives driving this work.
-    \item \textbf{Chapter 3 (Literature Review):} Evaluates prior work in spatial HCI, optical sensing modalities, fiducial planar homography, and deep learning touch detection, synthesizing existing research gaps.
-    \item \textbf{Chapter 4 (Methodology):} Details the design science research methodology, the two-application software architecture, the 12 FPS kinematic preprocessing pipeline, scale normalization, and PyTorch deep learning models.
-    \item \textbf{Chapter 5 (Results):} Presents empirical benchmarking results for deep learning sequence classifiers, landmark ablations, planar homography precision, CPU execution latency, and typing usability.
-    \item \textbf{Chapter 6 (Discussion and Conclusions):} Analyzes experimental findings, evaluates system limitations, highlights practical application domains, outlines future research extensions, and synthesizes final conclusions.
-\end{itemize}
+To maintain low-cost deployment on commodity hardware, several elements remain outside scope. Direct replacement of mechanical keyboards for continuous prose typing is strictly out of scope, as blind continuous text entry requires mechanical switch travel that paper cannot deliver. Specialized hardware (ToF depth cameras, stereo rigs, infrared projectors, data gloves) is excluded \cite{Lee2019Virtual, Kudale2016RealTime}. Non-planar 3D surfaces are omitted, focusing strictly on flat desktop planes. Two-handed bimanual typing and multi-user input are deferred to future work to prevent AprilTag occlusion on standard A4 paper. Finally, physical touch force measurement and language model predictive auto-correction are reserved for future work.
 
 \section{Chapter Summary}
 \label{sec:chapter_summary}

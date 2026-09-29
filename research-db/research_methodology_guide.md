@@ -43,7 +43,7 @@ The thesis methodology must align with the layers of Saunders' Research Onion (S
 2. **Research Approach:** **Deductive**
    - Formulates hypotheses and kinematic models (temporal deceleration profiles, homography projective geometry), developing an algorithmic pipeline and testing it against empirical benchmark datasets.
 3. **Research Strategy:** **Design Science Research Methodology (DSRM) & Experimental Benchmarking**
-   - Iterative design, development, and quantitative evaluation of software artifacts (`designer_app.py`, `datacreator/`, `run_all.py`, `realtimeprocess/`, `aprilTag/`).
+   - Iterative design, development, and quantitative evaluation of software artifacts (`virtualKeyboardSetup/designer/`, `virtualKeyboardSetup/detector/`, `dataPipeline/`, `modelBenchmark/`, `aprilTag/`).
 4. **Methodological Choice:** **Quantitative / Mixed-Methods (Dominantly Quantitative Empirical)**
    - Quantitative evaluation of model accuracy, benchmark latency, and interaction speed; supplemented by subjective user feedback dimensions.
 5. **Time Horizon:** **Cross-Sectional**

@@ -3,33 +3,33 @@
 
 \section{Chapter Overview}
 \label{sec:meth_chapter_overview}
-Building a customizable paper virtual keyboard using only a normal webcam and deep learning requires a clear and systematic engineering methodology. Unlike regular mechanical keyboards or touchscreens, a printed sheet of paper has no physical buttons, key switches, or electrical wiring. Instead, user typing actions are detected using computer vision, perspective homography, scale-normalized hand tracking, and neural network sequence classification running in real time on standard computer processors without requiring a GPU.
+Building a customizable paper-based virtual macro keyboard for shortcuts and command execution using only a standard webcam and deep learning requires a clear and systematic engineering methodology. Unlike general-purpose physical keyboards designed for continuous prose typing, the system is engineered specifically as an auxiliary macro keypad for application shortcuts, command execution, and custom tool palettes. A printed sheet of paper has no physical switches or electronic wiring; instead, discrete user touch interactions are detected using computer vision, perspective homography, scale-normalized hand tracking, and neural network sequence classification running in real time on standard computer processors without requiring a GPU.
 
-This chapter explains the research framework, system design, and software pipelines developed for this project. Section~\ref{sec:meth_framework} introduces the scientific research paradigm and the six stages of the Design Science Research Methodology (DSRM). Section~\ref{sec:meth_architecture} outlines the overall software architecture and design patterns connecting the two main applications. Section~\ref{sec:meth_layout_designer} describes Application 1 (Layout Designer), covering key placement, border AprilTag anchors, and file export. Section~\ref{sec:meth_data_pipeline} details the dataset collection, 12~FPS video resampling, 21-joint MediaPipe hand tracking, scale normalization, and sliding window creation. Section~\ref{sec:meth_dl_models} presents the multi-finger touch detection problem, loss functions, and the PyTorch LSTM model. Section~\ref{sec:meth_runtime_engine} explains Application 2 (Runtime Virtual Keyboard Engine), covering planar homography, coordinate transformation, and action multiplexing. Section~\ref{sec:meth_summary} summarizes the chapter.
+This chapter details the research methodology, system design, and engineering pipelines. Section~\ref{sec:meth_framework} presents the research paradigm, Saunders' Research Onion, and the Design Science Research Methodology (DSRM). Section~\ref{sec:meth_architecture} outlines the overall two-application architecture. Section~\ref{sec:meth_layout_designer} describes Application~1 (Layout Designer Suite), including key geometry and fiducial anchor generation. Section~\ref{sec:meth_data_pipeline} details video collection, 12~FPS sub-sampling, MediaPipe landmark tracking, unitless scale normalization, and sliding temporal windowing. Section~\ref{sec:meth_dl_models} covers sequence classification formulations and the PyTorch LSTM architecture. Section~\ref{sec:meth_runtime_engine} explains Application~2 (Runtime Engine), planar homography, coordinate lookup, and action multiplexing. Section~\ref{sec:meth_summary} summarizes the chapter.
 
 \section{Research Framework and Scientific Methodology}
 \label{sec:meth_framework}
 
 \subsection{Research Paradigm and Deductive Reasoning}
 \label{subsec:meth_paradigm}
-This research follows an \textbf{Empirical Positivist and Pragmatist Paradigm} with a \textbf{Deductive Logical Approach}. In computer vision and Human-Computer Interaction (HCI), finger movements, camera perspectives, homography matrices, and impact decelerations are observable physical and mathematical events. A positivist approach allows us to measure these phenomena using clear quantitative numbers, including precision, recall, F1-score, reprojection error in millimeters, and runtime speed in milliseconds, across repeatable laboratory tests. Pragmatism further supports our engineering decisions by prioritizing practical, real-world utility: achieving real-time interaction on commodity CPUs without requiring expensive GPUs or specialized depth cameras.
+This research adopts an \textbf{Empirical Positivist and Pragmatist Paradigm} with a \textbf{Deductive Logical Approach}. In computer vision and HCI, finger kinematics, homography matrices, and impact decelerations are observable physical events. Positivism enables measuring these phenomena quantitatively (precision, recall, F1-scores, RMS reprojection error in millimeters, and runtime latency in milliseconds) across repeatable laboratory benchmarks. Pragmatism prioritizes practical utility: achieving real-time interaction on commodity CPUs without requiring expensive GPUs or specialized depth cameras.
 
-We used deductive reasoning to apply established scientific concepts to our software design:
+Deductive reasoning translates established mathematical concepts into software implementation:
 \begin{enumerate}
-    \item \textbf{Planar Homography Theory:} From projective geometry \cite{Pirchheim2011Homography}, four coplanar reference points on a sheet of paper are mathematically sufficient to calculate a unique $3 \times 3$ homography matrix $H$. This matrix corrects for camera tilt angles and paper movement on a desk.
-    \item \textbf{Scale Invariance Under Perspective Projection:} In camera optics, the perceived size of an object changes inversely with its distance from the camera lens. By dividing hand landmark coordinates by the measured anatomical hand length ($L_{\text{hand}}$), distance and camera resolution differences are cancelled out before classification.
-    \item \textbf{Kinematic Deceleration During Physical Contact:} When a typing finger hits a solid desk through a sheet of paper, its downward speed drops sharply to zero. Detecting this rapid deceleration across temporal windows allows the system to recognize physical touch contact without needing specialized 3D depth sensors.
+    \item \textbf{Planar Homography Theory:} Four coplanar reference points on paper mathematically define a unique $3 \times 3$ homography matrix $H$, correcting for camera tilt angles and page displacement on a desk \cite{Pirchheim2011Homography}.
+    \item \textbf{Perspective Scale Invariance:} Normalizing landmark coordinates by anatomical hand length ($L_{\text{hand}}$) eliminates distance and resolution dependencies before classification.
+    \item \textbf{Kinematic Impact Deceleration:} Physical surface contact causes downward velocity to drop sharply to zero ($V_y \to 0$). Classifying deceleration across temporal windows identifies touches without specialized depth sensors.
 \end{enumerate}
 
 \subsection{Methodological Grounding via Saunders' Research Onion}
 \label{subsec:meth_saunders_onion}
 To systematically structure our research process from philosophical assumptions to practical data analysis, the methodology aligns with the six layers of Saunders' Research Onion \cite{ReviewVirtualKeyboard2020}:
 \begin{itemize}
-    \item \textbf{Layer 1 (Research Philosophy):} Positivism and Pragmatism, focusing on objective empirical measurements (latency, F1-scores, character error rates) and real-world system utility on low-cost hardware.
+    \item \textbf{Layer 1 (Research Philosophy):} Positivism and Pragmatism, focusing on objective empirical measurements (latency, F1-scores, touch accuracy) and real-world system utility on low-cost hardware.
     \item \textbf{Layer 2 (Research Approach):} Deductive reasoning, developing mathematical models of planar perspective transformation and temporal deceleration, and experimentally testing them against empirical data.
     \item \textbf{Layer 3 (Research Strategy):} Design Science Research Methodology (DSRM) combined with experimental laboratory benchmarking across modular software artifacts.
-    \item \textbf{Layer 4 (Methodological Choice):} Dominantly quantitative empirical research, evaluating model classification metrics and system latency, supplemented by standardized user experience evaluation.
-    \item \textbf{Layer 5 (Time Horizon):} Cross-sectional study design, conducting comprehensive performance and user evaluations across distinct camera angles, lighting conditions, and resolution levels.
+    \item \textbf{Layer 4 (Methodological Choice):} Dominantly quantitative empirical research, evaluating model classification metrics and system latency, supplemented by functional dispatch verification across macro action profiles.
+    \item \textbf{Layer 5 (Time Horizon):} Cross-sectional study design, conducting comprehensive empirical system evaluations across distinct camera angles, lighting conditions, and resolution levels.
     \item \textbf{Layer 6 (Techniques and Procedures):} 12~FPS video capture, 21-landmark skeletal tracking, unitless hand-length normalization, 5-frame temporal windowing, PyTorch LSTM training, and planar homography transformation.
 \end{itemize}
 
@@ -65,23 +65,23 @@ The software engineering and development process followed the six stages of the 
 
 The six DSRM stages were executed as follows:
 \begin{itemize}
-    \item \textbf{Phase 1: Problem Identification:} Identified key weaknesses in existing virtual keyboards from the literature, including dependence on expensive depth cameras, failures under room shadows, fixed camera setups, and single-finger tracking restrictions.
-    \item \textbf{Phase 2: Objectives Formulation:} Formulated five quantitative technical goals, targeting real-time execution on common CPUs ($< 83.33\text{ ms}$ per frame at 12~FPS), touch detection F1-score above 0.94 across all five fingers, and decoupling paper geometry from software actions.
-    \item \textbf{Phase 3: Design and Development:} Developed the software suite in two parts: Application 1 (Layout Designer) for creating printable layouts, and Application 2 (Runtime Engine) combining MediaPipe hand pose tracking, scale normalization, AprilTag homography, and PyTorch LSTM touch detection.
-    \item \textbf{Phase 4: Demonstration:} Tested the system on ordinary desks using normal paper printed with an office laser printer and captured by a basic USB webcam.
-    \item \textbf{Phase 5: Evaluation:} Conducted benchmark tests across 22 neural network models, measured latency across video resolutions from 360p to 1080p on CPU, and recorded typing speed (WPM) and error rates with real users.
-    \item \textbf{Phase 6: Communication:} Documented the project rationale, system design, and experimental outcomes in this dissertation.
+    \item \textbf{Phase 1: Problem Identification:} Identified core weaknesses in prior virtual keyboards, including depth hardware costs, ambient shadow failures, fixed mounts, and single-finger limits.
+    \item \textbf{Phase 2: Objectives Formulation:} Defined quantitative targets: CPU latency $< 83.33\text{ ms}$ at 12~FPS, multi-finger touch F1-score $> 0.94$, and decoupled macro action profile multiplexing.
+    \item \textbf{Phase 3: Design and Development:} Implemented the two-application suite: Application 1 (Layout Designer) and Application 2 (Runtime Engine) integrating MediaPipe, scale normalization, AprilTag homography, and PyTorch LSTM inference.
+    \item \textbf{Phase 4: Demonstration:} Deployed the system on flat desks using standard paper printed via desktop printer and captured by an ordinary USB webcam.
+    \item \textbf{Phase 5: Evaluation:} Benchmarked 22 deep sequence model configurations, profiled CPU execution latency and throughput, and evaluated macro action dispatch through functional test cases FT-01 to FT-10.
+    \item \textbf{Phase 6: Communication:} Documented system design, empirical findings, and architectural trade-offs in this dissertation.
 \end{itemize}
 
 \subsection{Partitioned Development and Experimental Strategy}
 \label{subsec:meth_partitions}
-To make development and debugging manageable, the project was organized into five isolated technical partitions:
+The engineering implementation was organized across five modular technical partitions:
 \begin{enumerate}
-    \item \textbf{Partition 1 (Layout Design and Homography Simulation):} Built the PySide6 designer (\texttt{designer\_app.py}) and simulated touch coordinates in \texttt{designer/analyzer/} to verify that homography matrix calculations correctly map camera pixel positions to layout keys before building live camera code.
-    \item \textbf{Partition 2 (Dataset Creation and Pipeline Engineering):} Implemented scripts in \texttt{dataPipeline/src/} for video resampling at 12~FPS (\texttt{resample\_12fps.py}), 21-joint hand landmark extraction, unitless scale normalization (\texttt{normalize\_landmarks.py}), velocity calculations, and 5-frame sliding window generation.
-    \item \textbf{Partition 3 (Deep Learning Model Benchmarking):} Evaluated 22 pure 2D model architecture combinations using \texttt{modelBenchmark/benchmark\_engine.py} across five core model families (1D CNN, Attention, ResNet, BiLSTM, LSTM), selecting the optimal PyTorch touch detection model (\texttt{best\_finger\_touch\_lstm.pth}).
-    \item \textbf{Partition 4 (Real-Time Responsiveness Evaluation):} Developed live camera testing scripts in \texttt{virtualKeyboardSetup/detector/} to verify CPU processing speed, multi-threaded windowing, and touch trigger stability.
-    \item \textbf{Partition 5 (AprilTag Fiducial Tracking):} Implemented camera calibration and fiducial tracking scripts in \texttt{aprilTag/} to detect corner coordinates and calculate the $3 \times 3$ planar homography matrix $H$ under camera tilt angles up to $75^\circ$.
+    \item \textbf{Partition 1 (Layout Design and Homography Simulation):} Developed the early prototype PySide6 designer (\texttt{designer\_app.py}) and validated homography matrix mappings in \texttt{designer/analyzer/}, proving feasibility before constructing the modular production application in \texttt{virtualKeyboardSetup/designer/}.
+    \item \textbf{Partition 2 (Dataset Creation and Pipeline Engineering):} Built preprocessing scripts in \texttt{dataPipeline/src/} for 12~FPS resampling, 21-joint extraction, unitless scale normalization ($L_{\text{hand}}$), velocity derivation, and 5-frame sliding windowing.
+    \item \textbf{Partition 3 (Deep Learning Model Benchmarking):} Benchmarked 22 pure 2D model configurations across five deep learning families using \texttt{modelBenchmark/benchmark\_engine.py}, selecting \texttt{best\_finger\_touch\_lstm.pth}.
+    \item \textbf{Partition 4 (Real-Time Responsiveness Evaluation):} Implemented live evaluation scripts in \texttt{virtualKeyboardSetup/detector/} to verify multi-threaded latency and trigger stability on CPU.
+    \item \textbf{Partition 5 (AprilTag Fiducial Tracking):} Implemented corner detection and homography estimation in \texttt{aprilTag/} to maintain coordinate tracking under tilt angles up to $75^\circ$.
 \end{enumerate}
 
 \section{System Architecture and Software Design}
@@ -100,7 +100,7 @@ The virtual keyboard separates layout creation from live runtime processing. Fig
 ]
 
 \node (app1) [appbox] at (0, 0) {
-\textbf{APPLICATION 1: LAYOUT DESIGNER SUITE (\texttt{designer/designer\_app.py})}\\
+\textbf{APPLICATION 1: LAYOUT DESIGNER SUITE (\texttt{virtualKeyboardSetup/designer/main.py})}\\
 {\normalfont\sffamily\tiny Interactive PySide6 GUI Canvas: Drag-and-drop key placement, AprilTag anchor borders, and synchronized exports}
 };
 
@@ -117,7 +117,7 @@ The virtual keyboard separates layout creation from live runtime processing. Fig
 - Select active monocular camera feed\\
 - Load layout XML coordinate specification\\
 - Interactive key-to-command mapping table\\
-- Save / Load action configuration profiles (JSON)
+- Save / Load actions and settings in layout XML
 };
 
 \node (comp_b) [compbox] at (3.6, -6.6) {
@@ -152,7 +152,7 @@ To ensure stability, modularity, and responsiveness on standard computers, four 
 
 \section{Application 1: Layout Designer Suite}
 \label{sec:meth_layout_designer}
-Application 1 (\texttt{designer/designer\_app.py}) provides an interactive PySide6 graphical program for designing custom keyboard layouts on an A4 page ($210 \times 297\text{ mm}$). Users can create, resize, snap, and position rectangular key buttons across a calibrated canvas grid.
+Application~1 (implemented in \texttt{virtualKeyboardSetup/}\linebreak[1]\texttt{designer/main.py}) provides an interactive PySide6 graphical program for designing custom macro keyboard layouts. While standard A4 ($210 \times 297\text{ mm}$) serves as the default preset for standard desktop printers, the software supports flexible page formats including A3, US Letter, and custom dimensions ($50\text{ to }1000\text{ mm}$). While an initial exploratory prototype (\texttt{designer/designer\_app.py}) tested early concepts, the production software was built within the modular \texttt{virtualKeyboardSetup/}\linebreak[1]\texttt{designer/} package. Users can create, resize, snap, and position rectangular macro keys across a calibrated canvas grid, tailoring button dimensions and labels for specific shortcut sets (such as IDE debugging controls, video editing hotkeys, or audio mixing palettes). Visual screenshots of the startup window, 2D design canvas, export dialog, and preferences are presented in Appendix~\ref{ch:appendix_layout_designer} (Figures~\ref{fig:appendix_designer_start} to~\ref{fig:appendix_designer_settings}), and an example printable PDF layout is shown in Figure~\ref{fig:appendix_printable_pdf} in Appendix~\ref{ch:appendix_physical_setup}.
 
 \subsection{Key Geometry and Fiducial Anchor Positioning}
 \label{subsec:meth_key_geometry}
@@ -161,21 +161,21 @@ Each key button $k$ has a unique key ID, a text label, and bounding box coordina
 B_k = \left( x_{\min}^{(k)}, y_{\min}^{(k)}, x_{\max}^{(k)}, y_{\max}^{(k)} \right)
 \label{eq:meth_key_box}
 \end{equation}
-where values are measured in millimeters relative to standard A4 sheet boundaries.
+where values are measured in millimeters relative to calibrated sheet boundaries.
 
 To enable camera tracking, the designer automatically embeds four AprilTag markers (from the \texttt{tag36h11} family, Tag IDs 0, 1, 2, and 3) along the page borders. Each marker has a fixed physical size ($s = 35\text{ mm}$) and known metric positions:
 \begin{equation}
 \mathbf{C}_{\text{tag}} = \left\{ (x_{\text{TL}}, y_{\text{TL}}), (x_{\text{TR}}, y_{\text{TR}}), (x_{\text{BR}}, y_{\text{BR}}), (x_{\text{BL}}, y_{\text{BL}}) \right\}
 \label{eq:meth_tag_coords}
 \end{equation}
-Placing markers strictly along the outer borders keeps the central typing area open and prevents typing hands from covering all four tags at the same time.
+Placing markers strictly along the outer borders keeps the central macro interaction area open and prevents active single-hand interaction from covering all four tags at the same time.
 
 \subsection{Synchronized Export Engine}
 \label{subsec:meth_export_engine}
 When a layout design is finished, the exporter creates two synchronized files:
 \begin{enumerate}
     \item \textbf{Printable Vector PDF:} Rendered at 300 DPI containing key outlines, key labels, and high-contrast AprilTag markers. This sheet is printed on standard desktop paper.
-    \item \textbf{Layout Specification XML:} An XML document defining paper size, AprilTag anchor positions, and bounding box dimensions for all keys. This file is loaded into Application 2.
+    \item \textbf{Layout Specification XML:} An XML document defining paper dimensions, AprilTag anchor positions, bounding boxes, and action mappings for all keys (a representative sample XML file is shown in Listing~\ref{lst:appendix_sample_xml} in Appendix~\ref{ch:appendix_layout_designer}). This file is loaded into Application~2.
 \end{enumerate}
 
 \section{Data Collection and Kinematic Preprocessing Pipeline}
@@ -184,25 +184,27 @@ Detecting touch events accurately using an ordinary 2D webcam requires tracking 
 
 \subsection{Dataset Collection Protocol and Methodological Rigor}
 \label{subsec:meth_dataset_capture}
-To train and benchmark the neural network, typing video recordings were captured under controlled laboratory conditions following strict empirical rigor:
+To train and benchmark the neural network models, video recordings of hand interactions on flat surfaces were captured following a structured empirical protocol:
 \begin{itemize}
-    \item \textbf{Camera Setup:} Standard 1080p monocular webcams placed between $35\text{ cm}$ and $65\text{ cm}$ above the desk, with viewing angles from $30^\circ$ to $75^\circ$ relative to the surface plane.
-    \item \textbf{Lighting Environments:} Three different room lighting levels were tested: Dim Room ($150\text{ lux}$), Standard Office ($500\text{ lux}$), and Bright Light ($2,500+\text{ lux}$).
-    \item \textbf{Participants:} 15 university participants (ages 20 to 32) with varying hand sizes ($L_{\text{hand}}$ from $14.2\text{ cm}$ to $21.5\text{ cm}$), diverse skin tones across the Fitzpatrick scale (Types I to VI), and different typing speeds.
-    \item \textbf{Typing Actions:} Participants performed single-finger key taps, multi-finger chords, hand resting poses, hovering motions, and regular typing across all five digits.
+    \item \textbf{Camera Setup:} Standard monocular RGB webcams mounted at an elevation height $h \in [14, 28]\text{ cm}$ and horizontal distance $d \in [14, 28]\text{ cm}$ to the paper layout. Based on right-angle trigonometry ($\theta = \arctan(h/d)$), this establishes a downward viewing angle between $26.6^\circ$ and $63.4^\circ$ from the horizontal desk plane (optical line-of-sight distance $\sqrt{h^2+d^2} \approx 20\text{ cm}$ to $40\text{ cm}$), using standard regular webcams.
+    \item \textbf{Lighting Environments and Temporal Sampling:} Video footage was recorded at different times of day over a 5-day period under varying ambient lighting conditions (natural window light, office fluorescent lighting, and low ambient light), capturing a total of 3,800 seconds of interaction video.
+    \item \textbf{Participants:} Hand recordings were collected from 5 different individuals with diverse hand geometries ($L_{\text{hand}}$ from $14.2\text{ cm}$ to $21.5\text{ cm}$) and skin tones, ensuring the dataset is hand-agnostic.
+    \item \textbf{Interaction Actions:} Each clip recorded 10-second sequences of discrete single-finger taps across all five digits, multi-finger contact combinations, hovering motions, and hand repositioning transit movements across keys.
 \end{itemize}
 
-Ground truth touch timestamps were collected using small low-voltage electrical contact sensors attached to the paper surface, providing accurate contact labels $y_t \in \{0, 1\}^5$ aligned with each video frame.
+Ground-truth touch contact intervals were labeled frame by frame using a dedicated custom dataset annotator application (developed using CustomTkinter and OpenCV, documented in Appendix~\ref{ch:appendix_data_annotator}, Figures~\ref{fig:appendix_annotator_home} to~\ref{fig:appendix_annotator_shortcuts}). Annotators tagged touchdown, impact contact, and liftoff frames per individual finger alongside synchronized MediaPipe skeletal tracking overlays.
+
+\textbf{Annotation Iteration and Methodological Rigor:} During initial experimentation, models trained on finger joints alone plateaued at an $82\%$ accuracy ceiling because general hand translation across the page was misclassified as intentional finger strikes. To resolve this, the annotation software was completely rewritten to record all 21 raw MediaPipe landmarks, including the wrist spatial anchor and MediaPipe tracking confidence scores, without premature filtering. All 3,800 seconds of video footage were systematically re-annotated from scratch. The 13-step data processing pipeline (\texttt{3\_run\_data\_pipeline.sh}) then filtered out noisy tracking frames and excessive hand transit movement, generating a clean, stratified dataset of 2,774 training samples (\texttt{train\_dataset.csv}) and 636 test samples (\texttt{test\_dataset.csv}) with zero video leakage.
 
 \textbf{Validity and Reliability Assurance:} In accordance with empirical computing research principles:
 \begin{itemize}
-    \item \textbf{Internal Validity:} Confounds were controlled by maintaining identical camera sensor exposure settings, fixed 12~FPS timing intervals, and synchronized hardware timestamps during recording sessions.
-    \item \textbf{Construct Validity:} Ground truth contact was verified using physical electrical contact signals rather than subjective human video annotation, ensuring that contact labels reflect physical paper impact.
-    \item \textbf{External Validity (Generalisability):} Diversity in participant hand sizes, skin tones, ambient illuminations, and camera angles ensured that trained models generalize across real-world desktop environments.
-    \item \textbf{Triangulation:} The research incorporates data triangulation (simulated touch datasets, empirical video datasets, and live user typing trials) and methodological triangulation (offline cross-validation across 5 deep learning families and live CPU runtime profiling).
+    \item \textbf{Internal Validity:} Confounds were controlled by maintaining standardized 12~FPS sub-sampling intervals, consistent windowing strides (5 frames with 2-frame overlap), and synchronized timestamp tracking during all recording sessions.
+    \item \textbf{Construct Validity:} Contact ground truth was verified frame by frame against physical surface impacts visible in video and skeletal trajectories, ensuring that labels represent true physical surface touches.
+    \item \textbf{External Validity (Generalisability):} Diversity in hand sizes, ambient illuminations, and camera angles across 5 recording days ensured that the trained model generalizes across standard consumer desktop environments.
+    \item \textbf{Triangulation:} The research incorporates data triangulation (video footage from multiple sessions, hand sizes, and lighting conditions) and methodological triangulation (offline cross-validation across 22 sequence model configurations and live CPU runtime profiling).
 \end{itemize}
 
-\textbf{Research Ethics and Participant Consent:} In line with ethical research standards, all 15 participants provided informed written consent before participating in typing sessions. Data collection was strictly limited to fingertip and hand coordinate positions; no facial images, personal identifiers, or sensitive demographic information were stored. Participants were informed of their right to withdraw at any stage without consequence.
+\textbf{Research Ethics and Participant Consent:} In line with ethical research standards, all participants provided informed consent before their hands were recorded. Data collection was strictly limited to hand and fingertip coordinate positions on flat surfaces; no facial images, personal identifiers, or sensitive demographic information were recorded. Participants were informed of their right to withdraw at any stage without consequence.
 
 \subsection{12 FPS Sub-Sampling and Single-Hand Tracking}
 \label{subsec:meth_subsampling}
@@ -349,7 +351,7 @@ Touch detection is treated as a multi-label classification problem. For each 5-f
 \hat{\mathbf{y}} = \left[ \hat{y}_{\text{thumb}}, \hat{y}_{\text{index}}, \hat{y}_{\text{middle}}, \hat{y}_{\text{ring}}, \hat{y}_{\text{pinky}} \right] \in [0, 1]^5
 \label{eq:meth_multilabel_prob}
 \end{equation}
-Evaluating all five digits in parallel removes the single-finger limitation of older shadow-based systems, allowing natural typing with any finger.
+Evaluating all five digits independently and in parallel directly solves the universal single-finger limitation of prior monocular keyboards, allowing users to trigger macro commands naturally using any finger of the active hand.
 
 \subsection{PyTorch LSTM Sequence Classifier}
 \label{subsec:meth_lstm_arch}
@@ -374,7 +376,7 @@ A touch event is confirmed when the predicted probability for digit $k$ crosses 
 
 \section{Application 2: Runtime Virtual Keyboard Engine}
 \label{sec:meth_runtime_engine}
-Application 2 serves as the runtime typing software, divided into an interactive setup GUI (Component A) and a background vision watch engine (Component B).
+Application 2 serves as the runtime typing software, divided into an interactive setup GUI (Component A) and a background vision watch engine (Component B). Complete user interface screenshots of the runtime engine, live tracking modes, and preference dialogs are provided in Appendix~\ref{ch:appendix_detector_runtime} (Figures~\ref{fig:appendix_detector_home} to~\ref{fig:appendix_detector_settings}).
 
 \subsection{Planar Homography Derivation ($H$)}
 \label{subsec:meth_homography_derivation}
@@ -408,18 +410,18 @@ X_{\text{XML}} = \frac{x'}{w'}, \quad Y_{\text{XML}} = \frac{y'}{w'}
 \label{eq:meth_xml_coords}
 \end{equation}
 
-The mapped coordinate $(X_{\text{XML}}, Y_{\text{XML}})$ is compared against the bounding boxes of all keys in the loaded XML file. If $x_{\min}^{(m)} \le X_{\text{XML}} \le x_{\max}^{(m)}$ and $y_{\min}^{(m)} \le Y_{\text{XML}} \le y_{\max}^{(m)}$, key $m$ is registered as pressed.
+The mapped coordinate $(X_{\text{XML}}, Y_{\text{XML}})$ is compared against the bounding boxes of all keys in the loaded XML file. If $x_{\min}^{(m)} \le X_{\text{XML}} \le x_{\max}^{(m)}$ and $y_{\min}^{(m)} \le Y_{\text{XML}} \le y_{\max}^{(m)}$, key $m$ is registered as pressed (as shown in the live contact heads-up display in Figure~\ref{fig:appendix_detector_touch} in Appendix~\ref{ch:appendix_detector_runtime}).
 
 \subsection{Action Multiplexing and Command Dispatch}
 \label{subsec:meth_action_multiplexing}
-The system separates physical layout geometry from digital actions. In Application 2 Component A, users can link any key ID to either:
+The system separates physical layout geometry from digital actions. In Application 2 Component A, users can link any macro key ID to either:
 \begin{itemize}
-    \item \textbf{Keystroke Action:} A standard OS keyboard input (such as letters, numbers, spaces, or modifier keys).
-    \item \textbf{System Shell Command Action:} A computer command or script (such as opening a terminal program, controlling audio volume, or launching custom Python scripts).
+    \item \textbf{Keystroke and Multi-Key Shortcut Action:} A standard OS keyboard input or key combination (such as Ctrl+Shift+P, Alt+Tab, or media keys).
+    \item \textbf{System Shell Command Action:} A computer command or script (such as compiling code, launching an application, or running custom Python and Bash scripts).
 \end{itemize}
 
-Action mappings are saved in JSON configuration files. Users can easily change configuration profiles (for example, switching from standard typing mode to developer shortcut mode or gaming mode) on the exact same printed sheet of paper without needing to print another page.
+Both applications share the exact same XML layout file, avoiding separate files. Inside this single XML file, the \texttt{<DesignerLayout>} section stores the physical layout geometry, while the \texttt{<DetectorActions>} and \texttt{<DetectorSettings>} sub-tags store key action assignments and runtime detector settings (see Figure~\ref{fig:appendix_detector_edit} and Figure~\ref{fig:appendix_detector_run} in Appendix~\ref{ch:appendix_detector_runtime}). Users can rebind actions or switch XML profiles (such as IDE shortcuts, video editing, or terminal commands) for the exact same printed paper sheet without printing another page.
 
 \section{Chapter Summary}
 \label{sec:meth_summary}
-This chapter explained the research methodology, system design, and algorithmic steps of the paper-based virtual keyboard. Following a positivist approach and the DSRM framework, the system combines a PySide6 Layout Designer with a multi-threaded Runtime Engine. Key technical components include: 12~FPS video resampling, unitless hand scale normalization ($L_{\text{hand}}$) with direct feature propagation, multi-finger PyTorch LSTM touch detection running on standard CPUs, and dynamic AprilTag planar homography tracking ($H$). Chapter~\ref{ch:results} presents the experimental benchmarking results and performance tests across the system.
+This chapter explained the research methodology, system design, and pipeline of the paper-based virtual macro keyboard. Following the DSRM framework, the system combines a PySide6 Layout Designer with a multi-threaded Runtime Engine. Key technical components include: 12~FPS video resampling, unitless scale normalization ($L_{\text{hand}}$), multi-finger PyTorch LSTM touch detection on commodity CPUs, and AprilTag planar homography tracking ($H$). Chapter~\ref{ch:results} presents the experimental benchmarking results across the system.

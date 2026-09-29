@@ -20,6 +20,21 @@
 \usepackage{subcaption}
 \usepackage{microtype}
 \emergencystretch=3em
+\usepackage{listings}
+\usepackage{xcolor}
+\lstset{
+    basicstyle=\ttfamily\scriptsize,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=5,
+    keywordstyle=\color{blue!80!black},
+    commentstyle=\color{gray!80!black},
+    stringstyle=\color{teal!80!black},
+    tabsize=2,
+    showstringspaces=false
+}
 
 % IEEE Table and Figure Caption formatting: Font 12, Table caption above, Figure caption below
 \captionsetup{font=normalsize}
@@ -132,5 +147,20 @@
 % ----------------------------------------------------------------------
 \printbibliography[title={References}]
 \addcontentsline{toc}{chapter}{References}
+\newpage
+
+% ----------------------------------------------------------------------
+% APPENDICES
+% ----------------------------------------------------------------------
+\appendix
+\input{chapters/appendixA.tex}
+\newpage
+\input{chapters/appendixB.tex}
+\newpage
+\input{chapters/appendixC.tex}
+\newpage
+\input{chapters/appendixD.tex}
+\newpage
+\input{chapters/appendixE.tex}
 
 \end{document}
