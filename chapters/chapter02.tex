@@ -3,32 +3,32 @@
 
 \section{General Objective}
 \label{sec:general_objective}
-The overarching objective of this research is to design, implement, and evaluate a customizable paper-based virtual macro keyboard system powered by a single standard monocular RGB camera and deep learning. Specifically engineered as an auxiliary macro controller for application shortcuts, command execution, and macro tasks rather than a replacement for general-purpose continuous typing keyboards, the system allows users to design custom macro layouts on normal paper and link different action combinations (such as application hotkeys, media controls, and system shell scripts) to the same physical printed sheet, executing entirely on standard commodity CPUs in real time without requiring dedicated GPUs, depth sensors, or specialized hardware accessories.
+The primary objective of the entire research project is the design, development, and testing of a customizable virtual macro keyboard implemented using a standard monocular RGB camera and deep learning. The system is intended to act as a complementing tool for macros and commands, but not as a full-fledged replacement for regular continuous typing keyboards. Using this setup, users have the ability to create their own macro layout on regular paper and bind all manner of actions such as application hotkeys, media control actions, and system shell scripts to a single physical piece of paper that is then executed on regular commodity processors in real time without any need for GPUs, depth cameras, or specialized hardware accessories.
 
 \section{Specific Objectives}
 \label{sec:specific_objectives}
-To accomplish the general research aim, the investigation is partitioned into the following specific research and engineering objectives:
+In order to achieve the overall objective of research, the research is divided into the following specific objectives of research and engineering:
 
 \subsection{Objective 1: Theoretical Analysis and Baseline Requirements}
 \label{subsec:obj1_theoretical}
-To review and analyze existing visual input systems, fiducial marker tracking methods, planar homography algorithms, and hand pose estimation models. This establishes baseline technical requirements for monocular macro touch detection on flat printed paper without requiring specialized depth sensors, infrared illuminators, or rigid camera mounts.
+To critically evaluate and analyze visual input methods, tracking techniques using fiducial markers, planar homography techniques, and hand pose estimation models to determine the technical prerequisites needed for monocular macro touch detection on printed flat paper without the need for any specialized depth sensors, infrared illuminators, or fixed camera mounts.
 
 \subsection{Objective 2: Hand Kinematic Representation and Scale Normalization}
 \label{subsec:obj2_kinematics}
-To investigate the spatial and temporal kinematic properties of human hand joints during macro touch contact, formulate a unitless hand-length scale normalization scheme ($L_{\text{hand}}$) invariant to camera distance and image resolution, and establish a standardized 12~FPS sliding temporal windowing pipeline (5 frames with 2-frame overlap) that preserves impact deceleration dynamics without introducing low-pass temporal filtering delays.
+To analyze the kinematics of human hand joints while undergoing macro touch interaction, develop an invariant unitless hand length scaling normalization technique ($L_{\text{hand}}$) independent of distance from the camera and resolution of the image frame, and establish a standard 12~FPS sliding temporal windowing process (5 frames with 2 frames of overlap) that preserves impact deceleration dynamics without introducing low-pass temporal filtering delays.
 
 \subsection{Objective 3: Deep Learning Sequence Model Architecture Benchmark}
 \label{subsec:obj3_deep_learning}
-To benchmark, train, and optimize lightweight deep learning sequence architectures (comparing 1D CNN, Attention, ResNet, BiLSTM, and LSTM) for independent multi-finger macro touch contact classification, selecting an optimal neural network model that operates under 3~ms on a standard commodity CPU while achieving high touch detection precision and recall across all five digits.
+To benchmark, train, and optimize lightweight deep learning sequence models (comparing 1D CNN, Attention, ResNet, BiLSTM, and LSTM) to classify independent touch contact of all five fingers using multi-finger macro touches by choosing the best neural network model that works under 3~ms on a standard commodity CPU while achieving high touch detection precision and recall across all five fingers.
 
 \subsection{Objective 4: System Architecture Engineering and Two-Application Suite Design}
 \label{subsec:obj4_suite_design}
-To architect and implement an integrated two-application macro keyboard software suite:
+To design and implement a comprehensive software package for two applications macro keyboard:
 \begin{enumerate}
-    \item \textbf{Application 1 (Layout Designer Suite):} An interactive PySide6 graphical tool enabling users to define macro key boundaries, place border AprilTag fiducial anchors, and export synchronized layout XML definitions alongside printable vector PDF sheets.
-    \item \textbf{Application 2 (Runtime Virtual Keyboard Engine):} An interactive action configuration GUI and real-time background vision engine that continuously tracks AprilTag fiducials to compute planar homography ($H$), extracts normalized skeletal landmarks via MediaPipe, classifies finger touch events using the PyTorch sequence model on CPU, and dispatches mapped application shortcuts, hotkeys, or system shell commands.
+    \item \textbf{Application 1 (Layout Designer Suite):} A graphically interactive application programmed using PySide6 which helps in the designation of macro key borders, placing border AprilTag fiducial anchors on the layout, and exporting XML definitions of layouts along with printable vector PDF files.
+    \item \textbf{Application 2 (Runtime Virtual Keyboard Engine):} An interactive GUI for configuring actions and a runtime vision engine which uses tracking of AprilTags to compute planar homography matrix $H$, extracts normalized skeletal landmarks using MediaPipe, classifies finger touch events using the PyTorch sequence model running on CPU, and dispatches mapped application shortcuts, hotkeys, or system shell commands.
 \end{enumerate}
 
 \subsection{Objective 5: Empirical System Evaluation and Functional Benchmarking}
 \label{subsec:obj5_evaluation}
-To experimentally evaluate the complete virtual macro keyboard pipeline across touch detection classification accuracy (precision, recall, and F1-score), planar homography stability under perspective tilt and partial tag occlusion, end-to-end CPU execution latency on standard commodity hardware, and macro action dispatch verification across functional test cases FT-01 to FT-10.
+To experimentally measure the full virtual macro keyboard pipeline performance in terms of touch recognition classification accuracy (precision, recall, and F1-score), planar homography performance under perspective tilt and partial tag occlusion, end-to-end CPU execution latency using generic commodity hardware, and macro command invocation accuracy via functional test cases FT-01 to FT-10.

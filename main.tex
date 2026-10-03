@@ -1,13 +1,16 @@
 \documentclass[12pt,a4paper]{report}
 
-% Page Layout & Margins: 1 inch uniform, with 1.25 in left margin for binding
-\usepackage[top=1in, bottom=1in, right=1in, left=1.25in]{geometry}
+% Page Layout & Margins: Uniform 1.0 in with 1.25 in left margin for binding (NSBM Guideline)
+\usepackage[a4paper, top=1.0in, bottom=1.0in, left=1.25in, right=1.0in, footskip=0.45in]{geometry}
 \usepackage{setspace}
 \onehalfspacing
 
 % Character encoding & math
 \usepackage[utf8]{inputenc}
-\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{amsmath,amsfonts,amssymb}
+
+% Official Typography: Times New Roman, 12 pt throughout
+\usepackage{newtxtext,newtxmath}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{multirow}
@@ -36,10 +39,70 @@
     showstringspaces=false
 }
 
-% IEEE Table and Figure Caption formatting: Font 12, Table caption above, Figure caption below
-\captionsetup{font=normalsize}
-\captionsetup[table]{position=top}
-\captionsetup[figure]{position=bottom}
+% Exact Headings Hierarchy (NSBM Guidelines):
+% • 1st Numeral – Bold capital – Font 12 (Eg - 1 INTRODUCTION)
+% • 1st Numeral with decimals – Bold Simple – Font 12 (Eg – 1.1 Justification)
+% • 1st Numeral with 2 decimals – Simple – Font 12 (Eg – 1.2.1 General objective)
+% • 1st Numeral with 3 decimals – Simple – Font 12 (Eg – 2.3.1.1 ...)
+\usepackage{titlesec}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+
+\titleformat{\chapter}[hang]
+  {\normalfont\fontsize{12pt}{16pt}\selectfont\bfseries}
+  {\thechapter}
+  {1em}
+  {\MakeUppercase}
+
+\titleformat{name=\chapter,numberless}[hang]
+  {\normalfont\fontsize{12pt}{16pt}\selectfont\bfseries\centering}
+  {}
+  {0pt}
+  {\MakeUppercase}
+
+\titlespacing*{\chapter}{0pt}{18pt}{12pt}
+\titlespacing*{name=\chapter,numberless}{0pt}{18pt}{12pt}
+
+\titleformat{\section}
+  {\normalfont\fontsize{12pt}{16pt}\selectfont\bfseries}
+  {\thesection}
+  {1em}
+  {}
+\titlespacing*{\section}{0pt}{14pt}{6pt}
+
+\titleformat{\subsection}
+  {\normalfont\fontsize{12pt}{16pt}\selectfont}
+  {\thesubsection}
+  {1em}
+  {}
+\titlespacing*{\subsection}{0pt}{12pt}{4pt}
+
+\titleformat{\subsubsection}
+  {\normalfont\fontsize{12pt}{16pt}\selectfont}
+  {\thesubsubsection}
+  {1em}
+  {}
+\titlespacing*{\subsubsection}{0pt}{10pt}{3pt}
+
+% Table and Figure Captions: Font 12, Table caption above, Figure caption below
+\captionsetup{
+    font={normalsize},
+    labelfont={normalsize},
+    textfont={normalsize},
+    labelsep=colon
+}
+\captionsetup[table]{position=above, skip=6pt}
+\captionsetup[figure]{position=below, skip=6pt}
+
+% Table of Contents and List customization (NSBM Guidelines Appendix IV, V, VI)
+\usepackage[titles]{tocloft}
+\renewcommand{\contentsname}{TABLE OF CONTENTS}
+\renewcommand{\listfigurename}{LIST OF FIGURES}
+\renewcommand{\listtablename}{LIST OF TABLES}
+\renewcommand{\cftfigpresnum}{Figure }
+\renewcommand{\cfttabpresnum}{Table }
+\settowidth{\cftfignumwidth}{Figure 0.0\quad}
+\settowidth{\cfttabnumwidth}{Table 0.0\quad}
 
 % Hyperref setup
 \usepackage{hyperref}
@@ -54,7 +117,7 @@
 \usepackage[backend=biber,style=ieee,sorting=nyt]{biblatex}
 \addbibresource{research-db/references.bib}
 
-% Page numbering bottom center, no headers
+% Page numbering bottom center, no headers (NSBM Guidelines)
 \usepackage{fancyhdr}
 \pagestyle{fancy}
 \fancyhf{}
@@ -71,13 +134,15 @@
 \begin{document}
 
 % ----------------------------------------------------------------------
-% TITLE PAGE (Counts as page i, but number not displayed)
+% TITLE PAGE (Counts as page i, number not displayed)
 % ----------------------------------------------------------------------
+\pagenumbering{roman}
+\setcounter{page}{1}
 \begin{titlepage}
     \thispagestyle{empty}
     \centering
     \vspace*{1.0cm}
-    {\fontsize{16pt}{24pt}\selectfont \bfseries CUSTOMIZABLE PAPER-BASED VIRTUAL KEYBOARD SYSTEM USING COMPUTER VISION AND DEEP LEARNING \par}
+    {\fontsize{16pt}{24pt}\selectfont \bfseries CUSTOMIZABLE PAPER-BASED VIRTUAL MACRO KEYBOARD SYSTEM USING COMPUTER VISION AND DEEP LEARNING \par}
     \vspace{1.5cm}
     {\fontsize{14pt}{20pt}\selectfont A thesis submitted to NSBM Green University for the degree of \par}
     {\fontsize{14pt}{20pt}\selectfont Bachelor of Science (Honours) in Computer Science \par}
@@ -95,9 +160,8 @@
 \end{titlepage}
 
 % ----------------------------------------------------------------------
-% FRONT MATTER: Lower-case Roman numerals starting at ii
+% FRONT MATTER: Lower-case Roman numerals starting at Declaration with ii
 % ----------------------------------------------------------------------
-\pagenumbering{roman}
 \setcounter{page}{2}
 
 \input{chapters/declaration.tex}
@@ -109,15 +173,16 @@
 \input{chapters/abstract.tex}
 \newpage
 
+\addcontentsline{toc}{chapter}{Table of Contents}
 \tableofcontents
 \newpage
 
-\listoffigures
 \addcontentsline{toc}{chapter}{List of Figures}
+\listoffigures
 \newpage
 
-\listoftables
 \addcontentsline{toc}{chapter}{List of Tables}
+\listoftables
 \newpage
 
 \input{chapters/abbreviations.tex}
@@ -153,6 +218,12 @@
 % APPENDICES
 % ----------------------------------------------------------------------
 \appendix
+\titleformat{\chapter}[hang]
+  {\normalfont\fontsize{12pt}{16pt}\selectfont\bfseries}
+  {APPENDIX \thechapter:}
+  {1em}
+  {\MakeUppercase}
+
 \input{chapters/appendixA.tex}
 \newpage
 \input{chapters/appendixB.tex}

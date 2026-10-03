@@ -13,8 +13,8 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "pillow", specifier = ">=12.3.0" },
-    { name = "pymupdf", specifier = ">=1.28.2" },
+    { name = "pillow", specifier = ">=11.0.0" },
+    { name = "pymupdf", specifier = ">=1.25.0" },
 ]
 
 [[package]]

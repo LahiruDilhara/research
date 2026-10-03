@@ -3,19 +3,17 @@
 
 \section{Chapter Overview}
 \label{sec:test_overview}
-Evaluating the paper-based virtual macro keyboard requires testing hand tracking, PyTorch LSTM touch detection, homography stability, CPU latency, and macro command execution \cite{ReviewVirtualKeyboard2020}. Because paper has no physical switches, interaction reliability depends on algorithmic precision: 21-joint skeletal extraction, scale-normalized kinematics, deep sequence modeling, and planar homography \cite{Zhang2020MediaPipe}.
+The evaluation includes hand tracking, touch detection for PyTorch LSTM, homography estimation, CPU latency, and macro command execution on a paper-based virtual macro keyboard \cite{ReviewVirtualKeyboard2020}. With no physical switches or electronic wiring in the paper, interaction requires 21-joint skeletal extraction, scale-normalized kinematics, deep sequence modeling, and planar homography \cite{Zhang2020MediaPipe}.
 
-Testing addresses three core challenges: detecting physical surface contact without depth sensors, ensuring invariance across hand sizes and camera distances, and guaranteeing real-time CPU execution at 12~FPS across resolutions without a GPU.
-
-Testing evaluated both Application~1 (Layout Designer) and Application~2 (Runtime Engine). Section~\ref{sec:test_plan_cases} defines functional and non-functional test cases. Section~\ref{sec:test_workflow} outlines the evaluation procedure. Section~\ref{sec:test_results_review} presents quantitative benchmarks covering model architectures, landmark subsets, window configurations, scale normalization, CPU latency, AprilTag tilt resilience, and macro action dispatch. Section~\ref{sec:test_summary} concludes the chapter.
+We evaluated three key engineering challenges: detection of physical surface contact without depth sensors, scale invariance across hand sizes and camera distances, and real-time execution at 12~FPS on commodity CPUs with no GPU. Testing includes both Application~1 (Layout Designer) and Application~2 (Runtime Engine). Functional and non-functional test cases are defined in Section~\ref{sec:test_plan_cases}. Section~\ref{sec:test_workflow} outlines the evaluation procedure. Quantitative benchmarks spanning model architectures, landmark subsets, window configurations, scale normalization, CPU latency, AprilTag tilt resilience, and macro action dispatch are presented in Section~\ref{sec:test_results_review}. Section~\ref{sec:test_summary} concludes the chapter.
 
 \section{Test Plan and Structured Test Cases}
 \label{sec:test_plan_cases}
-A systematic test plan was conducted to verify the functionality, execution efficiency, stability, and reliability of Application 1 (Layout Designer) and Application 2 (Runtime Engine).
+A comprehensive test plan was executed to verify that the functionality of the two applications (Application~1 Layout Designer and Application~2 Runtime Engine) worked correctly, as well as checking their execution performance, stability, and reliability.
 
 \subsection{Functional Testing Suite}
 \label{subsec:test_functional}
-Functionality tests were performed to verify the operations of the layout designer, saving and loading in XML format, action profiles mapping, marker tracking loops, deep learning touch predictions, and executing keystrokes or shell commands for the operating system.
+We performed functionality tests on layout designer operations (saving and loading XML layout files, mapping action profile types), AprilTag tracking loops, deep learning touch predictions, and executing keystrokes or native system shell commands.
 
 Table~\ref{tab:functional_test_cases} lists the ten functional test cases evaluated across the system.
 
@@ -43,11 +41,11 @@ Table~\ref{tab:functional_test_cases} lists the ten functional test cases evalua
 }
 \end{table}
 
-All ten tests were performed successfully ($100\%$ success rate). In particular, FT-06 proved that the physical layout of the paper is completely decoupled from digital actions, meaning that switching between different action profiles (such as switching from normal typing to developer shortcuts or audio editing controls) works reliably on the exact same printed sheet of paper without reprinting.
+All ten functional test experiments succeeded with a $100\%$ pass rate. In particular, FT-06 demonstrates that physical paper layout geometry is completely decoupled from digital operations, enabling action profile switching on the exact same printed sheet of paper without needing to reprint.
 
 \subsection{Non-Functional Testing Suite}
 \label{subsec:test_non_functional}
-Non-functional testing evaluated system performance, including processing latency, touch classification F1-score, distance invariance, AprilTag tilt tolerance, memory usage, and CPU load during background execution.
+Non-functional testing assessed system performance metrics, including processing latency, touch classification F1-score, distance scale invariance, AprilTag tilt tolerance, RAM usage, and CPU utilization during background execution.
 
 Table~\ref{tab:non_functional_test_cases} summarizes the seven non-functional test cases evaluated on a standard desktop computer.
 
@@ -78,33 +76,23 @@ Table~\ref{tab:non_functional_test_cases} summarizes the seven non-functional te
 }
 \end{table}
 
-\subsubsection{Non-Functional Evaluation Narrative}
-Based on the results in Table~\ref{tab:non_functional_test_cases}, all target non-functional requirements were satisfied:
-\begin{itemize}
-    \item \textbf{Real-Time Speed and Latency (NFT-01, NFT-02):} The background engine achieved an end-to-end processing latency of $29.09$~ms ($\approx 34.4$~FPS), which is well below the threshold of $83.3$~ms for 12~FPS execution. The PyTorch LSTM touch model executed each forward pass in $2.08$~ms for a 5-frame temporal window on a standard CPU.
-    \item \textbf{Environmental Robustness (NFT-03, NFT-04, NFT-05):} Hand scale normalization ($L_{\text{hand}}$) maintained steady accuracy across optical camera distances between $20$~cm and $40$~cm. AprilTag homography tracking yielded an RMS reprojection error under $0.42$~mm for camera tilt angles up to $60^\circ$. Temporarily covering 1 or 2 tags with hands did not affect tracking.
-    \item \textbf{Resource Usage (NFT-06, NFT-07):} RAM consumption remained low at $142.5$~MB, and CPU utilization on a single core averaged $24.8\%$, allowing efficient background operation on standard computers.
-\end{itemize}
+\subsubsection{Discussion of Non-Functional Testing Results}
+\label{subsubsec:test_non_functional_narrative}
+As follows from the testing results shown in Table~\ref{tab:non_functional_test_cases}, all the non-functional requirements specified were successfully fulfilled without problems. The end-to-end latency of the background processing engine amounted to $29.09\text{ ms}$ ($34.4\text{ FPS}$), which falls inside the time budget of $83.33\text{ ms}$ for processing at 12~FPS. The PyTorch LSTM touch model processed $2.08\text{ ms}$ for every forward pass on a 5-frame temporal window even on a commodity CPU. In terms of distance from camera, the normalization by unitless hand scale ($L_{\text{hand}}$) delivered accurate results at distances from $20\text{ cm}$ to $40\text{ cm}$. Tracking via AprilTag homography showed the RMS reprojection error below $0.42\text{ mm}$ up to $60^\circ$ of tilt angle. Even when a user's hands partially occluded one or two tags for some time, this did not affect the tracking process. The maximum memory consumption by the system did not exceed $142.5\text{ MB}$, and the average CPU usage was $24.8\%$ on a single core, which allows the system to run in the background on commodity PCs without any impact.
 
-\section{Testing and Evaluation Workflow}
+\section{Structure of the Evaluation Workflow}
 \label{sec:test_workflow}
-The testing and evaluation process was conducted across four main phases:
-\begin{enumerate}
-    \item \textbf{Phase 1 (Deep Learning Classifier Evaluation):} Evaluated 22 pure 2D model architecture combinations in \texttt{modelBenchmark/}\linebreak[1]\texttt{benchmark\_engine.py} using 5-fold cross-validation, measuring Precision, Recall, F1-Score, and runtime latency.
-    \item \textbf{Phase 2 (Feature and Window Size Ablation):} Tested temporal window lengths ($W \in \{1, 3, 5, 7, 9\}$), stride values, scale normalization ($L_{\text{hand}}$ versus raw features), and CPU execution performance across various video resolutions.
-    \item \textbf{Phase 3 (Tracking and Homography Accuracy):} Evaluated AprilTag corner detection accuracy, sub-pixel fitting, and planar homography reprojection error across camera tilt angles from $0^\circ$ to $75^\circ$.
-    \item \textbf{Phase 4 (Real-Time Pipeline Latency and Macro Action Evaluation):} Evaluated end-to-end system throughput, latency breakdowns across pipeline components, key hit recognition performance, macro command trigger execution, and multi-profile action multiplexing.
-\end{enumerate}
+The experiment was performed in four different phases. In the first phase, the performance analysis of 22 different architecture combinations of pure 2D models was performed in the \texttt{modelBenchmark/}\linebreak[1]\texttt{benchmark\_engine.py} script with 5-fold cross-validation to find the precision, recall, F1-score, and inference latency for CPU. In the second phase, the effect of feature representation and window size ablation was assessed through the testing of temporal window sizes ($W \in \{1, 3, 5, 7, 9\}$ frames), stride values, unitless scaling of the features ($L_{\text{hand}}$) versus raw features, and the CPU execution time at different video resolutions. The third phase included verification of the accuracy of AprilTag corner detections with sub-pixel fitting and calculation of the planar homography reprojection errors at camera tilt angles of $0^\circ$ to $75^\circ$. Finally, we tested the end-to-end real-time pipeline latency and per-component latencies, performance of distinguishing key strikes, execution of macro command triggers, and multiplexing into action profiles on the same paper layout.
 
-\section{Detailed Empirical Results and Strategy Review}
+\section{Extensive Empirical Results and Architecture Review}
 \label{sec:test_results_review}
-Here, we present the numerical benchmarking results, comparative tables, and analysis of the virtual keyboard system.
+In this section, we provide numerical benchmarking results and comparative tables, along with a practical analysis concerning the virtual keyboard system.
 
-\subsection{Deep Learning Model Architecture Benchmark Evaluation}
+\subsection{Benchmark of deep learning sequence model architectures}
 \label{subsec:test_model_benchmark}
-The benchmarking driver (\texttt{modelBenchmark/}\linebreak[1]\texttt{benchmark\_engine.py}) was used to train and test 22 pure 2D deep learning models using 5-fold cross-validation.
+As part of the benchmarking process, a total of 22 pure 2D deep learning models were trained and tested using 5-fold cross-validation in the \texttt{modelBenchmark/}\linebreak[1]\texttt{benchmark\_engine.py} driver.
 
-Table~\ref{tab:model_architecture_comparison} shows the comparison results across representative model types and feature representations.
+Table~\ref{tab:model_architecture_comparison} summarizes the results over representative model architectures and feature representations.
 
 \begin{table}[htbp]
 \centering
@@ -129,12 +117,12 @@ Multilayer Perceptron (MLP) & Scale Norm Position Only & 0.865 & 0.852 & 0.858 &
 }
 \end{table}
 
-As shown in Table~\ref{tab:model_architecture_comparison}, using spatial velocity vectors ($\mathbf{V}_i$) together with normalized position coordinates increases touch classification accuracy for all five model families (1D CNN, Attention, ResNet, BiLSTM, LSTM). The highest F1-score of $0.963$ and fast inference time of $2.08$~ms on CPU was achieved for the uni-directional LSTM with normalized position and velocity features. Though the Bidirectional LSTM gave a slightly higher F1-score ($0.966$), it required twice as much time ($4.12$~ms) because of the backward pass. At the same time, Self-Attention and 1D ResNets achieved high F1-scores ($0.940$ and $0.950$ respectively), but required higher computation time ($3.85$~ms and $3.28$~ms). Thus, the uni-directional LSTM was selected as the best choice for real-time CPU execution (a comparison chart of F1-scores and CPU inference times is shown in Figure~\ref{fig:appendix_benchmark_acc} in Appendix~\ref{ch:appendix_evaluation_benchmarks}).
+Table~\ref{tab:model_architecture_comparison} shows that combining spatial velocity vectors ($\mathbf{V}_i$) with normalized coordinates improved classification performance across all five model families: 1D CNN, Attention, ResNet, BiLSTM, and LSTM. Position and velocity features yielded an F1-score of $0.963$ and CPU inference latency of $2.08\text{ ms}$ for the uni-directional LSTM model. While the Bidirectional LSTM reached an F1-score of $0.966$, its inference time doubled to $4.12\text{ ms}$ due to the backward pass. Self-Attention and 1D ResNets achieved F1-scores of $0.940$ and $0.950$, with inference times of $3.85\text{ ms}$ and $3.28\text{ ms}$. Thus, the uni-directional LSTM was chosen for real-time CPU execution (see Figure~\ref{fig:appendix_benchmark_acc} in Appendix~\ref{ch:appendix_evaluation_benchmarks}).
 
-\subsubsection{Per-Digit Confusion Matrix Analysis}
-To evaluate the performance of finger touch detection for each individual finger (Thumb, Index, Middle, Ring, Pinky), we calculated a confusion matrix on the test dataset ($5,000$ window sequences).
+\subsubsection{Per-digit confusion matrix analysis}
+The statistical metrics for finger touch localization were calculated by a confusion matrix on the test dataset containing $5,000$ window sequences of single-digit strikes.
 
-Table~\ref{tab:per_digit_confusion_matrix} shows the per-digit classification results.
+The per-digit classification results are presented in Table~\ref{tab:per_digit_confusion_matrix}.
 
 \begin{table}[htbp]
 \centering
@@ -157,29 +145,27 @@ Pinky Finger (Landmark 20) & 898 & 62 & 58 & 0.935 & 0.939 & 0.937 \\
 }
 \end{table}
 
-The index finger achieved the highest accuracy ($F1 = 0.986$) since its motion is straightforward and rarely obstructed during key strikes. The accuracy of the pinky finger was slightly lower ($F1 = 0.937$) since the pinky finger makes slight collateral movements when a key is pressed by the ring finger. The average F1-score across all digits was $0.965$ (the normalized confusion matrix for all five fingers is shown in Figure~\ref{fig:appendix_confusion_matrix} in Appendix~\ref{ch:appendix_evaluation_benchmarks}). Crucially, these empirical results validate reliable multi-finger touch detection across all five individual digits, demonstrating a capability completely absent in prior monocular RGB keyboards.
+The index finger achieved an F1-score of $0.986$, which is the highest due to its linear and unconstrained straight movement in keystrokes. The pinky finger was slightly lower with an average F1-score of $0.937$ because it moved sideways a little at the same time as key presses were made. At the level of all digits, the average F1-score was $0.965$ (see normalized confusion matrix in Figure~\ref{fig:appendix_confusion_matrix} in Appendix~\ref{ch:appendix_evaluation_benchmarks}). Notably, these results substantiate correct multi-finger touch detection across all five individual digits in isolation, an ability which has not previously been supported by monocular keyboards.
 
-\subsubsection{Training Loss Convergence and Overfitting Analysis}
-To check the training convergence of the PyTorch LSTM model (\texttt{best\allowbreak\_finger\allowbreak\_touch\allowbreak\_lstm.pth}) during 5-fold cross-validation, Binary Cross-Entropy loss ($\mathcal{L}_{\text{BCE}}$) was tracked across 100 epochs per fold.
+\subsubsection{Convergence of training loss and analysis of overfitting}
+Binary Cross Entropy loss ($\mathcal{L}_{\text{BCE}}$) was monitored over 100 epochs by using 5-fold cross-validation in order to determine the convergence of the PyTorch LSTM model (\texttt{best\allowbreak\_finger\allowbreak\_touch\allowbreak\_lstm.pth}). Both training and validation losses showed a consistent decrease from $\mathcal{L}_{\text{BCE}} = 0.693$ to $0.082$, which occurred after 75 epochs. The gap between training and validation losses remained below $0.012$, showing that Dropout ($p = 0.30$) and $10^{-4}$ weight decay avoided overfitting.
 
-Training and validation losses decreased consistently from $\mathcal{L}_{\text{BCE}} = 0.693$ to a stable minimum of $\mathcal{L}_{\text{BCE}} = 0.082$ by Epoch 75. The small difference between training and validation losses ($\Delta \mathcal{L} < 0.012$) demonstrates that using Dropout ($p = 0.30$) and weight decay ($10^{-4}$) effectively prevented overfitting on the 5-frame dataset.
-
-\subsection{Evaluation of MediaPipe Landmark Subsets and Kinematic Information Content}
+\subsection{Evaluation of MediaPipe landmark subsets and kinematic information content}
 \label{subsec:test_landmark_ablation}
-The main empirical question in terms of designing the monocular touch detection system is determining which points among the 21 MediaPipe hand landmarks carry the most discriminative information and how different feature representations affect performance.
+The main design question for the empirical study is to know which among the 21 MediaPipe hand landmarks provides more discriminative information.
 
-\subsubsection{Anatomical Landmark Groupings and Information Value}
-Analysis of the 21 hand joints extracted by the MediaPipe pipeline was carried out across three functional anatomical groups:
+\subsubsection{Grouping of anatomical landmarks and value of information}
+MediaPipe generates 21 hand joints that we categorized into three functional anatomical groups:
 \begin{enumerate}
-    \item \textbf{Fingertip Terminals (Landmarks 4, 8, 12, 16, 20):} The terminal fingertips make direct physical impact with the paper desk surface. The sharp decrease in vertical velocity ($V_y \to 0$) serves as the primary impact trigger. However, tracking fingertips in isolation lacks the spatial context of whole-hand motion.
-    \item \textbf{Interphalangeal Joints (DIP: 3, 7, 11, 15, 19 and PIP: 2, 6, 10, 14, 18):} The intermediate knuckle joints capture finger curvature and flexion angles. As a finger strikes a key, the angle between the MCP, PIP, and DIP joints changes sharply. This helps the network differentiate between an intentional finger curl and a passive downward translation of the entire hand.
-    \item \textbf{Metacarpophalangeal Knuckles (MCP: 1, 5, 9, 13, 17) and Wrist (Landmark 0):} The base knuckles and wrist landmark establish the local coordinate frame for the hand. Landmark 0 (Wrist) serves as the origin $(0, 0)$ for translation invariance, while Landmark 9 (Middle MCP) provides the reference distance for hand length $L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$ to normalize feature values.
+    \item \textbf{Fingertip terminals (Landmarks 4, 8, 12, 16, 20):} The fingertip terminals directly make contact with the surface of the paper and trigger touch by a rapid drop of vertical velocity ($V_y \to 0$) within a small distance. But tracking only fingertips gives no indication of whole-hand motion.
+    \item \textbf{Interphalangeal joints (DIP: 3, 7, 11, 15, 19 and PIP: 2, 6, 10, 14, 18):} Flexion angles at the intermediate joints track finger curvature and distinguish between active finger strikes and passive whole-hand movement.
+    \item \textbf{Knuckles (MCP: 1, 5, 9, 13, 17) and wrist (Landmark 0):} The wrist sets the local coordinate frame for translation invariance, while landmark 9 acts as the anatomical hand-length reference ($L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$) for normalizing coordinates.
 \end{enumerate}
 
-\subsubsection{Empirical Feature Representation and Landmark Subset Ablation}
-Systematic ablation benchmarks on landmark subsets and kinematic feature representations were conducted using the PyTorch LSTM model.
+\subsubsection{Empirical feature representation and landmark subset ablation}
+Systematic landmark subset and kinematic features ablation was performed using the PyTorch LSTM model.
 
-Table~\ref{tab:landmark_feature_ablation} summarizes the classification performance across different landmark subsets and feature modalities.
+Table~\ref{tab:landmark_feature_ablation} summarizes classification performance across landmark subsets and feature modalities.
 
 \begin{table}[htbp]
 \centering
@@ -204,17 +190,17 @@ Fingertips + DIP + PIP (15 Joints) & Scale-Normalized Pos + Vel & 60 & 0.938 & 0
 }
 \end{table}
 
-\subsubsection{Key Insights on Landmark Data Value and Architecture Performance}
-The empirical results reveal three fundamental observations regarding model behavior:
+\subsubsection{Insights into landmark data value and architecture performance}
+Three major points about model performance can be drawn from these experiments:
 \begin{itemize}
-    \item \textbf{Why Absolute Positions Alone Fail:} Training models purely on spatial coordinates without velocity vectors yields low accuracy ($F1 = 0.798$). In a 2D camera view, the position of a finger hovering $2\text{ mm}$ above the paper appears nearly identical to that of a finger touching the paper. Without velocity, the model cannot identify the physical deceleration boundary.
-    \item \textbf{Why Velocities and Scale Normalization are Essential:} Introducing first-order temporal velocity vectors ($\mathbf{V}_i = \Delta \mathbf{P}^{\text{norm}} / \Delta t$) directly exposes the physical impact deceleration spike ($V_y \to 0$), increasing the F1-score to $0.963$.
-    \item \textbf{Full Skeleton vs. Fingertip-Only Subsets:} While using only the fingertip subset achieves acceptable accuracy ($F1 = 0.868$), using the full 21-joint skeleton ($F1 = 0.963$) allows the recurrent LSTM to compare relative finger movement against the palm base, eliminating false triggers caused by whole-hand repositioning.
+    \item \textbf{Why spatial coordinates alone fail:} Training the model on spatial coordinates only and excluding velocity vectors leads to a poor F1-score of $0.798$, due to the visual similarity of touch action and hovering at $2\text{ mm}$ height over the paper in 2D video.
+    \item \textbf{Why velocities and scale normalization are critical:} Directly adding first-order velocity vectors ($\mathbf{V}_i$) reveals the effect of the physical action deceleration peak ($V_y \to 0$), which raises the F1-score to $0.963$.
+    \item \textbf{Full 21-joint skeleton versus fingertip subsets:} Although the model trained on the fingertip landmark subset alone has an acceptable F1-score of $0.868$, using the full 21-landmark skeleton enables comparative analysis of the fingertips with respect to the palm base, preventing false triggers caused by whole-hand repositioning.
 \end{itemize}
 
-\subsection{Temporal Window Length and Stride Sensitivity Analysis}
+\subsection{Sensitivity analysis of length and stride of temporal window}
 \label{subsec:test_window_sensitivity}
-The length of the sliding window ($W$) determines how many frames of movement history are evaluated by the recurrent neural network. Sliding windows of lengths $W \in \{1, 3, 5, 7, 9\}$ frames and strides $S \in \{1, 2, 3, 4\}$ frames were evaluated experimentally.
+The temporal sliding window size indicates how many frames of movement history are scanned by the recurrent neural network. Experimental tests of various window lengths $W \in \{1, 3, 5, 7, 9\}$ frames and strides $S \in \{1, 2, 3, 4\}$ frames were evaluated.
 
 Table~\ref{tab:window_length_sensitivity} summarizes the performance and latency across different window parameters.
 
@@ -237,13 +223,13 @@ Table~\ref{tab:window_length_sensitivity} summarizes the performance and latency
 }
 \end{table}
 
-Classification based on a single frame ($W=1$) yields a relatively low score ($F1 = 0.730$) due to depth ambiguity. Increasing the window length to 5 frames improves the F1-score to $0.963$ by capturing the downward deceleration motion. Increasing window size beyond 5 frames yields minimal additional accuracy but increases buffering latency. Therefore, $W=5$ frames with a stride of $S=3$ frames provides the best trade-off between accuracy and response latency.
+An F1-score of $0.730$ is low as the model suffers from depth ambiguity when simply feeding a single frame for classification with $W = 1$. However, if we change the length of the sliding window to 5 frames, the F1-score increases to $0.963$, because downward deceleration motion is taken into account. Pushing the window size above 5 frames gives little to no increase in accuracy while increasing buffering latency. Thus, 5 frames with a stride of 3 frames provides an optimal selection between classification accuracy and response latency.
 
-\subsection{Scale Normalization Ablation Study Across Distance and Users}
+\subsection{Scale normalization ablation study over distance and users}
 \label{subsec:test_scale_ablation}
-To verify the benefits of unitless scale normalization ($L_{\text{hand}}$), classification accuracy was evaluated across recorded hand interaction sequences with varying hand lengths ($L_{\text{hand}} \in [14.2\text{ cm}, 21.5\text{ cm}]$) across recorded camera distances $Z \in [20\text{ cm}, 40\text{ cm}]$.
+In order to establish that unitless scale normalization depending on hand length ($L_{\text{hand}}$) is beneficial, classification accuracy was assessed for a range of hand lengths from $14.2\text{ cm}$ to $21.5\text{ cm}$ and camera distances from $20\text{ cm}$ to $40\text{ cm}$.
 
-Table~\ref{tab:scale_normalization_ablation} shows the classification results across different normalization methods.
+Table~\ref{tab:scale_normalization_ablation} shows classification results across different types of normalization.
 
 \begin{table}[htbp]
 \centering
@@ -263,12 +249,11 @@ Bounding Box Min-Max & 0.915 & 0.902 & 0.864 & 0.894 \\
 }
 \end{table}
 
-Unnormalized pixel coordinates show poor accuracy at larger distances from the camera ($F1 = 0.628$) because joint displacements appear smaller with increasing distance. Unitless hand scale normalization maintains high accuracy ($F1 \ge 0.958$) regardless of camera distance and hand size, confirming complete scale invariance.
+Without normalization of pixel coordinates, raw data have low accuracy as the distance of the camera increases, since the F1-score decreases to $0.628$ due to reduced displacements of joints at increased distances. Scale-invariant unitless hand normalization ($L_{\text{hand}}$) maintains high accuracy with an F1-score above $0.958$ for any camera distance and hand length, confirming distance invariance.
 
-
-\subsection{AprilTag Homography Tracking Accuracy and Tilt Sensitivity}
+\subsection{Tilt sensitivity and accuracy of homography tracking against AprilTags}
 \label{subsec:test_homography_tilt}
-Tracking accuracy was tested on printed AprilTag layout sheets (\texttt{tag36h11} family) with the camera tilted at various angles from $0^\circ$ to $75^\circ$ relative to the surface normal.
+Tracking accuracy was tested with printed sheets obtained from the \texttt{tag36h11} family of AprilTag markers, where the orientation of the camera was tilted to angles from $0^\circ$ to $75^\circ$ compared to the surface normal.
 
 Table~\ref{tab:homography_tilt_performance} presents the corner detection rates, sub-pixel corner errors, and RMS reprojection errors.
 
@@ -292,16 +277,16 @@ $75^\circ$ (Extreme Perspective) & 84.2\% & 0.286 pixels & 1.15 mm & 88.2\% \\
 }
 \end{table}
 
-The AprilTag tracker achieved high detection rates ($\ge 97.8\%$) and low tracking error ($e_{\text{rms}} \le 0.42\text{ mm}$) for camera tilt angles up to $60^\circ$ (the tracking error curve across tilt angles is shown in Figure~\ref{fig:appendix_homography_tilt} in Appendix~\ref{ch:appendix_evaluation_benchmarks}).
+As a result, the AprilTag tracker demonstrated significant tracking precision with a $97.8\%$ or better detection rate and under $0.42\text{ mm}$ tracking error ($e_{\text{rms}}$) when using camera tilt angles of up to $60^\circ$ (the tracking error curve across tilt angles is shown in Figure~\ref{fig:appendix_homography_tilt} in Appendix~\ref{ch:appendix_evaluation_benchmarks}).
 
-\subsubsection{Reprojection Error Heatmap and Sub-Pixel Interpolation Analysis}
-To evaluate homography distortion across different regions of the paper keyboard, reprojection error $e_{\text{reproj}}(x, y) = \|\mathbf{P}_{\text{xml}} - H \cdot \mathbf{P}_{\text{pixel}}\|_2$ was measured across a $10 \times 10$ grid on the A4 sheet.
+\subsubsection{Analysis of reprojection error heatmap and sub-pixel interpolation}
+To assess homography distortion across different regions of the paper keyboard, reprojection error $e_{\text{reproj}}(x, y) = \|\mathbf{P}_{\text{xml}} - H \cdot \mathbf{P}_{\text{pixel}}\|_2$ was estimated across a $10 \times 10$ position grid on the A4 sheet.
 
-Under standard desk camera placement ($30^\circ$ tilt), reprojection error is minimal in the central typing area ($e_{\text{reproj}} \le 0.22\text{ mm}$), where all four AprilTag markers provide strong alignment. Error increases slightly near the paper edges ($e_{\text{reproj}} \le 0.42\text{ mm}$), remaining well within the key padding margin ($2.5\text{ mm}$), confirming uniform mapping precision across the layout.
+Under standard desk camera placement with $30^\circ$ tilt, reprojection error is low in the central typing area ($e_{\text{reproj}} \le 0.22\text{ mm}$), where all four AprilTag markers give excellent alignment. Reprojection error increases slightly near the paper edges ($e_{\text{reproj}} \le 0.42\text{ mm}$), but remains well within the $2.5\text{ mm}$ key padding margin, confirming uniform mapping precision across the layout.
 
-\subsection{Real-Time Pipeline Latency and Resource Profiling}
+\subsection{Real-time pipeline latency and resource profiling}
 \label{subsec:test_pipeline_profiling}
-The multi-threaded background engine (Application 2 Component B) was profiled on an Intel Core i7 desktop processor to measure component latencies and system resource usage.
+The multi-threaded background engine of Application~2 was profiled on a normal desktop processor to determine the latency and resource utilization of its components.
 
 Table~\ref{tab:pipeline_latency_breakdown} details the execution latency breakdown per frame cycle.
 
@@ -329,36 +314,24 @@ OS Virtual Keystroke / Shell Command Dispatch & 8.25 ms & 28.4\% & Main GUI Even
 }
 \end{table}
 
-The total end-to-end processing latency is $29.09$~ms, which corresponds to a throughput of $34.4$~FPS. Primary vision tasks include MediaPipe landmark tracking ($7.92$~ms) and AprilTag detection ($6.84$~ms). PyTorch LSTM inference latency is $2.08$~ms. RAM consumption is $142.5$~MB and single-core CPU load is $24.8\%$ (a breakdown of execution times for each pipeline step is shown in Figure~\ref{fig:appendix_latency_breakdown} in Appendix~\ref{ch:appendix_evaluation_benchmarks}).
+With an end-to-end latency of $29.09\text{ ms}$ ($34.4\text{ FPS}$ throughput), vision processing takes $7.92\text{ ms}$ for MediaPipe tracking and $6.84\text{ ms}$ for AprilTag detection, while PyTorch LSTM inference takes $2.08\text{ ms}$. Memory use is $142.5\text{ MB}$ and CPU load is $24.8\%$ (see Figure~\ref{fig:appendix_latency_breakdown} in Appendix~\ref{ch:appendix_evaluation_benchmarks}).
 
-\subsubsection{CPU Thread Memory Contention and Mutex Overhead Analysis}
-Profiling Application 2 Component B confirmed that the multi-threaded queue approach effectively isolates camera image capture from PyTorch LSTM deep learning inference. Average mutex lock acquisition (\texttt{QMutex.lock()}) was $0.042$~ms per cycle, accounting for less than $0.15\%$ of total pipeline latency.
+\subsubsection{CPU thread memory contention and mutex overhead analysis}
+Profiling confirmed that the multi-threaded queue design effectively separates camera image acquisition from deep learning inference. The average latency in mutex locking (\texttt{QMutex.lock()}) was $0.042\text{ ms}$ per cycle, representing less than $0.15\%$ of the total pipeline latency.
 
-Because PyTorch LSTM forward passes run on pre-allocated tensor memory, no memory contention issues occurred between OpenCV frame decoding and PyTorch inference. No thread deadlocks or race conditions were detected during extended test runs.
+As PyTorch LSTM forward passes run on pre-allocated tensor memory, there were no memory contention problems in OpenCV frame decoding, and no thread deadlocks or race conditions were observed during extended test runs.
 
-\subsection{Macro Command Trigger Execution and Multi-Profile Action Benchmark}
+\subsection{Macro command trigger execution and multi-profile action benchmark}
 \label{subsec:test_user_typing}
-To evaluate the system as an auxiliary macro action controller, empirical testing was conducted across touch contact detection, planar key resolution, and end-to-end command execution:
+We evaluated the system as a supplementary macro action controller through empirical testing across touch contact detection, planar key resolution, and end-to-end command execution:
 \begin{enumerate}
-    \item \textbf{Touch Contact Detection Reliability:} On the held-out test dataset of 636 temporal window sequences (\texttt{test\_dataset.csv}), the PyTorch LSTM sequence model achieved a touch detection accuracy of $94.34\%$ and an F1-score of $94.37\%$ ($302$ True Positives and $298$ True Negatives). False activations were limited to $20$ instances ($6.29\%$ false trigger rate on non-touch frames), confirming that the hand transit movement filter effectively suppresses false key triggers when the user repositions their hand across keys.
-    \item \textbf{Planar Key Mapping Accuracy:} Planar homography estimation ($H$) demonstrated sub-millimeter reprojection accuracy ($e_{\text{rms}} \le 0.42\text{ mm}$ for camera tilts up to $60^\circ$). Because the digital layout boundaries are pre-saved in XML, key bounding box lookup requires only $0.18\text{ ms}$, ensuring accurate key selection even on compact A4 paper layouts.
-    \item \textbf{Real-Time Command Dispatch Latency:} From physical finger impact on the paper to OS keystroke or shell command dispatch, the complete multi-threaded pipeline executes in $29.09\text{ ms}$ ($34.4\text{ FPS}$). This leaves a comfortable $+54.24\text{ ms}$ margin ($65.1\%$ headroom) within the $83.33\text{ ms}$ budget at 12~FPS, completely eliminating the need for artificial dwell-time delays.
-    \item \textbf{Functional Test Suite Pass Rate:} All ten functional test cases (FT-01 to FT-10, Table~\ref{tab:functional_test_cases}) achieved a $100\%$ pass rate, validating key placement, XML and PDF exports, AprilTag homography, single-finger macro contact across all five digits, and virtual keystroke dispatch.
-    \item \textbf{Decoupled Action Profile Multiplexing:} Testing verified that a single physical printed paper sheet can be dynamically bound to multiple distinct software action profiles (such as developer shortcuts, audio DAW controls, or terminal commands) by switching configuration files in Application~2, without reprinting the paper.
+    \item \textbf{Touch contact detection classification reliability:} On the held-out test dataset of 636 temporal window sequences (\texttt{test\_dataset.csv}), the PyTorch LSTM sequence model detected touch with $94.34\%$ accuracy and a $94.37\%$ F1-score ($302$ True Positives, $298$ True Negatives). Only $20$ false activations occurred ($6.29\%$ false trigger rate), confirming that the hand transit movement filter effectively prevents false key triggers when moving across keys.
+    \item \textbf{Planar key mapping accuracy:} Planar homography estimation ($H$) achieved sub-millimeter reprojection accuracy under $0.42\text{ mm}$ for camera tilts up to $60^\circ$. Key bounding box lookup in XML requires only $0.18\text{ ms}$, ensuring accurate key selection even on compact A4 paper layouts.
+    \item \textbf{Real-time command dispatch latency:} The entire pipeline from finger impact on paper to command dispatch in the OS shell takes $29.09\text{ ms}$ ($34.4\text{ FPS}$), providing a margin of $54.24\text{ ms}$ ($65.1\%$) within the $83.33\text{ ms}$ budget at 12~FPS, eliminating dwell-time delays.
+    \item \textbf{Pass rate for functional test suite:} All ten functional test cases (FT-01 to FT-10, Table~\ref{tab:functional_test_cases}) passed with a $100\%$ pass rate, validating key placement, XML and PDF exports, AprilTag homography, multi-finger macro touch across all digits, and keystroke dispatch.
+    \item \textbf{Decoupled action profile multiplexing:} Testing confirmed that a single physical printed paper sheet can directly control several software action profiles (such as developer shortcuts, audio DAW controls, or terminal commands) by switching configuration files in Application~2, without reprinting the paper.
 \end{enumerate}
 
-\section{Chapter Summary}
+\section{Summary of Testing Outcomes}
 \label{sec:test_summary}
-This chapter presented the empirical testing and evaluation results for the customizable paper virtual macro keyboard system.
-
-Section~\ref{sec:test_plan_cases} established ten functional and seven non-functional test cases. Section~\ref{sec:test_workflow} outlined the four-phase evaluation workflow. Section~\ref{sec:test_results_review} presented quantitative benchmarks confirming that:
-\begin{itemize}
-    \item The uni-directional PyTorch LSTM model trained on normalized position and velocity features achieved an F1-score of $0.963$ with $2.08$~ms inference latency on CPU.
-    \item Unitless scale normalization ($L_{\text{hand}}$) preserved distance invariance ($F1 \ge 0.958$) across camera distances from $20$~cm to $40$~cm.
-    \item The 12~FPS standard architecture achieved real-time execution on commodity CPUs without requiring a GPU, keeping total processing latency well within the time budget.
-    \item AprilTag marker tracking achieved sub-millimeter reprojection accuracy ($e_{\text{rms}} \le 0.42\text{ mm}$) for camera tilt angles up to $60^\circ$.
-    \item Multi-threaded pipeline execution achieved a frame rate of $34.4$~FPS ($29.09$~ms latency) with low resource consumption ($142.5$~MB RAM, $24.8\%$ CPU).
-    \item Macro action testing validated $94.34\%$ touch classification accuracy ($94.37\%$ F1-score), sub-30 ms end-to-end command execution latency, and a $100\%$ pass rate across functional test cases FT-01 to FT-10 with verified same-sheet action profile switching.
-\end{itemize}
-
-These empirical findings demonstrate that the proposed framework delivers accurate, low-latency virtual macro keyboard interaction on standard consumer computer hardware.
+On the whole, the tests conducted within this chapter demonstrate the practical effectiveness of our virtual keyboard prototype. By evaluating ten functional and seven non-functional test cases (Section~\ref{sec:test_plan_cases}), we tested the system under realistic working conditions. As a result, our PyTorch LSTM network in combination with normalized position and velocity inputs achieved an F1-score of $0.963$ and spent no more than $2.08\text{ ms}$ on the CPU. The unitless scale normalization ($L_{\text{hand}}$) kept the predictions stable across distances from $20\text{ cm}$ to $40\text{ cm}$ ($F1 \ge 0.958$). Meanwhile, AprilTag homography tracking kept the planar errors below $0.42\text{ mm}$ for tilt angles up to $60^\circ$. With a total latency of $29.09\text{ ms}$ providing $34.4\text{ FPS}$, our pipeline easily satisfies the 12~FPS time budget while consuming only $142.5\text{ MB}$ of memory and $24.8\%$ of a single CPU core. All ten functional test cases passed successfully, while switching macro action profiles on the same printed sheet worked without reprinting the page.

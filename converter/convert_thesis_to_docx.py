@@ -3,11 +3,14 @@
 LaTeX to DOCX Conversion Suite for Thesis
 1. Strips \resizebox wrappers from figures and tables.
 2. Renders all TikZ diagrams into 300 DPI high-resolution PNG images.
-3. Inserts \includegraphics directives pointing to generated images.
-4. Cleans longtable header/footer artifacts for Pandoc.
-5. Adds clear unnumbered Chapter headings for preliminary sections and References.
-6. Invokes Pandoc with IEEE citation processing (--citeproc, --csl, --bibliography),
-   native OMML mathematics, real Table of Contents, and section numbering.
+3. Converts single-cell algorithm minipages into structured 2-column LaTeX tables.
+4. Cleans longtable/tabularx artifacts for clean Pandoc conversion.
+5. Preserves all native LaTeX equations (display and inline) for Pandoc native OMML output.
+6. Generates a clean, Pandoc-compatible main.tex with minimal preamble.
+7. Invokes Pandoc with IEEE citation processing (--citeproc, --csl, --bibliography),
+   real Table of Contents, native equations, and section numbering.
+8. Applies docx_styler.py for explicit page breaks on all chapters/preliminary sections,
+   crisp visible Booktabs table borders, and Times New Roman academic typography.
 """
 
 import os
@@ -15,8 +18,6 @@ import re
 import sys
 import shutil
 import subprocess
-import zipfile
-import xml.etree.ElementTree as ET
 from pathlib import Path
 
 WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
@@ -133,7 +134,7 @@ def extract_and_render_tikz(tex_content: str, chapter_name: str, fig_tracker: di
                 str(pdf_file),
                 str(png_prefix)
             ]
-            res_ppm = subprocess.run(cmd_ppm, capture_output=True, text=True)
+            subprocess.run(cmd_ppm, capture_output=True, text=True)
             generated_png = BUILD_DIR / f"{fig_stem}.png"
             if generated_png.exists():
                 shutil.copy(generated_png, final_png)
@@ -200,61 +201,128 @@ def convert_algorithms_to_tables(text: str) -> str:
         
     return pattern.sub(replacer, text)
 
-def clean_for_pandoc(content: str) -> str:
+def clean_for_pandoc(content: str, filename: str = "") -> str:
     """Preprocess LaTeX quirks for clean Pandoc conversion."""
     # Convert longtable specs to simple columns for Pandoc table parsing
-    content = re.sub(r"\\begin\{longtable\}\{.*?\}\s*p\{.*?\}\s*p\{.*?\}@?\}?", r"\\begin{longtable}{l p{13.5cm}}", content)
-    content = re.sub(r"\\begin\{longtable\}\{.*?\}", r"\\begin{longtable}{l p{13.5cm}}", content)
-    content = re.sub(r"\\endfirsthead.*?\\endhead", "", content, flags=re.DOTALL)
-    content = re.sub(r"\\endhead", "", content)
-    content = re.sub(r"\\endfoot.*?\\endlastfoot", "", content, flags=re.DOTALL)
-    content = re.sub(r"\\endfoot", "", content)
-    content = re.sub(r"\\endlastfoot", "", content)
+    content = re.sub(r"\\endfirsthead.*?\\endlastfoot\s*", "", content, flags=re.DOTALL)
+    content = re.sub(r"\\begin\{longtable\}[^\n]+", r"\\begin{longtable}{l p{13.5cm}}", content)
     content = re.sub(r"\\multicolumn\{2\}\{r@?\{\}\}\{\\scriptsize Continued on next page\\dots\}", "", content)
     
-    # Convert \paragraph{...} to inline bold lead-in \textbf{...} to prevent weird heading numbers (e.g. 1.3.2.0.1)
+    # Convert \tabularx specs to regular tabular
+    content = re.sub(r"\\begin\{tabularx\}\{.*?\}(\{.*?\})", r"\\begin{tabular}\1", content)
+    content = re.sub(r"\\end\{tabularx\}", r"\\end{tabular}", content)
+    
+    # Convert \tabular* specs to regular tabular
+    content = re.sub(r"\\begin\{tabular\*\}\{.*?\}(\{.*?\})", r"\\begin{tabular}\1", content)
+    content = re.sub(r"\\end\{tabular\*\}", r"\\end{tabular}", content)
+
+    # Convert \paragraph{...} to inline bold lead-in \textbf{...} to prevent weird heading numbers
     content = re.sub(r"\\paragraph\{(.*?)\}", r"\n\n\\textbf{\1} ", content)
     
-    # Handle titlepage: Convert \begin{titlepage}...\end{titlepage} into explicit centered blocks + pagebreak
-    if r"\begin{titlepage}" in content:
-        titlepage_pattern = re.compile(r"\\begin\{titlepage\}(.*?)\\end\{titlepage\}", re.DOTALL)
-        def titlepage_replacer(m):
-            out_tp = [
-                r"\begin{center}",
-                r"{\Huge \textbf{Customizable Paper-Based Virtual Keyboard System Using Computer Vision and Deep Learning}}",
-                r"",
-                r"\vspace*{2.0cm}",
-                r"",
-                r"{\Large \textbf{G A Lahiru Dilhara}}",
-                r"",
-                r"{\large ( Student No: 29096 )}",
-                r"",
-                r"\vspace*{1.5cm}",
-                r"",
-                r"{\large \textbf{Supervised by:}}",
-                r"",
-                r"{\large Prof. Chaminda Wijesinghe}",
-                r"",
-                r"\vspace*{2.5cm}",
-                r"",
-                r"{\large Degree of Bachelor of Science (Honours) in Computer Science}",
-                r"",
-                r"\vspace*{2.0cm}",
-                r"",
-                r"{\large \textbf{Department of Computer Science}}",
-                r"",
-                r"{\large \textbf{Faculty of Computing}}",
-                r"",
-                r"{\large \textbf{National School of Business Management}}",
-                r"\end{center}",
-                r"",
-                r"\pagebreak"
-            ]
-            return "\n".join(out_tp)
+    # Clean LaTeX math in captions to readable Unicode text so Pandoc doesn't produce [Equation] or empty text
+    def clean_caption_math(m):
+        cap = m.group(1)
+        cap = re.sub(r"\$L_{\\text\{hand\}}\$", r"L_hand", cap)
+        cap = re.sub(r"\$\\mathbf\{P\}_(\d+)\$", r"P_\1", cap)
+        cap = re.sub(r"\$P_(\d+)\$", r"P_\1", cap)
+        cap = re.sub(r"\$W\$", r"W", cap)
+        cap = re.sub(r"\$S\$", r"S", cap)
+        cap = re.sub(r"\$0\^\\circ\$", r"0°", cap)
+        cap = re.sub(r"\$75\^\\circ\$", r"75°", cap)
+        cap = re.sub(r"\$29\.09\\text\{\s*ms\}\$", r"29.09 ms", cap)
+        cap = re.sub(r"\$(\d+(?:\.\d+)?)\s*\\text\{\s*ms\}\$", r"\1 ms", cap)
+        cap = re.sub(r"\$([^\$]+)\$", r"\1", cap)
+        return f"\\caption{{{cap}}}"
         
-        content = titlepage_pattern.sub(titlepage_replacer, content)
+    content = re.sub(r"\\caption\{(.*?)\}", clean_caption_math, content)
+
+    # Clean specific preliminary files so Pandoc gets clear unnumbered chapters
+    if filename == "declaration.tex":
+        content = re.sub(r"\\begin\{center\}.*?\\textbf\{DECLARATION\}.*?\\end\{center\}", r"\\chapter*{Declaration}", content, flags=re.DOTALL)
+    elif filename == "acknowledgement.tex":
+        content = re.sub(r"\\begin\{center\}.*?\\textbf\{ACKNOWLEDGEMENT\}.*?\\end\{center\}", r"\\chapter*{Acknowledgement}", content, flags=re.DOTALL)
+    elif filename == "abstract.tex":
+        content = re.sub(r"\\begin\{center\}.*?\\textbf\{ABSTRACT\}.*?\\end\{center\}", r"\\chapter*{Abstract}", content, flags=re.DOTALL)
         
     return content
+
+def generate_pandoc_main_tex() -> str:
+    """Generates a clean, minimal main.tex for Pandoc containing the single official Title Page and inputs."""
+    tex = [
+        r"\documentclass[12pt,a4paper]{report}",
+        r"\usepackage[utf8]{inputenc}",
+        r"\usepackage{amsmath,amsfonts,amssymb}",
+        r"\usepackage{graphicx}",
+        r"\usepackage{booktabs}",
+        r"\usepackage{longtable}",
+        r"\usepackage{hyperref}",
+        r"\begin{document}",
+        r"",
+        r"% Title Page",
+        r"\begin{center}",
+        r"{\fontsize{16pt}{24pt}\selectfont \textbf{CUSTOMIZABLE PAPER-BASED VIRTUAL MACRO KEYBOARD SYSTEM USING COMPUTER VISION AND DEEP LEARNING} \par}",
+        r"\vspace*{1.5cm}",
+        r"{\fontsize{14pt}{20pt}\selectfont A thesis submitted to NSBM Green University for the degree of \par}",
+        r"{\fontsize{14pt}{20pt}\selectfont Bachelor of Science (Honours) in Computer Science \par}",
+        r"\vspace*{1.2cm}",
+        r"{\fontsize{14pt}{20pt}\selectfont By \par}",
+        r"\vspace*{1.0cm}",
+        r"{\fontsize{14pt}{20pt}\selectfont \textbf{G A LAHIRU DILHARA} \par}",
+        r"\vspace*{1.5cm}",
+        r"{\fontsize{14pt}{20pt}\selectfont Department of Computer Science \par}",
+        r"{\fontsize{14pt}{20pt}\selectfont Faculty of Computing \par}",
+        r"{\fontsize{14pt}{20pt}\selectfont NSBM Green University \par}",
+        r"{\fontsize{14pt}{20pt}\selectfont Sri Lanka \par}",
+        r"\vspace*{1.0cm}",
+        r"{\fontsize{14pt}{20pt}\selectfont September 2026 \par}",
+        r"\end{center}",
+        r"",
+        r"\pagebreak",
+        r"",
+        r"% Preliminary Matter",
+        r"\input{chapters/declaration.tex}",
+        r"\pagebreak",
+        r"\input{chapters/acknowledgement.tex}",
+        r"\pagebreak",
+        r"\input{chapters/abstract.tex}",
+        r"\pagebreak",
+        r"\input{chapters/abbreviations.tex}",
+        r"\pagebreak",
+        r"",
+        r"% Main Chapters",
+        r"\input{chapters/chapter01.tex}",
+        r"\pagebreak",
+        r"\input{chapters/chapter02.tex}",
+        r"\pagebreak",
+        r"\input{chapters/chapter03.tex}",
+        r"\pagebreak",
+        r"\input{chapters/chapter04.tex}",
+        r"\pagebreak",
+        r"\input{chapters/chapter05.tex}",
+        r"\pagebreak",
+        r"\input{chapters/chapter06.tex}",
+        r"\pagebreak",
+        r"",
+        r"% Appendices",
+        r"\appendix",
+        r"\input{chapters/appendixA.tex}",
+        r"\pagebreak",
+        r"\input{chapters/appendixB.tex}",
+        r"\pagebreak",
+        r"\input{chapters/appendixC.tex}",
+        r"\pagebreak",
+        r"\input{chapters/appendixD.tex}",
+        r"\pagebreak",
+        r"\input{chapters/appendixE.tex}",
+        r"\pagebreak",
+        r"",
+        r"% References (Placed at end of document)",
+        r"\chapter*{References}",
+        r"\printbibliography",
+        r"",
+        r"\end{document}"
+    ]
+    return "\n".join(tex)
 
 def main():
     print("=== Starting LaTeX to DOCX Conversion Suite ===")
@@ -271,7 +339,7 @@ def main():
     
     for tex_file in sorted(chapters_dir.glob("*.tex")):
         chapter_name = tex_file.stem
-        print(f"\nProcessing chapter: {tex_file.name}")
+        print(f"Processing chapter: {tex_file.name}")
         with open(tex_file, "r", encoding="utf-8") as f:
             content = f.read()
             
@@ -279,37 +347,19 @@ def main():
         content_no_resize = strip_resizebox(content)
         # Step 2: Convert single-cell Algorithm minipages to clean 2-column tables
         content_with_algs = convert_algorithms_to_tables(content_no_resize)
-        # Step 3: Render TikZ diagrams to PNG
+        # Step 3: Render TikZ diagrams to 300 DPI PNG
         content_with_figs = extract_and_render_tikz(content_with_algs, chapter_name, fig_tracker)
-        # Step 4: Clean LaTeX artifacts
-        cleaned_content = clean_for_pandoc(content_with_figs)
+        # Step 4: Clean LaTeX artifacts for Pandoc (preserving native LaTeX equations)
+        cleaned_content = clean_for_pandoc(content_with_figs, tex_file.name)
         
         target_file = build_chapters_dir / tex_file.name
         with open(target_file, "w", encoding="utf-8") as f:
             f.write(cleaned_content)
             
-    # Process main.tex
-    main_tex = WORKSPACE_ROOT / "main.tex"
-    with open(main_tex, "r", encoding="utf-8") as f:
-        main_content = f.read()
-        
-    main_content_no_resize = strip_resizebox(main_content)
-    main_content_with_algs = convert_algorithms_to_tables(main_content_no_resize)
-    main_content_with_figs = extract_and_render_tikz(main_content_with_algs, "main", fig_tracker)
-    cleaned_main_content = clean_for_pandoc(main_content_with_figs)
-    
-    # Strip \tableofcontents from main.tex to avoid duplicate TOC generation by Pandoc
-    cleaned_main_content = cleaned_main_content.replace(r"\tableofcontents", "")
-    
-    # Ensure explicit References heading before bibliography
-    cleaned_main_content = cleaned_main_content.replace(
-        r"\printbibliography[title={References}]",
-        "\\chapter*{References}\n\\printbibliography"
-    )
-    
+    # Generate clean main.tex for Pandoc
     build_main_tex = BUILD_DIR / "main.tex"
     with open(build_main_tex, "w", encoding="utf-8") as f:
-        f.write(cleaned_main_content)
+        f.write(generate_pandoc_main_tex())
         
     # Copy research-db and ieee.csl
     build_research_db = BUILD_DIR / "research-db"

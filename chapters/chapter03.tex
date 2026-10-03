@@ -1,25 +1,23 @@
 \chapter{Literature Review}
 \label{ch:literature_review}
 
-\section{Chapter Overview}
+\section{Overview of the Chapter and Research Context}
 \label{sec:lit_chapter_overview}
-Text entry and command input remain primary channels for human-computer interaction (HCI). While physical keyboards provide tactile feedback for rapid continuous typing, modern computing workflows increasingly rely on auxiliary macro keypads, shortcut controllers, and specialized command surfaces (such as developer hotkeys, video editing consoles, and audio trigger pads) \cite{ReviewVirtualKeyboard2020, Lee2022Virtual}. However, dedicated hardware macro devices are costly, physically fixed, and difficult to sanitize.
+When I started doing research on input interfaces, I came to understand that most human-computer interactions still make use of key switches. The use of physical keyboards provides reliable tactile feedback for typing prose, but modern software and creative jobs need macro keypads and shortcut consoles \cite{ReviewVirtualKeyboard2020, Lee2022Virtual}. These include video editing consoles and developer launching pads. But commercially available hardware macro pads cost from \$100 to \$300, are not customizable in any way physically, and it is hard to maintain hygiene in them. This led researchers to look into the possibility of using virtual keyboards on flat surfaces by making use of computer vision \cite{Zhang2001Visual, Srivastava2012RealTime, Khare2019QWERTY, Maman2023TypeNet}. Although most early attempts have been made to create alternatives for continuous typing on paper, it was physically difficult to type on paper continuously without any tactile switch travel. For customizable macro controllers, paper works much better because users only glance at and tap individual shortcut buttons.
 
-To overcome these physical constraints, computer vision researchers have explored virtual input devices on everyday planar surfaces using optical sensors \cite{Zhang2001Visual, Srivastava2012RealTime, Khare2019QWERTY, Maman2023TypeNet}. However, prior research predominantly positioned virtual keyboards as direct replacements for standard continuous keyboards. Because flat paper lacks physical key switches, continuous touch typing on paper is fatiguing. In contrast, paper interfaces are ideal as auxiliary macro keyboards and shortcut controllers, where interaction is discrete, visually guided, and customizable.
+There were four huge challenges to getting a monocular paper virtual keyboard to work well:
+\begin{itemize}
+    \item \textbf{Surface Touch Detection Without Depth Sensors:} With standard 2D webcams it is impossible to measure depth in the Z-axis, making it difficult to differentiate between a real paper touch and a hovering finger \cite{Thomas2013Camera, Posner2012Single, Lee2019Virtual, Toshpulatov2024RealTime}.
+    \item \textbf{Hand Scale and Perspective Variations:} Hand landmark coordinates vary according to different hand sizes and distances from the lens \cite{Zhang2020MediaPipe, Doan2022Efficient}. Normalizing coordinates is needed without adding lag from heavy smoothing filters \cite{Kumar2026Hybrid}.
+    \item \textbf{Planar Orientation and Camera Tilt:} The perspective effect on the desk surface that comes from tilting the camera means we need to compute a planar homography matrix ($H \in \mathbb{R}^{3 \times 3}$) so as to keep key bounds aligned continuously \cite{Wang2016AprilTag2, Kallwies2020Determining, Pirchheim2011Homography}.
+    \item \textbf{Decoupled Layout Design and Action Multiplexing:} Older systems hardcoded QWERTY layouts rather than allowing users to pair various software action profiles with one printed sheet \cite{ReviewVirtualKeyboard2020}.
+\end{itemize}
 
-Implementing a dependable virtual macro keyboard using a single RGB camera presents several challenging problems:
-\begin{enumerate}
-    \item \textbf{Surface Touch Detection Without Depth Sensors:} Standard 2D RGB cameras lack Z-axis depth perception. Detecting physical contact with paper rather than hovering slightly above it is difficult \cite{Thomas2013Camera, Posner2012Single, Lee2019Virtual, Toshpulatov2024RealTime}.
-    \item \textbf{Hand Scale and Perspective Variations:} Hand landmark coordinates vary with hand size, camera distance, and perspective \cite{Zhang2020MediaPipe, Doan2022Efficient}. Normalizing landmarks without temporal filtering delays is critical for detecting rapid impacts \cite{Kumar2026Hybrid}.
-    \item \textbf{Planar Orientation and Camera Tilt:} Tilt between camera and paper causes perspective distortion. Dynamic planar homography ($H \in \mathbb{R}^{3 \times 3}$) is necessary to track paper position continuously \cite{Wang2016AprilTag2, Kallwies2020Determining, Pirchheim2011Homography}.
-    \item \textbf{Decoupled Layout Design and Action Multiplexing:} Most prior virtual keyboards rely on fixed QWERTY layouts and cannot map a single printed sheet to multiple distinct action profiles \cite{ReviewVirtualKeyboard2020}.
-\end{enumerate}
-
-This chapter reviews prior research across vision input, fiducial tracking, hand joint estimation, kinematic scaling, and deep sequence modeling. Section~\ref{sec:lit_conceptual_map} presents a conceptual taxonomy. Section~\ref{sec:lit_domain_overview} explores hardware evolution, biomechanics, and ergonomic metrics. Section~\ref{sec:lit_existing_systems} analyzes existing frameworks across eight sensing modalities, supported by a comparative matrix. Section~\ref{sec:lit_technological_analysis} examines key algorithms, including MediaPipe hand tracking, scale normalization, AprilTag homography, and Long Short-Term Memory (LSTM) sequence classification. Finally, Section~\ref{sec:lit_reflection} synthesizes the research gaps that motivate this thesis.
+In order to lay a sound foundation, this chapter analyzes the current literature across four main categories. Firstly, I define the literature framework and searching methodology. Secondly, I discuss the evolution of input devices and the biomechanical aspects of finger strikes. Thirdly, I conduct a comparative analysis of existing virtual keyboards from eight different sensing mechanisms and analyze their drawbacks. Lastly, I examine the mathematical and algorithmic aspects of MediaPipe hand tracking, scale normalization, AprilTag homography, and PyTorch LSTM touch detection, leading to the research gaps that motivate this thesis.
 
 \section{Conceptual Map of the Literature}
 \label{sec:lit_conceptual_map}
-Figure~\ref{fig:lit_conceptual_map_diagram} illustrates the conceptual taxonomy and structural organization of the literature reviewed in this chapter.
+In Figure~\ref{fig:lit_conceptual_map_diagram}, I plotted the literature against four primary pillars: HCI input approaches, sensing types, technical algorithms, and synthesis of research gaps.
 
 \begin{figure}[htbp]
 \centering
@@ -103,13 +101,12 @@ The review is structured across four main themes:
 
 \subsection{Literature Search Strategy and PRISMA 2020 Systematic Protocol}
 \label{subsec:lit_search_strategy}
-To ensure methodological rigor, literature retrieval followed PRISMA 2020 guidelines \cite{ReviewVirtualKeyboard2020}:
+For the systematic review process, I applied the PRISMA 2020 protocol through IEEE Xplore, ACM Digital Library, Scopus, Elsevier ScienceDirect, and Google Scholar to find peer-reviewed studies from 2000 to 2025 \cite{ReviewVirtualKeyboard2020}:
 \begin{enumerate}
-    \item \textbf{Databases:} Searches were conducted across IEEE Xplore, ACM Digital Library, Scopus, ScienceDirect, and Google Scholar (2000 to 2025).
-    \item \textbf{Search Syntax:} Keywords combined domain concepts: \texttt{("virtual keyboard" OR "paper keyboard") AND ("monocular RGB" OR "MediaPipe") AND ("touch detection" OR "homography")}.
-    \item \textbf{Inclusion Criteria:} Peer-reviewed papers presenting empirical virtual keyboards, planar touch algorithms, fiducial tracking under tilt, and real-time hand pose estimation.
-    \item \textbf{Exclusion Criteria:} Studies requiring wearable data gloves, intrusive physical markers, conceptual white papers, or multi-camera motion capture rigs.
-    \item \textbf{Synthesis Approach:} A thematic synthesis compared sensing modalities, multi-finger support, computational latency, and environmental robustness to derive research gaps.
+    \item \textbf{Search Syntax:} I searched with queries containing: \texttt{("virtual keyboard" OR "paper keyboard") AND ("monocular RGB" OR "MediaPipe") AND ("touch detection" OR "homography")}.
+    \item \textbf{Inclusion Criteria:} I added peer-reviewed papers that showed functioning virtual keyboards, planar contact algorithms, fiducial tracking with tilt, or real-time hand joint estimation.
+    \item \textbf{Exclusion Criteria:} I removed papers that required wearable sensor gloves, intrusive markers, multi-camera motion capture rigs, or were only conceptual white papers without implementation.
+    \item \textbf{Synthesis Approach:} The shortlisted papers were then compared on the basis of sensing approaches, multi-finger support, compute latency, and environmental robustness to identify the problem areas this project addresses.
 \end{enumerate}
 
 \section{Domain Overview}
@@ -117,81 +114,73 @@ To ensure methodological rigor, literature retrieval followed PRISMA 2020 guidel
 
 \subsection{Evolution of Text Entry and Spatial HCI Hardware}
 \label{subsec:lit_history_evolution}
-Text entry and command input technology has evolved across five primary milestones:
-\begin{enumerate}
-    \item \textbf{Mechanical Keyboards (1870s to 1980s):} Mechanical keyboards relied on discrete switches providing tactile depression and key travel \cite{ReviewVirtualKeyboard2020}.
-    \item \textbf{Membrane Keypads and Capacitive Screens (1990s to 2000s):} Membrane keyboards lowered costs, while capacitive touchscreens enabled dynamic software layouts but lacked physical tactile key edges \cite{ReviewVirtualKeyboard2020}.
-    \item \textbf{Dedicated Hardware Macro Controllers (2000s to Present):} Creative workflows adopted auxiliary macro pads to trigger shortcuts with a single tap. However, dedicated macro devices remain expensive (\$100 to \$300) and physically rigid.
-    \item \textbf{Laser Projectors and Infrared Curtains (2000s to 2010s):} Optical projectors cast keyboard patterns onto flat desks with infrared breach detection \cite{Cheng2015Fingertip, Kudale2016RealTime}, but suffered from ambient light wash-out and fixed layouts.
-    \item \textbf{Monocular Vision and Paper Macro Interfaces (2010s to Present):} Real-time skeletal models (Google MediaPipe) track 21 hand joints from webcam feeds \cite{Zhang2020MediaPipe, GilMartin2023Hand}. Combined with planar homography, plain printed paper provides a customizable, low-cost macro interface without active electronics.
-\end{enumerate}
+Considering the evolution of text input, early mechanical keyboards used physical switches that provided key travel with strong tactile feedback \cite{ReviewVirtualKeyboard2020}. Next came membrane keyboards, where production became cheaper, and capacitive touchscreens that offered soft visual key layouts without physical tactile edges \cite{ReviewVirtualKeyboard2020}. Optical laser keyboards projected the outline of keys using infrared light \cite{Cheng2015Fingertip, Kudale2016RealTime}; however, these could not work reliably in bright environments as ambient light would wash out the pattern. Nowadays, entering complex command sequences can be done by dedicated macro pads (such as the Stream Deck), which enable users to trigger multi-key shortcuts with one keypress. However, such devices are expensive (usually priced from \$100 up to \$300) while being non-modifiable physically. Monocular computer vision allows us to track 21 hand joints using only a standard webcam \cite{Zhang2020MediaPipe, GilMartin2023Hand}, which means we can use a printed piece of paper as an inexpensive, customizable macro pad without active electronics.
 
 \subsection{Kinematic Typing Dynamics and Biomechanical Surface Impact}
 \label{subsec:lit_typing_biomechanics}
-Accurate contact detection without depth sensors requires understanding the kinematics of finger impact on a rigid surface \cite{Simao2016Unsupervised, MacRitchie2015Integrating, Pilkov2024Markerless}. A physical keystroke consists of four distinct kinematic phases:
+Without a depth sensor, I needed to understand the physical characteristics of a finger as it makes contact with a flat desk in order to identify touch events \cite{Simao2016Unsupervised, MacRitchie2015Integrating, Pilkov2024Markerless}. A physical keystroke consists of four kinematic phases:
 \begin{enumerate}
-    \item \textbf{Approaching Phase ($t_1$ to $t_2$):} The active finger accelerates downward toward the target key, producing a sharp increase in downward vertical velocity ($V_y$).
-    \item \textbf{Impact Phase ($t_2$ to $t_3$):} The fingertip collides with the rigid paper surface. Within 20 to 40 milliseconds, downward velocity drops to zero ($V_y \to 0$), producing an intense deceleration peak ($A_y = \frac{dV_y}{dt} \ll 0$).
-    \item \textbf{Resting Phase ($t_3$ to $t_4$):} The finger rests momentarily on the surface while contact is registered.
-    \item \textbf{Recoil Phase ($t_4$ to $t_5$):} The finger rebounds upward away from the desk, inverting vertical velocity ($V_y > 0$).
+    \item \textbf{Approaching Phase ($t_1$ to $t_2$):} The finger moves downward at increasing vertical speed towards the target button ($V_y$).
+    \item \textbf{Impact Phase ($t_2$ to $t_3$):} When encountering the rigid paper surface, downward velocity is zeroed in 20 to 40~ms ($V_y \to 0$), producing a steep deceleration spike ($A_y = \frac{dV_y}{dt} \ll 0$).
+    \item \textbf{Resting Phase ($t_3$ to $t_4$):} The finger pauses briefly on the paper while the touch event registers.
+    \item \textbf{Recoil Phase ($t_4$ to $t_5$):} The finger rebounds upward away from the desk surface ($V_y > 0$).
 \end{enumerate}
-
-When typing on a physical surface, the rigid tabletop provides a hard boundary that causes immediate deceleration. In contrast, in mid-air typing systems, fingers overshoot because there is no physical stopping surface \cite{Boletsis2019TextInput, Maman2023TypeNet}.
+The rigid desk acts as a hard physical boundary, providing immediate deceleration of motion. Conversely, fingers tend to overshoot in mid-air typing systems, as there is no stopping surface \cite{Boletsis2019TextInput, Maman2023TypeNet}.
 
 \subsection{Ergonomics and Human Input Performance Metrics}
 \label{subsec:lit_fitts_law}
-Human input performance is governed by biomechanical feedback and movement physics:
+Input performance by humans has a direct correlation with physical feedback and movement dynamics:
 \begin{itemize}
-    \item \textbf{Tactile Key Travel versus Discrete Visual Targeting:} In continuous touch typing on mechanical keyboards, users rely on physical key travel (2 to 4~mm of switch depression) to type blind at speeds of 60 to 100+ Words Per Minute (WPM). On flat virtual surfaces, the complete lack of physical key travel makes continuous blind prose typing fatiguing and error-prone \cite{ReviewVirtualKeyboard2020}. However, macro controllers operate under a different interaction model: users glance at a dedicated shortcut key, visually target it, and tap it once to trigger a command. For macro workflows, the lack of mechanical travel is not a hindrance, while the freedom to design custom key sizes and print specialized paper layouts provides substantial ergonomic advantages.
-    \item \textbf{Discrete Macro Action Rate versus Continuous Typing Speed:} In traditional text entry research, keyboard speed is measured in Words Per Minute (WPM) based on continuous character sequences. In contrast, auxiliary macro keypads and shortcut controllers operate through discrete command dispatches, where interaction performance is determined by contact detection accuracy, low false activation rates, and rapid end-to-end processing latency rather than continuous typing speed.
-    \item \textbf{Keystrokes Per Character (KSPC):} Measures input efficiency by comparing total keystrokes (including corrections) to generated characters. Physical keyboards average approximately 1.05 KSPC, whereas contactless mid-air keyboards often exceed 1.30 KSPC due to accidental inputs \cite{Boletsis2019TextInput}.
-    \item \textbf{Fitts' Law:} Models the movement time ($MT$) required to hit a target key of width $W$ at distance $D$:
+    \item \textbf{Tactile Key Travel versus Discrete Visual Targeting:} With a mechanical keyboard, a depth of keystroke between $2\text{ to }4\text{ mm}$ allows fast blind touch-typing without needing to see the keys. On flat paper, typing continuous prose creates strain on fingers since there is no mechanical key travel \cite{ReviewVirtualKeyboard2020}. For macro keypads, people do not type continuous prose; rather, they look for a particular button and press it once. The presence of custom button sizes on paper layouts directly improves ergonomics.
+    \item \textbf{Discrete Macro Action Rate versus Continuous Typing Speed:} Traditional typing tests measure input speed in Words Per Minute based on continuous character sequences. In contrast, for macro keypads, touch accuracy and reduced latency are the critical performance metrics rather than continuous typing speed.
+    \item \textbf{Keystrokes Per Character (KSPC):} Efficiency is measured by Keystrokes Per Character. Physical keyboards generally register about 1.05 KSPC, while contactless mid-air keyboards have more than 1.30 KSPC owing to accidental touches \cite{Boletsis2019TextInput}.
+    \item \textbf{Fitts' Law:} Fitts' Law models how long it takes to reach a target button of width $W$ at distance $D$ through the Index of Difficulty ($ID$) in bits:
     \begin{equation}
     MT = a + b \log_2 \left( 1 + \frac{D}{W} \right) = a + b \cdot ID
     \label{eq:fitts_law}
     \end{equation}
-    where $ID$ is the Index of Difficulty in bits. Customizable paper macro keyboards allow users to design large buttons $W$ in the software designer, directly lowering $ID$ for rapid shortcut selection.
+    The customizable paper macro keyboard enables one to customize the button width $W$ in the software designer, directly reducing the Index of Difficulty for rapid shortcut selection.
 \end{itemize}
 
 \subsection{Multi-Finger Tendon Coupling}
 \label{subsec:lit_biomechanical_coupling}
-In the human hand, flexor and extensor tendons are anatomically linked across adjacent fingers, particularly between the middle, ring, and pinky digits \cite{Simao2016Unsupervised, Pilkov2024Markerless}. When a user strikes a key with one finger, adjacent fingers produce involuntary sympathetic motions. Simple single-finger heuristics misinterpret these involuntary twitches as intentional key presses \cite{Thomas2013Camera, Srivastava2012RealTime}. Deep sequence models that observe temporal coordination across all joints can effectively differentiate intentional strikes from sympathetic movements.
+Anatomical tendon coupling in the human hand is another biological factor \cite{Simao2016Unsupervised, Pilkov2024Markerless}. Shared muscle pathways are found in the flexor and extensor tendons of the middle, ring, and pinky fingers. For example, when someone presses down with one finger, the fingers next to it involuntarily twitch downward. These minor twitches are confused for intentional key presses by basic single-finger tracking algorithms \cite{Thomas2013Camera, Srivastava2012RealTime}. Deep sequence models address this by tracking combinations of movement from all 21 hand joints over time to differentiate intentional taps from passive tendon twitches.
 
 \section{Existing Systems and Sensing Modalities}
 \label{sec:lit_existing_systems}
-Prior virtual input research can be grouped across eight sensing modalities.
+Reviewing previous systems of virtual keyboards, one may note that eight different sensing modalities have been explored.
 
 \subsection{Projection-Based and Infrared Sensor Systems}
 \label{subsec:lit_proj_systems}
-Projection keyboards combine optical pattern projectors with infrared sensor grids \cite{Cheng2015Fingertip, Kudale2016RealTime}. A red laser projects keyboard outlines onto a desk, while an invisible infrared light plane parallel to the desk detects finger contact when breached \cite{Cheng2015Fingertip}. Kudale and Wanjale \cite{Kudale2016RealTime} implemented an infrared camera tracking reflective markers using four-point homography. While avoiding paper, these systems suffer from high power consumption, pattern wash-out under room lighting, and rigid key layouts.
+Projection keyboards use a red laser grid placed on the table surface and sense finger presence as an invisible infrared beam is broken \cite{Cheng2015Fingertip, Kudale2016RealTime}. Kudale and Wanjale \cite{Kudale2016RealTime} implemented an infrared camera tracking reflective markers using four-point homography. However, the ambient light of the room destroys the pattern through wash-out and makes changing the key arrangement impossible.
 
 \subsection{Shadow-Based Monocular RGB Keyboards}
 \label{subsec:lit_shadow_systems}
-Earlier monocular RGB keyboards analyzed fingertip shadows to avoid active hardware \cite{Thomas2013Camera, Posner2012Single, Yue2014Blind}. Thomas \cite{Thomas2013Camera} tracked the distance between the fingertip and its cast shadow, which reaches zero at physical contact. Posner et al. \cite{Posner2012Single} applied adaptive shadow thresholding to detect paper contacts. However, shadow analysis fails under diffuse indoor lighting, multiple light sources, dark desk surfaces, or hand occlusions \cite{Yue2014Blind}. Crucially, shadow methods are fundamentally restricted to single-finger tracking: when multiple fingers move near the surface together, their cast shadows merge and occlude one another, causing complete segmentation failure.
+Monocular RGB shadow sensors calculate the distance between the fingertip and its cast shadow, which reaches zero upon physical contact \cite{Thomas2013Camera, Posner2012Single, Yue2014Blind}. Posner et al. \cite{Posner2012Single} applied adaptive shadow thresholding for paper contact detection. However, shadow analysis fails under diffuse lighting, multiple light sources, or dark desk surfaces \cite{Yue2014Blind}. Crucially, shadow methods completely fail when several fingers move simultaneously because their shadows overlap and merge.
 
 \subsection{Hardware-Assisted Depth Sensors (RGB-D and ToF)}
 \label{subsec:lit_depth_systems}
-Specialized depth cameras, including Microsoft Kinect, Intel RealSense, and Time-of-Flight (ToF) sensors, resolve depth ambiguity by producing metric 3D point clouds \cite{Lee2019Virtual, Toshpulatov2024RealTime}. Lee and Kwon \cite{Lee2019Virtual} calibrated a planar surface to detect touch events when fingertip point clouds crossed a distance threshold. Toshpulatov et al. \cite{Toshpulatov2024RealTime} fused 3D depth data with optical flow to eliminate hovering false positives. Despite high accuracy, depth cameras are expensive, power-intensive, noisy near flat surfaces, and require dedicated GPUs for real-time processing.
+Depth sensors like Microsoft Kinect, Intel RealSense, and Time-of-Flight cameras create metric 3D point clouds \cite{Lee2019Virtual, Toshpulatov2024RealTime}. Lee and Kwon \cite{Lee2019Virtual} calibrated a flat surface to detect touches when fingertip point clouds crossed a distance threshold. Toshpulatov et al. \cite{Toshpulatov2024RealTime} combined 3D depth information and optical flow to filter out hovering artifacts. However, depth cameras are costly, power-hungry, prone to noise close to flat surfaces, and require dedicated GPUs to process in real-time.
 
 \subsection{3D Mid-Air Typing and AR/VR Virtual Keyboards}
 \label{subsec:lit_air_systems}
-Spatial computing headsets have spurred interest in mid-air keyboards \cite{Boletsis2019TextInput, Enkhbat2020HandKey, Lee2022Virtual, Yoo2026WordLevel}. Enkhbat et al. \cite{Enkhbat2020HandKey} introduced HandKey, a convolutional network detecting dual-hand typing within virtual 3D bounding cubes. Lee et al. \cite{Lee2022Virtual} tracked two-handed mid-air typing for head-mounted displays. However, mid-air typing causes severe arm fatigue during extended sessions and lacks a physical stopping surface, causing fingers to overshoot target keys \cite{Boletsis2019TextInput, Maman2023TypeNet}.
+Spatial computing headsets have spurred interest in mid-air keyboards \cite{Boletsis2019TextInput, Enkhbat2020HandKey, Lee2022Virtual, Yoo2026WordLevel}. Enkhbat et al. \cite{Enkhbat2020HandKey} introduced HandKey, detecting typing within 3D bounding cubes. Lee et al. \cite{Lee2022Virtual} tracked two-handed mid-air typing for head-mounted displays. However, mid-air typing lacks a physical desk surface where fingers stop; therefore, users experience high levels of arm fatigue and overshoot target keys \cite{Boletsis2019TextInput, Maman2023TypeNet}.
 
 \subsection{Paper-Anchored Monocular RGB Keyboards}
 \label{subsec:lit_paper_systems}
-Paper-based monocular keyboards project virtual interaction onto printed paper sheets using standard webcams \cite{Zhang2001Visual, Srivastava2012RealTime, Khare2019QWERTY, Maman2023TypeNet}. Zhang et al. \cite{Zhang2001Visual} tracked page corners to compute homography. Srivastava and Tripathi \cite{Srivastava2012RealTime} used vertical pixel velocity thresholds, while Khare \cite{Khare2019QWERTY} tracked a printed QWERTY sheet using skin-color segmentation. TypeNet \cite{Maman2023TypeNet} demonstrated typing on uncalibrated surfaces using deep keypoint tracking and language models. However, without exception, all prior monocular paper keyboards were limited to single-finger tracking (index finger pointing or the single fastest-moving digit), lacking multi-finger capability. Furthermore, attempting continuous prose typing on flat paper induces fatigue, whereas paper is ideal for customizable macro palettes.
+Monocular paper keyboards employ standard webcams to interact virtually with printed paper sheets \cite{Zhang2001Visual, Srivastava2012RealTime, Khare2019QWERTY, Maman2023TypeNet}. Zhang et al. \cite{Zhang2001Visual} tracked page corners to compute planar homography. Vertical velocity thresholds of pixels were employed by Srivastava and Tripathi \cite{Srivastava2012RealTime}, while a printed QWERTY sheet was tracked by Khare \cite{Khare2019QWERTY} employing skin-color segmentation. TypeNet \cite{Maman2023TypeNet} enabled typing on uncalibrated surfaces with deep keypoint tracking. However, all prior monocular paper keyboards were limited in that they detected the movement of only one finger at a time.
 
 \subsection{Specialized and Assistive Modalities}
 \label{subsec:lit_specialized_assistive}
-Alternative sensing approaches include Visible Light Communication (VLC) photodiode arrays \cite{Webber2021Finger}, fingernail blood volume imaging \cite{Sun2009Estimation}, multi-camera optical motion capture \cite{MacRitchie2015Integrating, Pilkov2024Markerless}, and eye-gaze tracking \cite{Chen2024Gaze}. While assistive eye-gaze systems help motor-impaired individuals, they suffer from the Midas Touch problem, where pauses to read trigger unwanted inputs \cite{Chen2024Gaze}.
+Additional forms of sensing involve VLC photodiodes \cite{Webber2021Finger}, fingernail color-based blood volume imaging \cite{Sun2009Estimation}, optical motion capture \cite{MacRitchie2015Integrating, Pilkov2024Markerless}, and gaze tracking \cite{Chen2024Gaze}. Gaze tracking assists people with motor disabilities, although the Midas Touch effect causes unintended key clicks while stopping to read \cite{Chen2024Gaze}.
 
 \subsection{Fiducial Tracking in Planar Robotics}
 \label{subsec:lit_robotics_systems}
-Planar fiducial tracking is widely used in robotic servoing \cite{Ivacko2024Edge, Herdiansyah2024Implementation, Schenck2024Utilizing, GarridoJurado2026ArUco}. Ivacko et al. \cite{Ivacko2024Edge} used ArUco markers to map robot coordinate frames, while Garrido-Jurado et al. \cite{GarridoJurado2026ArUco} achieved high frame rates using contour scanning. These robotics studies demonstrate that visual fiducials provide robust sub-pixel planar localization under perspective tilt, making them well-suited for paper macro keyboard tracking.
+With regard to tracking technology, planar robotics research proves that square fiducial markers like AprilTag and ArUco offer sub-pixel tracking accuracy even when the camera is tilted severely \cite{Ivacko2024Edge, Herdiansyah2024Implementation, Schenck2024Utilizing, GarridoJurado2026ArUco}. Ivacko et al. \cite{Ivacko2024Edge} utilized ArUco markers for mapping robot coordinate frames, while Garrido-Jurado et al. \cite{GarridoJurado2026ArUco} realized high frame rate contour scanning.
 
 \subsection{Comparative Literature Analysis Matrix}
 \label{subsec:lit_comparative_matrix}
-Table~\ref{tab:lit_comparative_matrix} summarizes representative prior works across sensing modality, hardware requirements, tracking method, scale normalization, temporal filtering, touch classification, and layout flexibility. Importantly, across all monocular RGB frameworks operating on physical surfaces, none support multi-finger interaction; multi-finger detection was previously confined to expensive active depth cameras or contactless VR environments.
+Some examples of previous work in terms of sensing modality, hardware requirements, tracking techniques, scale normalization, temporal filtering, touch classification, and layout flexibility are presented in Table~\ref{tab:lit_comparative_matrix}. Importantly, across all monocular RGB-based approaches operating on physical surfaces, none support multi-finger interaction; multi-finger input was previously available only in expensive depth camera setups or virtual reality environments.
 
 \begin{table}[htbp]
 \centering
@@ -255,12 +244,10 @@ This section analyzes the four foundational technical modules: skeletal hand tra
 
 \subsection{Hand Pose Estimation and Skeletal Joint Tracking}
 \label{subsec:lit_hand_pose}
-Markerless 2D and 3D hand tracking is essential for natural input \cite{Cui2020Deep, Zhang2020MediaPipe}. While early systems used color segmentation in HSV or YCbCr spaces \cite{Ji2018Local, Khare2019QWERTY}, color thresholding breaks down under variable lighting and diverse skin tones.
-
-Google MediaPipe Hands \cite{Zhang2020MediaPipe} addresses these issues using a two-stage machine learning pipeline optimized for standard CPUs:
+Markerless hand tracking is a must for natural interactions without sensors on the hand \cite{Cui2020Deep, Zhang2020MediaPipe}. Initially, color thresholding was attempted in HSV space \cite{Ji2018Local, Khare2019QWERTY}, but this failed as light conditions changed or due to differences in skin tones. Google MediaPipe Hands \cite{Zhang2020MediaPipe} resolves this problem with the help of a two-stage deep learning process optimized to work well on regular CPUs:
 \begin{enumerate}
-    \item \textbf{Single-Shot Palm Detector:} Detects a 2D oriented bounding box around the palm across the full frame using focal loss $\mathcal{L}_{\text{focal}} = -\alpha_t (1 - p_t)^\gamma \log(p_t)$. By focusing on the rigid palm rather than articulating fingers, it minimizes detection failures.
-    \item \textbf{Hand Landmark Model:} Operates on the cropped palm region to predict 3D coordinates $(x_i, y_i, z_i)$ for 21 skeletal joints (Figure~\ref{fig:mediapipe_hand_topology}).
+    \item \textbf{Single-Shot Palm Detector:} A one-shot palm detector finds a bounding box for the palm region across the entire image using focal loss $\mathcal{L}_{\text{focal}} = -\alpha_t (1 - p_t)^\gamma \log(p_t)$. By focusing on the rigid palm region rather than articulating finger movement, tracking loss is minimized.
+    \item \textbf{Hand Landmark Model:} The cropped palm region feeds into a hand landmark model that predicts 3D coordinates $(x_i, y_i, z_i)$ for 21 skeletal joints (Figure~\ref{fig:mediapipe_hand_topology}).
 \end{enumerate}
 
 \begin{figure}[htbp]
@@ -318,17 +305,17 @@ Google MediaPipe Hands \cite{Zhang2020MediaPipe} addresses these issues using a 
 \label{fig:mediapipe_hand_topology}
 \end{figure}
 
-MediaPipe provides five fingertip coordinates (Landmarks 4, 8, 12, 16, 20) and knuckle base joints (MCP, PIP, DIP) at execution speeds exceeding 60 FPS on standard CPUs \cite{GilMartin2023Hand, SanchezBrizuela2023Lightweight}.
+MediaPipe provides five fingertip coordinates (Landmarks 4, 8, 12, 16, 20) and knuckle base joints (MCP, PIP, DIP) with execution speeds greater than 60~FPS on standard CPUs \cite{GilMartin2023Hand, SanchezBrizuela2023Lightweight}.
 
 \subsection{Kinematic Scale Normalization and Raw Feature Propagation}
 \label{subsec:lit_scale_norm}
-Raw landmark pixel coordinates vary with hand distance from the camera and physical hand size \cite{Doan2022Efficient, Kumar2026Hybrid}. Under the standard pinhole camera projection model:
+Landmark pixel positions vary with the distance between the user's hand and the webcam, along with the actual size of the hand \cite{Doan2022Efficient, Kumar2026Hybrid}. With respect to the standard pinhole camera model of projection:
 \begin{equation}
 x_{\text{pixel}} = f \frac{X}{Z}, \quad y_{\text{pixel}} = f \frac{Y}{Z}
 \label{eq:pinhole_projection}
 \end{equation}
 
-When the distance between hand and camera changes by factor $k$ ($Z' = k Z$), image plane coordinates scale inversely:
+Scaling camera distance by factor $k$ ($Z' = k Z$) implies inverse scaling of pixel positions:
 \begin{equation}
 x'_{\text{pixel}} = \frac{x_{\text{pixel}}}{k}, \quad y'_{\text{pixel}} = \frac{y_{\text{pixel}}}{k}, \quad L'_{\text{hand}} = \frac{L_{\text{hand}}}{k}
 \label{eq:pixel_scaling}
@@ -339,23 +326,23 @@ L_{\text{hand}} = \sqrt{(x_9 - x_0)^2 + (y_9 - y_0)^2}
 \label{eq:hand_length_scale_def}
 \end{equation}
 
-Normalizing landmark coordinates relative to the wrist reference $\mathbf{P}_0$ and dividing by $L_{\text{hand}}$ eliminates scale dependency:
+Scaling landmark displacements with respect to the wrist reference $\mathbf{P}_0$ by hand length $L_{\text{hand}}$ eliminates the influence of scale variations:
 \begin{equation}
 \mathbf{P}_i^{\text{norm}\prime} = \frac{\mathbf{P}_i' - \mathbf{P}_0'}{L'_{\text{hand}}} = \frac{\frac{\mathbf{P}_i - \mathbf{P}_0}{k}}{\frac{L_{\text{hand}}}{k}} = \frac{\mathbf{P}_i - \mathbf{P}_0}{L_{\text{hand}}} = \mathbf{P}_i^{\text{norm}}
 \label{eq:scale_invariance_proof}
 \end{equation}
 
-First-order numerical velocities are computed across consecutive frames:
+First-order numerical velocities are calculated between consecutive frames:
 \begin{equation}
 \mathbf{V}_i(t) = \frac{\mathbf{P}_i^{\text{norm}}(t) - \mathbf{P}_i^{\text{norm}}(t - \Delta t)}{\Delta t}
 \label{eq:joint_velocity_def}
 \end{equation}
 
-Unlike mid-air gesture systems that apply low-pass or moving-average filters to smooth jitter \cite{Kumar2026Hybrid}, surface touch detection requires direct feature propagation without temporal filtering. Smoothing filters flatten the abrupt deceleration peak ($A_y \ll 0$) that occurs within 40 ms of surface contact, causing missed touches and adding 30 to 90 ms of latency delay.
+While mid-air gesture recognition employs filtering techniques to remove jittering \cite{Kumar2026Hybrid}, this cannot be applied to touch detection as smoothing filters destroy the 40~ms deceleration spike ($A_y \ll 0$) upon surface contact and introduce 30 to 90~ms of added latency.
 
 \subsection{Planar Homography and Fiducial Tracking}
 \label{subsec:lit_homography}
-Mapping camera pixels $(x_{\text{pixel}}, y_{\text{pixel}})$ to the printed paper layout plane $(x_{\text{XML}}, y_{\text{XML}})$ requires correcting for perspective distortion \cite{LonguetHiggins1985Machine, Pirchheim2011Homography, Wang2020Relative}. Projective geometry maps points between two coplanar surfaces through a $3 \times 3$ planar homography matrix $H$:
+In order to map camera pixel coordinates into the coordinate system of the printed paper, distortion needs to be removed using a $3 \times 3$ planar homography matrix $H$ \cite{LonguetHiggins1985Machine, Pirchheim2011Homography, Wang2020Relative}:
 \begin{equation}
 \begin{bmatrix}
 x_{\text{XML}} w \\
@@ -378,30 +365,30 @@ y_{\text{pixel}} \\
 \label{eq:homography_equation_def}
 \end{equation}
 
-Cartesian coordinates on the layout sheet are recovered by normalizing by scale factor $w$:
+The projective scaling factor $w$ allows obtaining Cartesian coordinates on paper:
 \begin{equation}
 x_{\text{XML}} = \frac{h_{11} x_{\text{pixel}} + h_{12} y_{\text{pixel}} + h_{13}}{h_{31} x_{\text{pixel}} + h_{32} y_{\text{pixel}} + h_{33}}, \quad
 y_{\text{XML}} = \frac{h_{21} x_{\text{pixel}} + h_{22} y_{\text{pixel}} + h_{23}}{h_{31} x_{\text{pixel}} + h_{32} y_{\text{pixel}} + h_{33}}
 \label{eq:homography_cartesian_def}
 \end{equation}
 
-Using four point correspondences between known marker corners and camera image coordinates, the Direct Linear Transform (DLT) produces a linear system $\mathbf{A}_{8 \times 9} \mathbf{h} = \mathbf{0}$, which is solved via Singular Value Decomposition (SVD) \cite{Wang2016AprilTag2, Kallwies2020Determining}.
+A minimum of four corner correspondences between detected fiducial markers and the printed sheet forms an overdetermined linear system $\mathbf{A}_{8 \times 9} \mathbf{h} = \mathbf{0}$, resolved through Singular Value Decomposition (SVD) \cite{Wang2016AprilTag2, Kallwies2020Determining}.
 
-Comparative studies by Kalaitzakis et al. \cite{Kalaitzakis2021Fiducial} demonstrate that AprilTag achieves a lower corner localization error (0.017 pixels) than ArUco and ARTag under camera tilts up to $75^\circ$. In addition, AprilTag executes in under 1.0 ms on standard CPUs, making it ideal for real-time tracking without GPU hardware.
+In experimental results provided by Kalaitzakis et al. \cite{Kalaitzakis2021Fiducial}, AprilTag provides a smaller error of corner localization ($0.017\text{ pixels}$) compared to ArUco and ARTag, even at a camera tilt of $75^\circ$, running in under $1.0\text{ ms}$ on standard commodity CPUs without GPU hardware.
 
 \subsection{Deep Sequential Touch Detection Models}
 \label{subsec:lit_deep_touch}
-Thresholding velocity alone ($V_y > \theta$) fails to reliably identify touch events due to hand hovering and tendon coupling \cite{Simao2016Unsupervised, Toshpulatov2024RealTime}. Long Short-Term Memory (LSTM) recurrent networks \cite{Hochreiter1997LSTM} maintain internal memory across temporal sequences, making them well-suited for kinematic impact classification:
+A simple velocity threshold approach ($V_y > \theta$) cannot reliably detect touch due to hand hovering and tendon coupling between fingers \cite{Simao2016Unsupervised, Toshpulatov2024RealTime}. Long Short-Term Memory (LSTM) recurrent neural networks \cite{Hochreiter1997LSTM} retain internal memory over time, thus providing the perfect fit for classifying kinetic impact:
 \begin{align}
 \mathbf{f}_t &= \sigma(\mathbf{W}_f [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_f) \label{eq:lstm_forget_def} \\
 \mathbf{i}_t &= \sigma(\mathbf{W}_i [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_i) \label{eq:lstm_input_def} \\
-\tilde{\mathbf{C}}_t &= \tanh(\mathbf{W}_c [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_c) \label{eq:lstm_candidate_def} \\
-\mathbf{C}_t &= \mathbf{f}_t \odot \mathbf{C}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{C}}_t \label{eq:lstm_cell_def} \\
+\tilde{\mathbf{C}_t} &= \tanh(\mathbf{W}_c [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_c) \label{eq:lstm_candidate_def} \\
+\mathbf{C}_t &= \mathbf{f}_t \odot \mathbf{C}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{C}_t} \label{eq:lstm_cell_def} \\
 \mathbf{o}_t &= \sigma(\mathbf{W}_o [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_o) \label{eq:lstm_output_def} \\
 \mathbf{h}_t &= \mathbf{o}_t \odot \tanh(\mathbf{C}_t) \label{eq:lstm_hidden_def}
 \end{align}
 
-In kinematic gesture and skeletal tracking literature, recurrent sequence architectures evaluate temporal movement patterns across sliding time windows \cite{Nunez2018Convolutional, Ikram2020Skeleton, Doan2022Efficient}. By observing successive joint displacements across consecutive frames rather than evaluating single static images, recurrent models capture temporal motion profiles, separating downward descent, physical surface impact, and post-strike recoil.
+Recurrent models for sequence learning consider joint movements in sliding temporal windows, examining multi-frame sequences rather than a single static image \cite{Nunez2018Convolutional, Ikram2020Skeleton, Doan2022Efficient}. This separates downward descent, physical surface contact, and finger rebound cleanly.
 
 \subsection{System Architecture Sensing Trade-Offs}
 \label{subsec:lit_sensing_tradeoffs}
@@ -427,33 +414,25 @@ Table~\ref{tab:lit_sensing_tradeoffs} compares the architectural trade-offs acro
 }
 \end{table}
 
-As shown in Table~\ref{tab:lit_sensing_tradeoffs}, monocular RGB sensing combined with planar fiducials balances low hardware cost, passive desk tactile contact, and customizable planar layout tracking compared to active depth sensors or projection hardware.
+As illustrated in the comparison, monocular RGB sensing with planar fiducials strikes a strong balance between low hardware unit cost, passive desk tactile contact without requiring specialized active sensors, and customizable planar layout tracking relative to active depth sensors or projection hardware.
 
 \section{Reflection and Synthesis of Research Gaps}
 \label{sec:lit_reflection}
 
 \subsection{Synthesis of Prior Literature Limitations}
 \label{subsec:lit_synthesis_limitations}
-A critical review of the literature reveals six primary limitations in existing virtual keyboard systems:
-\begin{enumerate}
-    \item \textbf{Universal Single-Finger Restriction in Monocular Systems:} Prior monocular vision keyboards on physical surfaces are universally restricted to single-finger tracking (typically tracking exclusively the index fingertip or the single fastest-moving digit) \cite{Zhang2001Visual, Srivastava2012RealTime, Posner2012Single, Thomas2013Camera, Ji2018Local, Khare2019QWERTY}. In shadow-based techniques, multiple fingers cause cast shadows to overlap and merge, leading to complete tracking collapse \cite{Posner2012Single, Yue2014Blind}. In 2D motion methods, lacking depth perception prevents distinguishing between multiple descending fingers. Multi-finger interaction was previously only possible using active 3D depth sensors or in mid-air VR environments.
-    \item \textbf{Artificial Dwell-Time Delays:} Lacking reliable depth perception, earlier 2D systems required users to freeze their finger over a key for 500 to 1000 ms to confirm a press \cite{Khare2019QWERTY, Chen2024Gaze}. This artificial delay disrupts natural typing flow.
-    \item \textbf{High Computational Overhead and GPU Dependencies:} Deep learning vision frameworks often require dedicated GPUs to run in real time, dropping below 15 FPS when executed on standard commodity CPUs \cite{Enkhbat2020HandKey, Ji2018Local}.
-    \item \textbf{Brittleness Under Lighting and Shadow Variations:} Shadow tracking and skin-color thresholding break down under diffuse indoor lighting, multiple light sources, soft ambient hand shadows, and diverse skin tones \cite{Thomas2013Camera, Yue2014Blind}.
-    \item \textbf{Reliance on Specialized Hardware:} Resolving depth ambiguity in prior systems often required expensive Time-of-Flight sensors, stereo cameras, infrared projectors, or sensor gloves \cite{Lee2019Virtual, Kudale2016RealTime, Toshpulatov2024RealTime, Pilkov2024Markerless}.
-    \item \textbf{Rigid Layouts and Lack of Action Multiplexing:} Existing vision keyboards hard-code fixed QWERTY layouts into their applications \cite{Maman2023TypeNet, Enkhbat2020HandKey}. They cannot generate custom printed macro sheets with fiducial anchors or bind multiple distinct software macro profiles to the same physical layout sheet.
-\end{enumerate}
+However, there are some common problems that can be seen from the discussed systems. Firstly, for monocular systems in physical desktops, previous systems could only track one finger per time, maybe an index fingertip \cite{Zhang2001Visual, Srivastava2012RealTime, Posner2012Single, Thomas2013Camera, Ji2018Local, Khare2019QWERTY}. In the event where users move multiple fingers simultaneously, shadow detection will not work because of the overlapping shadows \cite{Posner2012Single, Yue2014Blind}, and 2D pixel detection will not be able to distinguish the depth of each finger that is coming down.
+
+In order to cope with the lack of depth information, previous 2D systems had to impose pauses of $500\text{ to }1000\text{ ms}$ on each keystroke (dwell time) \cite{Khare2019QWERTY, Chen2024Gaze}, thus making typing very slow and disrupting natural interaction flow. Also, deep neural networks require fast GPUs to run and do not work well on commodity CPUs, achieving fewer than 15~FPS \cite{Enkhbat2020HandKey, Ji2018Local}.
+
+A further concern is the lighting-sensitive nature of the problem. Simple room lights, hand shadows, and variations in skin complexions break down the segmentation and skin color detection process \cite{Thomas2013Camera, Yue2014Blind}. In order to overcome this challenge, several researchers resorted to using expensive three-dimensional sensors, infrared projectors, or even wearable devices like gloves with sensors \cite{Lee2019Virtual, Kudale2016RealTime, Toshpulatov2024RealTime, Pilkov2024Markerless}, yet this approach defeats the purpose of using an inexpensive vision system. Finally, virtually all vision keyboards from earlier work use fixed QWERTY keyboards \cite{Maman2023TypeNet, Enkhbat2020HandKey}. They lack custom-printed keyboards with fiducials, nor do they offer mapping of multiple software profiles to one piece of paper.
 
 \subsection{Formal Research Gap Justification}
 \label{subsec:lit_gap_justification}
-These limitations establish the core research gap addressed by this thesis:
+These drawbacks bring into focus the primary problem that the current work aims at solving; it is the construction of an adaptive paper-based macro keyboard by means of solely a regular monocular RGB camera and a commodity CPU. The key requirements include the detection of multi-touch hits without any additional dwell times, utilization of AprilTag planar homography ($H$) for tracking the paper's position, and providing users with options for defining different software actions on a single printed layout.
 
-\begin{quote}
-\emph{The absence of an integrated, real-time virtual macro keyboard framework operating strictly on a single standard monocular RGB camera and commodity CPU, using standard printed paper without active electronics, that detects independent multi-finger touch impacts without artificial dwell delays, dynamically compensates for paper displacement via planar homography, and enables a single printed layout sheet to be dynamically multiplexed across diverse software macro action profiles at regular camera resolutions.}
-\end{quote}
+This can be done by integrating the techniques of layout design using visualization, planar homography, unit-independent scaling ($L_{\text{hand}}$), direct feature passing, and a light-weighted PyTorch LSTM sequence model, as described in the subsequent chapters.
 
-Addressing these limitations requires an integrated framework combining custom layout design, planar fiducial homography, unitless hand scale normalization, direct feature propagation, and lightweight deep sequence classification, as formulated in the following chapters.
-
-\section{Chapter Summary}
+\section{Summary of the Literature and Research Foundations}
 \label{sec:lit_chapter_summary}
-This chapter reviewed prior literature across virtual input devices, hand pose estimation, fiducial planar tracking, and deep learning touch classification. Section~\ref{sec:lit_conceptual_map} provided a conceptual map of the domain. Section~\ref{sec:lit_domain_overview} outlined the history of input hardware, impact biomechanics, and ergonomic metrics. Section~\ref{sec:lit_existing_systems} evaluated eight sensing modalities and summarized them in a comparative matrix. Section~\ref{sec:lit_technological_analysis} analyzed the mathematical foundations of MediaPipe pose estimation, scale normalization, AprilTag homography, and LSTM sequence classification. Finally, Section~\ref{sec:lit_reflection} synthesized the six research gaps motivating this research. These foundations inform the methodology and system architecture presented in Chapter~\ref{ch:methodology}.
+This chapter provided an overview of the prior body of knowledge in the areas of virtual input devices, hand pose tracking, planar fiducials, and deep learning touch detection. Past studies on input devices technologies, typing effects on biomechanics, and ergonomics measurement were reviewed. Comparative analysis was conducted by comparing eight sensing approaches using a comparative matrix, whereas the MediaPipe algorithm, scale normalization, AprilTag homography, and PyTorch LSTM sequence classification algorithms were discussed. Finally, the six research questions answered in this thesis were summarized. These principles serve as direct inputs for the methodology and architecture presented in Chapter~\ref{ch:methodology}.

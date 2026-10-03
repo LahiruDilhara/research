@@ -1,0 +1,13 @@
+[project]
+name = "humanizer"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.141.1",
+    "httpx>=0.28.1",
+    "playwright>=1.62.0",
+    "playwright-stealth>=2.0.3",
+    "uvicorn>=0.52.4",
+]

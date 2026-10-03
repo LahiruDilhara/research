@@ -15,6 +15,26 @@
 >   - Write naturally like a real human student explaining their project and experimental findings.
 >   - Use active and clear descriptions.
 >   - **Draft Directly in Humanized Style:** Do NOT produce overly complex or robotic AI text intending to fix it later. The text in the thesis chapters must be written directly in this clear student voice.
+>   - **Dismantle the "Index Catalog / Roadmap" Formula:** NEVER use formulaic AI listings like "Section X discusses A. Section Y details B. Section Z shares C...". Instead, weave section topics organically into the student's project journey and motivation.
+>   - **Replace Stiff AI Anchor Titles:** Avoid generic AI titles like `\section{Chapter Summary}` or `\section{Chapter Overview}`. Instead, use natural descriptive titles like `\section{Summary of Testing Outcomes}` or `\section{Overview of the Chapter and Main Takeaways}`.
+> - **Compulsory Technical Word Preservation & No Rewriting of Humanized Text:**
+>   - When humanizing text via the local humanizers (`humanizer/client.py` and `humanizer2/client.py`), the humanizers often strip, simplify, or mangle domain-critical technical terms.
+>   - Compare the returned humanized text against the original text and restore any missing compulsory technical terms (e.g., `MediaPipe`, `AprilTag`, `PyTorch`, `LSTM`, `12 FPS`, `21 skeletal landmarks`, `$L_{\text{hand}}$`, `$H$`, `tactile switch travel`, `$29.09\text{ ms}`, commodity CPUs).
+>   - **NEVER alter or rewrite the generated humanized phrasing or sentence flow.** Only insert or replace the specific missing technical terms, math symbols, citations, or cross-references. Do not touch or smooth whole sentences.
+>   - Never humanize raw mathematical equations or complex multi-line LaTeX formulas.
+> - **Dual Humanizer Round-Robin Protocol (`humanizer` & `humanizer2`):**
+>   - Use both `humanizer/client.py` (port 8000) and `humanizer2/client.py` (port 8001) in an alternating round-robin or random selection across chunks to vary perplexity and burstiness.
+>   - **Chunk Size Limit:** Strictly keep input chunks under **200 words** per CLI call.
+> - **Humanizing Titles and Headings:**
+>   - Always humanize subsection (`\subsection{...}`), subsubsection (`\subsubsection{...}`), paragraph (`\paragraph{...}`), and bold bullet item titles (`\item \textbf{...}`) so they read naturally like student writing rather than rigid AI textbook labels.
+>   - Keep the six official Chapter titles strictly aligned with university guidelines (`1. Introduction`, `2. Objectives`, etc.).
+> - **Flexible Bullet List Strategy:**
+>   - Do NOT always eliminate bullet lists. Preserve structured bullet lists where clarity and systematic presentation are required (e.g., test cases, ablation lists, objective statements).
+>   - Convert bullet lists into flowing narrative paragraphs ONLY when necessary (e.g., when an AI detector flags a repetitive bullet pattern or when presenting cohesive analytical discussion).
+> - **Mandatory Post-Humanization Reporting Summary:** After completing humanization for any section or batch, you MUST ALWAYS provide a transparent summary report to the user specifying:
+>   - Which compulsory technical terms were dropped or missing in the humanizer output.
+>   - Exactly what was restored/fixed.
+>   - Explicit confirmation that the surrounding humanized text structure was preserved without unauthorized rewrites.
 > - **Strict Punctuation Rule (No Long Dashes / Em-Dashes "—"):** NEVER use the long dash character "—" (em-dash, en-dash "–", or LaTeX `---` in sentences) in running text. AI often overuses "—" to insert side thoughts. Instead, use simple commas, parentheses `(...)`, or write two separate sentences. (Note: technical CLI command flags like `--option` or markdown formatting lines are fine, but long punctuation dashes "—" in text are strictly forbidden).
 
 > [!IMPORTANT]
@@ -196,7 +216,8 @@ Below is the layout of the project workspace:
 | [`modelBenchmark/`](file:///home/lahirukasunidilhara/Documents/university/research/modelBenchmark)                                    | **Deep Learning Benchmark Suite.** Benchmark engine evaluating 22 model configurations across 5 architecture families. Houses trained weights (`best_finger_touch_lstm.pth`) and evaluation logs (`summary_all.csv`).                                                          | **Model Benchmark Engine**                       |
 | [`annotator/`](file:///home/lahirukasunidilhara/Documents/university/research/annotator)                                              | **Touch Dataset Annotator GUI.** CustomTkinter application for 12 FPS frame-by-frame ground-truth labeling of touch/non-touch events across all five fingers.                                                                                                                  | **Annotation Tool**                              |
 | [`videos/`](file:///home/lahirukasunidilhara/Documents/university/research/videos)                                                    | Repository storing recorded MP4 video files, MediaPipe landmark CSVs, and synchronized window annotation CSVs.                                                                                                                                                                | **Dataset Storage**                              |
-| [`humanizer/`](file:///home/lahirukasunidilhara/Documents/university/research/humanizer)                                              | Specialized text humanizer tool (`client.py`) to convert drafted thesis text into natural human writing.                                                                                                                                                                      | **Writing / Humanizing Tool**                    |
+| [`humanizer/`](file:///home/lahirukasunidilhara/Documents/university/research/humanizer)                                              | Humanizer service 1 (`client.py`, port 8000) for text humanization.                                                                                                                                                                            | **Writing / Humanizing Tool**                    |
+| [`humanizer2/`](file:///home/lahirukasunidilhara/Documents/university/research/humanizer2)                                            | Humanizer service 2 (`client.py`, port 8001) for round-robin alternating text humanization (< 200 words).                                                                                                                                      | **Writing / Humanizing Tool**                    |
 | [`sources/thesis_guideline.pdf`](file:///home/lahirukasunidilhara/Documents/university/research/sources/thesis_guideline.pdf)        | Official University Thesis Preparation and Formatting Guidelines document (PDF format). All formatting, structure, margins, font sizes, pagination, and layout rules must strictly follow this.                                                                               | **Core Formatting & Structure Guideline**       |
 | [`sources/thesis_guideline.txt`](file:///home/lahirukasunidilhara/Documents/university/research/sources/thesis_guideline.txt)        | Plain-text conversion of `thesis_guideline.pdf` for convenient inspection of all formatting, structural order, heading styles, and pagination specifications.                                                                                                                 | **Guideline Text Reference**                     |
 | [`sources/old_breakdown_of_chapter1_chapter2_chapter3.pdf`](file:///home/lahirukasunidilhara/Documents/university/research/sources/old_breakdown_of_chapter1_chapter2_chapter3.pdf) | Previous draft breakdown for Chapters 1, 2, and 3. Used for reference/context only (internal mechanisms updated; **do not cite**).                                                                                                                                           | Contextual draft reference                       |
@@ -276,27 +297,33 @@ When instructed to draft, research, or revise thesis chapters:
    - Once a relevant paper is identified, the agent **MUST locate and read the actual research paper PDF in `./pdf-sources/`** to extract and verify the true methodology, empirical findings, and technical context before writing about it or citing it in any thesis chapter.
 9. **Figures and Visual Assets**:
    - Save all diagrams, charts, plots, and figures into [`figures/`](file:///home/lahirukasunidilhara/Documents/university/research/figures) and include them using standard LaTeX `\includegraphics` syntax.
-10. **Mandatory Humanizer Tool Protocol (`humanizer/client.py`)**:
-    - **Purpose & CLI Usage:** The `humanizer/` directory contains `client.py`. This is a specialized tool to humanize drafted thesis text into natural human-style writing.
-      - Execute directly by passing text:
+10. **Mandatory Humanizer Tool Protocol (`humanizer` & `humanizer2`)**:
+    - **Dual Humanizer Availability & CLI Usage:** Two local humanizer services are available to convert drafted thesis text into natural human-style writing:
+      - **Humanizer 1 (`humanizer/client.py`):** Runs on port 8000.
         `humanizer/.venv/bin/python humanizer/client.py "Text to humanize"`
-        or from the `humanizer/` directory:
-        `uv run client.py "Text to humanize"`
+      - **Humanizer 2 (`humanizer2/client.py`):** Runs on port 8001.
+        `humanizer2/.venv/bin/python humanizer2/client.py "Text to humanize"`
+    - **Round-Robin Alternating Usage:** Randomly choose or alternate between `humanizer2` and `humanizer` (round-robin) across consecutive text chunks. This mixes vocabulary, sentence structures, and burstiness to effectively evade AI detection patterns.
+    - **Strict Chunk Size Limit (< 200 Words):** `humanizer2` has a hard limit of 200 words. Always send cohesive semantic chunks **strictly under 200 words** (ideally 80 to 160 words). Never exceed 200 words in any single CLI invocation.
     - **Single-Line Strings Only (No Internal Newlines `\n`):** NEVER pass multi-line strings or strings containing newline characters (`\n`) into the CLI command. Always format input text as a single, continuous line without newline breaks (`\n`).
-    - **Server Management & Troubleshooting:** The user runs and manages the humanizer backend server. You do NOT need to run or fix the server. You only run `client.py`. If `client.py` cannot connect to the server (e.g., connection refused or network error), inform the user immediately so they can fix it. Do NOT attempt to run or fix the server yourself.
-    - **Strict Zero Post-Editing Rule (100% Verbatim Placement):** NEVER edit, tweak, or rewrite the words returned by `client.py`. Even small word changes or grammatical polishing will re-introduce AI writing patterns. Place the returned words exactly as received into the LaTeX document.
-    - **Punctuation Artifact Cleaning & Technical Term Inconsistency Fixes:**
-      - The humanizer may occasionally output weird, glitched, or misplaced punctuation marks (such as stray punctuation symbols, glitched quotation marks, illegal long dashes `—`/`–`, or section symbols `§`).
-      - You are permitted to clean up or remove these unwanted punctuation artifacts.
-      - **Technical Term Inconsistency Fixes:** Occasionally, the humanizer unnecessarily expands or misrepresents established technical terms, acronyms, or proper nouns (for example, expanding "mechanical QWERTY layout" into "where the first row of letter keys is arranged from left to right as Q, W, E, R, T, Y", or corrupting standard domain terms like "AprilTag", "MediaPipe", "PyTorch", "LSTM", "Homography"). In these specific instances, you are permitted to fix the technical term inconsistency (restoring the proper single term/acronym like "QWERTY") while leaving the surrounding humanized sentence structure completely intact. You must NEVER rewrite or replace general words.
+    - **Server Management & Troubleshooting:** The user runs and manages the humanizer backend servers. You do NOT need to run or fix the servers. You only run `client.py`. If a client cannot connect to its server (e.g., connection refused or network error), inform the user immediately so they can fix it. Do NOT attempt to run or fix the server yourself.
+    - **Strict Zero Sentence-Rewriting Rule (Preserve Humanized Flow 100%):** NEVER edit, tweak, or rewrite the sentences returned by the humanizers. You must not change whole sentences on the humanizer output. Only swap or insert the specific compulsory technical words, numbers, citations, or references that strictly need replacement. Even small sentence-level smoothing or grammatical polishing will re-introduce AI writing patterns.
+    - **Compulsory Technical Word Preservation & Restoration Rule (Mandatory):**
+      - **Detection of Missing Technical Terms:** When text is processed through the humanizer, the tool may strip, omit, or replace domain-specific technical terms that are strictly compulsory (such as "MediaPipe", "AprilTag", "PyTorch", "LSTM", "BiLSTM", "Planar Homography $H$", "unitless hand-length scale normalization $L_{\text{hand}}$", "12 FPS", "21 skeletal hand landmarks", "distal vector projection", "tactile switch travel", etc.).
+      - **Comparison & Restoration Step:** Once the humanized text is returned, compare it directly against the original input. If any compulsory technical words or acronyms (strictly technical words only!) are missing or replaced by vague generic language, re-insert or restore those exact technical terms into their proper positions in the text.
+      - **Strict Non-Interference with Humanized Content:** You must NEVER alter, paraphrase, or rewrite the surrounding phrasing or sentence flow of the humanized text, because doing so destroys the humanization patterns and lowers the humanized score. You are ONLY permitted to restore missing compulsory technical terms.
+      - **Mathematical Equation Exclusion:** Never pass raw multi-line mathematical equations or raw LaTeX equation blocks (`\begin{equation}...\end{equation}`) into the humanizer.
+      - **Replacement Unit:** Grab individual chunks under 200 words, humanize them, restore any missing compulsory technical terms, and replace the existing portion in the LaTeX file with the humanized text.
+    - **Punctuation Artifact Cleaning:**
+      - The humanizer may occasionally output weird, glitched, or misplaced punctuation marks (such as stray punctuation symbols, glitched quotation marks, illegal long dashes `—`/`–`, date tags `[[ Set date ... ]]`, or section symbols `§`). Clean up or remove these unwanted punctuation artifacts immediately.
     - **Validation Process & Semantic Integrity Check (Minimum 80% Meaning Retention):**
-      - After receiving the humanized text from `client.py`, verify that the core technical meaning and critical facts are preserved at **80% or higher**.
+      - After receiving the humanized text and restoring any missing technical terms, verify that the core technical meaning and critical facts are preserved at **80% or higher**.
       - A slight shift in sentence style or phrasing is completely acceptable.
-      - If the core meaning is altered by more than 20% (<80% meaning retained), or if critical technical facts are distorted or dropped by the tool, adjust the input draft text to be more explicit and resubmit it to `client.py`. If it still cannot preserve the core meaning above 80%, inform the user immediately.
-      - Once an output meeting the 80%+ semantic retention standard is obtained, place it verbatim into LaTeX.
+      - If the core meaning is altered by more than 20% (<80% meaning retained), adjust the input draft text to be more explicit and resubmit it to `client.py`.
+      - Once an output meeting the 80%+ semantic retention standard is obtained, place it into LaTeX.
     - **Mandatory Response Reporting Requirement:**
       - In EVERY response where humanization is performed, you **MUST explicitly report to the user**:
-        1. **Word Modification Confirmation:** State explicitly whether any words were modified (must be "0 words changed" / 100% verbatim from humanizer output, or detail any specific technical term inconsistency fixes applied, such as restoring "QWERTY").
+        1. **Word Modification Confirmation:** State explicitly whether any words were modified (must confirm zero sentence rewrites, detailing only compulsory technical term/math restorations applied).
         2. **Semantic Meaning Retention Metric:** State the estimated percentage of core technical meaning and facts retained (e.g. "Semantic Retention: ~85%").
         3. **Punctuation, Links & Formatting Summary:** Detail any glitched punctuation artifacts removed (e.g. `§`, `—`), technical term fixes made, and confirm that all figures, tables, cross-references (`\ref{...}`), citations (`\cite{...}`), and LaTeX environments were accurately restored.
     - **Citation Tracking & Exact Preservation:** Keep track of all citation keys (`\cite{Key1, Key2}`) before passing text to the humanizer. Once the humanized text is returned, re-insert the exact citation macros into their appropriate logical places in the text without losing any citation.
@@ -304,29 +331,17 @@ When instructed to draft, research, or revise thesis chapters:
       - All textual references to figures, tables, sections, algorithms, and equations (e.g., `Figure~\ref{fig:rich_picture_diagram}`, `Table~\ref{tab:project_scope}`, `Section~\ref{sec:...}`) MUST be strictly preserved.
       - During humanization, ensure references are recognized (e.g. as "Figure 1" or "Table 1" in plain text passed to `client.py`), and upon receiving the humanized text, restore the exact LaTeX cross-referencing macros (`Figure~\ref{...}`, `Table~\ref{...}`) into their appropriate locations so that all document links and clickable cross-references remain 100% functional.
     - **Preservation & Restoration of LaTeX Mathematical Formulas & Symbols:**
-      - When humanizing full paragraphs that contain mathematical formulas, equations, or scientific variables (such as `$V_y$`, `$A_y = \frac{dV_y}{dt} \ll 0$`, `$MT = a + b \log_2 \left( 1 + \frac{D}{W} \right) = a + b \cdot ID$`, `$\text{WPM} = \frac{|T| - 1}{S} \times 60 \times \frac{1}{5}$`, coordinates $(x, y)$, matrices $H$, etc.), the humanizer may corrupt, simplify, or mangle mathematical syntax (e.g., converting `$V_y$` to plain `Vy`, mangling fractions, or dropping LaTeX math delimiters).
-      - **Mandatory Rule:** You MUST carefully verify, fix, and restore all mathematical formulas, numbered equations (`\begin{equation}...\end{equation}`), inline math expressions (`$...$`), variable subscripts/superscripts, fractions (`\frac{...}{...}`), Greek letters, and mathematical notations into proper LaTeX syntax within the humanized sentences without changing the surrounding humanized words.
+      - When humanizing paragraphs that contain mathematical formulas, equations, or scientific variables (such as `$V_y$`, `$A_y = \frac{dV_y}{dt} \ll 0$`, `$MT = a + b \log_2 \left( 1 + \frac{D}{W} \right) = a + b \cdot ID$`, `$\text{WPM} = \frac{|T| - 1}{S} \times 60 \times \frac{1}{5}$`, coordinates $(x, y)$, matrices $H$, etc.), the humanizer may simplify or drop LaTeX math delimiters.
+      - **Mandatory Rule:** You MUST carefully verify, fix, and restore all mathematical formulas, inline math expressions (`$...$`), variable subscripts/superscripts, fractions (`\frac{...}{...}`), Greek letters, and mathematical notations into proper LaTeX syntax within the humanized sentences without changing the surrounding humanized words.
     - **Target Text Scope (What to Humanize vs. Exclude):**
-      - **DO NOT humanize:** High-level structural chapter/section/subsection commands used for LaTeX navigation and cross-referencing (e.g., `\chapter{...}`, `\section{...}`), table of contents, reference list / bibliography (`\bibliography`, `references.bib`), figure/graph vector code (TikZ diagrams), and figure/table captions.
-      - **MUST humanize:** Body paragraphs, bullet point items and their bold sub-titles (`\item \textbf{...}`), paragraph headings (`\paragraph{...}`), and textual cell contents in tables.
-    - **Preserve Styling & Formatting (Zero Word Changes):**
-      - All original document styling, structural LaTeX environments, and semantic formatting MUST be carefully preserved and re-applied to the text:
-        - List environments (`\begin{enumerate}`, `\begin{itemize}`, `\item`)
-        - Formatting tags (`\textbf{...}`, `\textit{...}`, `\paragraph{...}`)
-        - Mathematical notation and variables (`$...$`)
-        - Blockquotes (`\begin{quote} ... \end{quote}`)
-        - Cross-references (`\ref{...}`, `\label{...}`) and citations (`\cite{...}`)
-      - **CRITICAL:** When applying or restoring formatting around humanized text, **NEVER change, add, delete, or rewrite any word returned by the humanizer**. The words must remain 100% untouched; only LaTeX structural markup and formatting tags should be wrapped around them.
-    - **Humanizing Item Titles & Bold Headings:**
-      - All inline item headers, bold bullet labels, and sub-point titles must be humanized together with their body text.
-      - Send the title combined with the body to `client.py` (e.g. `"Single-finger limitation and multi-finger tracking. Traditional methods..."`).
-      - When `client.py` returns the humanized text, wrap the resulting title clause/phrase in `\textbf{...}` or appropriate LaTeX formatting.
-      - **DO NOT modify or alter any word returned by the humanizer.** Only apply LaTeX formatting tags around the exact returned text.
-    - **Text Units, Chunking & Minimum Thresholds (Minimum 20 Words):**
-      - Give complete, full paragraphs whenever possible. Do not break standard paragraphs down into isolated sentences.
-      - Keep paragraph batches within the 200 to 300 word range.
-      - For bullet points or standalone sentences: if the sentence/bullet has 20 or more words, you can send it directly to the humanizer.
-      - If a sentence or bullet point is shorter than 20 words, extend it or combine it with the next sentence to meet the minimum threshold of 20 words before humanizing. When the humanized text is returned, split the sentences back into their proper bullet points or positions, but do not change a single word of the returned text.
+      - **DO NOT humanize:** The six top-level official Chapter titles prescribed by NSBM university guidelines (`1. Introduction`, `2. Objectives`, `3. Literature Review`, `4. Methodology`, `5. Results`, `6. Discussion and Conclusions`), table of contents, reference list / bibliography (`\bibliography`, `references.bib`), figure/graph vector code (TikZ diagrams), and raw table formatting structures (`\begin{tabular}...\end{tabular}`).
+      - **MUST humanize:** Body paragraphs, section/subsection/subsubsection titles (`\section{...}`, `\subsection{...}`, `\subsubsection{...}`), paragraph headings (`\paragraph{...}`), bullet point items and their bold sub-titles (`\item \textbf{...}`), and textual cell descriptions in tables.
+    - **Humanizing Titles and Section Headings:**
+      - Humanize section, subsection, subsubsection, and item titles naturally so they do not sound like rigid AI textbook headings.
+      - Pass the title into the humanizer to obtain an organic, human-sounding heading.
+    - **Flexible Bullet List Strategy:**
+      - Do NOT always eliminate bullet lists. Maintain structured bullet lists where clarity and systematic breakdown are important (e.g., formal test cases, ablation lists, objective triangulation).
+      - Convert bullet lists into flowing prose only when necessary (e.g., when an AI detector flags a repetitive bullet pattern or when presenting cohesive analytical discussion).
     - **Section-Wise Progress Log File (`humanizer/progress_log.md`):**
       - Maintain and check [`humanizer/progress_log.md`](file:///home/lahirukasunidilhara/Documents/university/research/humanizer/progress_log.md) to track humanization progress section by section.
       - Update the log file immediately whenever a section is completed.

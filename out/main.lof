@@ -1,36 +1,36 @@
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {1.1}{\ignorespaces Rich Picture of the Proposed Solution and Operational Pipeline Architecture.}}{8}{figure.caption.5}%
+\contentsline {figure}{\numberline {1.1}{\ignorespaces Rich Picture of the Proposed Solution and Operational Pipeline Architecture.}}{6}{figure.caption.5}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {3.1}{\ignorespaces Conceptual taxonomy and structural organization of the literature review.}}{16}{figure.caption.7}%
-\contentsline {figure}{\numberline {3.2}{\ignorespaces MediaPipe 21 hand landmark anatomical topology.}}{23}{figure.caption.9}%
+\contentsline {figure}{\numberline {3.1}{\ignorespaces Conceptual taxonomy and structural organization of the literature review.}}{13}{figure.caption.7}%
+\contentsline {figure}{\numberline {3.2}{\ignorespaces MediaPipe 21 hand landmark anatomical topology.}}{19}{figure.caption.9}%
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {4.1}{\ignorespaces Design Science Research Methodology (DSRM) execution framework.}}{30}{figure.caption.11}%
-\contentsline {figure}{\numberline {4.2}{\ignorespaces System architecture framework connecting Application 1 and Application 2 workflows.}}{32}{figure.caption.12}%
-\contentsline {figure}{\numberline {4.3}{\ignorespaces MediaPipe 21 hand landmarks topology and anatomical hand-length normalization reference ($L_{\text {hand}}$ between wrist $\mathbf {P}_0$ and middle MCP knuckle $\mathbf {P}_9$).}}{36}{figure.caption.13}%
+\contentsline {figure}{\numberline {4.1}{\ignorespaces Design Science Research Methodology (DSRM) execution framework.}}{25}{figure.caption.11}%
+\contentsline {figure}{\numberline {4.2}{\ignorespaces System architecture framework connecting Application 1 and Application 2 workflows.}}{26}{figure.caption.12}%
+\contentsline {figure}{\numberline {4.3}{\ignorespaces MediaPipe 21 hand landmarks topology and anatomical hand-length normalization reference ($L_{\text {hand}}$ between wrist $\mathbf {P}_0$ and middle MCP knuckle $\mathbf {P}_9$).}}{30}{figure.caption.13}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {A.1}{\ignorespaces Physical experimental desk setup with monocular USB webcam mounted on an adjustable arm above the printed paper macro keyboard layout.}}{72}{figure.caption.33}%
-\contentsline {figure}{\numberline {A.2}{\ignorespaces Exported 300~DPI vector PDF layout embedded with AprilTag border fiducials ready for standard desktop paper printing.}}{73}{figure.caption.34}%
+\contentsline {figure}{\numberline {A.1}{\ignorespaces Physical experimental desk setup with monocular USB webcam mounted on an adjustable arm above the printed paper macro keyboard layout.}}{58}{figure.caption.25}%
+\contentsline {figure}{\numberline {A.2}{\ignorespaces Exported 300~DPI vector PDF layout embedded with AprilTag border fiducials ready for standard desktop paper printing.}}{59}{figure.caption.26}%
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {B.1}{\ignorespaces Application~1 startup window for project selection and template management.}}{75}{figure.caption.35}%
-\contentsline {figure}{\numberline {B.2}{\ignorespaces Application~1 interactive 2D design canvas with key layout tools, metric grid, property inspector, and AprilTag fiducial anchors.}}{76}{figure.caption.36}%
-\contentsline {figure}{\numberline {B.3}{\ignorespaces Application~1 export dialog for generating 300~DPI vector PDF layouts.}}{77}{figure.caption.37}%
-\contentsline {figure}{\numberline {B.4}{\ignorespaces Application~1 preference settings for canvas metrics and geometric constraints.}}{78}{figure.caption.38}%
+\contentsline {figure}{\numberline {B.1}{\ignorespaces Application~1 startup window for project selection and template management.}}{60}{figure.caption.27}%
+\contentsline {figure}{\numberline {B.2}{\ignorespaces Application~1 interactive 2D design canvas with key layout tools, metric grid, property inspector, and AprilTag fiducial anchors.}}{61}{figure.caption.28}%
+\contentsline {figure}{\numberline {B.3}{\ignorespaces Application~1 export dialog for generating 300~DPI vector PDF layouts.}}{62}{figure.caption.29}%
+\contentsline {figure}{\numberline {B.4}{\ignorespaces Application~1 preference settings for canvas metrics and geometric constraints.}}{63}{figure.caption.30}%
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {C.1}{\ignorespaces Application~2 home screen for camera device selection and layout loading.}}{82}{figure.caption.39}%
-\contentsline {figure}{\numberline {C.2}{\ignorespaces Application~2 action rebinding interface for assigning keystrokes and shell commands to macro keys.}}{83}{figure.caption.40}%
-\contentsline {figure}{\numberline {C.3}{\ignorespaces Application~2 idle monitoring state showing detected AprilTags, homography alignment, and key bounding boxes.}}{84}{figure.caption.41}%
-\contentsline {figure}{\numberline {C.4}{\ignorespaces Application~2 live contact detection showing MediaPipe skeleton, 96\% index touch probability, and highlighted key impact.}}{84}{figure.caption.42}%
-\contentsline {figure}{\numberline {C.5}{\ignorespaces Application~2 production run mode showing real-time multi-finger probability history, pipeline FPS, and action event log.}}{85}{figure.caption.43}%
-\contentsline {figure}{\numberline {C.6}{\ignorespaces Application~2 configuration settings for vision tracking and touch triggering.}}{86}{figure.caption.44}%
+\contentsline {figure}{\numberline {C.1}{\ignorespaces Application~2 home screen for camera device selection and layout loading.}}{66}{figure.caption.31}%
+\contentsline {figure}{\numberline {C.2}{\ignorespaces Application~2 action rebinding interface for assigning keystrokes and shell commands to macro keys.}}{67}{figure.caption.32}%
+\contentsline {figure}{\numberline {C.3}{\ignorespaces Application~2 idle monitoring state showing detected AprilTags, homography alignment, and key bounding boxes.}}{68}{figure.caption.33}%
+\contentsline {figure}{\numberline {C.4}{\ignorespaces Application~2 live contact detection showing MediaPipe skeleton, 96\% index touch probability, and highlighted key impact.}}{69}{figure.caption.34}%
+\contentsline {figure}{\numberline {C.5}{\ignorespaces Application~2 production run mode showing real-time multi-finger probability history, pipeline FPS, and action event log.}}{70}{figure.caption.35}%
+\contentsline {figure}{\numberline {C.6}{\ignorespaces Application~2 configuration settings for vision tracking and touch triggering.}}{71}{figure.caption.36}%
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {D.1}{\ignorespaces Dataset annotation tool home screen for video session management.}}{87}{figure.caption.45}%
-\contentsline {figure}{\numberline {D.2}{\ignorespaces Dataset annotator main interface showing 12~FPS frame navigation, MediaPipe skeleton overlay, and per-digit contact labeling.}}{88}{figure.caption.46}%
-\contentsline {figure}{\numberline {D.3}{\ignorespaces Keyboard shortcut dialog enabling rapid multi-finger ground truth tagging during video annotation.}}{89}{figure.caption.47}%
+\contentsline {figure}{\numberline {D.1}{\ignorespaces Dataset annotation tool home screen for video session management.}}{72}{figure.caption.37}%
+\contentsline {figure}{\numberline {D.2}{\ignorespaces Dataset annotator main interface showing 12~FPS frame navigation, MediaPipe skeleton overlay, and per-digit contact labeling.}}{73}{figure.caption.38}%
+\contentsline {figure}{\numberline {D.3}{\ignorespaces Keyboard shortcut dialog enabling rapid multi-finger ground truth tagging during video annotation.}}{74}{figure.caption.39}%
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {E.1}{\ignorespaces Comparison of Macro F1-score and CPU inference latency across evaluated deep learning model architecture families.}}{91}{figure.caption.48}%
-\contentsline {figure}{\numberline {E.2}{\ignorespaces Normalized confusion matrix of the PyTorch LSTM touch classifier across all five individual finger digits.}}{92}{figure.caption.49}%
-\contentsline {figure}{\numberline {E.3}{\ignorespaces AprilTag corner detection rate and RMS planar reprojection error across camera perspective tilt angles from $0^\circ $ to $75^\circ $.}}{93}{figure.caption.50}%
-\contentsline {figure}{\numberline {E.4}{\ignorespaces End-to-end CPU execution latency breakdown per frame across the multi-threaded virtual keyboard pipeline ($29.09\text { ms}$ total).}}{94}{figure.caption.51}%
+\contentsline {figure}{\numberline {E.1}{\ignorespaces Comparison of Macro F1-score and CPU inference latency across evaluated deep learning model architecture families.}}{75}{figure.caption.40}%
+\contentsline {figure}{\numberline {E.2}{\ignorespaces Normalized confusion matrix of the PyTorch LSTM touch classifier across all five individual finger digits.}}{76}{figure.caption.41}%
+\contentsline {figure}{\numberline {E.3}{\ignorespaces AprilTag corner detection rate and RMS planar reprojection error across camera perspective tilt angles from $0^\circ $ to $75^\circ $.}}{77}{figure.caption.42}%
+\contentsline {figure}{\numberline {E.4}{\ignorespaces End-to-end CPU execution latency breakdown per frame across the multi-threaded virtual keyboard pipeline ($29.09\text { ms}$ total).}}{78}{figure.caption.43}%
