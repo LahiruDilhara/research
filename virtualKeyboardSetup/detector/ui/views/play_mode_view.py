@@ -110,7 +110,7 @@ class PlayModeView(QWidget):
         # Refresh cameras symbol button (no FluentIcon, no overlap)
         self.btn_refresh_cams = btn_icon_only("↺", header, size=30)
         self.btn_refresh_cams.setToolTip("Refresh camera list")
-        self.btn_refresh_cams.clicked.connect(self._refresh_cameras)
+        self.btn_refresh_cams.clicked.connect(lambda: self._refresh_cameras(force_refresh=True))
         h_row.addWidget(self.btn_refresh_cams)
 
         # Model selector
@@ -299,8 +299,8 @@ class PlayModeView(QWidget):
             self.combo_model.setCurrentIndex(active_idx)
         self.combo_model.blockSignals(False)
 
-    def _refresh_cameras(self) -> None:
-        self._cameras = discover_cameras(max_index=6)
+    def _refresh_cameras(self, force_refresh: bool = False) -> None:
+        self._cameras = discover_cameras(max_index=6, force_refresh=force_refresh)
         self.combo_camera.blockSignals(True)
         self.combo_camera.clear()
         if not self._cameras:

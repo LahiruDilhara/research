@@ -7,6 +7,7 @@ Maintains aspect ratio and scales to fill available space.
 
 from __future__ import annotations
 
+import cv2
 import numpy as np
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QImage, QMouseEvent, QPixmap
@@ -38,9 +39,9 @@ class CameraFeedWidget(QLabel):
 
         h, w, ch = bgr_frame.shape
         self._raw_frame_size = (w, h)
-        # Convert BGR → RGB (contiguous buffer for QImage)
-        rgb = np.ascontiguousarray(bgr_frame[:, :, ::-1])
-        q_img = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888)
+        # Convert BGR → RGB with cv2.cvtColor and copy QImage buffer to prevent GC drop
+        rgb = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
+        q_img = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888).copy()
         self._current_pixmap = QPixmap.fromImage(q_img)
         self._render_current()
 

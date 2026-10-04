@@ -172,6 +172,10 @@ class CameraWorker(QThread):
     # (norm_window_5: list[dict], pixel_window_5: list[list[tuple]],
     #  frame_w: int, frame_h: int)
 
+    inference_ready = Signal(dict, list, list, float, int, int)
+    # (results: dict, norm_window_5: list[dict], pixel_window_5: list[list[tuple]],
+    #  latency_ms: float, frame_w: int, frame_h: int)
+
     error = Signal(str)
 
     def __init__(
@@ -187,6 +191,7 @@ class CameraWorker(QThread):
         self._layout = layout
         self._config = config
         self._pipeline_service = pipeline_service
+        self._active_model = None
         self._render_video = True
         self._running = False
         self._show_overlay = True
@@ -196,6 +201,10 @@ class CameraWorker(QThread):
         self._contact_points_clear_t: float = 0.0
         self._apriltag_tracker: AprilTagTracker | None = None
         self.setObjectName("CameraWorker")
+
+    def set_active_model(self, model) -> None:
+        """Dynamically set active AI touch model for background inference execution."""
+        self._active_model = model
 
     def update_layout(self, layout: LayoutData) -> None:
         """Dynamically updates the layout and propagates to the AprilTag tracker."""
@@ -253,39 +262,45 @@ class CameraWorker(QThread):
             return
 
         # 2. Open camera with automatic fallback to any discovered working camera
+        def _try_open_cam(index: int) -> cv2.VideoCapture | None:
+            if sys.platform.startswith("linux"):
+                c = cv2.VideoCapture(index, cv2.CAP_V4L2)
+                if not c.isOpened():
+                    c = cv2.VideoCapture(index)
+            elif sys.platform == "win32":
+                c = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+                if not c.isOpened():
+                    c = cv2.VideoCapture(index)
+            else:
+                c = cv2.VideoCapture(index)
+
+            if c.isOpened():
+                ret, _ = c.read()
+                if ret:
+                    return c
+                c.release()
+            return None
+
         cap = None
         with _suppress_c_stderr():
-            candidate_cap = cv2.VideoCapture(self._camera_index, cv2.CAP_V4L2)
-            if not candidate_cap.isOpened():
-                candidate_cap = cv2.VideoCapture(self._camera_index)
-            if candidate_cap.isOpened():
-                ret, _ = candidate_cap.read()
-                if ret:
-                    cap = candidate_cap
-                else:
-                    candidate_cap.release()
+            cap = _try_open_cam(self._camera_index)
 
         if cap is None:
             from services.camera_discovery import discover_cameras
             discovered = discover_cameras(max_index=6)
             for c in discovered:
                 with _suppress_c_stderr():
-                    fallback_cap = cv2.VideoCapture(c.index, cv2.CAP_V4L2)
-                    if not fallback_cap.isOpened():
-                        fallback_cap = cv2.VideoCapture(c.index)
-                    if fallback_cap.isOpened():
-                        ret, _ = fallback_cap.read()
-                        if ret:
-                            logger.info(
-                                "Camera %d was unavailable. Auto-recovered with camera %d (%s).",
-                                self._camera_index,
-                                c.index,
-                                c.name,
-                            )
-                            self._camera_index = c.index
-                            cap = fallback_cap
-                            break
-                        fallback_cap.release()
+                    fallback_cap = _try_open_cam(c.index)
+                    if fallback_cap is not None:
+                        logger.info(
+                            "Camera %d was unavailable. Auto-recovered with camera %d (%s).",
+                            self._camera_index,
+                            c.index,
+                            c.name,
+                        )
+                        self._camera_index = c.index
+                        cap = fallback_cap
+                        break
 
         if cap is None or not cap.isOpened():
             self.error.emit(f"Could not open camera {self._camera_index} and no other working camera found.")
@@ -412,13 +427,26 @@ class CameraWorker(QThread):
                 )
 
                 if win_ready and norm_window and pixel_window:
-                    logger.info("CameraWorker: Emitting window_ready event to detection viewmodel (%dx%d frame)", frame_w, frame_h)
-                    self.window_ready.emit(
-                        norm_window,
-                        pixel_window,
-                        frame_w,
-                        frame_h,
-                    )
+                    active_model = self._active_model
+                    if active_model is not None:
+                        t0_inf = time.perf_counter()
+                        results = pipeline_service.run_parallel_inference(active_model, norm_window)
+                        inf_latency_ms = (time.perf_counter() - t0_inf) * 1000.0
+                        self.inference_ready.emit(
+                            results,
+                            norm_window,
+                            pixel_window,
+                            inf_latency_ms,
+                            frame_w,
+                            frame_h,
+                        )
+                    else:
+                        self.window_ready.emit(
+                            norm_window,
+                            pixel_window,
+                            frame_w,
+                            frame_h,
+                        )
 
                 if hand_detected and not prev_hand_detected:
                     logger.info("MediaPipe: Hand detected in frame (%s, confidence=%.2f, landmarks=%d)", hand_label or "Active", hand_score, len(raw_lm) if raw_lm else 0)

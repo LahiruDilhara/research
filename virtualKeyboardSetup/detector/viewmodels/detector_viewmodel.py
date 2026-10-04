@@ -228,7 +228,10 @@ class DetectorViewModel(QObject):
         )
         self._worker.render_video = (self._mode == ExecutionMode.PLAY)
         self._worker.set_show_overlay(self._overlay_enabled)
+        if self._active_model:
+            self._worker.set_active_model(self._active_model)
         self._worker.frame_ready.connect(self._on_frame_ready)
+        self._worker.inference_ready.connect(self._on_inference_ready)
         self._worker.window_ready.connect(self._on_window_ready)
         self._worker.error.connect(self._on_error)
         self._worker.start()
@@ -319,6 +322,8 @@ class DetectorViewModel(QObject):
             instance.load(entry.weights_path)
             self._active_model = instance
             self._active_model_name = entry.name
+            if self._worker:
+                self._worker.set_active_model(instance)
             entry.instance = instance
             self.model_changed.emit(entry.name)
             logger.info("Active model set: %s", entry.name)
@@ -467,6 +472,81 @@ class DetectorViewModel(QObject):
 
         self.touch_event.emit(key_id, finger, prob)
         return True
+
+    @Slot(dict, list, list, float, int, int)
+    def _on_inference_ready(
+        self,
+        results: dict[str, dict[str, Any]],
+        norm_window: list[dict],
+        pixel_window: list[list],
+        latency_ms: float,
+        frame_w: int,
+        frame_h: int,
+    ) -> None:
+        """Processes pre-computed background model inference results on main thread with sub-millisecond GUI latency."""
+        if not results:
+            return
+
+        now = time.perf_counter()
+
+        # ── 1. Check for Pending In-Flight Candidates from Previous Window (Per Finger) ──
+        bridged_fingers_this_window: set[str] = set()
+        if self._pending_candidates and self._layout_found and self._current_H is not None:
+            resolved_pending_keys: set[str] = set()
+            expired_fingers: list[str] = []
+            for f_name, pending in list(self._pending_candidates.items()):
+                if (now - pending["timestamp"]) < 0.5:
+                    stitched_pixel_window = pending["pixel_window"][:3] + pixel_window
+                    prob = pending["prob"]
+                    hit = self._resolver.resolve_trajectory(f_name, prob, stitched_pixel_window, self._current_H)
+                    if hit is not None:
+                        key_id, hit_f_name, p_val = hit
+                        if key_id not in resolved_pending_keys:
+                            resolved_pending_keys.add(key_id)
+                            self._dispatch_touch(key_id, hit_f_name, p_val, latency_ms=0.0)
+                            bridged_fingers_this_window.add(f_name)
+                expired_fingers.append(f_name)
+
+            for f in expired_fingers:
+                self._pending_candidates.pop(f, None)
+
+        self.latency_updated.emit(latency_ms)
+        self.finger_probs_updated.emit(results)
+
+        # ── 2. Touch Candidate Monitoring ─────────────────────────────────────
+        touch_fingers = [f for f, data in results.items() if data.get("touch", False)]
+        if not touch_fingers:
+            self._last_pressed_keys.clear()
+            if self._worker:
+                self._worker.set_active_buttons([])
+            return
+
+        if not self._layout_found or self._current_H is None:
+            return
+
+        probs = {f: float(data.get("prob", 0.0)) for f, data in results.items()}
+
+        # ── 3. Multi-Finger Touch Resolution ─────────────────────
+        sorted_touch_fingers = sorted(touch_fingers, key=lambda f: probs.get(f, 0.0), reverse=True)
+        for finger in sorted_touch_fingers:
+            if finger in bridged_fingers_this_window:
+                continue
+
+            finger_prob = probs.get(finger, 0.0)
+
+            if self._resolver.is_in_flight(finger, pixel_window):
+                self._pending_candidates[finger] = {
+                    "finger": finger,
+                    "prob": finger_prob,
+                    "pixel_window": pixel_window,
+                    "timestamp": now,
+                }
+                continue
+
+            hit = self._resolver.resolve_trajectory(finger, finger_prob, pixel_window, self._current_H)
+            if hit is not None:
+                key_id, hit_finger, hit_prob = hit
+                self._dispatch_touch(key_id, hit_finger, hit_prob, latency_ms)
 
     @Slot(list, list, int, int)
     def _on_window_ready(

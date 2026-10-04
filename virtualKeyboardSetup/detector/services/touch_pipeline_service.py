@@ -386,7 +386,7 @@ class TouchPipelineService:
         if not is_stationary:
             self.reset_touch_states()
             self._last_status = hm_reason
-            logger.info(
+            logger.debug(
                 "Pipeline Filter [Step 7 Hand Movement]: BLOCKED window - %s (stationary displacement=%.4f > limit=%.4f L_hand)",
                 hm_reason, max_disp, self._hand_movement_filter.threshold,
             )
@@ -401,7 +401,7 @@ class TouchPipelineService:
                 for f in FINGERS
             }
 
-        logger.info(
+        logger.debug(
             "Pipeline Filter [Step 7 Hand Movement]: PASSED (%s)",
             hm_reason,
         )
@@ -416,7 +416,7 @@ class TouchPipelineService:
         if not is_valid_quality:
             self.reset_touch_states()
             self._last_status = q_reason
-            logger.info(
+            logger.debug(
                 "Pipeline Filter [Step 10 Window Quality]: BLOCKED window - %s (scores=[%s] vs min_avg=%.2f, min_frame=%.2f, max_drop=%.2f)",
                 q_reason, scores_str, self._window_quality_filter.min_avg_score,
                 self._window_quality_filter.min_frame_score, self._window_quality_filter.max_score_drop,
@@ -436,7 +436,7 @@ class TouchPipelineService:
         avg_score = sum(valid_scores) / len(valid_scores)
         min_score = min(valid_scores)
         score_drop = max(valid_scores) - min(valid_scores)
-        logger.info(
+        logger.debug(
             "Pipeline Filter [Step 10 Window Quality]: PASSED (scores=[%s], avg=%.2f >= min_avg=%.2f, min=%.2f >= min_frame=%.2f, drop=%.2f <= max_drop=%.2f)",
             scores_str, avg_score, self._window_quality_filter.min_avg_score,
             min_score, self._window_quality_filter.min_frame_score,
@@ -447,9 +447,6 @@ class TouchPipelineService:
         v_steps_4 = compute_window_velocities(norm_window_5)
 
         # Fingertip Velocity Pre-Check:
-        # Check whether any fingertip speed exceeds the velocity threshold across the 4 steps.
-        # If no fingertip exceeds the speed threshold, the hand is idling or resting.
-        # The entire window is ignored to bypass model inference and prevent false touches.
         tip_speeds = {
             f: self._kinetic_motion_filter.get_max_tip_speed(v_steps_4, f)
             for f in FINGERS
@@ -466,7 +463,7 @@ class TouchPipelineService:
                 f"Window Ignored: Max tip speed ({max_any_tip_speed:.4f}) "
                 f"below velocity threshold ({self._velocity_threshold:.4f})"
             )
-            logger.info(
+            logger.debug(
                 "Pipeline Filter [Step 8/9 Velocity Pre-Check]: BLOCKED window - %s | speeds=[%s]",
                 reason_str, speeds_str,
             )
@@ -484,14 +481,14 @@ class TouchPipelineService:
                 for f in FINGERS
             }
 
-        logger.info(
+        logger.debug(
             "Pipeline Filter [Step 8/9 Velocity Pre-Check]: PASSED (max_tip_speed=%.4f >= limit=%.4f L_hand | speeds=[%s])",
             max_any_tip_speed, self._velocity_threshold, speeds_str,
         )
 
         # Step 5: Execute active PyTorch neural network model prediction
         model_name = getattr(model, "name", type(model).__name__)
-        logger.info("Pipeline AI Model: Evaluating 5-frame window with '%s'...", model_name)
+        logger.debug("Pipeline AI Model: Evaluating 5-frame window with '%s'...", model_name)
         try:
             raw_probs = model.predict(norm_window_5)
         except Exception as exc:
@@ -509,7 +506,7 @@ class TouchPipelineService:
             }
 
         probs_str = ", ".join(f"{f}: {raw_probs.get(f, 0.0):.2f}" for f in FINGERS)
-        logger.info(
+        logger.debug(
             "Model Raw Predictions: [%s] (touch_onset_threshold=%.2f, release_threshold=%.2f)",
             probs_str, self._t_on, self._t_off,
         )
