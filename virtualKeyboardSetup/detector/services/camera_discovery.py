@@ -30,19 +30,27 @@ _CACHED_CAMERAS: list[CameraInfo] | None = None
 @contextmanager
 def suppress_c_stderr():
     """Suppress C-level stderr output to silence noisy C++ OpenCV/V4L2/OBSENSOR drivers."""
+    saved_stderr_fd = None
+    stderr_fd = None
     try:
-        stderr_fd = sys.stderr.fileno()
-        saved_stderr_fd = os.dup(stderr_fd)
-        devnull = os.open(os.devnull, os.O_WRONLY)
-        os.dup2(devnull, stderr_fd)
-        os.close(devnull)
-        try:
-            yield
-        finally:
-            os.dup2(saved_stderr_fd, stderr_fd)
-            os.close(saved_stderr_fd)
+        if hasattr(sys.stderr, "fileno"):
+            stderr_fd = sys.stderr.fileno()
+            saved_stderr_fd = os.dup(stderr_fd)
+            devnull = os.open(os.devnull, os.O_WRONLY)
+            os.dup2(devnull, stderr_fd)
+            os.close(devnull)
     except Exception:
+        pass
+
+    try:
         yield
+    finally:
+        if saved_stderr_fd is not None and stderr_fd is not None:
+            try:
+                os.dup2(saved_stderr_fd, stderr_fd)
+                os.close(saved_stderr_fd)
+            except Exception:
+                pass
 
 
 @dataclass
