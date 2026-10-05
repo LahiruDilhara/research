@@ -8,25 +8,67 @@
 \begin{document}
 
 \begin{tikzpicture}[
-    phase/.style = {rectangle, draw=blue!80!black, fill=blue!10!white, thick, rounded corners=4pt, align=center, font=\sffamily\bfseries\footnotesize, text width=2.5cm, minimum height=1.4cm, inner sep=5pt},
+    header/.style = {rectangle, draw=blue!80!black, fill=blue!25!white, thick, rounded corners=5pt, align=center, font=\sffamily\bfseries\small, inner sep=8pt, text width=16.5cm},
+    box/.style = {rectangle, draw=blue!70!black, fill=blue!10!white, thick, rounded corners=4pt, align=center, font=\sffamily\bfseries\footnotesize, inner sep=6pt, text width=3.6cm, minimum height=1.0cm},
+    subbox/.style = {rectangle, draw=gray!70, fill=gray!5!white, rounded corners=3pt, align=center, font=\sffamily\scriptsize, inner sep=5pt, text width=3.6cm, minimum height=0.8cm},
     arrow/.style = {draw=blue!80!black, ->, >=Stealth, thick}
 ]
 
-\node (p1) [phase] at (0,0) {Phase 1\\Problem\\Identification};
-\node (p2) [phase] at (3.1,0) {Phase 2\\Define Objective\\of Solution};
-\node (p3) [phase] at (6.2,0) {Phase 3\\Design and\\Development};
-\node (p4) [phase] at (9.3,0) {Phase 4\\Demonstration};
-\node (p5) [phase] at (12.4,0) {Phase 5\\Evaluation};
-\node (p6) [phase] at (15.5,0) {Phase 6\\Communication};
+% Root Node
+\node (root) [header, at={(0, 0)}] {\textbf{Monocular Vision-Based Virtual Keyboard Literature Taxonomy}};
 
-\draw [arrow] (p1) -- (p2);
-\draw [arrow] (p2) -- (p3);
-\draw [arrow] (p3) -- (p4);
-\draw [arrow] (p4) -- (p5);
-\draw [arrow] (p5) -- (p6);
+% Level 1 Nodes
+\node (l1_domain) [box, at={(-6.5, -1.8)}] {1. HCI and Input Paradigms};
+\node (l1_systems) [box, at={(-2.15, -1.8)}] {2. Sensing Modalities};
+\node (l1_tech) [box, at={(2.15, -1.8)}] {3. Technological Analysis};
+\node (l1_reflect) [box, at={(6.5, -1.8)}] {4. Research Synthesis};
 
-% Clean Orthogonal Loop Arrow (No Overlap)
-\draw [arrow] (p5.south) -- ++(0,-0.7) -| node[below,midway,font=\sffamily\scriptsize]{Iterative Refinement} (p3.south);
+% Connections to Level 1
+\draw [arrow] (root.south -| l1_domain.north) -- (l1_domain.north);
+\draw [arrow] (root.south -| l1_systems.north) -- (l1_systems.north);
+\draw [arrow] (root.south -| l1_tech.north) -- (l1_tech.north);
+\draw [arrow] (root.south -| l1_reflect.north) -- (l1_reflect.north);
+
+% Column 1: Domain Overview
+\node (l2_history) [subbox, below=0.4cm of l1_domain] {Evolution of Input Hardware};
+\node (l2_drivers) [subbox, below=0.3cm of l2_history] {Paper Rationale and Ergonomics};
+
+% Column 2: Existing Systems
+\node (l2_proj) [subbox, below=0.4cm of l1_systems] {Projection and IR Sensors};
+\node (l2_shadow) [subbox, below=0.3cm of l2_proj] {Shadow Analysis Methods};
+\node (l2_depth) [subbox, below=0.3cm of l2_shadow] {RGB-D / ToF Depth Sensing};
+\node (l2_air) [subbox, below=0.3cm of l2_depth] {3D Mid-Air Typing / VR};
+\node (l2_paper) [subbox, below=0.3cm of l2_air] {Paper / Monocular RGB};
+\node (l2_attack) [subbox, below=0.3cm of l2_paper] {Video Attack Side-Channels};
+
+% Column 3: Technological Analysis
+\node (l2_pose) [subbox, below=0.4cm of l1_tech] {MediaPipe Hand Landmarker};
+\node (l2_scale) [subbox, below=0.3cm of l2_pose] {Hand Scale Normalization};
+\node (l2_fiducial) [subbox, below=0.3cm of l2_scale] {AprilTag Homography $H$};
+\node (l2_deep) [subbox, below=0.3cm of l2_fiducial] {LSTM Sequence Classifiers};
+
+% Column 4: Research Synthesis
+\node (l2_gap) [subbox, below=0.4cm of l1_reflect] {Prior Art Limitations};
+\node (l2_solution) [subbox, below=0.3cm of l2_gap] {Research Gaps and Synthesis};
+
+% Vertical Column Connections
+\draw [arrow] (l1_domain) -- (l2_history);
+\draw [arrow] (l2_history) -- (l2_drivers);
+
+\draw [arrow] (l1_systems) -- (l2_proj);
+\draw [arrow] (l2_proj) -- (l2_shadow);
+\draw [arrow] (l2_shadow) -- (l2_depth);
+\draw [arrow] (l2_depth) -- (l2_air);
+\draw [arrow] (l2_air) -- (l2_paper);
+\draw [arrow] (l2_paper) -- (l2_attack);
+
+\draw [arrow] (l1_tech) -- (l2_pose);
+\draw [arrow] (l2_pose) -- (l2_scale);
+\draw [arrow] (l2_scale) -- (l2_fiducial);
+\draw [arrow] (l2_fiducial) -- (l2_deep);
+
+\draw [arrow] (l1_reflect) -- (l2_gap);
+\draw [arrow] (l2_gap) -- (l2_solution);
 
 \end{tikzpicture}
 

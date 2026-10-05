@@ -24,8 +24,8 @@ In Figure~\ref{fig:lit_conceptual_map_diagram}, I plotted the literature against
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
     header/.style = {rectangle, draw=blue!80!black, fill=blue!25!white, thick, rounded corners=5pt, align=center, font=\sffamily\bfseries\small, inner sep=8pt, text width=16.5cm},
-    box/.style = {rectangle, draw=blue!70!black, fill=blue!10!white, thick, rounded corners=4pt, align=center, font=\sffamily\bfseries\footnotesize, inner sep=6pt, text width=3.6cm, minimum height=1.2cm},
-    subbox/.style = {rectangle, draw=gray!70, fill=gray!5!white, rounded corners=3pt, align=center, font=\sffamily\scriptsize, inner sep=5pt, text width=3.6cm},
+    box/.style = {rectangle, draw=blue!70!black, fill=blue!10!white, thick, rounded corners=4pt, align=center, font=\sffamily\bfseries\footnotesize, inner sep=6pt, text width=3.6cm, minimum height=1.0cm},
+    subbox/.style = {rectangle, draw=gray!70, fill=gray!5!white, rounded corners=3pt, align=center, font=\sffamily\scriptsize, inner sep=5pt, text width=3.6cm, minimum height=0.8cm},
     arrow/.style = {draw=blue!80!black, ->, >=Stealth, thick}
 ]
 
@@ -33,10 +33,10 @@ In Figure~\ref{fig:lit_conceptual_map_diagram}, I plotted the literature against
 \node (root) [header, at={(0, 0)}] {\textbf{Monocular Vision-Based Virtual Keyboard Literature Taxonomy}};
 
 % Level 1 Nodes
-\node (l1_domain) [box, at={(-6.5, -2.0)}] {1. HCI and Input Paradigms\\(Section~\ref{sec:lit_domain_overview})};
-\node (l1_systems) [box, at={(-2.15, -2.0)}] {2. Sensing Modalities\\(Section~\ref{sec:lit_existing_systems})};
-\node (l1_tech) [box, at={(2.15, -2.0)}] {3. Technological Analysis\\(Section~\ref{sec:lit_technological_analysis})};
-\node (l1_reflect) [box, at={(6.5, -2.0)}] {4. Research Synthesis\\(Section~\ref{sec:lit_reflection})};
+\node (l1_domain) [box, at={(-6.5, -1.8)}] {1. HCI and Input Paradigms};
+\node (l1_systems) [box, at={(-2.15, -1.8)}] {2. Sensing Modalities};
+\node (l1_tech) [box, at={(2.15, -1.8)}] {3. Technological Analysis};
+\node (l1_reflect) [box, at={(6.5, -1.8)}] {4. Research Synthesis};
 
 % Connections to Level 1
 \draw [arrow] (root.south -| l1_domain.north) -- (l1_domain.north);
@@ -45,26 +45,26 @@ In Figure~\ref{fig:lit_conceptual_map_diagram}, I plotted the literature against
 \draw [arrow] (root.south -| l1_reflect.north) -- (l1_reflect.north);
 
 % Column 1: Domain Overview
-\node (l2_history) [subbox, below=0.5cm of l1_domain] {Evolution of Input Hardware\\\cite{ReviewVirtualKeyboard2020, Lee2022Virtual}};
-\node (l2_drivers) [subbox, below=0.35cm of l2_history] {Paper Rationale and Ergonomics\\\cite{Zhang2001Visual, Srivastava2012RealTime, Khare2019QWERTY}};
+\node (l2_history) [subbox, below=0.4cm of l1_domain] {Evolution of Input Hardware};
+\node (l2_drivers) [subbox, below=0.3cm of l2_history] {Paper Rationale and Ergonomics};
 
 % Column 2: Existing Systems
-\node (l2_proj) [subbox, below=0.5cm of l1_systems] {Projection and IR Sensors\\\cite{Cheng2015Fingertip, Kudale2016RealTime}};
-\node (l2_shadow) [subbox, below=0.35cm of l2_proj] {Shadow Analysis Methods\\\cite{Thomas2013Camera, Posner2012Single, Yue2014Blind}};
-\node (l2_depth) [subbox, below=0.35cm of l2_shadow] {RGB-D / ToF Depth Sensing\\\cite{Lee2019Virtual, Toshpulatov2024RealTime}};
-\node (l2_air) [subbox, below=0.35cm of l2_depth] {3D Mid-Air Typing / VR\\\cite{Boletsis2019TextInput, Enkhbat2020HandKey, Lee2022Virtual, Yoo2026WordLevel}};
-\node (l2_paper) [subbox, below=0.35cm of l2_air] {Paper / Monocular RGB\\\cite{Zhang2001Visual, Srivastava2012RealTime, Khare2019QWERTY, Maman2023TypeNet}};
-\node (l2_attack) [subbox, below=0.35cm of l2_paper] {Video Attack Side-Channels\\\cite{Yue2014Blind, Yang2022Towards}};
+\node (l2_proj) [subbox, below=0.4cm of l1_systems] {Projection and IR Sensors};
+\node (l2_shadow) [subbox, below=0.3cm of l2_proj] {Shadow Analysis Methods};
+\node (l2_depth) [subbox, below=0.3cm of l2_shadow] {RGB-D / ToF Depth Sensing};
+\node (l2_air) [subbox, below=0.3cm of l2_depth] {3D Mid-Air Typing / VR};
+\node (l2_paper) [subbox, below=0.3cm of l2_air] {Paper / Monocular RGB};
+\node (l2_attack) [subbox, below=0.3cm of l2_paper] {Video Attack Side-Channels};
 
 % Column 3: Technological Analysis
-\node (l2_pose) [subbox, below=0.5cm of l1_tech] {MediaPipe Hand Landmarker\\\cite{Zhang2020MediaPipe, GilMartin2023Hand, Andriyanov2025Improving}};
-\node (l2_scale) [subbox, below=0.35cm of l2_pose] {Hand Scale Normalization\\\cite{Doan2022Efficient, Kumar2026Hybrid}};
-\node (l2_fiducial) [subbox, below=0.35cm of l2_scale] {AprilTag Homography $H$\\\cite{Wang2016AprilTag2, Kallwies2020Determining, Pirchheim2011Homography}};
-\node (l2_deep) [subbox, below=0.35cm of l2_fiducial] {LSTM Sequence Classifiers\\\cite{Hochreiter1997LSTM, Nunez2018Convolutional, Gammulle2021TMMF}};
+\node (l2_pose) [subbox, below=0.4cm of l1_tech] {MediaPipe Hand Landmarker};
+\node (l2_scale) [subbox, below=0.3cm of l2_pose] {Hand Scale Normalization};
+\node (l2_fiducial) [subbox, below=0.3cm of l2_scale] {AprilTag Homography $H$};
+\node (l2_deep) [subbox, below=0.3cm of l2_fiducial] {LSTM Sequence Classifiers};
 
 % Column 4: Research Synthesis
-\node (l2_gap) [subbox, below=0.5cm of l1_reflect] {Prior Art Limitations\\\cite{Thomas2013Camera, Lee2019Virtual, Maman2023TypeNet}};
-\node (l2_solution) [subbox, below=0.35cm of l2_gap] {Research Gaps and\\Synthesis (Section~\ref{sec:lit_reflection})};
+\node (l2_gap) [subbox, below=0.4cm of l1_reflect] {Prior Art Limitations};
+\node (l2_solution) [subbox, below=0.3cm of l2_gap] {Research Gaps and Synthesis};
 
 % Vertical Column Connections
 \draw [arrow] (l1_domain) -- (l2_history);

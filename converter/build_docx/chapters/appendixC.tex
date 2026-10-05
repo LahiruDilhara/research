@@ -1,7 +1,7 @@
-\chapter{Application 2: Runtime Virtual Keyboard Engine and Live Tracking}
+\chapter*{Appendix C: Application 2: Runtime Virtual Keyboard Engine and Live Tracking}
 \label{ch:appendix_detector_runtime}
 
-\section{Overview of the Runtime Engine}
+\section*{C.1 Overview of the Runtime Engine}
 \label{sec:appendix_detector_overview}
 Below are the screenshots of Application~2, which is the runtime virtual keyboard application. This application is responsible for tracking AprilTag markers, tracking hand joint positions using MediaPipe, detecting finger touches using our PyTorch LSTM model, and executing the assigned keyboard shortcuts.
 
@@ -16,7 +16,7 @@ Figure~\ref{fig:appendix_detector_home} represents the opening screen where the 
 
 \newpage
 
-\section{Action Rebinding and Profile Management}
+\section*{C.2 Action Rebinding and Profile Management}
 \label{sec:appendix_detector_rebinding}
 Figure~\ref{fig:appendix_detector_edit} illustrates the window that allows rebinding of actions. It is possible to assign any desired action to the key in question, either from standard shortcuts (such as Ctrl+C and Alt+Tab) or from terminal scripts. The same XML file is used in both the applications, where key actions and detector settings are saved in the \texttt{<DetectorActions>} and \texttt{<DetectorSettings>} parts of the layout XML. There is no need for additional files anymore, and it is possible to alternate XML action layouts on one printed sheet of paper without printing again.
 
@@ -29,7 +29,7 @@ Figure~\ref{fig:appendix_detector_edit} illustrates the window that allows rebin
 
 \newpage
 
-\section{Live Camera Tracking in Idle and Contact States}
+\section*{C.3 Live Camera Tracking in Idle and Contact States}
 \label{sec:appendix_detector_live_states}
 Figure~\ref{fig:appendix_detector_idle} presents the camera live stream without the presence of any hand. The software detects the four AprilTags placed in the corners and determines the homography matrix $H$ to draw the boxes on the camera feed.
 
@@ -51,7 +51,7 @@ Figure~\ref{fig:appendix_detector_touch} demonstrates what occurs when a finger 
 
 \newpage
 
-\section{Production Run Mode and Action Event Log}
+\section*{C.4 Production Run Mode and Action Event Log}
 \label{sec:appendix_detector_run_mode}
 Live Run Mode is illustrated in Figure~\ref{fig:appendix_detector_run}. A line graph displays the touch probability for each finger over time. As seen from the screen, the program runs efficiently at 11.9~FPS with inference time being just 2.3~ms on the CPU. The list on the right displays recent keystrokes.
 
@@ -64,25 +64,17 @@ Live Run Mode is illustrated in Figure~\ref{fig:appendix_detector_run}. A line g
 
 \newpage
 
-\section{Runtime Engine Preferences and Detection Parameters}
+\section*{C.5 Runtime Engine Preferences and Detection Parameters}
 \label{sec:appendix_detector_settings}
 Figure~\ref{fig:appendix_detector_settings_1} and Figure~\ref{fig:appendix_detector_settings_2} illustrate the settings interface. The user can customize the touch sensitivity ($\tau_{\text{touch}}$), delay in between touches, and camera update rates.
 
-\begin{figure}[htbp]
-\centering
-\begin{subfigure}[b]{0.48\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{figures/detector_settings_page_1.png}
-    \caption{Touch sensitivity and classification thresholds.}
-    \label{fig:appendix_detector_settings_1}
-\end{subfigure}
-\hfill
-\begin{subfigure}[b]{0.48\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{figures/detector_settings_page_2.png}
-    \caption{Homography smoothing and dispatch settings.}
-    \label{fig:appendix_detector_settings_2}
-\end{subfigure}
-\caption{Application~2 configuration settings for vision tracking and touch triggering.}
-\label{fig:appendix_detector_settings}
-\end{figure}
+
+
+\includegraphics[width=0.48\textwidth]{figures/detector_settings_page_1.png}
+
+\includegraphics[width=0.48\textwidth]{figures/detector_settings_page_2.png}
+
+\caption{Touch sensitivity and classification thresholds.}
+\label{fig:appendix_detector_settings_1}
+
+

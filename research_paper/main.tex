@@ -34,12 +34,18 @@
 \textit{NSBM Green University}\\
 Homagama, Sri Lanka \\
 galahirudilhara@gmail.com}
+\and
+\IEEEauthorblockN{Chaminda Wijesinghe}
+\IEEEauthorblockA{\textit{Faculty of Computing} \\
+\textit{NSBM Green University}\\
+Homagama, Sri Lanka \\
+chamindaw@nsbm.ac.lk}
 }
 
 \maketitle
 
 \begin{abstract}
-Virtual paper-based keyboards provide an accessible, low-cost, and portable tangible interface by turning ordinary printed paper surfaces into interactive controllers using a regular computer camera. However, prior monocular RGB keyboards in literature suffer from a universal limitation: they are strictly restricted to single-finger tracking because cast shadows merge when multiple fingers approach the surface, and 2D velocity heuristics lack metric depth perception. Furthermore, existing approaches often require expensive depth sensors, high-end GPUs, or artificial dwell-time delays. This paper introduces an end-to-end computer vision framework that achieves independent five-finger touch contact classification on flat paper surfaces using strictly a single regular monocular RGB camera and a standard commodity CPU. The system decouples physical layout geometry from digital macro actions, allowing users to design custom layouts in software, export them to standard plain paper with AprilTag border fiducials, and dynamically bind a single physical sheet to multiple application shortcuts without reprinting. Touch impacts are detected by extracting 21 skeletal joints per frame via Google MediaPipe, applying unitless hand-length scale normalization ($L_{\text{hand}}$) to guarantee distance and scale invariance, and classifying contact sequences using a lightweight PyTorch Long Short-Term Memory (LSTM) network over a 5-frame sliding window at a standardized 12~FPS rate. Physical experiments demonstrate an end-to-end CPU processing latency of 29.09~ms (34.4~FPS) with zero GPU requirement, a 94.34\% touch classification accuracy (94.37\% F1-score) across all five individual fingers, and sub-millimeter planar homography tracking ($e_{\text{rms}} \le 0.42$~mm) across downward camera tilt angles between $18.4^\circ$ and $49.4^\circ$.
+Virtual paper-based keyboards provide an accessible, low-cost, and portable tangible interface by turning ordinary printed paper surfaces into interactive controllers using a regular computer camera. However, prior monocular RGB keyboards in literature suffer from a universal limitation: they are strictly restricted to single-finger tracking because cast shadows merge when multiple fingers approach the surface, and 2D velocity heuristics lack metric depth perception. Furthermore, existing approaches often require expensive depth sensors, high-end GPUs, or artificial dwell-time delays. This paper introduces an end-to-end computer vision framework that achieves independent five-finger touch contact classification on flat paper surfaces using strictly a single regular monocular RGB camera and a standard commodity CPU. The system decouples physical layout geometry from digital macro actions, allowing users to design custom layouts in software, export them to standard plain paper with AprilTag border fiducials, and dynamically bind a single physical sheet to multiple application shortcuts without reprinting. Touch impacts are detected by extracting 21 skeletal joints per frame via Google MediaPipe, applying unitless hand-length scale normalization ($L_{\text{hand}}$) to guarantee distance and scale invariance, and classifying contact sequences using a lightweight PyTorch Long Short-Term Memory (LSTM) network over a 5-frame sliding window at a standardized 12~FPS rate. Physical experiments demonstrate an end-to-end CPU processing latency of 29.09~ms (34.4~FPS) with zero GPU requirement, a 94.34\% touch classification accuracy (94.37\% F1-score) across all five individual fingers, and sub-millimeter planar homography tracking ($e_{\text{rms}} \le 0.42$~mm) across downward camera tilt angles between $26.6^\circ$ and $63.4^\circ$.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -168,7 +174,7 @@ The sequence matrix is fed into a lightweight PyTorch LSTM network consisting of
 \hat{\mathbf{y}}_t = \sigma\left(\mathbf{W}_o \mathbf{h}_t^{(2)} + \mathbf{b}_o\right) = \left[\hat{y}_{\text{thumb}}, \hat{y}_{\text{index}}, \hat{y}_{\text{middle}}, \hat{y}_{\text{ring}}, \hat{y}_{\text{pinky}}\right]
 \label{eq:model_output}
 \end{equation}
-where $\hat{y}_k \in [0, 1]$ represents the independent contact probability for finger $k$. Because each finger output is evaluated independently with a threshold $\tau = 0.50$, the network evaluates touch states across all five fingers in parallel.
+where $\hat{y}_k \in [0, 1]$ represents the independent contact probability for finger $k$. Because each finger output is evaluated independently with an activation threshold $\tau_{\text{touch}} = 0.90$, the network evaluates touch states across all five fingers in parallel.
 
 \subsection{Distal Vector Projection and Action Multiplexing}
 When an active touch contact is detected on finger $k$, its camera pixel coordinate is mapped onto metric paper coordinates using $H$. However, MediaPipe fingertip landmarks (Landmarks 4, 8, 12, 16, 20) are localized at the center of the fingernail rather than the physical fleshy contact pad. To eliminate systematic offset errors and account for contact force geometry \cite{Sun2009Estimation}, we compute a distal vector projection from the DIP/IP joint to the fingertip and extend the contact point forward by $\delta = 5.0\text{ mm}$ along the finger's pointing orientation:

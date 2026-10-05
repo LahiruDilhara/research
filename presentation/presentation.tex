@@ -1,0 +1,388 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+
+% Theme selection
+\usetheme{metropolis}
+\usefonttheme{professionalfonts}
+
+% Packages
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{microtype}
+
+% Color definitions
+\definecolor{UniNavy}{RGB}{20, 45, 85}
+\definecolor{UniTeal}{RGB}{0, 128, 128}
+\definecolor{UniGold}{RGB}{212, 143, 24}
+\definecolor{DarkCharcoal}{RGB}{40, 40, 40}
+\definecolor{LightGray}{RGB}{245, 247, 250}
+
+\setbeamercolor{palette primary}{bg=UniNavy, fg=white}
+\setbeamercolor{palette secondary}{bg=UniTeal, fg=white}
+\setbeamercolor{palette tertiary}{bg=DarkCharcoal, fg=white}
+\setbeamercolor{structure}{fg=UniNavy}
+\setbeamercolor{titlelike}{fg=UniNavy}
+\setbeamercolor{block title}{bg=UniNavy, fg=white}
+\setbeamercolor{block body}{bg=LightGray, fg=DarkCharcoal}
+\setbeamercolor{alerted text}{fg=UniGold}
+
+% Custom slide number in footer
+\setbeamertemplate{footline}[frame number]
+
+% Metadata
+\title{Customizable Paper-Based Virtual Keyboard Using Monocular Vision and Deep Learning}
+\subtitle{Final Year Undergraduate Research Viva Defense}
+\author{\textbf{G A Lahiru Dilhara}}
+\institute{Department of Computer Science \\ Faculty of Computing}
+\date{October 2026}
+
+\begin{document}
+
+% ==========================================
+% SLIDE 1: Title Slide
+% ==========================================
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+% ==========================================
+% SLIDE 2: Background & Problem Statement
+% ==========================================
+\begin{frame}{Background and Problem Statement}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+      \small
+      \textbf{Key Gaps in Monocular Virtual Keyboards:}
+      \begin{itemize}
+        \item \textbf{Single-Finger Limitation:} Only one finger tracked; overlapping shadows break multi-finger typing.
+        \item \textbf{Dwell-Time Latency:} Users must hover 500--1000 ms per key due to lack of depth perception.
+        \item \textbf{High Hardware Cost:} Reliance on depth sensors (ToF/IR) or heavy GPUs.
+        \item \textbf{Rigid Mounts:} Systems misalign under slight paper or camera movement.
+        \item \textbf{Static Layouts:} Hard-coded QWERTY layouts with no action remapping.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{Research Challenge}
+        \footnotesize
+        Achieving real-time multi-finger touch detection on commodity CPUs using only a regular RGB webcam and plain printed paper.
+      \end{block}
+      \begin{center}
+        \includegraphics[width=0.92\linewidth,height=0.45\textheight,keepaspectratio]{../figures/chapter01_fig01.png}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==========================================
+% SLIDE 3: Research Aim & SMART Objectives
+% ==========================================
+\begin{frame}{Research Aim and Objectives}
+  \textbf{Primary Research Question:}
+  \begin{quote}
+    \small
+    ``How can a monocular computer vision framework using strictly a single regular RGB camera and plain printed paper enable accurate, real-time, and flexible virtual keyboard interaction executing on standard commodity CPUs without specialized hardware?''
+  \end{quote}
+  \vspace{0.4em}
+  \small
+  \textbf{Four Core Project Objectives:}
+  \begin{enumerate}
+    \item \textbf{Objective 1 (Design \& Tracking):} Develop a visual layout designer and robust AprilTag planar homography tracking (tilt up to $75^\circ$).
+    \item \textbf{Objective 2 (Data Pipeline \& Kinematics):} Build a 12 FPS multi-finger dataset with 21 MediaPipe skeletal landmarks and scale normalization ($L_{\text{hand}}$).
+    \item \textbf{Objective 3 (Model Benchmarking):} Train and benchmark 22 deep learning models across 5 architectures to select the optimal CPU touch classifier.
+    \item \textbf{Objective 4 (Runtime Engine):} Implement an interactive runtime detector with distal projection ($5.0\text{ mm}$), multi-filtering, and native OS key injection ($<30\text{ ms}$).
+  \end{enumerate}
+\end{frame}
+
+% ==========================================
+% SLIDE 4: End-to-End System Architecture
+% ==========================================
+\begin{frame}{End-to-End System Architecture}
+  \begin{center}
+    \includegraphics[width=0.95\linewidth,height=0.55\textheight,keepaspectratio]{../figures/chapter04_fig01.png}
+  \end{center}
+  \vspace{-0.5em}
+  \begin{itemize}
+    \small
+    \item \textbf{Two Decoupled Software Applications:} App 1 (Layout Designer) \& App 2 (Runtime Detector Engine).
+    \item \textbf{Execution Flow:} RGB Input $\rightarrow$ AprilTag Homography ($H$) $\rightarrow$ MediaPipe Tracking (21 Joints) $\rightarrow$ Scale Normalization $\rightarrow$ PyTorch LSTM Inference $\rightarrow$ Runtime Filtering $\rightarrow$ OS Key Dispatch.
+  \end{itemize}
+\end{frame}
+
+% ==========================================
+% SLIDE 5: Hardware & Physical Interaction Setup
+% ==========================================
+\begin{frame}{Physical Setup and Hardware Constraints}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \small
+      \textbf{Core Hardware Principles:}
+      \begin{itemize}
+        \item \textbf{Single Monocular RGB Camera:} Standard USB webcam or low-cost laptop camera (no depth/IR/wearables).
+        \item \textbf{Standard Plain Paper:} Normal A4 paper printed on any desktop printer with 4 corner AprilTags (family \texttt{tag36h11}).
+        \item \textbf{Commodity CPU Only:} Real-time execution without requiring a GPU or workstation.
+        \item \textbf{Single Active Hand Interaction:} Optimized for one active hand to maximize CPU speed and avoid AprilTag occlusion.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{center}
+        \includegraphics[width=0.95\linewidth,height=0.68\textheight,keepaspectratio]{../figures/physical_setup_image_upright.jpg}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==========================================
+% SLIDE 6: Layout Designer Application (App 1)
+% ==========================================
+\begin{frame}{App 1: Custom Layout Designer and Multiplexing}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \small
+      \textbf{Key System Capabilities:}
+      \begin{itemize}
+        \item \textbf{Visual Drag-and-Drop Interface:} Built with PySide6 (Qt) to customize key grids, labels, and sizes.
+        \item \textbf{Printable PDF Generation:} Automatically positions 4 border AprilTag fiducials with millimeter accuracy.
+        \item \textbf{Dynamic Action Multiplexing:} Physical geometry is separate from digital software bindings.
+        \item \textbf{Multiple Action Profiles:} Same printed paper can switch between typing, developer shortcuts, DAW audio macros, or gaming hotkeys without reprinting.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{center}
+        \includegraphics[width=0.98\linewidth,height=0.68\textheight,keepaspectratio]{../figures/layout_designer_main_screen.png}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==========================================
+% SLIDE 7: Planar Tracking via AprilTag Homography
+% ==========================================
+\begin{frame}{Visual Planar Tracking and Homography}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \small
+      \textbf{Planar Homography Estimation ($H$):}
+      \begin{itemize}
+        \item 4 AprilTag markers define the outer bounding plane of the paper sheet.
+        \item Computes $3 \times 3$ matrix $H$ mapping camera pixel space $(u,v)$ to normalized paper coordinates $(x_p, y_p)$.
+        \item \textbf{Dynamic Compensation:} Automatically adjusts when the paper shifts, rotates, or the camera tilts.
+        \item \textbf{Tilt Stability:} Tested up to $75^\circ$ tilt with sub-millimeter corner localization accuracy.
+        \item \textbf{Occlusion Resilience:} 3 visible tags suffice to maintain homography geometry.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \begin{center}
+        \includegraphics[width=0.98\linewidth,height=0.68\textheight,keepaspectratio]{../figures/fig_homography_tilt_error.png}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==========================================
+% SLIDE 8: Feature Extraction and Kinematic Normalization
+% ==========================================
+\begin{frame}{Feature Extraction and Kinematic Normalization}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+      \small
+      \textbf{Kinematic Processing Pipeline:}
+      \begin{itemize}
+        \item \textbf{21 Skeletal Landmarks:} MediaPipe Hands extracts 21 2D joint coordinates per frame.
+        \item \textbf{Hand-Length Scale Normalization:} Distances scaled by unitless hand length ($L_{\text{hand}} = \|\mathbf{p}_{\text{wrist}} - \mathbf{p}_{\text{middle\_mcp}}\|$), invariant to camera distance.
+        \item \textbf{Temporal Kinematics:} Joint velocities $(\Delta x, \Delta y)$ capture deceleration upon surface contact.
+        \item \textbf{Sliding Window:} 5 frames with 2-frame overlap at 12 FPS producing a $5 \times 84$ input feature tensor.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.43\textwidth}
+      \begin{center}
+        \includegraphics[width=0.98\linewidth,height=0.65\textheight,keepaspectratio]{../figures/chapter04_fig03.png}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==========================================
+% SLIDE 9: Custom Data Annotator & Dataset Engineering
+% ==========================================
+\begin{frame}{Dataset Engineering and Custom Annotator}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \small
+      \textbf{Rigorous 13-Step Data Pipeline:}
+      \begin{itemize}
+        \item Built a specialized PySide6 multi-finger video annotation tool with synchronized hotkeys.
+        \item Ground-truth labeled discrete surface touches across all 5 fingers (Thumb, Index, Middle, Ring, Pinky).
+        \item 12 FPS sub-sampling captures touch impact dynamics while keeping CPU load low.
+        \item Quality filters removed jittery frames and ensured class balance across all 5 finger contact states.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{center}
+        \includegraphics[width=0.98\linewidth,height=0.68\textheight,keepaspectratio]{../figures/data_annotator_main_screen_live_annotation.png}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==========================================
+% SLIDE 10: Deep Learning Model Architecture
+% ==========================================
+\begin{frame}{Deep Learning Architecture for Touch Classification}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \small
+      \textbf{Multi-Head PyTorch LSTM Network:}
+      \begin{itemize}
+        \item \textbf{Input Layer:} Sequential tensor $(B, 5, 84)$ of normalized coordinates and velocities.
+        \item \textbf{Recurrent Core:} 2-layer LSTM with 128 hidden units and dropout (0.2).
+        \item \textbf{Multi-Head Output:} 5 independent Sigmoid heads for Thumb, Index, Middle, Ring, and Pinky.
+        \item \textbf{Multi-Finger Support:} Simultaneously evaluates contact probabilities across all five fingers in parallel.
+        \item \textbf{Loss Function:} Multi-label Binary Cross-Entropy with Logits.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{center}
+        \includegraphics[width=0.98\linewidth,height=0.68\textheight,keepaspectratio]{../figures/chapter04_fig02.png}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==========================================
+% SLIDE 11: Model Benchmarks and Empirical Results
+% ==========================================
+\begin{frame}{Model Benchmarking and Empirical Results}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \small
+      \textbf{Comprehensive Benchmark (22 Models):}
+      \begin{itemize}
+        \item Evaluated 5 model families: 1D-CNN, Attention/Transformer, ResNet, BiLSTM, and LSTM.
+        \item Evaluated 4 feature sets: raw, velocities, normalized, and all combined.
+        \item \textbf{Winning Model:} \textbf{LSTM with All Combined Features} achieved \textbf{94.34\% Accuracy} and \textbf{94.37\% F1-Score}.
+        \item High per-finger precision validates robust multi-finger discrimination.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+        \includegraphics[width=0.98\linewidth,height=0.38\textheight,keepaspectratio]{../figures/fig_model_benchmark_acc.png}
+        \vspace{0.3em}
+        \includegraphics[width=0.68\linewidth,height=0.32\textheight,keepaspectratio]{../figures/fig_confusion_matrix.png}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==========================================
+% SLIDE 12: Real-Time Performance & Latency Breakdown
+% ==========================================
+\begin{frame}{Real-Time Responsiveness on Commodity CPU}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \small
+      \textbf{End-to-End Latency: 29.09 ms ($>34$ FPS)}
+      \begin{itemize}
+        \item \textbf{Camera Capture \& Conversion:} $3.12\text{ ms}$
+        \item \textbf{AprilTag Homography Update:} $4.35\text{ ms}$
+        \item \textbf{MediaPipe Joint Tracking:} $16.82\text{ ms}$
+        \item \textbf{PyTorch LSTM Inference:} $3.68\text{ ms}$
+        \item \textbf{Coordinate Mapping \& Dispatch:} $1.12\text{ ms}$
+      \end{itemize}
+      \begin{block}{CPU Execution Confirmation}
+        \footnotesize
+        Fully interactive touch response running exclusively on commodity laptop CPUs without requiring a GPU.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+        \includegraphics[width=0.98\linewidth,height=0.68\textheight,keepaspectratio]{../figures/fig_latency_breakdown.png}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==========================================
+% SLIDE 13: Runtime Detector Engine (App 2)
+% ==========================================
+\begin{frame}{App 2: Real-Time Runtime Detector Engine}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \small
+      \textbf{Contact Logic \& Event Dispatch:}
+      \begin{itemize}
+        \item \textbf{Distal Vector Projection ($5.0\text{ mm}$):} Extrapolates contact point past the fingertip landmark along the distal bone axis to compensate for perspective angles.
+        \item \textbf{4-Stage Runtime Filtering:}
+          \begin{enumerate}
+            \item Temporal window smoothing buffer
+            \item Velocity deceleration confirmation
+            \item Probability threshold ($P \ge 0.65$)
+            \item Debounce timer ($120\text{ ms}$)
+          \end{enumerate}
+        \item \textbf{OS Key Event Injection:} Dispatches native keyboard events via \texttt{pynput} directly to active OS windows.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+        \includegraphics[width=0.98\linewidth,height=0.68\textheight,keepaspectratio]{../figures/detector_playmode_exacty_index_finger_touch_happening_on_a_key.png}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==========================================
+% SLIDE 14: Practical Discussion and Limitations
+% ==========================================
+\begin{frame}{Discussion and System Limitations}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{System Strengths}
+        \small
+        \begin{itemize}
+          \item Zero specialized hardware (only webcam + plain paper).
+          \item Real-time CPU execution ($29.09\text{ ms}$).
+          \item Robust to camera tilt up to $75^\circ$ and paper shifts.
+          \item Dynamic action multiplexing across multiple software profiles.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Identified Limitations}
+        \small
+        \begin{itemize}
+          \item \textbf{Single-Hand Interaction:} Optimized for one active hand to prevent AprilTag occlusion on compact A4 paper.
+          \item \textbf{Extreme Tilt ($>75^\circ$):} Foreshortening increases corner localization errors.
+          \item \textbf{Heavy Shadows:} Low contrast ambient shadows can affect fingertip landmark accuracy.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{0.6em}
+  \small \textbf{Future Work:} Extension to bimanual (two-handed) typing on A3 paper formats and lightweight edge deployment.
+\end{frame}
+
+% ==========================================
+% SLIDE 15: Conclusion and Research Contributions
+% ==========================================
+\begin{frame}{Conclusion and Key Contributions}
+  \small
+  \textbf{Summary of Research Contributions:}
+  \begin{enumerate}
+    \item \textbf{Monocular Multi-Finger Touch Pipeline:} Proved that kinematic deceleration combined with LSTM sequence modeling enables monocular multi-finger touch detection without depth cameras.
+    \item \textbf{Commodity CPU Feasibility:} Achieved real-time performance ($29.09\text{ ms}$ latency) entirely on standard laptop CPUs.
+    \item \textbf{Decoupled Action Multiplexing:} Created a system where one physical printed paper layout dynamically binds to diverse software profiles (Typing, DAW, Gaming, Dev shortcuts).
+    \item \textbf{Empirical Benchmark Framework:} Benchmarked 22 models across 5 architectures, confirming the superior performance of combined coordinate and velocity temporal features (94.34\% accuracy).
+  \end{enumerate}
+  \vspace{0.8em}
+  \begin{center}
+    \Large \textbf{Thank You!} \\
+    \vspace{0.3em}
+    \small \textbf{Questions \& Live Demonstration} \\
+    \footnotesize Author: G A Lahiru Dilhara \quad (\texttt{galahirudilhara@gmail.com})
+  \end{center}
+\end{frame}
+
+\end{document}

@@ -110,42 +110,38 @@ def extract_and_render_tikz(tex_content: str, chapter_name: str, fig_tracker: di
         final_png = FIGURES_DIR / f"{fig_stem}.png"
         build_png = BUILD_FIGURES_DIR / f"{fig_stem}.png"
         
-        if not final_png.exists():
-            print(f"[*] Compiling TikZ diagram: {fig_stem}...")
-            with open(tex_file, "w", encoding="utf-8") as f:
-                f.write(TIKZ_HEADER + "\n" + tikz_code + "\n" + TIKZ_FOOTER)
-                
-            cmd_latex = [
-                "pdflatex",
-                "-interaction=nonstopmode",
-                f"-output-directory={BUILD_DIR}",
-                str(tex_file)
-            ]
-            res = subprocess.run(cmd_latex, capture_output=True, text=True)
-            if res.returncode != 0:
-                print(f"[!] Warning: pdflatex failed for {fig_stem}")
-                return tikz_code
-                
-            cmd_ppm = [
-                "pdftoppm",
-                "-png",
-                "-r", "300",
-                "-singlefile",
-                str(pdf_file),
-                str(png_prefix)
-            ]
-            subprocess.run(cmd_ppm, capture_output=True, text=True)
-            generated_png = BUILD_DIR / f"{fig_stem}.png"
-            if generated_png.exists():
-                shutil.copy(generated_png, final_png)
-                shutil.copy(generated_png, build_png)
-                print(f"[+] Successfully generated: {final_png.name}")
-            else:
-                print(f"[!] Warning: PNG generation failed for {fig_stem}")
-                return tikz_code
+        print(f"[*] Compiling fresh TikZ diagram: {fig_stem}...")
+        with open(tex_file, "w", encoding="utf-8") as f:
+            f.write(TIKZ_HEADER + "\n" + tikz_code + "\n" + TIKZ_FOOTER)
+            
+        cmd_latex = [
+            "pdflatex",
+            "-interaction=nonstopmode",
+            f"-output-directory={BUILD_DIR}",
+            str(tex_file)
+        ]
+        res = subprocess.run(cmd_latex, capture_output=True, text=True)
+        if res.returncode != 0:
+            print(f"[!] Warning: pdflatex failed for {fig_stem}")
+            return tikz_code
+            
+        cmd_ppm = [
+            "pdftoppm",
+            "-png",
+            "-r", "300",
+            "-singlefile",
+            str(pdf_file),
+            str(png_prefix)
+        ]
+        subprocess.run(cmd_ppm, capture_output=True, text=True)
+        generated_png = BUILD_DIR / f"{fig_stem}.png"
+        if generated_png.exists():
+            shutil.copy(generated_png, final_png)
+            shutil.copy(generated_png, build_png)
+            print(f"[+] Successfully generated: {final_png.name}")
         else:
-            shutil.copy(final_png, build_png)
-            print(f"[+] Reusing existing diagram: {final_png.name}")
+            print(f"[!] Warning: PNG generation failed for {fig_stem}")
+            return tikz_code
             
         return f"\n\\includegraphics[width=0.85\\textwidth]{{figures/{fig_stem}.png}}\n"
 
@@ -216,6 +212,21 @@ def clean_for_pandoc(content: str, filename: str = "") -> str:
     content = re.sub(r"\\begin\{tabular\*\}\{.*?\}(\{.*?\})", r"\\begin{tabular}\1", content)
     content = re.sub(r"\\end\{tabular\*\}", r"\\end{tabular}", content)
 
+    # Convert subfigure-containing figures to separate includegraphics commands for Pandoc
+    def figure_subfig_repl(m):
+        block = m.group(0)
+        if "subfigure" not in block:
+            return block
+        imgs = re.findall(r"\\includegraphics(?:\[.*?\])?\{(.*?)\}", block)
+        cap_m = re.search(r"\\caption\{(.*?)\}", block)
+        lbl_m = re.search(r"\\label\{(.*?)\}", block)
+        cap = cap_m.group(1) if cap_m else ""
+        lbl = lbl_m.group(1) if lbl_m else ""
+        img_tags = "\n\n".join([f"\\includegraphics[width=0.48\\textwidth]{{{img}}}" for img in imgs])
+        return f"\n\n{img_tags}\n\n\\caption{{{cap}}}\n\\label{{{lbl}}}\n\n"
+
+    content = re.sub(r"\\begin\{figure\}.*?\\end\{figure\}", figure_subfig_repl, content, flags=re.DOTALL)
+
     # Convert \paragraph{...} to inline bold lead-in \textbf{...} to prevent weird heading numbers
     content = re.sub(r"\\paragraph\{(.*?)\}", r"\n\n\\textbf{\1} ", content)
     
@@ -239,10 +250,39 @@ def clean_for_pandoc(content: str, filename: str = "") -> str:
     # Clean specific preliminary files so Pandoc gets clear unnumbered chapters
     if filename == "declaration.tex":
         content = re.sub(r"\\begin\{center\}.*?\\textbf\{DECLARATION\}.*?\\end\{center\}", r"\\chapter*{Declaration}", content, flags=re.DOTALL)
+        content = re.sub(r"\\makebox\[[^\]]*\]\{\\dotfill\}", r"............................", content)
+        content = re.sub(r"\\hspace\*\{[^\}]*\}", r"    ", content)
+        content = re.sub(r"\\addlinespace\[[^\]]*\]", r"\n", content)
     elif filename == "acknowledgement.tex":
         content = re.sub(r"\\begin\{center\}.*?\\textbf\{ACKNOWLEDGEMENT\}.*?\\end\{center\}", r"\\chapter*{Acknowledgement}", content, flags=re.DOTALL)
     elif filename == "abstract.tex":
         content = re.sub(r"\\begin\{center\}.*?\\textbf\{ABSTRACT\}.*?\\end\{center\}", r"\\chapter*{Abstract}", content, flags=re.DOTALL)
+    elif filename.startswith("appendix") and len(filename) >= 9:
+        app_letter = filename[8].upper()  # 'A', 'B', 'C', 'D', 'E'
+        content = re.sub(r"\\chapter\{(.*?)\}", rf"\\chapter*{{Appendix {app_letter}: \1}}", content)
+        
+        curr_sec = [0]
+        curr_subsec = [0]
+        curr_subsubsec = [0]
+        
+        def sec_repl(m):
+            curr_sec[0] += 1
+            curr_subsec[0] = 0
+            curr_subsubsec[0] = 0
+            return f"\\section*{{{app_letter}.{curr_sec[0]} {m.group(1)}}}"
+            
+        def subsec_repl(m):
+            curr_subsec[0] += 1
+            curr_subsubsec[0] = 0
+            return f"\\subsection*{{{app_letter}.{curr_sec[0]}.{curr_subsec[0]} {m.group(1)}}}"
+            
+        def subsubsec_repl(m):
+            curr_subsubsec[0] += 1
+            return f"\\subsubsection*{{{app_letter}.{curr_sec[0]}.{curr_subsec[0]}.{curr_subsubsec[0]} {m.group(1)}}}"
+            
+        content = re.sub(r"\\section\{(.*?)\}", sec_repl, content)
+        content = re.sub(r"\\subsection\{(.*?)\}", subsec_repl, content)
+        content = re.sub(r"\\subsubsection\{(.*?)\}", subsubsec_repl, content)
         
     return content
 
@@ -261,19 +301,19 @@ def generate_pandoc_main_tex() -> str:
         r"% Title Page",
         r"\begin{center}",
         r"{\fontsize{16pt}{24pt}\selectfont \textbf{CUSTOMIZABLE PAPER-BASED VIRTUAL MACRO KEYBOARD SYSTEM USING COMPUTER VISION AND DEEP LEARNING} \par}",
-        r"\vspace*{1.5cm}",
+        r"\vfill",
         r"{\fontsize{14pt}{20pt}\selectfont A thesis submitted to NSBM Green University for the degree of \par}",
         r"{\fontsize{14pt}{20pt}\selectfont Bachelor of Science (Honours) in Computer Science \par}",
-        r"\vspace*{1.2cm}",
+        r"\vfill",
         r"{\fontsize{14pt}{20pt}\selectfont By \par}",
-        r"\vspace*{1.0cm}",
-        r"{\fontsize{14pt}{20pt}\selectfont \textbf{G A LAHIRU DILHARA} \par}",
-        r"\vspace*{1.5cm}",
+        r"\vfill",
+        r"{\fontsize{14pt}{20pt}\selectfont \textbf{GANEPOLA ARACHCHIGE LAHIRU DILHARA} \par}",
+        r"\vfill",
         r"{\fontsize{14pt}{20pt}\selectfont Department of Computer Science \par}",
         r"{\fontsize{14pt}{20pt}\selectfont Faculty of Computing \par}",
         r"{\fontsize{14pt}{20pt}\selectfont NSBM Green University \par}",
         r"{\fontsize{14pt}{20pt}\selectfont Sri Lanka \par}",
-        r"\vspace*{1.0cm}",
+        r"\vfill",
         r"{\fontsize{14pt}{20pt}\selectfont September 2026 \par}",
         r"\end{center}",
         r"",
@@ -303,8 +343,13 @@ def generate_pandoc_main_tex() -> str:
         r"\input{chapters/chapter06.tex}",
         r"\pagebreak",
         r"",
+        r"% References (IEEE Format - Placed Before Appendices)",
+        r"\chapter*{References}",
+        r"\printbibliography",
+        r"",
+        r"\pagebreak",
+        r"",
         r"% Appendices",
-        r"\appendix",
         r"\input{chapters/appendixA.tex}",
         r"\pagebreak",
         r"\input{chapters/appendixB.tex}",
@@ -314,11 +359,6 @@ def generate_pandoc_main_tex() -> str:
         r"\input{chapters/appendixD.tex}",
         r"\pagebreak",
         r"\input{chapters/appendixE.tex}",
-        r"\pagebreak",
-        r"",
-        r"% References (Placed at end of document)",
-        r"\chapter*{References}",
-        r"\printbibliography",
         r"",
         r"\end{document}"
     ]
@@ -399,7 +439,7 @@ def main():
     styler_script = WORKSPACE_ROOT / "converter" / "docx_styler.py"
     print(f"\n=== Applying OpenXML Professional Academic Styling ({styler_script.name}) ===")
     res_style = subprocess.run(
-        ["uv", "run", "--with", "python-docx", "python3", str(styler_script), str(output_docx)],
+        ["uv", "run", "--with", "python-docx", "--with", "pypdf", "python3", str(styler_script), str(output_docx)],
         capture_output=True, text=True
     )
     if res_style.returncode != 0:

@@ -485,6 +485,7 @@ INPUT out/main.bbl
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Regular-tlf-ot1.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Regular-tlf-ot1.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/vf/public/newtx/ntx-Bold-tlf-ot1.vf
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/txbmiaX.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1r.tfm
@@ -493,6 +494,9 @@ INPUT /usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/newtx/ntx-ot1-tlf.enc
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/vf/public/newtx/ntx-Regular-tlf-ot1.vf
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/txmiaX.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Regular-tlf-ot1r.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/vf/public/newtx/ntx-Bold-tlf-ot1.vf
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/txbmiaX.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1r.tfm
 INPUT ./chapters/declaration.tex
 INPUT ./chapters/declaration.tex
 INPUT chapters/declaration.tex
@@ -576,15 +580,7 @@ OUTPUT out/main.toc
 INPUT out/main.lof
 INPUT out/main.lof
 INPUT out/main.lof
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/vf/public/newtx/ntx-Bold-tlf-ot1.vf
 OUTPUT out/main.lof
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/vf/public/newtx/ntx-Regular-tlf-ot1.vf
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/vf/public/newtx/ntxsy.vf
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/txsys.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/txex-bar.tfm
 INPUT out/main.lot
 INPUT out/main.lot
 INPUT out/main.lot
@@ -607,6 +603,7 @@ INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Regular-tlf-
 INPUT ./chapters/chapter01.tex
 INPUT ./chapters/chapter01.tex
 INPUT chapters/chapter01.tex
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/vf/public/newtx/ntx-Regular-tlf-ot1.vf
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Italic-tlf-ot1.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/newtx/ts1ntxtlf.fd
 INPUT /usr/local/texlive/2026/texmf-dist/tex/latex/newtx/ts1ntxtlf.fd
@@ -629,8 +626,6 @@ INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntxsy7.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntxsy5.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntxexx.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntxexx.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msam7.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msam5.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msbm7.tfm
@@ -677,9 +672,6 @@ INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntxsy5.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntxexx.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntxexx.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntxexx.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msam10.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msam10.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msam7.tfm
@@ -711,6 +703,9 @@ INPUT chapters/chapter02.tex
 INPUT ./chapters/chapter03.tex
 INPUT ./chapters/chapter03.tex
 INPUT chapters/chapter03.tex
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/vf/public/newtx/ntxsy.vf
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/txsys.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/txex-bar.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/tex-gyre/rm-qhvb.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/tex-gyre/rm-qhvb.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/tex-gyre/rm-qhvb.tfm
@@ -719,7 +714,6 @@ INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Regular-tlf-
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntxmi5.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntxsy5.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntxexx.tfm
-INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msam7.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/symbols/msbm7.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntxmia.tfm
@@ -737,6 +731,10 @@ INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/NewTXMI7.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/stxscr.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/vf/public/newtx/ntxexx.vf
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/txexs.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/vf/public/newtx/ntx-Bold-tlf-ot1.vf
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/vf/public/newtx/ntx-Bold-tlf-ot1.vf
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/txbmiaX.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1r.tfm
@@ -750,6 +748,9 @@ INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/txfonts/txbtt.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Regular-tlf-ot1.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/tex-gyre/rm-qhvr.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/tex-gyre/rm-qhvb.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
+INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/ntx-Bold-tlf-ot1.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/vf/public/newtx/ntxsy7.vf
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/txsys.tfm
 INPUT /usr/local/texlive/2026/texmf-dist/fonts/tfm/public/newtx/txex-bar.tfm

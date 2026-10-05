@@ -11,7 +11,7 @@
 \contentsline {table}{\numberline {5.3}{\ignorespaces Comparative performance evaluation of deep learning model architecture combinations.}}{38}{table.caption.16}%
 \contentsline {table}{\numberline {5.4}{\ignorespaces Per-digit touch classification performance metrics.}}{39}{table.caption.17}%
 \contentsline {table}{\numberline {5.5}{\ignorespaces Ablation evaluation of MediaPipe landmark subsets and kinematic feature representations.}}{40}{table.caption.18}%
-\contentsline {table}{\numberline {5.6}{\ignorespaces Sensitivity analysis of temporal window length ($W$) and stride ($S$).}}{41}{table.caption.19}%
+\contentsline {table}{\numberline {5.6}{\ignorespaces Sensitivity analysis of temporal window length and stride.}}{41}{table.caption.19}%
 \contentsline {table}{\numberline {5.7}{\ignorespaces Ablation evaluation of feature normalization across camera distances and hand sizes.}}{41}{table.caption.20}%
 \contentsline {table}{\numberline {5.8}{\ignorespaces AprilTag homography tracking accuracy under perspective camera tilt angles.}}{42}{table.caption.21}%
 \contentsline {table}{\numberline {5.9}{\ignorespaces Detailed execution latency breakdown per frame processing cycle.}}{42}{table.caption.22}%

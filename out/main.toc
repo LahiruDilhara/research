@@ -36,7 +36,7 @@
 \contentsline {chapter}{\numberline {3}Literature Review}{12}{chapter.3}%
 \contentsline {section}{\numberline {3.1}Overview of the Chapter and Research Context}{12}{section.3.1}%
 \contentsline {section}{\numberline {3.2}Conceptual Map of the Literature}{13}{section.3.2}%
-\contentsline {subsection}{\numberline {3.2.1}Literature Search Strategy and PRISMA 2020 Systematic Protocol}{14}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.1}Literature Search Strategy and PRISMA 2020 Systematic Protocol}{13}{subsection.3.2.1}%
 \contentsline {section}{\numberline {3.3}Domain Overview}{14}{section.3.3}%
 \contentsline {subsection}{\numberline {3.3.1}Evolution of Text Entry and Spatial HCI Hardware}{14}{subsection.3.3.1}%
 \contentsline {subsection}{\numberline {3.3.2}Kinematic Typing Dynamics and Biomechanical Surface Impact}{14}{subsection.3.3.2}%
@@ -82,7 +82,7 @@
 \contentsline {subsection}{\numberline {4.6.1}Multi-Finger Touch Contact Classification}{32}{subsection.4.6.1}%
 \contentsline {subsection}{\numberline {4.6.2}PyTorch LSTM Sequence Classifier}{32}{subsection.4.6.2}%
 \contentsline {section}{\numberline {4.7}Application 2: Runtime Virtual Keyboard Engine}{33}{section.4.7}%
-\contentsline {subsection}{\numberline {4.7.1}Planar Homography Derivation ($H$)}{33}{subsection.4.7.1}%
+\contentsline {subsection}{\numberline {4.7.1}Planar Homography Derivation}{33}{subsection.4.7.1}%
 \contentsline {subsection}{\numberline {4.7.2}Fingertip Coordinate Transformation and Key Lookup}{33}{subsection.4.7.2}%
 \contentsline {subsection}{\numberline {4.7.3}Action Multiplexing and Command Dispatch}{34}{subsection.4.7.3}%
 \contentsline {section}{\numberline {4.8}Chapter Summary}{34}{section.4.8}%
@@ -132,7 +132,7 @@
 \contentsline {subsection}{\numberline {6.5.2}Where this could work in the real world}{50}{subsection.6.5.2}%
 \contentsline {section}{\numberline {6.6}Future Technical Improvements and Research Directions}{50}{section.6.6}%
 \contentsline {section}{\numberline {6.7}Summary of the Study and Concluding Remarks}{51}{section.6.7}%
-\contentsline {chapter}{References}{56}{chapter*.24}%
+\contentsline {chapter}{References}{52}{section*.24}%
 \contentsline {chapter}{\numberline {A}Physical Experimental Setup and Printable Layout Artifacts}{57}{appendix.A}%
 \contentsline {section}{\numberline {A.1}Overview of the Physical Setup}{57}{appendix.A.1}%
 \contentsline {section}{\numberline {A.2}Printable Vector Layout Artifact}{59}{appendix.A.2}%

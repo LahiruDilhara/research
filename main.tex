@@ -103,6 +103,12 @@
 \renewcommand{\cfttabpresnum}{Table }
 \settowidth{\cftfignumwidth}{Figure 0.0\quad}
 \settowidth{\cfttabnumwidth}{Table 0.0\quad}
+\renewcommand{\cftfigdotsep}{\cftnodots}
+\renewcommand{\cfttabdotsep}{\cftnodots}
+\renewcommand{\cftfigleader}{\cftdotfill{\cftfigdotsep}}
+\renewcommand{\cfttableader}{\cftdotfill{\cfttabdotsep}}
+\renewcommand{\cftafterloftitle}{\par\hfill{\normalfont\fontsize{12pt}{16pt}\selectfont Page}\par\bigskip}
+\renewcommand{\cftafterlottitle}{\par\hfill{\normalfont\fontsize{12pt}{16pt}\selectfont Page}\par\bigskip}
 
 % Hyperref setup
 \usepackage{hyperref}
@@ -141,21 +147,20 @@
 \begin{titlepage}
     \thispagestyle{empty}
     \centering
-    \vspace*{1.0cm}
     {\fontsize{16pt}{24pt}\selectfont \bfseries CUSTOMIZABLE PAPER-BASED VIRTUAL MACRO KEYBOARD SYSTEM USING COMPUTER VISION AND DEEP LEARNING \par}
-    \vspace{1.5cm}
+    \vfill
     {\fontsize{14pt}{20pt}\selectfont A thesis submitted to NSBM Green University for the degree of \par}
     {\fontsize{14pt}{20pt}\selectfont Bachelor of Science (Honours) in Computer Science \par}
-    \vspace{1.5cm}
+    \vfill
     {\fontsize{14pt}{20pt}\selectfont By \par}
-    \vspace{1.0cm}
-    {\fontsize{14pt}{20pt}\selectfont G A LAHIRU DILHARA \par}
-    \vspace{1.8cm}
+    \vfill
+    {\fontsize{14pt}{20pt}\selectfont \textbf{GANEPOLA ARACHCHIGE LAHIRU DILHARA} \par}
+    \vfill
     {\fontsize{14pt}{20pt}\selectfont Department of Computer Science \par}
     {\fontsize{14pt}{20pt}\selectfont Faculty of Computing \par}
     {\fontsize{14pt}{20pt}\selectfont NSBM Green University \par}
     {\fontsize{14pt}{20pt}\selectfont Sri Lanka \par}
-    \vspace{1.0cm}
+    \vfill
     {\fontsize{14pt}{20pt}\selectfont September 2026 \par}
 \end{titlepage}
 
@@ -210,8 +215,10 @@
 % ----------------------------------------------------------------------
 % BACK MATTER: References (IEEE)
 % ----------------------------------------------------------------------
-\printbibliography[title={References}]
+\cleardoublepage
+\phantomsection
 \addcontentsline{toc}{chapter}{References}
+\printbibliography[title={References}]
 \newpage
 
 % ----------------------------------------------------------------------

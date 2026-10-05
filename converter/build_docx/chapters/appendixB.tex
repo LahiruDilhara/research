@@ -1,7 +1,7 @@
-\chapter{Application 1: Paper Layout Designer Suite}
+\chapter*{Appendix B: Application 1: Paper Layout Designer Suite}
 \label{ch:appendix_layout_designer}
 
-\section{Overview of the Designer Application}
+\section*{B.1 Overview of the Designer Application}
 \label{sec:appendix_designer_overview}
 The following screenshots illustrate Application~1 (\texttt{virtualKeyboardSetup/}\linebreak[1]\texttt{designer/main.py}), which is a layout designer developed using PySide6 (developed from the initial exploratory prototype in \texttt{designer/}). The user can create a new customized keyboard layout for macro keys by moving and resizing buttons as well as exporting the layout as an XML coordinate file and as a PDF document.
 
@@ -16,7 +16,7 @@ The start page of the application is illustrated in Figure~\ref{fig:appendix_des
 
 \newpage
 
-\section{Interactive 2D Design Canvas and Property Inspector}
+\section*{B.2 Interactive 2D Design Canvas and Property Inspector}
 \label{sec:appendix_designer_canvas}
 Figure~\ref{fig:appendix_designer_main} displays the main design screen. The canvas displays an A4 sheet of paper in millimeters. It is easy for users to drag and drop buttons and modify their size and position on the grid. The four AprilTags always remain at the corners automatically. The side pane allows users to modify the name, label, and size of the key, while warning if keys overlap or get too close to the markers.
 
@@ -29,7 +29,7 @@ Figure~\ref{fig:appendix_designer_main} displays the main design screen. The can
 
 \newpage
 
-\section{Vector PDF Export and Print Dialog}
+\section*{B.3 Vector PDF Export and Print Dialog}
 \label{sec:appendix_designer_export}
 Figure~\ref{fig:appendix_designer_print} displays the print dialogue box. The users can view the preview and export the design into a 300~DPI PDF file for printing on an A4 sheet of paper.
 
@@ -42,32 +42,24 @@ Figure~\ref{fig:appendix_designer_print} displays the print dialogue box. The us
 
 \newpage
 
-\section{Designer Preferences and Snap-Grid Configuration}
+\section*{B.4 Designer Preferences and Snap-Grid Configuration}
 \label{sec:appendix_designer_settings}
 Figure~\ref{fig:appendix_designer_settings_1} and Figure~\ref{fig:appendix_designer_settings_2} demonstrate the configuration windows. The user may set up the format of paper (either A4 Landscape or Portrait, A3, US Letter, or any size up to $1000\text{ mm}$ in millimeters), the size of borders, the size of grid, distance of snap, and minimum button space.
 
-\begin{figure}[htbp]
-\centering
-\begin{subfigure}[b]{0.48\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{figures/layout_designer_settings_screen_1.png}
-    \caption{Grid snapping and canvas preferences.}
-    \label{fig:appendix_designer_settings_1}
-\end{subfigure}
-\hfill
-\begin{subfigure}[b]{0.48\textwidth}
-    \centering
-    \includegraphics[width=\textwidth]{figures/layout_designer_settings_screen_2.png}
-    \caption{Key dimension and margin constraints.}
-    \label{fig:appendix_designer_settings_2}
-\end{subfigure}
-\caption{Application~1 preference settings for canvas metrics and geometric constraints.}
-\label{fig:appendix_designer_settings}
-\end{figure}
+
+
+\includegraphics[width=0.48\textwidth]{figures/layout_designer_settings_screen_1.png}
+
+\includegraphics[width=0.48\textwidth]{figures/layout_designer_settings_screen_2.png}
+
+\caption{Grid snapping and canvas preferences.}
+\label{fig:appendix_designer_settings_1}
+
+
 
 \newpage
 
-\section{Exported Paper Layout XML Data Structure}
+\section*{B.5 Exported Paper Layout XML Data Structure}
 \label{sec:appendix_designer_xml}
 The schema structure of Listing~\ref{lst:appendix_sample_xml} shows how the XML layout document (\texttt{my\_paper\_keyboard.xml}) produced by Application~1 (Layout Designer) and utilized by Application~2 (Runtime Engine) is defined. This includes the physical dimensions of paper ($297 \times 210\text{ mm}$ for A4), outer margin areas, interior areas, metric coordinates of each printed AprilTag fiducial marker's four corners in sub-pixels, button areas, independent action mappings (\texttt{keystroke}, \texttt{shortcut}, \texttt{shell}, and \texttt{macro}), and runtime detection threshold values.
 

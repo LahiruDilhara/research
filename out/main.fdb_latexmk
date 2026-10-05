@@ -1,12 +1,12 @@
 # Fdb version 4
-["biber out/main"] 1790762754.34677 "out/main.bcf" "out/main.bbl" "out/main" 1791058522.40906 0
-  "out/main.bcf" 1791058522.10779 127170 02f9f1626ded44f42340da65c905aa2e "pdflatex"
+["biber out/main"] 1791118980.99173 "out/main.bcf" "out/main.bbl" "out/main" 1791118996.18524 0
+  "out/main.bcf" 1791118995.95237 124514 526e186bd937352308d8fb3846aead50 "pdflatex"
   "research-db/references.bib" 1788466619.2596 19455 981aeb85f6f957eff8e0e24ef7e37194 ""
   (generated)
   "out/main.bbl"
   "out/main.blg"
   (rewritten before read)
-["pdflatex"] 1791058511.71016 "main.tex" "out/main.pdf" "main" 1791058522.40952 0
+["pdflatex"] 1791118987.0934 "main.tex" "out/main.pdf" "main" 1791118996.18564 0
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/newtx/ntx-ot1-tlf-pc.enc" 1600636029 2211 c42193888177bc8f86d55dca129a9358 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/newtx/ntx-ot1-tlf.enc" 1422827479 2083 60e36f8eac802fcaf19eabe2633b406e ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/tex-gyre/q-rm.enc" 1529098226 2409 c64dab22331c83731e970f6020b4448b ""
@@ -278,14 +278,14 @@
   "chapters/appendixB.tex" 1790764225.37573 9928 1d9c7257a3453e9808ca3e2c4259f32a ""
   "chapters/appendixC.tex" 1790764282.67573 5030 2c87479346d86e24b0ffe7f542e6c62c ""
   "chapters/appendixD.tex" 1790764311.68773 2248 53614b326aab35ddb9accae8d21e8013 ""
-  "chapters/appendixE.tex" 1790764347.51973 3748 89f12af0b6c21971aa9b7bd7b6d8fdf2 ""
+  "chapters/appendixE.tex" 1791107774.30803 3693 e818dd72536b9afb248533d53052df41 ""
   "chapters/chapter01.tex" 1790766870.53971 24074 479b35818768e95a22b077351965def3 ""
   "chapters/chapter02.tex" 1790766371.70371 4115 bda73469c0d2ee12b276c41042654500 ""
-  "chapters/chapter03.tex" 1790763136.51974 43645 98398d315a13b6563956c250c1d125e7 ""
-  "chapters/chapter04.tex" 1790714720.91823 35661 3c1e012ea60cdcd93ef988c78831ba93 ""
-  "chapters/chapter05.tex" 1790746258.41991 30341 600ee9301f21ef6c3992f3ea35f1bde7 ""
+  "chapters/chapter03.tex" 1791118965.43637 42664 8f0934effe9cade0fbd2fc90648963c0 ""
+  "chapters/chapter04.tex" 1791107760.11603 35558 30707120683c53d0a6dfa2903b7a4be8 ""
+  "chapters/chapter05.tex" 1791107787.90404 30329 31882c9baf71c657c7a7cf163381fb74 ""
   "chapters/chapter06.tex" 1790760106.18377 20408 9d9b491a72f7d72ff976072931bc1ce6 ""
-  "chapters/declaration.tex" 1791058484.78779 1183 ad58e601620f9a03d945e52896a4730b ""
+  "chapters/declaration.tex" 1791091676.01624 1134 da810e592399f3093ce9a5629f62cacf ""
   "figures/data_annotator_home_page.png" 1790608789.59175 22429 1f12d7aeb01138df028be5243364fcd4 ""
   "figures/data_annotator_main_screen_live_annotation.png" 1790609222.83974 397714 507a58851c156a41f8b228904f105476 ""
   "figures/data_annotator_shorcut_window.png" 1790609303.37974 275467 6f92a4543d5a572bc91c50784cb67862 ""
@@ -307,14 +307,14 @@
   "figures/layout_designer_starting_screen.png" 1790608426.84776 58830 e398a52ddb466ba94b018f89f2089751 ""
   "figures/physical_setup_image_upright.jpg" 1790613476.81563 2120175 d017dbf1e96ac238b534a6f7d6d7f214 ""
   "figures/printable_layotu_pdf_image.png" 1790608931.86375 61206 30189c0494b088602d56c41b399ac05a ""
-  "main.tex" 1791058476.77579 6873 5809735b0fcfc213239f77b9db9ac827 ""
-  "out/main.aux" 1791058522.07579 82363 d1ed7f0ba38838e8021747e9d3a460cd "pdflatex"
-  "out/main.bbl" 1790762763.89975 84744 83a61c1692eabe229d92c5feeec5bf6e "biber out/main"
-  "out/main.lof" 1791058522.10779 4766 0d4cbbb7d38e87b6fc4e9e184f61c1ff "pdflatex"
-  "out/main.lot" 1791058522.10779 2168 81c90e84653a78ccd96d5741e79287d6 "pdflatex"
-  "out/main.out" 1791058522.10379 40164 e27588d396667ea3cb95df7ebed3b63b "pdflatex"
-  "out/main.run.xml" 1791058522.10779 2414 6aa347d88cc00d7ae8142cdb3f64742a "pdflatex"
-  "out/main.toc" 1791058522.10779 16823 81ee89212b63aab9f51e1b9b2c1d4c41 "pdflatex"
+  "main.tex" 1791103003.35258 7281 e0d2cfeb698e8d3b3a4a8251b5cdf27f ""
+  "out/main.aux" 1791118995.92837 79265 08702f1703b8060c6b636f65919a11db "pdflatex"
+  "out/main.bbl" 1791118987.04437 84744 83a61c1692eabe229d92c5feeec5bf6e "biber out/main"
+  "out/main.lof" 1791118995.95237 4608 e00d63d0dbc0df122ad769531298d301 "pdflatex"
+  "out/main.lot" 1791118995.95237 2156 5ffa78649bcdfbf62e556697307c6741 "pdflatex"
+  "out/main.out" 1791118995.94837 40135 08a2d7931f5e531216e100037ed0ef52 "pdflatex"
+  "out/main.run.xml" 1791118995.95237 2414 6aa347d88cc00d7ae8142cdb3f64742a "pdflatex"
+  "out/main.toc" 1791118995.95237 16817 4576d3da8f3bbb8fa837dc631ee207a9 "pdflatex"
   (generated)
   "out/main.aux"
   "out/main.bcf"

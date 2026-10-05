@@ -275,7 +275,7 @@ The MediaPipe Hand Landmarker is initialized for single-hand tracking (\texttt{n
 
 \end{tikzpicture}%
 }
-\caption{MediaPipe 21 hand landmarks topology and anatomical hand-length normalization reference ($L_{\text{hand}}$ between wrist $\mathbf{P}_0$ and middle MCP knuckle $\mathbf{P}_9$).}
+\caption{MediaPipe 21 hand landmarks topology and anatomical hand-length normalization.}
 \label{fig:mediapipe_hand_skeleton}
 \end{figure}
 
@@ -376,7 +376,7 @@ A touch contact event is triggered whenever the predicted probability for digit 
 \label{sec:meth_runtime_engine}
 Application~2 (combining the interactive setup GUI and background computer vision execution engine) serves as the runtime typing software. Full user interface screenshots of the runtime engine, live tracking modes, and preference dialogs are provided in Appendix~\ref{ch:appendix_detector_runtime} (Figures~\ref{fig:appendix_detector_home} to~\ref{fig:appendix_detector_settings}).
 
-\subsection{Planar Homography Derivation ($H$)}
+\subsection{Planar Homography Derivation}
 \label{subsec:meth_homography_derivation}
 To map fingertip pixel coordinates $(u, v)$ in the camera image into paper coordinates $(X, Y)$, a $3 \times 3$ planar homography matrix $H$ is computed:
 \begin{equation}

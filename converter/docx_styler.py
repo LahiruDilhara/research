@@ -44,6 +44,258 @@ def calculate_proportional_column_widths(tbl, total_width_dxa):
     widths[-1] += diff
     return widths
 
+def load_latex_toc_entries():
+    """Loads and parses TOC entries from LaTeX out/main.toc if available."""
+    candidates = ['out/main.toc', 'converter/build_docx/main.toc', 'main.toc']
+    toc_entries = []
+    for c in candidates:
+        if os.path.exists(c):
+            with open(c, 'r', encoding='utf-8', errors='ignore') as f:
+                for line in f:
+                    line = line.strip()
+                    m = re.match(r'\\contentsline\s*\{([^}]+)\}\{(?:\\numberline\s*\{([^}]+)\})?([^}]+)\}\{([^}]+)\}', line)
+                    if m:
+                        level_str, num, title, page = m.groups()
+                        clean_title = title.strip()
+                        clean_title = re.sub(r'\\(?:textbf|textit|emph|textsc|math\w+)\{([^}]+)\}', r'\1', clean_title)
+                        clean_title = re.sub(r'\$[^$]*\$', '', clean_title)
+                        clean_title = clean_title.replace('~', ' ').replace('\\&', '&')
+                        clean_title = re.sub(r'\s+', ' ', clean_title).strip()
+                        toc_entries.append((level_str, num, clean_title, page))
+            if toc_entries:
+                break
+    return toc_entries
+
+WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+def load_latex_list_entries(filename):
+    """Parses LaTeX .lof or .lot file into structured list of (num, title, page)."""
+    candidates = [
+        os.path.join(WORKSPACE_ROOT, 'out', filename),
+        os.path.join(WORKSPACE_ROOT, 'output', filename),
+        os.path.join(WORKSPACE_ROOT, filename),
+        os.path.join('out', filename),
+        os.path.join('output', filename),
+        filename
+    ]
+    entries = []
+    for c in candidates:
+        if os.path.exists(c):
+            with open(c, 'r', encoding='utf-8', errors='ignore') as f:
+                for line in f:
+                    line = line.strip()
+                    m = re.search(r"\\numberline\s*\{([^}]+)\}\s*\{\\ignorespaces\s*(.+?)\}\}\s*\{([^}]+)\}", line)
+                    if m:
+                        num, title, page = m.groups()
+                        clean_title = title.strip()
+                        clean_title = re.sub(r'\\(?:textbf|textit|emph|textsc|math\w+|mathbf|text)\s*\{([^}]*)\}', r'\1', clean_title)
+                        clean_title = re.sub(r'\$([^$]*)\$', r'\1', clean_title)
+                        clean_title = clean_title.replace('~', ' ').replace('\\&', '&').replace('\\', '')
+                        clean_title = clean_title.replace('{', '').replace('}', '')
+                        clean_title = re.sub(r'\s+', ' ', clean_title).strip()
+                        entries.append((num.strip(), clean_title, page.strip()))
+            if entries:
+                break
+    return entries
+
+def find_toc_page_number(heading_text, toc_entries):
+    """Finds exact page number for a given heading from LaTeX TOC entries."""
+    if not toc_entries:
+        return '1'
+    t_clean = re.sub(r'[^\w\s]', '', heading_text.lower())
+    t_clean = re.sub(r'\s+', ' ', t_clean).strip()
+    
+    for lvl, num, title, page in toc_entries:
+        full = f"{num} {title}" if num else title
+        f_clean = re.sub(r'[^\w\s]', '', full.lower())
+        f_clean = re.sub(r'\s+', ' ', f_clean).strip()
+        if t_clean == f_clean or (len(t_clean) > 8 and t_clean in f_clean) or (len(f_clean) > 8 and f_clean in t_clean):
+            return page
+            
+    t_app = re.sub(r'^7\b', 'A', heading_text)
+    t_app = re.sub(r'^8\b', 'B', t_app)
+    t_app = re.sub(r'^9\b', 'C', t_app)
+    t_app = re.sub(r'^10\b', 'D', t_app)
+    t_app = re.sub(r'^11\b', 'E', t_app)
+    t_clean_app = re.sub(r'[^\w\s]', '', t_app.lower())
+    t_clean_app = re.sub(r'\s+', ' ', t_clean_app).strip()
+    
+    for lvl, num, title, page in toc_entries:
+        full = f"{num} {title}" if num else title
+        f_clean = re.sub(r'[^\w\s]', '', full.lower())
+        f_clean = re.sub(r'\s+', ' ', f_clean).strip()
+        if t_clean_app == f_clean or (len(t_clean_app) > 8 and t_clean_app in f_clean) or (len(f_clean) > 8 and f_clean in t_clean_app):
+            return page
+
+    t_words = set(t_clean.split())
+    best_match = '1'
+    best_score = 0
+    for lvl, num, title, page in toc_entries:
+        full = f"{num} {title}" if num else title
+        f_clean = re.sub(r'[^\w\s]', '', full.lower())
+        f_words = set(f_clean.split())
+        overlap = len(t_words & f_words)
+        if overlap > best_score and overlap >= 2:
+            best_score = overlap
+            best_match = page
+    return best_match
+
+def populate_exact_docx_page_numbers(docx_path):
+    """
+    Renders docx via LibreOffice to evaluate dynamic PAGEREF layout and 
+    pre-populates all cached <w:t> elements inside PAGEREF fields with the exact 
+    DOCX layout page numbers.
+    """
+    import subprocess, tempfile, shutil
+    try:
+        import pypdf
+    except ImportError:
+        return
+        
+    libreoffice_bin = shutil.which('libreoffice') or shutil.which('soffice')
+    if not libreoffice_bin:
+        return
+        
+    print('Calculating exact DOCX pagination via headless layout evaluation...')
+    with tempfile.TemporaryDirectory() as tmpdir:
+        pdf_name = os.path.splitext(os.path.basename(docx_path))[0] + '.pdf'
+        res = subprocess.run([libreoffice_bin, '--headless', '--convert-to', 'pdf', docx_path, '--outdir', tmpdir],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if res.returncode != 0:
+            return
+            
+        pdf_path = os.path.join(tmpdir, pdf_name)
+        if not os.path.exists(pdf_path):
+            return
+            
+        reader = pypdf.PdfReader(pdf_path)
+        all_pages_text = [re.sub(r'\s+', ' ', p.extract_text() or '') for p in reader.pages]
+        all_pages_clean = [re.sub(r'\s+', ' ', re.sub(r'[^\w\s]', ' ', p.extract_text().lower() if p.extract_text() else '')) for p in reader.pages]
+        
+        roman_map = {1: 'i', 2: 'ii', 3: 'iii', 4: 'iv', 5: 'v', 6: 'vi', 7: 'vii', 8: 'viii', 9: 'ix', 10: 'x', 11: 'xi', 12: 'xii', 13: 'xiii', 14: 'xiv', 15: 'xv', 16: 'xvi'}
+        
+        # Detect start of Arabic section (Chapter 1 Introduction)
+        sec2_start_idx = None
+        for idx, text in enumerate(all_pages_text):
+            if re.search(r'1\s+Introduction', text, re.IGNORECASE) and 'Table of Contents' not in text and 'List of' not in text:
+                sec2_start_idx = idx
+                break
+                    
+        if sec2_start_idx is None:
+            sec2_start_idx = 15
+            
+        bm_to_page = {
+            '_Toc_Declaration': 'ii',
+            '_Toc_Acknowledgement': 'iii',
+            '_Toc_Abstract': 'iv',
+            '_Toc_Table_Of_Contents': 'v',
+        }
+        
+        for idx in range(sec2_start_idx):
+            lines = [l.strip() for l in (reader.pages[idx].extract_text() or '').split('\n') if l.strip()]
+            top_text = ' '.join(lines[:3]) if len(lines) >= 3 else ' '.join(lines)
+            r_num = roman_map.get(idx + 1, str(idx + 1))
+            if re.search(r'\bList of Figures\b', top_text, re.I) and '_Toc_List_Figures' not in bm_to_page:
+                bm_to_page['_Toc_List_Figures'] = r_num
+            if re.search(r'\bList of Tables\b', top_text, re.I) and '_Toc_List_Tables' not in bm_to_page:
+                bm_to_page['_Toc_List_Tables'] = r_num
+            if re.search(r'\bList of Abbreviations\b', top_text, re.I) and '_Toc_List_Abbreviations' not in bm_to_page:
+                bm_to_page['_Toc_List_Abbreviations'] = r_num
+                bm_to_page['_Toc_List_of_Abbreviations'] = r_num
+
+        # Load document to match all Bookmarks (Headings, Figures, Tables)
+        doc = docx.Document(docx_path)
+        
+        # Map bookmark name to its paragraph text
+        bm_to_p_text = {}
+        for p in doc.paragraphs:
+            for bm in p._p.iter():
+                if bm.tag.endswith('bookmarkStart'):
+                    b_name = bm.get(qn('w:name'))
+                    if b_name and (b_name.startswith('_Toc_') or b_name.startswith('_Fig_') or b_name.startswith('_Tbl_')):
+                        bm_to_p_text[b_name] = p.text.strip()
+
+        # Pre-extract lines per page
+        all_pages_lines = [[re.sub(r'\s+', ' ', re.sub(r'[^\w\s]', ' ', l.lower())).strip() for l in (p.extract_text() or '').split('\n') if l.strip()] for p in reader.pages]
+
+        # Match all bookmarks in body (sec2_start_idx to end of document)
+        for bm_name, p_text in bm_to_p_text.items():
+            if bm_name in bm_to_page:
+                continue
+                
+            clean_p = re.sub(r'\s+', ' ', re.sub(r'[^\w\s]', ' ', p_text.lower())).strip()
+            if not clean_p:
+                continue
+                
+            found_arabic_page = None
+            
+            # Pass 1: Exact standalone line match (crucial for standalone headings like "References", "1 Introduction")
+            for idx in range(sec2_start_idx, len(reader.pages)):
+                if clean_p in all_pages_lines[idx]:
+                    found_arabic_page = str(idx - sec2_start_idx + 1)
+                    break
+                    
+            # Pass 2: Match line prefix (at least 15 characters)
+            if found_arabic_page is None:
+                snip15 = clean_p[:min(len(clean_p), 18)]
+                for idx in range(sec2_start_idx, len(reader.pages)):
+                    if any(l.startswith(snip15) or (len(l) >= 15 and snip15 in l) for l in all_pages_lines[idx]):
+                        found_arabic_page = str(idx - sec2_start_idx + 1)
+                        break
+                        
+            # Pass 3: Match 28-character prefix snippet across page text
+            if found_arabic_page is None:
+                snippet = clean_p[:min(len(clean_p), 28)].strip()
+                for idx in range(sec2_start_idx, len(reader.pages)):
+                    if snippet in all_pages_clean[idx]:
+                        found_arabic_page = str(idx - sec2_start_idx + 1)
+                        break
+                        
+            # Pass 4: Match first 4 words
+            if found_arabic_page is None:
+                words = snippet.split()[:4]
+                short_snip = ' '.join(words)
+                for idx in range(sec2_start_idx, len(reader.pages)):
+                    if short_snip and short_snip in all_pages_clean[idx]:
+                        found_arabic_page = str(idx - sec2_start_idx + 1)
+                        break
+                        
+            # Pass 5: Match identifier prefix (e.g. "Figure 4.2", "Table 5.7", "4.7.1")
+            if found_arabic_page is None:
+                id_match = re.match(r'^(figure\s+\w+\s+\w+|table\s+\w+\s+\w+|\d+\s+\d+(?:\s+\d+)?)', clean_p)
+                if id_match:
+                    id_snip = id_match.group(1)
+                    for idx in range(sec2_start_idx, len(reader.pages)):
+                        if id_snip in all_pages_clean[idx]:
+                            found_arabic_page = str(idx - sec2_start_idx + 1)
+                            break
+                            
+            if found_arabic_page is not None:
+                bm_to_page[bm_name] = found_arabic_page
+
+        # Update all PAGEREF w:t cached values in the document
+        updated_count = 0
+        for p in doc.paragraphs:
+            for fld in p._p.iter():
+                if fld.tag.endswith('fldSimple'):
+                    instr = fld.get(qn('w:instr')) or ''
+                    if 'PAGEREF' in instr:
+                        tokens = instr.split()
+                        try:
+                            p_idx = tokens.index('PAGEREF')
+                            bm_target = tokens[p_idx + 1]
+                            if bm_target in bm_to_page:
+                                exact_pg = bm_to_page[bm_target]
+                                for t in fld.iter():
+                                    if t.tag.endswith('}t') or t.tag == 'w:t':
+                                        t.text = str(exact_pg)
+                                        updated_count += 1
+                        except (ValueError, IndexError):
+                            pass
+
+        doc.save(docx_path)
+        print(f'Successfully updated {updated_count} dynamic PAGEREF cached page numbers to exact DOCX layout values!')
+
 def style_thesis_docx(docx_path):
     print(f'Loading {docx_path}...')
     doc = docx.Document(docx_path)
@@ -59,16 +311,85 @@ def style_thesis_docx(docx_path):
         
     TOTAL_WIDTH = 8666  # 6.02 in printable area in dxa (11906 - 1800 - 1440)
     
+    # Ensure Bibliography paragraphs and their bookmarks are positioned immediately under the References Heading (before Appendices)
+    ref_p = None
+    for p in doc.paragraphs:
+        st = p.style.name if p.style else ''
+        if 'Heading 1' in st and p.text.strip() == 'References':
+            ref_p = p
+            break
+            
+    if ref_p is not None:
+        body_elem = doc._body._element
+        children = list(body_elem)
+        ref_bm_map = {} # p_element -> list of (bm_id, bm_name)
+        to_remove = []
+
+        for i, child in enumerate(children):
+            if child.tag.endswith('bookmarkStart'):
+                name = child.get(qn('w:name'))
+                if name and name.startswith('ref-'):
+                    bm_id = child.get(qn('w:id'))
+                    to_remove.append(child)
+                    for j in range(i+1, min(len(children), i+4)):
+                        if children[j].tag.endswith('p'):
+                            ref_bm_map[children[j]] = (bm_id, name)
+                            break
+            elif child.tag.endswith('bookmarkEnd'):
+                bm_id = child.get(qn('w:id'))
+                if any(b_id == bm_id for b_id, _ in ref_bm_map.values()):
+                    to_remove.append(child)
+
+        # Remove old orphan bookmark elements from body
+        for elem in to_remove:
+            if elem.getparent() is not None:
+                body_elem.remove(elem)
+
+        # Attach bookmarks directly inside each mapped bibliography paragraph
+        for p_elem, (bm_id, bm_name) in ref_bm_map.items():
+            bm_start = OxmlElement('w:bookmarkStart')
+            bm_start.set(qn('w:id'), bm_id)
+            bm_start.set(qn('w:name'), bm_name)
+            bm_end = OxmlElement('w:bookmarkEnd')
+            bm_end.set(qn('w:id'), bm_id)
+            p_elem.insert(0, bm_start)
+            p_elem.append(bm_end)
+
+        bib_paragraphs = []
+        for p in doc.paragraphs:
+            st = p.style.name if p.style else ''
+            if st == 'Bibliography' or (p.text.strip().startswith('[') and ']' in p.text.strip()[:6]):
+                bib_paragraphs.append(p)
+                
+        if bib_paragraphs:
+            parent = ref_p._p.getparent()
+            ref_idx = parent.index(ref_p._p)
+            for i, bp in enumerate(bib_paragraphs):
+                parent.remove(bp._p)
+                parent.insert(ref_idx + 1 + i, bp._p)
+            print(f'Repositioned {len(bib_paragraphs)} bibliography citations (with {len(ref_bm_map)} bookmarks) immediately under References heading (before Appendix A).')
+    
     # 2. Add Bookmarks to all Headings for Hyperlinked Table of Contents
+    toc_entries = load_latex_toc_entries()
     headings_data = []
-    bookmark_id_counter = 100
+    bookmark_id_counter = 500
+    
+    preliminary_toc = [
+        (1, 'Declaration', '_Toc_Declaration', 'ii'),
+        (1, 'Acknowledgement', '_Toc_Acknowledgement', 'iii'),
+        (1, 'Abstract', '_Toc_Abstract', 'iv'),
+        (1, 'Table of Contents', '_Toc_Table_Of_Contents', 'v'),
+        (1, 'List of Figures', '_Toc_List_Figures', find_toc_page_number('List of Figures', toc_entries)),
+        (1, 'List of Tables', '_Toc_List_Tables', find_toc_page_number('List of Tables', toc_entries)),
+        (1, 'List of Abbreviations', '_Toc_List_of_Abbreviations', find_toc_page_number('List of Abbreviations', toc_entries)),
+    ]
     
     for p in doc.paragraphs:
         st = p.style.name if p.style else ''
         t = p.text.strip()
         if not t:
             continue
-        
+            
         lvl = None
         if 'Heading 1' in st:
             lvl = 1
@@ -77,7 +398,21 @@ def style_thesis_docx(docx_path):
         elif 'Heading 3' in st:
             lvl = 3
             
-        if lvl is not None and not t.startswith('Table of Contents') and not t.startswith('Contents'):
+        if lvl is not None:
+            if t in ['Declaration', 'Acknowledgement', 'Abstract', 'List of Abbreviations']:
+                bm_name = f"_Toc_{re.sub(r'[^A-Za-z0-9]', '_', t)}"
+                bm_start = OxmlElement('w:bookmarkStart')
+                bm_start.set(qn('w:id'), str(bookmark_id_counter))
+                bm_start.set(qn('w:name'), bm_name)
+                bm_end = OxmlElement('w:bookmarkEnd')
+                bm_end.set(qn('w:id'), str(bookmark_id_counter))
+                bookmark_id_counter += 1
+                p._p.insert(0, bm_start)
+                p._p.append(bm_end)
+                continue
+            elif t.startswith('Table of Contents') or t.startswith('Contents') or t.startswith('List of Figures') or t.startswith('List of Tables'):
+                continue
+                
             bm_id = str(bookmark_id_counter)
             bm_name = f"_Toc_Heading_{bookmark_id_counter}"
             bookmark_id_counter += 1
@@ -92,7 +427,10 @@ def style_thesis_docx(docx_path):
             p._p.insert(0, bm_start)
             p._p.append(bm_end)
             
-            headings_data.append((lvl, t, bm_name))
+            page_num = find_toc_page_number(t, toc_entries)
+            headings_data.append((lvl, t, bm_name, page_num))
+            
+    headings_data = preliminary_toc + headings_data
 
     # Configure base Word Document Styles according to NSBM Guidelines
     styles_to_config = {
@@ -106,6 +444,7 @@ def style_thesis_docx(docx_path):
         'Caption': {'size': Pt(12), 'bold': False, 'font': 'Times New Roman'},
         'Table Caption': {'size': Pt(12), 'bold': False, 'font': 'Times New Roman'},
         'Image Caption': {'size': Pt(12), 'bold': False, 'font': 'Times New Roman'},
+        'Captioned Figure': {'size': Pt(12), 'bold': False, 'font': 'Times New Roman'},
     }
     for s_name, cfg in styles_to_config.items():
         try:
@@ -116,6 +455,8 @@ def style_thesis_docx(docx_path):
             s.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
             if s_name in ['Normal', 'Body Text', 'First Paragraph', 'Block Text', 'Bibliography']:
                 s.paragraph_format.line_spacing = 1.5
+            elif s_name in ['Caption', 'Table Caption', 'Image Caption', 'Captioned Figure']:
+                s.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
         except Exception:
             pass
 
@@ -136,51 +477,84 @@ def style_thesis_docx(docx_path):
             p._p.getparent().remove(p._p)
             continue
             
+        # Prune empty artifact paragraphs from Pandoc in body matter
+        if not cover_page_mode and not t:
+            has_media = any(e.tag.endswith('drawing') or e.tag.endswith('shape') or e.tag.endswith('graphic') or e.tag.endswith('pict') for e in p._p.iter())
+            has_br = any(e.tag.endswith('br') or e.tag.endswith('pageBreakBefore') for e in p._p.iter())
+            if not has_media and not has_br:
+                p._p.getparent().remove(p._p)
+                continue
+            
         if cover_page_mode:
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             
             if 'CUSTOMIZABLE PAPER-BASED VIRTUAL' in t.upper():
-                p.paragraph_format.space_before = Pt(36)
-                p.paragraph_format.space_after = Pt(28)
-                p.paragraph_format.line_spacing = 1.5
+                p.paragraph_format.space_before = Pt(0)
+                p.paragraph_format.space_after = Pt(50)
+                p.paragraph_format.line_spacing = 1.3
                 for r in p.runs:
                     r.font.name = 'Times New Roman'
                     r.font.size = Pt(16)
                     r.font.bold = True
                     r.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
-            elif 'G A LAHIRU DILHARA' in t.upper():
-                p.paragraph_format.space_before = Pt(24)
-                p.paragraph_format.space_after = Pt(24)
+            elif 'A thesis submitted to NSBM' in t:
+                p.paragraph_format.space_before = Pt(0)
+                p.paragraph_format.space_after = Pt(2)
+                p.paragraph_format.line_spacing = 1.15
                 for r in p.runs:
                     r.font.name = 'Times New Roman'
                     r.font.size = Pt(14)
-                    r.font.bold = True
+                    r.font.bold = False
                     r.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
-            elif 'A thesis submitted to NSBM' in t or 'Bachelor of Science' in t:
-                p.paragraph_format.space_after = Pt(6)
+            elif 'Bachelor of Science' in t:
+                p.paragraph_format.space_before = Pt(0)
+                p.paragraph_format.space_after = Pt(50)
+                p.paragraph_format.line_spacing = 1.15
                 for r in p.runs:
                     r.font.name = 'Times New Roman'
                     r.font.size = Pt(14)
                     r.font.bold = False
                     r.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
             elif 'By' == t:
-                p.paragraph_format.space_before = Pt(18)
-                p.paragraph_format.space_after = Pt(12)
+                p.paragraph_format.space_before = Pt(0)
+                p.paragraph_format.space_after = Pt(50)
+                p.paragraph_format.line_spacing = 1.15
                 for r in p.runs:
                     r.font.name = 'Times New Roman'
                     r.font.size = Pt(14)
                     r.font.bold = False
                     r.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
-            elif any(inst in t for inst in ['Department of Computer Science', 'Faculty of Computing', 'NSBM Green University', 'Sri Lanka']):
-                p.paragraph_format.space_after = Pt(4)
+            elif 'GANEPOLA ARACHCHIGE LAHIRU DILHARA' in t.upper() or 'LAHIRU DILHARA' in t.upper():
+                p.paragraph_format.space_before = Pt(0)
+                p.paragraph_format.space_after = Pt(55)
+                p.paragraph_format.line_spacing = 1.15
                 for r in p.runs:
                     r.font.name = 'Times New Roman'
                     r.font.size = Pt(14)
                     r.font.bold = True
                     r.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
+            elif any(inst in t for inst in ['Department of Computer Science', 'Faculty of Computing', 'NSBM Green University']):
+                p.paragraph_format.space_before = Pt(0)
+                p.paragraph_format.space_after = Pt(2)
+                p.paragraph_format.line_spacing = 1.15
+                for r in p.runs:
+                    r.font.name = 'Times New Roman'
+                    r.font.size = Pt(14)
+                    r.font.bold = False
+                    r.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
+            elif 'Sri Lanka' in t:
+                p.paragraph_format.space_before = Pt(0)
+                p.paragraph_format.space_after = Pt(50)
+                p.paragraph_format.line_spacing = 1.15
+                for r in p.runs:
+                    r.font.name = 'Times New Roman'
+                    r.font.size = Pt(14)
+                    r.font.bold = False
+                    r.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
             elif 'September 2026' in t:
-                p.paragraph_format.space_before = Pt(18)
-                p.paragraph_format.space_after = Pt(24)
+                p.paragraph_format.space_before = Pt(0)
+                p.paragraph_format.space_after = Pt(0)
+                p.paragraph_format.line_spacing = 1.15
                 for r in p.runs:
                     r.font.name = 'Times New Roman'
                     r.font.size = Pt(14)
@@ -270,6 +644,7 @@ def style_thesis_docx(docx_path):
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 p.paragraph_format.space_before = Pt(12)
                 p.paragraph_format.space_after = Pt(4)
+                p.paragraph_format.keep_with_next = True
                 
                 c_num = tbl_counter.get(current_chapter, 0) + 1
                 tbl_counter[current_chapter] = c_num
@@ -277,6 +652,19 @@ def style_thesis_docx(docx_path):
                 
                 clean_title = re.sub(r"^Table\s+\w+\.\w+:\s*", "", t)
                 p.text = ""
+                
+                # Add bookmark to table caption
+                tbl_key = f"{current_chapter}_{c_num}"
+                bm_tbl_name = f"_Tbl_{tbl_key}"
+                bm_id = str(bookmark_id_counter)
+                bookmark_id_counter += 1
+                bm_start = OxmlElement('w:bookmarkStart')
+                bm_start.set(qn('w:id'), bm_id)
+                bm_start.set(qn('w:name'), bm_tbl_name)
+                bm_end = OxmlElement('w:bookmarkEnd')
+                bm_end.set(qn('w:id'), bm_id)
+                p._p.append(bm_start)
+                
                 r_lbl = p.add_run(label_prefix)
                 r_lbl.font.name = 'Times New Roman'
                 r_lbl.font.size = Pt(12)
@@ -288,6 +676,8 @@ def style_thesis_docx(docx_path):
                 r_txt.font.size = Pt(12)
                 r_txt.font.bold = False
                 r_txt.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
+                
+                p._p.append(bm_end)
                 
             elif 'Image Caption' in st or (st == 'Caption' and not t.startswith('Table ')) or (t.startswith('Figure ') and len(t) < 200):
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -300,6 +690,19 @@ def style_thesis_docx(docx_path):
                 
                 clean_title = re.sub(r"^Figure\s+\w+\.\w+:\s*", "", t)
                 p.text = ""
+                
+                # Add bookmark to figure caption
+                fig_key = f"{current_chapter}_{c_num}"
+                bm_fig_name = f"_Fig_{fig_key}"
+                bm_id = str(bookmark_id_counter)
+                bookmark_id_counter += 1
+                bm_start = OxmlElement('w:bookmarkStart')
+                bm_start.set(qn('w:id'), bm_id)
+                bm_start.set(qn('w:name'), bm_fig_name)
+                bm_end = OxmlElement('w:bookmarkEnd')
+                bm_end.set(qn('w:id'), bm_id)
+                p._p.append(bm_start)
+                
                 r_lbl = p.add_run(label_prefix)
                 r_lbl.font.name = 'Times New Roman'
                 r_lbl.font.size = Pt(12)
@@ -311,11 +714,41 @@ def style_thesis_docx(docx_path):
                 r_txt.font.size = Pt(12)
                 r_txt.font.bold = False
                 r_txt.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
+                
+                p._p.append(bm_end)
                     
+            elif 'Captioned Figure' in st or any(e.tag.endswith('drawing') or e.tag.endswith('shape') or e.tag.endswith('graphic') or e.tag.endswith('pict') for e in p._p.iter()):
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p.paragraph_format.space_before = Pt(6)
+                p.paragraph_format.space_after = Pt(4)
+                p.paragraph_format.keep_with_next = True
             else:
-                p.paragraph_format.space_before = Pt(0)
-                p.paragraph_format.space_after = Pt(6)
-                p.paragraph_format.line_spacing = 1.5  # NSBM Guideline: 1.5-line spacing throughout
+                if 'I declare that the content' in t:
+                    p.paragraph_format.space_before = Pt(0)
+                    p.paragraph_format.space_after = Pt(80)
+                    p.paragraph_format.line_spacing = 1.5
+                elif t.startswith('Signature of the Supervisors'):
+                    p.paragraph_format.space_before = Pt(110)
+                    p.paragraph_format.space_after = Pt(14)
+                    p.paragraph_format.line_spacing = 1.5
+                elif t.startswith('...') or t.startswith('…') or t.startswith('···') or t.startswith('....'):
+                    p.text = '........................................................'
+                    p.paragraph_format.space_before = Pt(12)
+                    p.paragraph_format.space_after = Pt(10)
+                    p.paragraph_format.line_spacing = 1.0
+                elif t == 'Prof. Chaminda Wijesinghe':
+                    p.paragraph_format.space_before = Pt(6)
+                    p.paragraph_format.space_after = Pt(2)
+                    p.paragraph_format.line_spacing = 1.15
+                elif t in ['Principal Supervisor', 'Department of Computer Science,', 'NSBM Green University'] and current_chapter == '0':
+                    p.paragraph_format.space_before = Pt(0)
+                    p.paragraph_format.space_after = Pt(2)
+                    p.paragraph_format.line_spacing = 1.15
+                else:
+                    p.paragraph_format.space_before = Pt(0)
+                    p.paragraph_format.space_after = Pt(2)
+                    p.paragraph_format.line_spacing = 1.5  # NSBM Guideline: 1.5-line spacing throughout
+                    
                 for r in p.runs:
                     if not r.font.name:
                         r.font.name = 'Times New Roman'
@@ -343,62 +776,329 @@ def style_thesis_docx(docx_path):
             r.font.bold = True
             r.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
             
-        for lvl, title_text, bm_name in headings_data:
+        bm_toc_start = OxmlElement('w:bookmarkStart')
+        bm_toc_start.set(qn('w:id'), '97')
+        bm_toc_start.set(qn('w:name'), '_Toc_Table_Of_Contents')
+        bm_toc_end = OxmlElement('w:bookmarkEnd')
+        bm_toc_end.set(qn('w:id'), '97')
+        toc_title._p.insert(0, bm_toc_start)
+        toc_title._p.append(bm_toc_end)
+        
+        for lvl, title_text, bm_name, page_num in headings_data:
             p_toc = target_p.insert_paragraph_before()
-            p_toc.paragraph_format.space_after = Pt(3)
-            p_toc.paragraph_format.line_spacing = 1.15
             
-            if lvl == 1:
-                p_toc.paragraph_format.left_indent = Inches(0.0)
-                p_toc.paragraph_format.space_before = Pt(6)
-            elif lvl == 2:
-                p_toc.paragraph_format.left_indent = Inches(0.25)
-            elif lvl == 3:
-                p_toc.paragraph_format.left_indent = Inches(0.50)
+            old_pPr = p_toc._p.find(qn('w:pPr'))
+            if old_pPr is not None:
+                p_toc._p.remove(old_pPr)
                 
-            hyperlink = OxmlElement('w:hyperlink')
-            hyperlink.set(qn('w:anchor'), bm_name)
-            hyperlink.set(qn('w:history'), '1')
+            left_indent_dxa = 0 if lvl == 1 else (288 if lvl == 2 else 576)
+            space_before_dpt = 80 if lvl == 1 else 20
             
-            run = OxmlElement('w:r')
-            rPr = OxmlElement('w:rPr')
+            pPr_xml = f'''<w:pPr {nsdecls("w")}>
+  <w:tabs>
+    <w:tab w:val="right" w:leader="dot" w:pos="8666"/>
+  </w:tabs>
+  <w:spacing w:before="{space_before_dpt}" w:after="40" w:line="276" w:lineRule="auto"/>
+  <w:ind w:left="{left_indent_dxa}"/>
+</w:pPr>'''
+            p_toc._p.insert(0, parse_xml(pPr_xml))
             
-            rFont = OxmlElement('w:rFonts')
-            rFont.set(qn('w:ascii'), 'Times New Roman')
-            rFont.set(qn('w:hAnsi'), 'Times New Roman')
-            rPr.append(rFont)
+            sz_val = '24' if lvl == 1 else ('22' if lvl == 2 else '20')
             
-            color = OxmlElement('w:color')
-            color.set(qn('w:val'), '000000')
-            rPr.append(color)
+            # 1. Heading title hyperlink
+            hyperlink_title = OxmlElement('w:hyperlink')
+            hyperlink_title.set(qn('w:anchor'), bm_name)
+            hyperlink_title.set(qn('w:history'), '1')
             
+            run_title = OxmlElement('w:r')
+            rPr_title = OxmlElement('w:rPr')
+            rFont_title = OxmlElement('w:rFonts')
+            rFont_title.set(qn('w:ascii'), 'Times New Roman')
+            rFont_title.set(qn('w:hAnsi'), 'Times New Roman')
+            rPr_title.append(rFont_title)
+            rPr_title.append(parse_xml(f'<w:color {nsdecls("w")} w:val="000000"/>'))
             if lvl == 1:
-                b = OxmlElement('w:b')
-                rPr.append(b)
-                
-            sz = OxmlElement('w:sz')
-            sz.set(qn('w:val'), '24' if lvl == 1 else ('22' if lvl == 2 else '20'))
-            rPr.append(sz)
-            
-            run.append(rPr)
+                rPr_title.append(OxmlElement('w:b'))
+            rPr_title.append(parse_xml(f'<w:sz {nsdecls("w")} w:val="{sz_val}"/>'))
+            run_title.append(rPr_title)
             
             text_elem = OxmlElement('w:t')
             text_elem.text = title_text
-            run.append(text_elem)
+            run_title.append(text_elem)
+            hyperlink_title.append(run_title)
+            p_toc._p.append(hyperlink_title)
             
-            hyperlink.append(run)
-            p_toc._p.append(hyperlink)
+            # 2. Tab character run with dot leader (direct child of p)
+            run_tab = OxmlElement('w:r')
+            rPr_tab = OxmlElement('w:rPr')
+            rFont_tab = OxmlElement('w:rFonts')
+            rFont_tab.set(qn('w:ascii'), 'Times New Roman')
+            rFont_tab.set(qn('w:hAnsi'), 'Times New Roman')
+            rPr_tab.append(rFont_tab)
+            rPr_tab.append(parse_xml(f'<w:color {nsdecls("w")} w:val="000000"/>'))
+            if lvl == 1:
+                rPr_tab.append(OxmlElement('w:b'))
+            rPr_tab.append(parse_xml(f'<w:sz {nsdecls("w")} w:val="{sz_val}"/>'))
+            run_tab.append(rPr_tab)
+            run_tab.append(OxmlElement('w:tab'))
+            p_toc._p.append(run_tab)
+            
+            # 3. Dynamic Page Number Hyperlink via PAGEREF field (direct child of p)
+            is_prelim = bm_name in ['_Toc_Declaration', '_Toc_Acknowledgement', '_Toc_Abstract', '_Toc_Table_Of_Contents', '_Toc_List_Figures', '_Toc_List_Tables', '_Toc_List_Abbreviations']
+            num_format = r'\* roman' if is_prelim else r'\* Arabic'
+            b_tag = '<w:b/>' if lvl == 1 else ''
+            fld_xml = f'''<w:fldSimple {nsdecls("w")} w:instr="PAGEREF {bm_name} \\h {num_format}">
+  <w:r>
+    <w:rPr>
+      <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+      <w:color w:val="000000"/>
+      {b_tag}
+      <w:sz w:val="{sz_val}"/>
+    </w:rPr>
+    <w:t>{page_num}</w:t>
+  </w:r>
+</w:fldSimple>'''
+            p_toc._p.append(parse_xml(fld_xml))
 
-        # Page break after TOC before List of Abbreviations
-        p_abbr_break = target_p.insert_paragraph_before()
-        p_abbr_break.paragraph_format.space_before = Pt(0)
-        p_abbr_break.paragraph_format.space_after = Pt(0)
-        r_abr = p_abbr_break.add_run()
-        r_abr.add_break(WD_BREAK.PAGE)
+        # Page break after TOC before List of Figures
+        p_lof_break = target_p.insert_paragraph_before()
+        p_lof_break.paragraph_format.space_before = Pt(0)
+        p_lof_break.paragraph_format.space_after = Pt(0)
+        p_lof_break.add_run().add_break(WD_BREAK.PAGE)
+
+        # 4B. Build List of Figures (Appendix V: No dot leaders, right-aligned Page header)
+        lof_entries = load_latex_list_entries('main.lof')
+        if lof_entries:
+            print(f'Building List of Figures ({len(lof_entries)} entries)...')
+            lof_title = target_p.insert_paragraph_before('List of Figures')
+            lof_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            lof_title.paragraph_format.space_before = Pt(18)
+            lof_title.paragraph_format.space_after = Pt(12)
+            for r in lof_title.runs:
+                r.font.name = 'Times New Roman'
+                r.font.size = Pt(12)
+                r.font.bold = True
+                r.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
+
+            bm_lof_start = OxmlElement('w:bookmarkStart')
+            bm_lof_start.set(qn('w:id'), '98')
+            bm_lof_start.set(qn('w:name'), '_Toc_List_Figures')
+            bm_lof_end = OxmlElement('w:bookmarkEnd')
+            bm_lof_end.set(qn('w:id'), '98')
+            lof_title._p.insert(0, bm_lof_start)
+            lof_title._p.append(bm_lof_end)
+
+            # Right-aligned Page column header
+            p_lof_header = target_p.insert_paragraph_before()
+            old_pPr = p_lof_header._p.find(qn('w:pPr'))
+            if old_pPr is not None:
+                p_lof_header._p.remove(old_pPr)
+            pPr_hdr_xml = f'''<w:pPr {nsdecls("w")}>
+  <w:tabs>
+    <w:tab w:val="right" w:leader="none" w:pos="8666"/>
+  </w:tabs>
+  <w:spacing w:before="60" w:after="80" w:line="276" w:lineRule="auto"/>
+  <w:ind w:left="0"/>
+</w:pPr>'''
+            p_lof_header._p.insert(0, parse_xml(pPr_hdr_xml))
+            r_tab_hdr = p_lof_header.add_run()
+            r_tab_hdr.add_tab()
+            r_txt_hdr = p_lof_header.add_run('Page')
+            r_txt_hdr.font.name = 'Times New Roman'
+            r_txt_hdr.font.size = Pt(12)
+            r_txt_hdr.font.bold = False
+            r_txt_hdr.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
+
+            for num, fig_title, page_num in lof_entries:
+                p_lof = target_p.insert_paragraph_before()
+                old_pPr = p_lof._p.find(qn('w:pPr'))
+                if old_pPr is not None:
+                    p_lof._p.remove(old_pPr)
+                
+                pPr_xml = f'''<w:pPr {nsdecls("w")}>
+  <w:tabs>
+    <w:tab w:val="right" w:leader="none" w:pos="8666"/>
+  </w:tabs>
+  <w:spacing w:before="40" w:after="40" w:line="276" w:lineRule="auto"/>
+  <w:ind w:left="0"/>
+</w:pPr>'''
+                p_lof._p.insert(0, parse_xml(pPr_xml))
+
+                bm_fig_target = f"_Fig_{num.replace('.', '_')}"
+
+                # 1. Figure title hyperlink
+                hyperlink_title = OxmlElement('w:hyperlink')
+                hyperlink_title.set(qn('w:anchor'), bm_fig_target)
+                hyperlink_title.set(qn('w:history'), '1')
+
+                run_text = OxmlElement('w:r')
+                rPr_text = OxmlElement('w:rPr')
+                rFont_text = OxmlElement('w:rFonts')
+                rFont_text.set(qn('w:ascii'), 'Times New Roman')
+                rFont_text.set(qn('w:hAnsi'), 'Times New Roman')
+                rPr_text.append(rFont_text)
+                rPr_text.append(parse_xml(f'<w:color {nsdecls("w")} w:val="000000"/>'))
+                rPr_text.append(parse_xml(f'<w:sz {nsdecls("w")} w:val="24"/>'))
+                run_text.append(rPr_text)
+                t_elem = OxmlElement('w:t')
+                t_elem.set(qn('xml:space'), 'preserve')
+                t_elem.text = f"Figure {num}    {fig_title}"
+                run_text.append(t_elem)
+                hyperlink_title.append(run_text)
+                p_lof._p.append(hyperlink_title)
+
+                # 2. Tab
+                run_tab = OxmlElement('w:r')
+                rPr_tab = OxmlElement('w:rPr')
+                rFont_tab = OxmlElement('w:rFonts')
+                rFont_tab.set(qn('w:ascii'), 'Times New Roman')
+                rFont_tab.set(qn('w:hAnsi'), 'Times New Roman')
+                rPr_tab.append(rFont_tab)
+                rPr_tab.append(parse_xml(f'<w:color {nsdecls("w")} w:val="000000"/>'))
+                rPr_tab.append(parse_xml(f'<w:sz {nsdecls("w")} w:val="24"/>'))
+                run_tab.append(rPr_tab)
+                run_tab.append(OxmlElement('w:tab'))
+                p_lof._p.append(run_tab)
+
+                # 3. Dynamic Page Number Hyperlink via PAGEREF field
+                fld_fig_xml = f'''<w:fldSimple {nsdecls("w")} w:instr="PAGEREF {bm_fig_target} \\h">
+  <w:r>
+    <w:rPr>
+      <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+      <w:color w:val="000000"/>
+      <w:sz w:val="24"/>
+    </w:rPr>
+    <w:t>{page_num}</w:t>
+  </w:r>
+</w:fldSimple>'''
+                p_lof._p.append(parse_xml(fld_fig_xml))
+
+            # Page break after List of Figures before List of Tables
+            p_lot_break = target_p.insert_paragraph_before()
+            p_lot_break.paragraph_format.space_before = Pt(0)
+            p_lot_break.paragraph_format.space_after = Pt(0)
+            p_lot_break.add_run().add_break(WD_BREAK.PAGE)
+
+        # 4C. Build List of Tables (Appendix VI: No dot leaders, right-aligned Page header)
+        lot_entries = load_latex_list_entries('main.lot')
+        if lot_entries:
+            print(f'Building List of Tables ({len(lot_entries)} entries)...')
+            lot_title = target_p.insert_paragraph_before('List of Tables')
+            lot_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            lot_title.paragraph_format.space_before = Pt(18)
+            lot_title.paragraph_format.space_after = Pt(12)
+            for r in lot_title.runs:
+                r.font.name = 'Times New Roman'
+                r.font.size = Pt(12)
+                r.font.bold = True
+                r.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
+
+            bm_lot_start = OxmlElement('w:bookmarkStart')
+            bm_lot_start.set(qn('w:id'), '99')
+            bm_lot_start.set(qn('w:name'), '_Toc_List_Tables')
+            bm_lot_end = OxmlElement('w:bookmarkEnd')
+            bm_lot_end.set(qn('w:id'), '99')
+            lot_title._p.insert(0, bm_lot_start)
+            lot_title._p.append(bm_lot_end)
+
+            # Right-aligned Page column header
+            p_lot_header = target_p.insert_paragraph_before()
+            old_pPr = p_lot_header._p.find(qn('w:pPr'))
+            if old_pPr is not None:
+                p_lot_header._p.remove(old_pPr)
+            pPr_hdr_xml = f'''<w:pPr {nsdecls("w")}>
+  <w:tabs>
+    <w:tab w:val="right" w:leader="none" w:pos="8666"/>
+  </w:tabs>
+  <w:spacing w:before="60" w:after="80" w:line="276" w:lineRule="auto"/>
+  <w:ind w:left="0"/>
+</w:pPr>'''
+            p_lot_header._p.insert(0, parse_xml(pPr_hdr_xml))
+            r_tab_hdr = p_lot_header.add_run()
+            r_tab_hdr.add_tab()
+            r_txt_hdr = p_lot_header.add_run('Page')
+            r_txt_hdr.font.name = 'Times New Roman'
+            r_txt_hdr.font.size = Pt(12)
+            r_txt_hdr.font.bold = False
+            r_txt_hdr.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
+
+            for num, tbl_title, page_num in lot_entries:
+                p_lot = target_p.insert_paragraph_before()
+                old_pPr = p_lot._p.find(qn('w:pPr'))
+                if old_pPr is not None:
+                    p_lot._p.remove(old_pPr)
+                
+                pPr_xml = f'''<w:pPr {nsdecls("w")}>
+  <w:tabs>
+    <w:tab w:val="right" w:leader="none" w:pos="8666"/>
+  </w:tabs>
+  <w:spacing w:before="40" w:after="40" w:line="276" w:lineRule="auto"/>
+  <w:ind w:left="0"/>
+</w:pPr>'''
+                p_lot._p.insert(0, parse_xml(pPr_xml))
+
+                bm_tbl_target = f"_Tbl_{num.replace('.', '_')}"
+
+                # 1. Table title hyperlink
+                hyperlink_title = OxmlElement('w:hyperlink')
+                hyperlink_title.set(qn('w:anchor'), bm_tbl_target)
+                hyperlink_title.set(qn('w:history'), '1')
+
+                run_text = OxmlElement('w:r')
+                rPr_text = OxmlElement('w:rPr')
+                rFont_text = OxmlElement('w:rFonts')
+                rFont_text.set(qn('w:ascii'), 'Times New Roman')
+                rFont_text.set(qn('w:hAnsi'), 'Times New Roman')
+                rPr_text.append(rFont_text)
+                rPr_text.append(parse_xml(f'<w:color {nsdecls("w")} w:val="000000"/>'))
+                rPr_text.append(parse_xml(f'<w:sz {nsdecls("w")} w:val="24"/>'))
+                run_text.append(rPr_text)
+                t_elem = OxmlElement('w:t')
+                t_elem.set(qn('xml:space'), 'preserve')
+                t_elem.text = f"Table {num}    {tbl_title}"
+                run_text.append(t_elem)
+                hyperlink_title.append(run_text)
+                p_lot._p.append(hyperlink_title)
+
+                # 2. Tab
+                run_tab = OxmlElement('w:r')
+                rPr_tab = OxmlElement('w:rPr')
+                rFont_tab = OxmlElement('w:rFonts')
+                rFont_tab.set(qn('w:ascii'), 'Times New Roman')
+                rFont_tab.set(qn('w:hAnsi'), 'Times New Roman')
+                rPr_tab.append(rFont_tab)
+                rPr_tab.append(parse_xml(f'<w:color {nsdecls("w")} w:val="000000"/>'))
+                rPr_tab.append(parse_xml(f'<w:sz {nsdecls("w")} w:val="24"/>'))
+                run_tab.append(rPr_tab)
+                run_tab.append(OxmlElement('w:tab'))
+                p_lot._p.append(run_tab)
+
+                # 3. Dynamic Page Number Hyperlink via PAGEREF field
+                fld_tbl_xml = f'''<w:fldSimple {nsdecls("w")} w:instr="PAGEREF {bm_tbl_target} \\h">
+  <w:r>
+    <w:rPr>
+      <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+      <w:color w:val="000000"/>
+      <w:sz w:val="24"/>
+    </w:rPr>
+    <w:t>{page_num}</w:t>
+  </w:r>
+</w:fldSimple>'''
+                p_lot._p.append(parse_xml(fld_tbl_xml))
+
+            # Page break after List of Tables before List of Abbreviations
+            p_abbr_break = target_p.insert_paragraph_before()
+            p_abbr_break.paragraph_format.space_before = Pt(0)
+            p_abbr_break.paragraph_format.space_after = Pt(0)
+            r_abr = p_abbr_break.add_run()
+            r_abr.add_break(WD_BREAK.PAGE)
 
     # 5. Format Tables: 100% Crisp, Black, Visible Academic Booktabs Borders
     print(f'Formatting {len(doc.tables)} tables in academic Booktabs style...')
     for tbl in doc.tables:
+        tbl_text = " ".join([c.text.strip() for r in tbl.rows for c in r.cells])
+        is_declaration_tbl = ('Signature' in tbl_text and 'Date' in tbl_text)
+        
         tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
         tblPr = tbl._tbl.tblPr
         
@@ -410,7 +1110,106 @@ def style_thesis_docx(docx_path):
         tblW.set(qn('w:w'), str(TOTAL_WIDTH))
         tblW.set(qn('w:type'), 'dxa')
         
-        # Explicit solid black table-level borders
+        if is_declaration_tbl:
+            p_parent = tbl._tbl.getparent()
+            tbl_idx = p_parent.index(tbl._tbl)
+            
+            # Paragraph 1: Signature & Date Dotted Line
+            p1 = parse_xml(f'''
+<w:p {nsdecls("w")}>
+  <w:pPr>
+    <w:tabs>
+      <w:tab w:val="right" w:leader="dot" w:pos="4200"/>
+      <w:tab w:val="left" w:leader="none" w:pos="5800"/>
+      <w:tab w:val="right" w:leader="dot" w:pos="8666"/>
+    </w:tabs>
+    <w:spacing w:before="0" w:after="160" w:line="360" w:lineRule="auto"/>
+    <w:ind w:left="0"/>
+  </w:pPr>
+  <w:r>
+    <w:rPr>
+      <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+      <w:sz w:val="24"/>
+      <w:color w:val="000000"/>
+    </w:rPr>
+    <w:t>Signature</w:t>
+  </w:r>
+  <w:r>
+    <w:rPr>
+      <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+      <w:sz w:val="24"/>
+      <w:color w:val="000000"/>
+    </w:rPr>
+    <w:tab/>
+  </w:r>
+  <w:r>
+    <w:rPr>
+      <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+      <w:sz w:val="24"/>
+      <w:color w:val="000000"/>
+    </w:rPr>
+    <w:tab/>
+  </w:r>
+  <w:r>
+    <w:rPr>
+      <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+      <w:sz w:val="24"/>
+      <w:color w:val="000000"/>
+    </w:rPr>
+    <w:tab/>
+  </w:r>
+</w:p>''')
+
+            # Paragraph 2: Name & Date Label
+            p2 = parse_xml(f'''
+<w:p {nsdecls("w")}>
+  <w:pPr>
+    <w:tabs>
+      <w:tab w:val="right" w:leader="dot" w:pos="4200"/>
+      <w:tab w:val="center" w:leader="none" w:pos="7233"/>
+    </w:tabs>
+    <w:spacing w:before="0" w:after="0" w:line="360" w:lineRule="auto"/>
+    <w:ind w:left="0"/>
+  </w:pPr>
+  <w:r>
+    <w:rPr>
+      <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+      <w:sz w:val="24"/>
+      <w:color w:val="000000"/>
+    </w:rPr>
+    <w:t xml:space="preserve">    Name</w:t>
+  </w:r>
+  <w:r>
+    <w:rPr>
+      <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+      <w:sz w:val="24"/>
+      <w:color w:val="000000"/>
+    </w:rPr>
+    <w:tab/>
+  </w:r>
+  <w:r>
+    <w:rPr>
+      <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+      <w:sz w:val="24"/>
+      <w:color w:val="000000"/>
+    </w:rPr>
+    <w:tab/>
+  </w:r>
+  <w:r>
+    <w:rPr>
+      <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+      <w:sz w:val="24"/>
+      <w:color w:val="000000"/>
+    </w:rPr>
+    <w:t>Date</w:t>
+  </w:r>
+</w:p>''')
+            p_parent.insert(tbl_idx, p1)
+            p_parent.insert(tbl_idx + 1, p2)
+            p_parent.remove(tbl._tbl)
+            continue
+            
+        # Explicit solid black table-level borders for academic data tables
         borders_xml = (
             f'<w:tblBorders {nsdecls("w")}>'
             '<w:top w:val="single" w:sz="12" w:space="0" w:color="000000"/>'
@@ -689,9 +1488,23 @@ def style_thesis_docx(docx_path):
             p_f2.text = ''
             p_f2._p.append(parse_xml(f'<w:fldSimple {nsdecls("w")} w:instr="PAGE"><w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/><w:color w:val="000000"/></w:rPr><w:t>1</w:t></w:r></w:fldSimple>'))
 
+    # Ensure Word automatically refreshes fields on document open
+    settings_elem = doc.settings.element
+    update_fields = settings_elem.find(qn('w:updateFields'))
+    if update_fields is None:
+        update_fields = OxmlElement('w:updateFields')
+        update_fields.set(qn('w:val'), 'true')
+        settings_elem.append(update_fields)
+    else:
+        update_fields.set(qn('w:val'), 'true')
+
     doc.save(docx_path)
     print(f'Successfully styled {docx_path} in academic Booktabs format with full pagination and explicit page breaks!')
+    
+    # Pre-populate exact DOCX page numbers using headless LibreOffice evaluation
+    populate_exact_docx_page_numbers(docx_path)
 
 if __name__ == '__main__':
     target = sys.argv[1] if len(sys.argv) > 1 else 'thesis.docx'
     style_thesis_docx(target)
+

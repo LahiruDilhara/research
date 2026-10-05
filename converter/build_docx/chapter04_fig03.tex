@@ -8,92 +8,64 @@
 \begin{document}
 
 \begin{tikzpicture}[
-    classbox/.style = {rectangle, draw=blue!80!black, fill=blue!5!white, thick, rounded corners=3pt, align=left, font=\sffamily\tiny, inner sep=5pt, minimum width=3.8cm},
-    arrow/.style = {draw=blue!80!black, ->, >=Stealth, thick},
-    assoc/.style = {draw=black!70, thick}
+    joint/.style = {circle, draw=blue!80!black, fill=blue!20!white, thick, inner sep=0pt, minimum size=7mm, font=\sffamily\bfseries\scriptsize},
+    tip/.style   = {circle, draw=red!80!black, fill=red!20!white, thick, inner sep=0pt, minimum size=7mm, font=\sffamily\bfseries\scriptsize},
+    wrist/.style = {circle, draw=purple!80!black, fill=purple!20!white, thick, inner sep=0pt, minimum size=7.5mm, font=\sffamily\bfseries\scriptsize},
+    bone/.style  = {draw=gray!80!black, line width=1.5pt},
+    normvec/.style = {draw=purple!80!black, dashed, line width=1.5pt, -{Stealth[length=3mm]}}
 ]
 
-% Class: LayoutDesignerApp
-\node (c_designer) [classbox] at (0, 0) {
-\textbf{LayoutDesignerApp}\\
----------------------\\
-- canvas: QGraphicsScene\\
-- keysList: List[KeyButton]\\
-- aprilTags: List[AprilTagAnchor]\\
----------------------\\
-+ addKeyButton(rect: QRectF)\\
-+ exportPdfLayout(path: String)\\
-+ exportXmlSchema(path: String)
-};
+% Wrist
+\node (0) [wrist] at (3.5, 0.0) {0};
 
-% Class: KeyButton
-\node (c_key) [classbox] at (5.5, 0) {
-\textbf{KeyButtonGraphic}\\
----------------------\\
-- buttonId: String\\
-- boundsXML: QRectF\\
-- actionType: ActionEnum\\
-- commandString: String\\
----------------------\\
-+ setActionBinding(cmd: String)\\
-+ getBoundingBox(): QRectF
-};
+% Thumb
+\node (1) [joint] at (1.8, 1.2) {1};
+\node (2) [joint] at (1.0, 2.2) {2};
+\node (3) [joint] at (0.4, 3.2) {3};
+\node (4) [tip]   at (0.0, 4.2) {4};
 
-% Class: RuntimeKeyboardEngine
-\node (c_runtime) [classbox] at (0, -5) {
-\textbf{RuntimeKeyboardEngine}\\
----------------------\\
-- cameraThread: CameraThread\\
-- aprilTagTracker: AprilTagTracker\\
-- poseExtractor: MediaPipeExtractor\\
-- lstmClassifier: PyTorchModel\\
-- homographyMatrix: Matrix3x3\\
----------------------\\
-+ loadXmlLayout(xmlPath: String)\\
-+ startRuntimeWatch()\\
-+ processFrame(frame: Mat)
-};
+% Index
+\node (5) [joint] at (2.4, 3.6) {5};
+\node (6) [joint] at (2.2, 4.8) {6};
+\node (7) [joint] at (2.0, 5.8) {7};
+\node (8) [tip]   at (1.9, 6.8) {8};
 
-% Class: ScaleNormalizationEngine
-\node (c_norm) [classbox] at (5.5, -5) {
-\textbf{ScaleNormalizationEngine}\\
----------------------\\
-- wristOrigin: Point2D\\
-- handLength: Float\\
-- rawLandmarks: List[Point2D]\\
----------------------\\
-+ computeHandLength(): Float\\
-+ normalizeKeypoints(): FeatureVector\\
-+ computeVelocities(): FeatureVector
-};
+% Middle
+\node (9)  [joint] at (3.5, 3.8) {9};
+\node (10) [joint] at (3.5, 5.2) {10};
+\node (11) [joint] at (3.5, 6.4) {11};
+\node (12) [tip]   at (3.5, 7.5) {12};
 
-% Class: HomographyMappingEngine
-\node (c_homog) [classbox] at (0, -10) {
-\textbf{HomographyMappingEngine}\\
----------------------\\
-- matrixH: Matrix3x3\\
-- srcCorners: List[Point2D]\\
-- dstAnchors: List[Point2D]\\
----------------------\\
-+ solveHomographySVD(): Matrix3x3\\
-+ transformPixelToXml(p: Point2D): Point2D
-};
+% Ring
+\node (13) [joint] at (4.6, 3.6) {13};
+\node (14) [joint] at (4.8, 4.9) {14};
+\node (15) [joint] at (4.9, 6.0) {15};
+\node (16) [tip]   at (5.0, 7.0) {16};
 
-% Class: ActionDispatcher
-\node (c_action) [classbox] at (5.5, -10) {
-\textbf{KeyActionDispatcher}\\
----------------------\\
-- keyBindingsMap: Map[String, Action]\\
----------------------\\
-+ registerAction(id: String, act: Action)\\
-+ executeAction(keyId: String)
-};
+% Pinky
+\node (17) [joint] at (5.6, 3.1) {17};
+\node (18) [joint] at (6.0, 4.1) {18};
+\node (19) [joint] at (6.3, 5.0) {19};
+\node (20) [tip]   at (6.5, 5.9) {20};
 
-% Connections
-\draw [assoc] (c_designer) -- node[above, font=\sffamily\tiny]{1..*} (c_key);
-\draw [assoc] (c_runtime) -- node[above, font=\sffamily\tiny]{1} (c_norm);
-\draw [assoc] (c_runtime) -- node[left, font=\sffamily\tiny]{1} (c_homog);
-\draw [assoc] (c_homog) -- node[above, font=\sffamily\tiny]{1} (c_action);
+% Bones
+\draw [bone] (0) -- (1) -- (2) -- (3) -- (4);
+\draw [bone] (0) -- (5) -- (6) -- (7) -- (8);
+\draw [bone] (0) -- (9) -- (10) -- (11) -- (12);
+\draw [bone] (0) -- (13) -- (14) -- (15) -- (16);
+\draw [bone] (0) -- (17) -- (18) -- (19) -- (20);
+\draw [bone] (5) -- (9) -- (13) -- (17);
+
+% Normalization vector L_hand
+\draw [normvec] (0) -- node[right=3pt, font=\sffamily\bfseries\footnotesize, text=purple!90!black] {$L_{\text{hand}} = \|\mathbf{P}_9 - \mathbf{P}_0\|_2$} (9);
+
+% Labels
+\node [above=2pt of 4, font=\sffamily\scriptsize\bfseries, text=red!80!black] {Thumb};
+\node [above=2pt of 8, font=\sffamily\scriptsize\bfseries, text=red!80!black] {Index};
+\node [above=2pt of 12, font=\sffamily\scriptsize\bfseries, text=red!80!black] {Middle};
+\node [above=2pt of 16, font=\sffamily\scriptsize\bfseries, text=red!80!black] {Ring};
+\node [above=2pt of 20, font=\sffamily\scriptsize\bfseries, text=red!80!black] {Pinky};
+\node [below=2pt of 0, font=\sffamily\scriptsize\bfseries, text=purple!90!black] {Wrist Origin $\mathbf{P}_0$};
 
 \end{tikzpicture}
 

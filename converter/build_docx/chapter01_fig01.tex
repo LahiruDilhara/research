@@ -40,14 +40,14 @@
 \node [process]  (mapping)    at (4.4,-15.0)  {\textbf{Planar Coordinate Mapping}\\$P_{\text{XML}}=H\cdot P_{\text{pixel}}$};
 \node [artifact] (execution)  at (4.4,-16.5)  {\textbf{Key / Command Execution}\\OS Keystroke or Shell Script};
 
-%% ---- LEFT COLUMN ARROWS (strictly top-to-bottom) ----
+%% ---- LEFT COLUMN ARROWS ----
 \draw [arrow] (designer) -- (xml);
 \draw [arrow] (xml)      -- (pdf);
 
-%% ---- BRIDGE: PDF to physical paper (horizontal, same y level) ----
+%% ---- BRIDGE: PDF to physical paper ----
 \draw [arrow] (pdf.east) -- (paper.west);
 
-%% ---- RIGHT COLUMN ARROWS (strictly top-to-bottom) ----
+%% ---- RIGHT COLUMN ARROWS ----
 \draw [arrow] (paper)      -- (camera);
 \draw [arrow] (camera)     -- (apriltag);
 \draw [arrow] (apriltag)   -- (homography);
@@ -58,7 +58,7 @@
 \draw [arrow] (lstm)       -- (mapping);
 \draw [arrow] (mapping)    -- (execution);
 
-%% ---- XML load feed (routes along far-left margin, no box crossings) ----
+%% ---- XML load feed ----
 \draw [arrow] (xml.west) -- ++(-0.7,0) |- (execution.west);
 
 \end{tikzpicture}
