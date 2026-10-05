@@ -82,9 +82,7 @@ class TestUiModesAndTelemetry(unittest.TestCase):
         )
         self.actions = {"btn_1": ActionData(type="key", value="a")}
         self.config = AppConfig()
-        self.config.set_printed_marker_side_width_mm(0.0)
-        self.config.set_touch_release_windows(2)
-        self.config.set_touch_max_stationary_distance_mm(4.0)
+        self.config.set_printed_marker_side_width_mm(20.0)
         self.model_instance = DummyTouchModel()
         self.model_entry = ModelEntry(
             name="Dummy LSTM",
@@ -254,7 +252,7 @@ class TestUiModesAndTelemetry(unittest.TestCase):
         self.assertAlmostEqual(dyn_graph._latency_history[-1], 2.5)
 
     def test_two_window_in_flight_bridging_in_viewmodel(self) -> None:
-        """Verify in-flight descent buffering (W1) and instant confirmed touchdown execution (W2)."""
+        """Verify that in-flight candidate in Window 1 delays resolution to Window 2 touchdown."""
         vm = DetectorViewModel(
             layout=self.layout,
             action_config=self.actions,
@@ -266,53 +264,42 @@ class TestUiModesAndTelemetry(unittest.TestCase):
 
         vm._layout_found = True
         vm._current_H = np.eye(3)
+        vm._pipeline_service.run_parallel_inference = MagicMock(return_value={
+            "Index": {"touch": True, "prob": 0.95}
+        })
 
         actions_executed = []
         vm.action_executed.connect(lambda t, v, k, f: actions_executed.append((t, v, k, f)))
 
-        # W1: Finger descending rapidly in mid-air toward btn_1 (125, 125)
-        # s1=5, s2=6, s3=9 px/frame -> in_flight is True!
-        descending_pts = [(125.0, 100.0), (125.0, 105.0), (125.0, 110.0), (125.0, 116.0), (125.0, 125.0)]
-        descending_pixel = [[pt for _ in range(21)] for pt in descending_pts]
-
-        # W2: Finger settled on btn_1 (125, 125) -> in_flight is False!
-        settled_pts = [(125.0, 125.0)] * 5
-        settled_pixel = [[pt for _ in range(21)] for pt in settled_pts]
+        # In Window 1: finger still moving fast (in-flight)
+        # F0..(125, 50), F1..(125, 65), F2..(125, 80), F3..(125, 95), F4..(125, 110)
+        # Final speed = 15 px/frame -> in_flight is True
+        w1_pts = [(125.0, 50.0), (125.0, 65.0), (125.0, 80.0), (125.0, 95.0), (125.0, 110.0)]
+        w1_pixel = [[pt for _ in range(21)] for pt in w1_pts]
 
         with patch("viewmodels.detector_viewmodel.ActionExecutor.execute") as mock_exec:
-            # Window 1: touch detected while in mid-air -> buffered, NOT fired yet
-            vm._pipeline_service.run_parallel_inference = MagicMock(return_value={
-                "Index": {"touch": True, "prob": 0.95}
-            })
-            vm._on_window_ready([], descending_pixel, 640, 480)
+            vm._on_window_ready([], w1_pixel, 640, 480)
+
+            # Window 1 was in-flight: no execution yet, candidate buffered
             mock_exec.assert_not_called()
             self.assertEqual(len(actions_executed), 0)
-            self.assertEqual(vm._touch_streak.get("Index", 0), 1)
-            self.assertIn("Index", vm._touch_pending_hit)
+            self.assertIsNotNone(vm._pending_candidate)
+            self.assertEqual(vm._pending_candidate["finger"], "Index")
 
-            # Window 2: finger lands on paper at btn_1 -> buffered, NOT fired yet while touching
-            vm._on_window_ready([], settled_pixel, 640, 480)
-            mock_exec.assert_not_called()
-            self.assertEqual(len(actions_executed), 0)
-            self.assertEqual(vm._touch_streak.get("Index", 0), 2)
+            # Window 2 arrives with landing at (125, 125) (inside btn_1: [100..150, 100..150])
+            w2_pts = [(125.0, 95.0), (125.0, 110.0), (125.0, 125.0), (125.0, 125.0), (125.0, 120.0)]
+            w2_pixel = [[pt for _ in range(21)] for pt in w2_pts]
 
-            # Window 3: non-touch window 1/2 -> waiting for release confirmation
-            vm._pipeline_service.run_parallel_inference = MagicMock(return_value={
-                "Index": {"touch": False, "prob": 0.20, "reason": "Below Threshold"}
-            })
-            vm._on_window_ready([], settled_pixel, 640, 480)
-            mock_exec.assert_not_called()
+            vm._on_window_ready([], w2_pixel, 640, 480)
 
-            # Window 4: non-touch window 2/2 -> release confirmed -> FIRES action!
-            vm._on_window_ready([], settled_pixel, 640, 480)
+            # Window 2 resolved the bridged touch!
             mock_exec.assert_called_once()
             self.assertEqual(len(actions_executed), 1)
             self.assertEqual(actions_executed[0], ("key", "a", "btn_1", "Index"))
-            self.assertEqual(vm._touch_streak.get("Index", 0), 0)
-            self.assertNotIn("Index", vm._touch_pending_hit)
+            self.assertIsNone(vm._pending_candidate)
 
     def test_simultaneous_multi_finger_independent_actions(self) -> None:
-        """Verify per-finger independent confirmed touchdown actions."""
+        """Verify that multiple fingers touching different keys in the same window all execute actions."""
         btn_2 = ButtonData(
             id="btn_2",
             label="B",
@@ -349,179 +336,34 @@ class TestUiModesAndTelemetry(unittest.TestCase):
 
         vm._layout_found = True
         vm._current_H = np.eye(3)
+        vm._pipeline_service.run_parallel_inference = MagicMock(return_value={
+            "Index": {"touch": True, "prob": 0.95},
+            "Middle": {"touch": True, "prob": 0.92},
+        })
 
         actions_executed = []
         vm.action_executed.connect(lambda t, v, k, f: actions_executed.append((t, v, k, f)))
 
-        # 5 stationary frames: Index at btn_1 (125,125), Middle at btn_2 (225,125)
+        # 5 frames where Index lands on btn_1 (125, 125) and Middle lands on btn_2 (225, 125)
         pixel_window = []
         for _ in range(5):
             landmarks = [(0.0, 0.0) for _ in range(21)]
-            landmarks[8] = (125.0, 125.0)   # Index tip
-            landmarks[12] = (225.0, 125.0)  # Middle tip
+            # Index tip (idx 8) at (125, 125)
+            landmarks[8] = (125.0, 125.0)
+            # Middle tip (idx 12) at (225, 125)
+            landmarks[12] = (225.0, 125.0)
             pixel_window.append(landmarks)
 
         with patch("viewmodels.detector_viewmodel.ActionExecutor.execute") as mock_exec:
-            # Window 1: both fingers touch -> buffered while touching
-            vm._pipeline_service.run_parallel_inference = MagicMock(return_value={
-                "Index": {"touch": True, "prob": 0.95},
-                "Middle": {"touch": True, "prob": 0.92},
-            })
             vm._on_window_ready([], pixel_window, 640, 480)
-            mock_exec.assert_not_called()
-            self.assertEqual(len(actions_executed), 0)
 
-            # Window 2: both fingers continue touching -> still buffered
-            vm._on_window_ready([], pixel_window, 640, 480)
-            mock_exec.assert_not_called()
-
-            # Window 3: non-touch window 1/2 -> waiting
-            vm._pipeline_service.run_parallel_inference = MagicMock(return_value={
-                "Index": {"touch": False, "prob": 0.20, "reason": "Below Threshold"},
-                "Middle": {"touch": False, "prob": 0.18, "reason": "Below Threshold"},
-            })
-            vm._on_window_ready([], pixel_window, 640, 480)
-            mock_exec.assert_not_called()
-
-            # Window 4: non-touch window 2/2 -> release confirmed -> FIRES BOTH!
-            vm._on_window_ready([], pixel_window, 640, 480)
+            # Both independent finger actions must be executed!
             self.assertEqual(mock_exec.call_count, 2)
             self.assertEqual(len(actions_executed), 2)
             executed_keys = {act[2] for act in actions_executed}
             self.assertEqual(executed_keys, {"btn_1", "btn_2"})
             executed_fingers = {act[3] for act in actions_executed}
             self.assertEqual(executed_fingers, {"Index", "Middle"})
-            self.assertEqual(vm._touch_streak.get("Index", 0), 0)
-            self.assertEqual(vm._touch_streak.get("Middle", 0), 0)
-
-    def test_quick_tap_release_firing(self) -> None:
-        """Verify that when touch_release_windows=1, tap fires immediately after 1 non-touch window."""
-        self.config.set_touch_release_windows(1)
-        vm = DetectorViewModel(
-            layout=self.layout,
-            action_config=self.actions,
-            config=self.config,
-            camera_index=0,
-        )
-        vm.set_model(self.model_entry)
-        vm.set_execution_mode(ExecutionMode.RUN)
-        vm._layout_found = True
-        vm._current_H = np.eye(3)
-
-        descending_pts = [(125.0, 100.0), (125.0, 105.0), (125.0, 110.0), (125.0, 116.0), (125.0, 125.0)]
-        descending_pixel = [[pt for _ in range(21)] for pt in descending_pts]
-        actions_executed = []
-        vm.action_executed.connect(lambda t, v, k, f: actions_executed.append((t, v, k, f)))
-
-        with patch("viewmodels.detector_viewmodel.ActionExecutor.execute") as mock_exec:
-            # W1: Fast tap (streak = 1) -> buffered, not fired yet
-            vm._pipeline_service.run_parallel_inference = MagicMock(return_value={
-                "Index": {"touch": True, "prob": 0.95}
-            })
-            vm._on_window_ready([], descending_pixel, 640, 480)
-            mock_exec.assert_not_called()
-
-            # W2: Lifted (untouch window 1) -> with touch_release_windows=1, FIRES on release!
-            vm._pipeline_service.run_parallel_inference = MagicMock(return_value={
-                "Index": {"touch": False, "prob": 0.15}
-            })
-            vm._on_window_ready([], descending_pixel, 640, 480)
-            mock_exec.assert_called_once()
-            self.assertEqual(len(actions_executed), 1)
-            self.assertEqual(actions_executed[0], ("key", "a", "btn_1", "Index"))
-
-        # Restore default
-        self.config.set_touch_release_windows(2)
-
-    def test_touch_and_hold_immediate_firing_and_no_duplicate(self) -> None:
-        """Verify that touching and holding buffers touch and fires once upon confirmed release."""
-        vm = DetectorViewModel(
-            layout=self.layout,
-            action_config=self.actions,
-            config=self.config,
-            camera_index=0,
-        )
-        vm.set_model(self.model_entry)
-        vm.set_execution_mode(ExecutionMode.RUN)
-        vm._layout_found = True
-        vm._current_H = np.eye(3)
-
-        settled_pts = [(125.0, 125.0)] * 5
-        settled_pixel = [[pt for _ in range(21)] for pt in settled_pts]
-        actions_executed = []
-        vm.action_executed.connect(lambda t, v, k, f: actions_executed.append((t, v, k, f)))
-
-        with patch("viewmodels.detector_viewmodel.ActionExecutor.execute") as mock_exec:
-            # W1..W4: Finger held down on paper -> buffered, NO action fired while held
-            vm._pipeline_service.run_parallel_inference = MagicMock(return_value={
-                "Index": {"touch": True, "prob": 0.95}
-            })
-            for _ in range(4):
-                vm._on_window_ready([], settled_pixel, 640, 480)
-            mock_exec.assert_not_called()
-            self.assertEqual(len(actions_executed), 0)
-
-            # W5: Lift begins (non-touch window 1/2) -> waiting for release confirmation
-            vm._pipeline_service.run_parallel_inference = MagicMock(return_value={
-                "Index": {"touch": False, "prob": 0.15}
-            })
-            vm._on_window_ready([], settled_pixel, 640, 480)
-            mock_exec.assert_not_called()
-
-            # W6: Non-touch window 2/2 -> release confirmed -> FIRES exactly once!
-            vm._on_window_ready([], settled_pixel, 640, 480)
-            mock_exec.assert_called_once()
-            self.assertEqual(len(actions_executed), 1)
-
-            # W7: Continued non-touch -> NO duplicate fire!
-            vm._on_window_ready([], settled_pixel, 640, 480)
-            mock_exec.assert_called_once()
-            self.assertEqual(len(actions_executed), 1)
-
-    def test_finger_liftoff_release_confirmation_fires_action(self) -> None:
-        """Verify that finger lift-off across non-touch windows confirms release and triggers Run Mode action."""
-        vm = DetectorViewModel(
-            layout=self.layout,
-            action_config=self.actions,
-            config=self.config,
-            camera_index=0,
-        )
-        vm.set_model(self.model_entry)
-        vm.set_execution_mode(ExecutionMode.RUN)
-        vm._layout_found = True
-        vm._current_H = np.eye(3)
-
-        # W1: Finger touches btn_1 at (125, 125)
-        w1_pixel = [[(125.0, 125.0) for _ in range(21)] for _ in range(5)]
-        # W2 & W3: Finger lifts off into the air (projecting upward/away to (150, 125))
-        w2_pixel = [[(150.0, 125.0) for _ in range(21)] for _ in range(5)]
-
-        with patch("viewmodels.detector_viewmodel.ActionExecutor.execute") as mock_exec:
-            # W1: Touch detected over btn_1 -> candidate glows, touch buffered
-            vm._pipeline_service.run_parallel_inference = MagicMock(return_value={
-                "Index": {"touch": True, "prob": 0.95}
-            })
-            vm._on_window_ready([], w1_pixel, 640, 480)
-            mock_exec.assert_not_called()
-            self.assertTrue(vm._finger_touch_active.get("Index", False))
-            self.assertIn("btn_1", vm._last_pressed_keys)
-
-            # W2: First non-touch window (finger lifting up) -> waiting for release confirmation
-            vm._pipeline_service.run_parallel_inference = MagicMock(return_value={
-                "Index": {"touch": False, "prob": 0.10}
-            })
-            vm._on_window_ready([], w2_pixel, 640, 480)
-            mock_exec.assert_not_called()
-            self.assertTrue(vm._finger_touch_active.get("Index", False))
-
-            # W3: Second non-touch window -> release confirmed! Action executes!
-            vm._on_window_ready([], w2_pixel, 640, 480)
-            mock_exec.assert_called_once()
-            self.assertNotIn("Index", vm._touch_pending_hit)
-
-            # W4: Subsequent window -> key is no longer in last_pressed_keys
-            vm._on_window_ready([], w2_pixel, 640, 480)
-            self.assertNotIn("btn_1", vm._last_pressed_keys)
 
     def test_main_window_startup_sidebar_hidden(self) -> None:
         """On startup, MainWindow must have sidebar hidden and show FileLandingView."""
@@ -529,33 +371,6 @@ class TestUiModesAndTelemetry(unittest.TestCase):
         self.assertTrue(win.navigationInterface.isHidden())
         self.assertEqual(win.stackedWidget.currentWidget().objectName(), "fileLandingView")
         win.close()
-
-    def test_primary_model_decorator_and_registry(self) -> None:
-        """Verify @primaryModel designates the primary model and ModelRegistry selects it."""
-        from core.interfaces.touch_model import primaryModel, ModelRegistry, ITouchModel
-
-        class SecondaryDummy(ITouchModel):
-            @classmethod
-            def model_name(cls) -> str:
-                return "Secondary Model"
-            def predict_touch(self, window):
-                return {}
-
-        @primaryModel
-        class PrimaryDummy(ITouchModel):
-            @classmethod
-            def model_name(cls) -> str:
-                return "Primary Model"
-            def predict_touch(self, window):
-                return {}
-
-        self.assertTrue(getattr(PrimaryDummy, "_is_primary", False))
-        self.assertFalse(getattr(SecondaryDummy, "_is_primary", False))
-
-        primary_entry = ModelRegistry.get_primary()
-        self.assertIsNotNone(primary_entry)
-        self.assertTrue(primary_entry.is_primary)
-        self.assertEqual(primary_entry.name, "LSTM Touch Detector")
 
 
 if __name__ == "__main__":

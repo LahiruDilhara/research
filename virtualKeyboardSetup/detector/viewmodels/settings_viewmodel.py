@@ -31,8 +31,6 @@ from config.constants import (
     QUALITY_MIN_FRAME_SCORE,
     TARGET_FPS,
     TOUCH_PROBABILITY_THRESHOLD,
-    TOUCH_RELEASE_WINDOWS,
-    TOUCH_MAX_STATIONARY_DISTANCE_MM,
     PRINTED_MARKER_SIDE_WIDTH_MM,
     PRINTED_MARKER_WIDTH_MM,
     PRINTED_MARKER_HEIGHT_MM,
@@ -199,18 +197,6 @@ class SettingsViewModel(QObject):
         return float(FINGERTIP_FORWARD_OFFSET_MM)
 
     @property
-    def touch_release_windows(self) -> int:
-        if self._config is not None:
-            return getattr(self._config, "touch_release_windows", 2)
-        return int(TOUCH_RELEASE_WINDOWS)
-
-    @property
-    def touch_max_stationary_distance_mm(self) -> float:
-        if self._config is not None:
-            return getattr(self._config, "touch_max_stationary_distance_mm", 4.0)
-        return float(TOUCH_MAX_STATIONARY_DISTANCE_MM)
-
-    @property
     def design_marker_size_mm(self) -> float:
         """Canonical AprilTag marker size specified in the layout XML design."""
         xml_path = self._layout_xml_path
@@ -266,8 +252,6 @@ class SettingsViewModel(QObject):
         one_euro_d_cutoff: float = 1.0,
         fingertip_offset_enabled: bool = True,
         fingertip_forward_offset_mm: float = 5.0,
-        touch_release_windows: int = 2,
-        touch_max_stationary_distance_mm: float = 4.0,
         printed_marker_side_width_mm: float = 0.0,
         printed_marker_width_mm: float | None = None,
         printed_marker_height_mm: float | None = None,
@@ -308,8 +292,6 @@ class SettingsViewModel(QObject):
             "FINGERTIP_OFFSET_ENABLED": "true" if fingertip_offset_enabled else "false",
             "FINGERTIP_FORWARD_OFFSET_MM": f"{fingertip_forward_offset_mm:.2f}",
             "FINGERTIP_EXTRA_OFFSET_MM": f"{fingertip_forward_offset_mm:.2f}",
-            "TOUCH_RELEASE_WINDOWS": f"{touch_release_windows}",
-            "TOUCH_MAX_STATIONARY_DISTANCE_MM": f"{touch_max_stationary_distance_mm:.1f}",
             "PRINTED_MARKER_SIDE_WIDTH_MM": f"{side_mm:.2f}",
             "PRINTED_MARKER_WIDTH_MM": f"{side_mm:.2f}",
             "PRINTED_MARKER_HEIGHT_MM": f"{side_mm:.2f}",
@@ -341,8 +323,6 @@ class SettingsViewModel(QObject):
                 self._config.set_one_euro_d_cutoff(one_euro_d_cutoff)
                 self._config.set_fingertip_offset_enabled(fingertip_offset_enabled)
                 self._config.set_fingertip_forward_offset_mm(fingertip_forward_offset_mm)
-                self._config.set_touch_release_windows(touch_release_windows)
-                self._config.set_touch_max_stationary_distance_mm(touch_max_stationary_distance_mm)
                 self._config.set_printed_marker_side_width_mm(side_mm)
 
             targets = [self.env_file_name]
@@ -440,8 +420,6 @@ class SettingsViewModel(QObject):
         if self._config is not None:
             self._config.set_fingertip_offset_enabled(bool(FINGERTIP_OFFSET_ENABLED))
             self._config.set_fingertip_forward_offset_mm(float(FINGERTIP_FORWARD_OFFSET_MM))
-            self._config.set_touch_release_windows(int(TOUCH_RELEASE_WINDOWS))
-            self._config.set_touch_max_stationary_distance_mm(float(TOUCH_MAX_STATIONARY_DISTANCE_MM))
         if persist:
             self._persist_current_state()
         self.settings_loaded.emit()
@@ -477,8 +455,6 @@ class SettingsViewModel(QObject):
         default_one_euro_d_cutoff = float(ONE_EURO_D_CUTOFF)
         default_fingertip_offset_enabled = bool(FINGERTIP_OFFSET_ENABLED)
         default_fingertip_forward_offset_mm = float(FINGERTIP_FORWARD_OFFSET_MM)
-        default_touch_release_windows = int(TOUCH_RELEASE_WINDOWS)
-        default_touch_max_stationary_distance_mm = float(TOUCH_MAX_STATIONARY_DISTANCE_MM)
         default_printed_marker_side_mm = self.design_marker_size_mm
 
         if persist:
@@ -500,8 +476,6 @@ class SettingsViewModel(QObject):
                 one_euro_d_cutoff=default_one_euro_d_cutoff,
                 fingertip_offset_enabled=default_fingertip_offset_enabled,
                 fingertip_forward_offset_mm=default_fingertip_forward_offset_mm,
-                touch_release_windows=default_touch_release_windows,
-                touch_max_stationary_distance_mm=default_touch_max_stationary_distance_mm,
                 printed_marker_side_width_mm=default_printed_marker_side_mm,
             )
             self.settings_loaded.emit()
@@ -525,8 +499,6 @@ class SettingsViewModel(QObject):
                 self._config.set_one_euro_d_cutoff(default_one_euro_d_cutoff)
                 self._config.set_fingertip_offset_enabled(default_fingertip_offset_enabled)
                 self._config.set_fingertip_forward_offset_mm(default_fingertip_forward_offset_mm)
-                self._config.set_touch_release_windows(default_touch_release_windows)
-                self._config.set_touch_max_stationary_distance_mm(default_touch_max_stationary_distance_mm)
                 self._config.set_printed_marker_side_width_mm(default_printed_marker_side_mm)
             self.settings_loaded.emit()
             return True

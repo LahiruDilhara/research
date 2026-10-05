@@ -4,9 +4,15 @@ Tests DesignerViewModel and SettingsViewModel signal emission, state management,
 button/marker CRUD, XML project persistence, and settings updates.
 """
 
+import sys
 import unittest
 import tempfile
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from PySide6.QtWidgets import QApplication
 
 from config.app_config import AppConfig

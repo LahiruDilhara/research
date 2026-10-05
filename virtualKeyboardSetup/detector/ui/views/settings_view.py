@@ -325,29 +325,6 @@ class SettingsView(QWidget):
                         decimals=1,
                     ),
                 ),
-                (
-                    "Release Confirmation Windows",
-                    "Number of consecutive non-touch windows required to confirm release and trigger key press (default 2)",
-                    self._make_spin(
-                        value=self._vm.touch_release_windows,
-                        mn=1,
-                        mx=10,
-                        attr="touch_release_windows_spin",
-                        step=1,
-                    ),
-                ),
-                (
-                    "Max Still Touch Movement (mm)",
-                    "Maximum allowed fingertip drift during touch; higher movement is treated as in-flight hover (default 4.0 mm)",
-                    self._make_double_spin(
-                        value=self._vm.touch_max_stationary_distance_mm,
-                        mn=0.5,
-                        mx=20.0,
-                        attr="touch_max_stationary_distance_spin",
-                        step=0.5,
-                        decimals=1,
-                    ),
-                ),
             ],
             on_reset=self._on_reset_section_fingertip,
         ))
@@ -417,8 +394,6 @@ class SettingsView(QWidget):
         self.plugins_dir_edit.setText(self._vm.plugins_dir)
         self.fingertip_offset_enabled_switch.setChecked(self._vm.fingertip_offset_enabled)
         self.fingertip_forward_offset_spin.setValue(self._vm.fingertip_forward_offset_mm)
-        self.touch_release_windows_spin.setValue(self._vm.touch_release_windows)
-        self.touch_max_stationary_distance_spin.setValue(self._vm.touch_max_stationary_distance_mm)
         self.printed_marker_side_spin.setValue(self._vm.printed_marker_side_width_mm)
 
     def _make_card(
@@ -559,8 +534,6 @@ class SettingsView(QWidget):
         self._vm.reset_section_fingertip(persist=True)
         self.fingertip_offset_enabled_switch.setChecked(self._vm.fingertip_offset_enabled)
         self.fingertip_forward_offset_spin.setValue(self._vm.fingertip_forward_offset_mm)
-        self.touch_release_windows_spin.setValue(self._vm.touch_release_windows)
-        self.touch_max_stationary_distance_spin.setValue(self._vm.touch_max_stationary_distance_mm)
 
     def _on_reset_section_scale(self) -> None:
         self._vm.reset_section_scale(persist=True)
@@ -586,8 +559,6 @@ class SettingsView(QWidget):
         plugins_val = self.plugins_dir_edit.text()
         ft_offset_en = self.fingertip_offset_enabled_switch.isChecked()
         ft_offset_val = self.fingertip_forward_offset_spin.value()
-        rel_win_val = self.touch_release_windows_spin.value()
-        max_stat_val = self.touch_max_stationary_distance_spin.value()
         side_val = self.printed_marker_side_spin.value()
 
         self._vm.save_settings(
@@ -608,8 +579,6 @@ class SettingsView(QWidget):
             one_euro_d_cutoff=one_euro_d,
             fingertip_offset_enabled=ft_offset_en,
             fingertip_forward_offset_mm=ft_offset_val,
-            touch_release_windows=rel_win_val,
-            touch_max_stationary_distance_mm=max_stat_val,
             printed_marker_side_width_mm=side_val,
             printed_marker_width_mm=side_val,
             printed_marker_height_mm=side_val,

@@ -153,11 +153,23 @@ class RunModeView(QWidget):
         self.combo_camera.currentIndexChanged.connect(self._on_camera_selection_changed)
         self.btn_refresh_cams = btn_icon_only("↺", self, size=30)
         self.btn_refresh_cams.setToolTip("Refresh camera list")
-        self.btn_refresh_cams.clicked.connect(self._refresh_cameras)
+        self.btn_refresh_cams.clicked.connect(lambda: self._refresh_cameras(force_refresh=True))
         cam_box.addWidget(cam_lbl)
         cam_box.addWidget(self.combo_camera)
         cam_box.addWidget(self.btn_refresh_cams)
         header_row.addLayout(cam_box)
+
+        # Quick Model Selector
+        model_box = QHBoxLayout()
+        model_box.setSpacing(6)
+        model_caption = QLabel("Model:", self)
+        model_caption.setStyleSheet(f"color: {TXT_SEC}; font-size: 11px; {LABEL_TRANSPARENT}")
+        self.combo_model = ComboBox(self)
+        self.combo_model.setFixedWidth(190)
+        self.combo_model.currentIndexChanged.connect(self._on_model_selection_changed)
+        model_box.addWidget(model_caption)
+        model_box.addWidget(self.combo_model)
+        header_row.addLayout(model_box)
 
         # Switch to Play Mode Button
         self.btn_play_mode = btn_ghost("Switch to Play Mode", self, height=34)
@@ -311,9 +323,24 @@ class RunModeView(QWidget):
 
     def _populate_models(self) -> None:
         self._models = ModelRegistry.all_entries()
+        self.combo_model.blockSignals(True)
+        self.combo_model.clear()
+        active_idx = 0
+        current_name = self._vm.active_model_name
 
-    def _refresh_cameras(self) -> None:
-        self._cameras = discover_cameras(max_index=6)
+        for i, m in enumerate(self._models):
+            self.combo_model.addItem(m.name, userData=m)
+            if current_name and m.name == current_name:
+                active_idx = i
+            elif not current_name and ("lstm" in m.name.lower() or "best" in m.name.lower()):
+                active_idx = i
+
+        if self._models:
+            self.combo_model.setCurrentIndex(active_idx)
+        self.combo_model.blockSignals(False)
+
+    def _refresh_cameras(self, force_refresh: bool = False) -> None:
+        self._cameras = discover_cameras(max_index=6, force_refresh=force_refresh)
         self.combo_camera.blockSignals(True)
         self.combo_camera.clear()
         if not self._cameras:
@@ -357,6 +384,12 @@ class RunModeView(QWidget):
     def sync_model(self, model_name: str) -> None:
         if not model_name:
             return
+        self.combo_model.blockSignals(True)
+        for i in range(self.combo_model.count()):
+            if self.combo_model.itemText(i) == model_name:
+                self.combo_model.setCurrentIndex(i)
+                break
+        self.combo_model.blockSignals(False)
         lbl = self.card_model.findChild(QLabel, "valueLabel")
         if lbl:
             lbl.setText(model_name)
@@ -401,6 +434,20 @@ class RunModeView(QWidget):
                 duration=2500,
             )
 
+    def _on_model_selection_changed(self, index: int) -> None:
+        if index < 0 or index >= len(self._models):
+            return
+        selected_model = self.combo_model.currentData()
+        if selected_model and selected_model.name != self._vm.active_model_name:
+            self._vm.set_model(selected_model)
+            InfoBar.success(
+                title="Model Hot-Swapped",
+                content=f"Active touch detector set to {selected_model.name}.",
+                position=InfoBarPosition.TOP,
+                parent=self,
+                duration=3000,
+            )
+
     @Slot(float)
     def _on_fps_updated(self, fps: float) -> None:
         self._latest_fps = fps
@@ -442,6 +489,13 @@ class RunModeView(QWidget):
 
     @Slot(str)
     def _on_model_changed(self, model_name: str) -> None:
+        self.combo_model.blockSignals(True)
+        for i, m in enumerate(self._models):
+            if m.name == model_name:
+                self.combo_model.setCurrentIndex(i)
+                break
+        self.combo_model.blockSignals(False)
+
         lbl = self.card_model.findChild(QLabel, "valueLabel")
         if lbl:
             lbl.setText(model_name)

@@ -53,7 +53,7 @@ class _SequenceLSTM(nn.Module):
 
 
 @register_model(
-    name="LSTM Combined",
+    name="LSTM Combined (92.1% Acc)",
     description="Optimal 2-layer LSTM trained on combined 2D coords+velocities (16 features, 4 steps).",
     weights_file="LSTM_Combined_cfg01.pth",
 )

@@ -117,23 +117,30 @@ class MainWindow(FluentWindow):
         btn_ids = [b.id for b in layout_data.buttons]
         action_config = svc.load(xml_path, btn_ids)
 
-        # Choose primary model from plugin registry
-        default_model = ModelRegistry.get_primary()
+        # Choose best default model from registry
+        models = ModelRegistry.all_entries()
+        default_model = None
+        for m in models:
+            if "lstm" in m.name.lower() or "best" in m.name.lower():
+                default_model = m
+                break
+        if default_model is None and models:
+            default_model = models[0]
 
-        # Resolve best available camera index without blocking UI thread
+        # Resolve best available camera index
+        from services.camera_discovery import discover_cameras
+        available_cams = discover_cameras(max_index=6)
         active_cam_idx = self._config.camera_index
-        from services.camera_discovery import is_camera_available, discover_cameras
-        if not is_camera_available(active_cam_idx):
-            available_cams = discover_cameras(max_index=4)
-            if available_cams:
-                active_cam_idx = available_cams[0].index
-                logger.info(
-                    "Camera %d was unavailable. Auto-selected Camera %d (%s).",
-                    self._config.camera_index,
-                    active_cam_idx,
-                    available_cams[0].name,
-                )
-                self._config.set_camera_index(active_cam_idx)
+        available_indices = [c.index for c in available_cams]
+        if active_cam_idx not in available_indices and available_cams:
+            active_cam_idx = available_cams[0].index
+            logger.info(
+                "Camera %d not in active devices. Auto-selected Camera %d (%s).",
+                self._config.camera_index,
+                active_cam_idx,
+                available_cams[0].name,
+            )
+            self._config.set_camera_index(active_cam_idx)
 
         # Initialize Detector ViewModel in Play Mode
         self._active_det_vm = DetectorViewModel(

@@ -3,7 +3,14 @@ Unit Tests for Preview and Export Services.
 Tests text wrapping, truncation with '..' suffix, and preview/pdf rendering utilities.
 """
 
+import sys
+from pathlib import Path
 import unittest
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from services.preview_service import PreviewService
 from services.pdf_exporter import PdfExporter
 

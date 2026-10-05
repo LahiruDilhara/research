@@ -42,8 +42,6 @@ from .constants import (
     FINGERTIP_PAPER_ANGLE_FACTOR_MM,
     FINGERTIP_EXTRA_FRONT_MM,
     TOUCH_DEBOUNCE_COOLDOWN_S,
-    TOUCH_RELEASE_WINDOWS,
-    TOUCH_MAX_STATIONARY_DISTANCE_MM,
     PRINTED_MARKER_SIDE_WIDTH_MM,
     PRINTED_MARKER_WIDTH_MM,
     PRINTED_MARKER_HEIGHT_MM,
@@ -148,12 +146,6 @@ class AppConfig:
         )
         self._touch_debounce_cooldown_s = float(
             os.getenv("TOUCH_DEBOUNCE_COOLDOWN_S", str(TOUCH_DEBOUNCE_COOLDOWN_S))
-        )
-        self._touch_release_windows = int(
-            os.getenv("TOUCH_RELEASE_WINDOWS", str(TOUCH_RELEASE_WINDOWS))
-        )
-        self._touch_max_stationary_distance_mm = float(
-            os.getenv("TOUCH_MAX_STATIONARY_DISTANCE_MM", str(TOUCH_MAX_STATIONARY_DISTANCE_MM))
         )
         self._printed_marker_side_width_mm = float(
             os.getenv(
@@ -328,20 +320,6 @@ class AppConfig:
         self._touch_onset_threshold = float(value)
         self._touch_release_threshold = max(0.01, min(float(value) * 0.70, float(value) - 0.02))
 
-    @property
-    def touch_release_windows(self) -> int:
-        return max(1, min(20, int(getattr(self, "_touch_release_windows", 2))))
-
-    def set_touch_release_windows(self, value: int) -> None:
-        self._touch_release_windows = max(1, min(20, int(value)))
-
-    @property
-    def touch_max_stationary_distance_mm(self) -> float:
-        return float(getattr(self, "_touch_max_stationary_distance_mm", 4.0))
-
-    def set_touch_max_stationary_distance_mm(self, value: float) -> None:
-        self._touch_max_stationary_distance_mm = max(0.5, min(20.0, float(value)))
-
     def set_plugins_dir(self, value: str) -> None:
         self._plugins_dir = str(value)
 
@@ -478,16 +456,6 @@ class AppConfig:
         if "TOUCH_DEBOUNCE_COOLDOWN_S" in settings:
             try:
                 self.set_touch_debounce_cooldown_s(float(settings["TOUCH_DEBOUNCE_COOLDOWN_S"]))
-            except (ValueError, TypeError):
-                pass
-        if "TOUCH_RELEASE_WINDOWS" in settings:
-            try:
-                self.set_touch_release_windows(int(settings["TOUCH_RELEASE_WINDOWS"]))
-            except (ValueError, TypeError):
-                pass
-        if "TOUCH_MAX_STATIONARY_DISTANCE_MM" in settings:
-            try:
-                self.set_touch_max_stationary_distance_mm(float(settings["TOUCH_MAX_STATIONARY_DISTANCE_MM"]))
             except (ValueError, TypeError):
                 pass
         if "PRINTED_MARKER_SIDE_WIDTH_MM" in settings:

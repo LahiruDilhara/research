@@ -63,6 +63,7 @@ class ActionExecutor:
             return
         dispatch = {
             "keystroke": self._keystroke,
+            "key":       self._keystroke,
             "shortcut":  self._shortcut,
             "shell":     self._shell,
             "macro":     self._macro,
@@ -119,7 +120,11 @@ class ActionExecutor:
 
     def _shell(self, value: str) -> None:
         """Run a shell command string non-blocking."""
-        subprocess.Popen(shlex.split(value))
+        import sys
+        if sys.platform == "win32":
+            subprocess.Popen(value, shell=True)
+        else:
+            subprocess.Popen(shlex.split(value))
         logger.info("ActionExecutor: Shell command '%s' spawned.", value)
 
     def _macro(self, value: str) -> None:

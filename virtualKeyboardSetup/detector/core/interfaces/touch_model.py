@@ -31,7 +31,6 @@ class ModelEntry:
     weights_path: str          # resolved absolute path (set by ModelDiscoveryService)
     cls: type["ITouchModel"]
     instance: "ITouchModel | None" = field(default=None, repr=False)
-    is_primary: bool = False
 
 
 class ModelRegistry:
@@ -54,63 +53,59 @@ class ModelRegistry:
         return next((e for e in cls._entries if e.name == name), None)
 
     @classmethod
-    def get_primary(cls) -> ModelEntry | None:
-        """Returns the first primary model found, or falls back to the first available model."""
-        for e in cls._entries:
-            if e.is_primary:
-                return e
-        return cls._entries[0] if cls._entries else None
-
-    @classmethod
     def clear(cls) -> None:
         cls._entries.clear()
 
 
-# ── Decorators ────────────────────────────────────────────────────────────────
+# ── Decorator ─────────────────────────────────────────────────────────────────
 
 def register_model(
     name: str,
     description: str,
     weights_file: str,
-    is_primary: bool = False,
 ) -> Callable[[type], type]:
     """
     Class decorator that auto-registers an ITouchModel subclass in ModelRegistry.
+
+    Parameters
+    ----------
+    name        : Human-readable model name shown in the UI dropdown.
+    description : Short description of architecture / training dataset.
+    weights_file: Filename of the .pth weights file expected in the same directory
+                  as the plugin .py file (e.g. "LSTM_All_Combined_cfg01.pth").
+
+    Example
+    -------
+    @register_model(
+        name="LSTM All-Combined",
+        description="2-layer LSTM trained on all hand joints coords+velocities.",
+        weights_file="LSTM_All_Combined_cfg01.pth",
+    )
+    class LSTMAllCombinedPlugin(ITouchModel):
+        ...
     """
 
     def decorator(cls: type) -> type:
         if not issubclass(cls, ITouchModel):
             raise TypeError(f"@register_model can only decorate ITouchModel subclasses, got {cls}")
 
+        # Attach metadata to the class for later use by ModelDiscoveryService
         cls._plugin_name = name
         cls._plugin_description = description
         cls._plugin_weights_file = weights_file
-        cls._is_primary = getattr(cls, "_is_primary", is_primary)
 
+        # Register a placeholder entry; weights_path is filled in by discovery service
         entry = ModelEntry(
             name=name,
             description=description,
             weights_file=weights_file,
-            weights_path="",
+            weights_path="",   # filled by ModelDiscoveryService after path resolution
             cls=cls,
-            is_primary=cls._is_primary,
         )
         ModelRegistry.register(entry)
         return cls
 
     return decorator
-
-
-def primaryModel(cls: type) -> type:
-    """
-    Decorator that marks an ITouchModel plugin class as the primary active model.
-    When plugins are scanned, the primary model is automatically loaded and activated.
-    """
-    cls._is_primary = True
-    for entry in ModelRegistry.all_entries():
-        if entry.cls is cls:
-            entry.is_primary = True
-    return cls
 
 
 # ── Abstract base class ────────────────────────────────────────────────────────

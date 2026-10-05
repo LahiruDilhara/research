@@ -147,7 +147,6 @@ class _FrameGrabber(threading.Thread):
                 continue
             with self._lock:
                 self._latest_frame = frame
-            # Cooperative yield so GUI and processing threads are not starved on low-spec multi-core CPUs
             time.sleep(0.001)
 
     def get_latest_frame(self) -> np.ndarray | None:
@@ -174,6 +173,10 @@ class CameraWorker(QThread):
     # (norm_window_5: list[dict], pixel_window_5: list[list[tuple]],
     #  frame_w: int, frame_h: int)
 
+    inference_ready = Signal(dict, list, list, float, int, int)
+    # (results: dict, norm_window_5: list[dict], pixel_window_5: list[list[tuple]],
+    #  latency_ms: float, frame_w: int, frame_h: int)
+
     error = Signal(str)
 
     def __init__(
@@ -189,6 +192,7 @@ class CameraWorker(QThread):
         self._layout = layout
         self._config = config
         self._pipeline_service = pipeline_service
+        self._active_model = None
         self._render_video = True
         self._running = False
         self._show_overlay = True
@@ -198,6 +202,10 @@ class CameraWorker(QThread):
         self._contact_points_clear_t: float = 0.0
         self._apriltag_tracker: AprilTagTracker | None = None
         self.setObjectName("CameraWorker")
+
+    def set_active_model(self, model) -> None:
+        """Dynamically set active AI touch model for background inference execution."""
+        self._active_model = model
 
     def update_layout(self, layout: LayoutData) -> None:
         """Dynamically updates the layout and propagates to the AprilTag tracker."""
@@ -248,6 +256,14 @@ class CameraWorker(QThread):
         self._running = True
         logger.info("CameraWorker started (camera=%d, fps=%s)", self._camera_index, TARGET_FPS)
 
+        # Enable high-resolution multimedia timer on Windows (1ms accuracy instead of 15.6ms default)
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                ctypes.windll.winmm.timeBeginPeriod(1)
+            except Exception:
+                pass
+
         # 1. Ensure MediaPipe model file exists
         model_path = self._ensure_mediapipe_model()
         if model_path is None:
@@ -255,65 +271,57 @@ class CameraWorker(QThread):
             return
 
         # 2. Open camera with automatic fallback to any discovered working camera
-        cap = None
-        with _suppress_c_stderr():
+        def _configure_cap(c: cv2.VideoCapture) -> None:
             if sys.platform == "win32":
-                candidate_cap = cv2.VideoCapture(self._camera_index, cv2.CAP_DSHOW)
-                if not candidate_cap.isOpened():
-                    candidate_cap = cv2.VideoCapture(self._camera_index)
-            else:
-                candidate_cap = cv2.VideoCapture(self._camera_index, cv2.CAP_V4L2)
-                if not candidate_cap.isOpened():
-                    candidate_cap = cv2.VideoCapture(self._camera_index)
-
-            if candidate_cap.isOpened():
-                candidate_cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                candidate_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-                candidate_cap.set(cv2.CAP_PROP_FPS, 30)
                 try:
-                    candidate_cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                    c.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
                 except Exception:
                     pass
-                ret, _ = candidate_cap.read()
+            c.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            c.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            c.set(cv2.CAP_PROP_FPS, 30.0)
+            c.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        def _try_open_cam(index: int) -> cv2.VideoCapture | None:
+            if sys.platform.startswith("linux"):
+                c = cv2.VideoCapture(index, cv2.CAP_V4L2)
+                if not c.isOpened():
+                    c = cv2.VideoCapture(index)
+            elif sys.platform == "win32":
+                c = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+                if not c.isOpened():
+                    c = cv2.VideoCapture(index)
+            else:
+                c = cv2.VideoCapture(index)
+
+            if c.isOpened():
+                _configure_cap(c)
+                ret, _ = c.read()
                 if ret:
-                    cap = candidate_cap
-                else:
-                    candidate_cap.release()
+                    return c
+                c.release()
+            return None
+
+        cap = None
+        with _suppress_c_stderr():
+            cap = _try_open_cam(self._camera_index)
 
         if cap is None:
             from services.camera_discovery import discover_cameras
-            discovered = discover_cameras(max_index=4)
+            discovered = discover_cameras(max_index=6)
             for c in discovered:
                 with _suppress_c_stderr():
-                    if sys.platform == "win32":
-                        fallback_cap = cv2.VideoCapture(c.index, cv2.CAP_DSHOW)
-                        if not fallback_cap.isOpened():
-                            fallback_cap = cv2.VideoCapture(c.index)
-                    else:
-                        fallback_cap = cv2.VideoCapture(c.index, cv2.CAP_V4L2)
-                        if not fallback_cap.isOpened():
-                            fallback_cap = cv2.VideoCapture(c.index)
-
-                    if fallback_cap.isOpened():
-                        fallback_cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                        fallback_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-                        fallback_cap.set(cv2.CAP_PROP_FPS, 30)
-                        try:
-                            fallback_cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                        except Exception:
-                            pass
-                        ret, _ = fallback_cap.read()
-                        if ret:
-                            logger.info(
-                                "Camera %d was unavailable. Auto-recovered with camera %d (%s).",
-                                self._camera_index,
-                                c.index,
-                                c.name,
-                            )
-                            self._camera_index = c.index
-                            cap = fallback_cap
-                            break
-                        fallback_cap.release()
+                    fallback_cap = _try_open_cam(c.index)
+                    if fallback_cap is not None:
+                        logger.info(
+                            "Camera %d was unavailable. Auto-recovered with camera %d (%s).",
+                            self._camera_index,
+                            c.index,
+                            c.name,
+                        )
+                        self._camera_index = c.index
+                        cap = fallback_cap
+                        break
 
         if cap is None or not cap.isOpened():
             self.error.emit(f"Could not open camera {self._camera_index} and no other working camera found.")
@@ -374,7 +382,6 @@ class CameraWorker(QThread):
         actual_fps = TARGET_FPS
         prev_hand_detected = False
         prev_layout_valid = False
-        apriltag_frame_counter = 0
 
         # 6. Main loop
         try:
@@ -407,9 +414,6 @@ class CameraWorker(QThread):
                     fps_start = time.perf_counter()
 
                 # ── 1. AprilTag fiducial homography (runs on raw camera frame) ──
-                # Evaluate AprilTag homography on every frame for immediate, smooth layout tracking
-                # when the paper moves or tilts.
-                apriltag_frame_counter += 1
                 apriltag.update(raw_frame)
                 if apriltag.is_valid and not prev_layout_valid:
                     logger.info("AprilTag: Tracking locked (%d markers visible, homography valid).", apriltag.markers_used)
@@ -444,13 +448,26 @@ class CameraWorker(QThread):
                 )
 
                 if win_ready and norm_window and pixel_window:
-                    logger.info("CameraWorker: Emitting window_ready event to detection viewmodel (%dx%d frame)", frame_w, frame_h)
-                    self.window_ready.emit(
-                        norm_window,
-                        pixel_window,
-                        frame_w,
-                        frame_h,
-                    )
+                    active_model = self._active_model
+                    if active_model is not None:
+                        t0_inf = time.perf_counter()
+                        results = pipeline_service.run_parallel_inference(active_model, norm_window)
+                        inf_latency_ms = (time.perf_counter() - t0_inf) * 1000.0
+                        self.inference_ready.emit(
+                            results,
+                            norm_window,
+                            pixel_window,
+                            inf_latency_ms,
+                            frame_w,
+                            frame_h,
+                        )
+                    else:
+                        self.window_ready.emit(
+                            norm_window,
+                            pixel_window,
+                            frame_w,
+                            frame_h,
+                        )
 
                 if hand_detected and not prev_hand_detected:
                     logger.info("MediaPipe: Hand detected in frame (%s, confidence=%.2f, landmarks=%d)", hand_label or "Active", hand_score, len(raw_lm) if raw_lm else 0)
@@ -486,6 +503,12 @@ class CameraWorker(QThread):
             logger.exception("CameraWorker loop error: %s", exc)
             self.error.emit(str(exc))
         finally:
+            if sys.platform == "win32":
+                try:
+                    import ctypes
+                    ctypes.windll.winmm.timeEndPeriod(1)
+                except Exception:
+                    pass
             grabber.stop()
             grabber.join(timeout=0.5)
             cap.release()

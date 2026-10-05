@@ -53,7 +53,7 @@ class _BiLSTM(nn.Module):
 
 
 @register_model(
-    name="BiLSTM All-Combined",
+    name="BiLSTM All-Combined (91.6% Acc)",
     description="Bidirectional LSTM trained on all hand joints coords, velocities and speeds (45 features, 4 steps).",
     weights_file="BiLSTM_All_Combined_cfg01.pth",
 )
