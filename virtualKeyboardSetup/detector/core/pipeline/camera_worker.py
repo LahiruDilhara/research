@@ -289,8 +289,6 @@ class CameraWorker(QThread):
                     c = cv2.VideoCapture(index)
             elif sys.platform == "win32":
                 c = cv2.VideoCapture(index, cv2.CAP_DSHOW)
-                if not c.isOpened():
-                    c = cv2.VideoCapture(index)
             else:
                 c = cv2.VideoCapture(index)
 
@@ -382,6 +380,7 @@ class CameraWorker(QThread):
         actual_fps = TARGET_FPS
         prev_hand_detected = False
         prev_layout_valid = False
+        apriltag_frame_counter = 0
 
         # 6. Main loop
         try:
@@ -414,7 +413,15 @@ class CameraWorker(QThread):
                     fps_start = time.perf_counter()
 
                 # ── 1. AprilTag fiducial homography (runs on raw camera frame) ──
-                apriltag.update(raw_frame)
+                apriltag_frame_counter += 1
+                # When locked, update every 2nd frame (~6 Hz) to give CPU ample headroom for 12 FPS.
+                # When searching or lost, update every frame for instantaneous lock.
+                run_tag = True
+                if apriltag.is_valid:
+                    run_tag = (apriltag_frame_counter % 2 == 0)
+
+                if run_tag:
+                    apriltag.update(raw_frame)
                 if apriltag.is_valid and not prev_layout_valid:
                     logger.info("AprilTag: Tracking locked (%d markers visible, homography valid).", apriltag.markers_used)
                 elif not apriltag.is_valid and prev_layout_valid:

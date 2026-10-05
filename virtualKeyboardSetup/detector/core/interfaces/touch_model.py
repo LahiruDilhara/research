@@ -53,6 +53,19 @@ class ModelRegistry:
         return next((e for e in cls._entries if e.name == name), None)
 
     @classmethod
+    def get_primary(cls) -> ModelEntry | None:
+        """Returns the primary recommended model (LSTM All-Combined, or any LSTM model, or first)."""
+        for e in cls._entries:
+            name_lower = e.name.lower()
+            if "lstm all-combined" in name_lower:
+                return e
+        for e in cls._entries:
+            name_lower = e.name.lower()
+            if "lstm" in name_lower or "best" in name_lower:
+                return e
+        return cls._entries[0] if cls._entries else None
+
+    @classmethod
     def clear(cls) -> None:
         cls._entries.clear()
 

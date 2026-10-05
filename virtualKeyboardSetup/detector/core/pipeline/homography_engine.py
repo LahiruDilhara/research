@@ -79,17 +79,20 @@ class HomographyEngine:
         self._build_marker_lookup()
         self.reset_smoothing()
 
-    def detect_markers(self, frame: np.ndarray):
+    def detect_markers(self, frame: np.ndarray, draw: bool = False):
         """
         Detects AprilTags in the given frame.
 
         Returns:
             corners: list of detected corner arrays
             ids: array of marker IDs or None
-            annotated_frame: frame with drawn marker outlines and IDs
+            annotated_frame: frame with drawn marker outlines and IDs (or raw frame if draw=False)
         """
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if len(frame.shape) == 3 else frame
         corners, ids, rejected = self.detector.detectMarkers(gray)
+
+        if not draw:
+            return corners, ids, frame
 
         annotated_frame = frame.copy()
         if ids is not None and len(ids) > 0:
@@ -97,7 +100,7 @@ class HomographyEngine:
 
         return corners, ids, annotated_frame
 
-    def compute_homography(self, frame: np.ndarray):
+    def compute_homography(self, frame: np.ndarray, detect_buttons: bool = False):
         """
         Detects markers and computes homography matrix H (image pixels -> paper mm).
         Uses sub-pixel corner refinement and temporal smoothing for rock-solid stability.
@@ -106,7 +109,7 @@ class HomographyEngine:
             H: 3x3 Homography matrix or None
             info: dict containing detection details
         """
-        corners, ids, annotated_frame = self.detect_markers(frame)
+        corners, ids, _ = self.detect_markers(frame, draw=False)
 
         total_buttons = len(getattr(self.layout_data, "buttons", []))
 
@@ -120,7 +123,9 @@ class HomographyEngine:
                 "identified_buttons_count": 0,
                 "total_buttons": total_buttons,
                 "identified_buttons": [],
-                "annotated_frame": annotated_frame,
+                "annotated_frame": frame,
+                "corners": corners,
+                "ids": ids,
                 "message": "No AprilTag markers detected in frame.",
             }
 
@@ -152,7 +157,9 @@ class HomographyEngine:
                 "identified_buttons_count": 0,
                 "total_buttons": total_buttons,
                 "identified_buttons": [],
-                "annotated_frame": annotated_frame,
+                "annotated_frame": frame,
+                "corners": corners,
+                "ids": ids,
                 "message": f"Detected {len(ids)} markers, but none matched known layout markers.",
             }
 
@@ -176,7 +183,7 @@ class HomographyEngine:
             H_final = None
 
         identified_buttons = []
-        if H_final is not None:
+        if H_final is not None and detect_buttons:
             identified_buttons, _ = self.detect_internal_buttons(frame, H_final)
 
         info = {
@@ -188,7 +195,9 @@ class HomographyEngine:
             "identified_buttons_count": len(identified_buttons),
             "total_buttons": total_buttons,
             "identified_buttons": identified_buttons,
-            "annotated_frame": annotated_frame,
+            "annotated_frame": frame,
+            "corners": corners,
+            "ids": ids,
             "message": f"Homography computed ({len(used_ids)} markers). Identified {len(identified_buttons)}/{total_buttons} internal buttons.",
         }
 
@@ -381,7 +390,7 @@ class HomographyEngine:
         if H is None:
             return frame
 
-        overlay_frame = frame.copy()
+        overlay_frame = frame
 
         try:
             H_inv = np.linalg.inv(H)

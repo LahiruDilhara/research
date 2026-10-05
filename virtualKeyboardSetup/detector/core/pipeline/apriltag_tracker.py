@@ -46,6 +46,8 @@ class AprilTagTracker:
         self._H: np.ndarray | None = None
         self._H_inv: np.ndarray | None = None
         self._markers_used: int = 0
+        self._last_corners = None
+        self._last_ids = None
         self._info: dict = {"success": False, "detected_markers_count": 0, "identified_buttons_count": 0}
 
         logger.info(
@@ -86,6 +88,8 @@ class AprilTagTracker:
         self._engine.update_layout(layout)
         self._H = None
         self._H_inv = None
+        self._last_corners = None
+        self._last_ids = None
         logger.info(
             "AprilTagTracker layout updated (%d markers, %d buttons, paper=%.1fx%.1f mm)",
             len(layout.markers),
@@ -99,10 +103,12 @@ class AprilTagTracker:
         Detects AprilTags and computes homography matrix H (image pixels -> paper mm).
         Replicates exact algorithm from designer/analyzer/homography_engine.py.
         """
-        H, info = self._engine.compute_homography(frame_bgr)
+        H, info = self._engine.compute_homography(frame_bgr, detect_buttons=False)
         self._info = info
         detected_count = info.get("detected_markers_count", 0)
         self._markers_used = detected_count
+        self._last_corners = info.get("corners")
+        self._last_ids = info.get("ids")
 
         if H is None or detected_count < self._min_markers:
             self._H = None
@@ -154,7 +160,7 @@ class AprilTagTracker:
     ) -> np.ndarray:
         """
         Draw detected tag outlines, paper boundary, and key bounding boxes onto frame_bgr in-place.
-        Replicates designer/analyzer/homography_engine.py overlay renderer.
+        Replicates designer/analyzer/homography_engine.py overlay renderer without duplicate CV detection.
         Supports highlighting multiple simultaneous active buttons.
         """
         if active_button_ids is None and active_button_id is not None:
@@ -163,9 +169,12 @@ class AprilTagTracker:
         if not self.is_valid or self._H is None:
             return frame_bgr
 
-        # Draw detected marker outlines & IDs
-        corners, ids, annotated_frame = self._engine.detect_markers(frame_bgr)
+        # Draw detected marker outlines using cached detection results from update()
+        # This completely avoids running the heavy cv2.aruco.detectMarkers() a second time!
+        if self._last_corners is not None and self._last_ids is not None and len(self._last_ids) > 0:
+            cv2.aruco.drawDetectedMarkers(frame_bgr, self._last_corners, self._last_ids)
+
         # Draw paper boundary, buttons, center crosshairs, corner tick marks, and active button highlights
         return self._engine.draw_paper_and_buttons_overlay(
-            annotated_frame, self._H, active_button_ids=active_button_ids
+            frame_bgr, self._H, active_button_ids=active_button_ids
         )

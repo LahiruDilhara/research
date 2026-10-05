@@ -346,7 +346,7 @@ class DetectorViewModel(QObject):
             return
         logger.info("Switching camera device to index: %d", camera_index)
         self._camera_index = camera_index
-        self._config._camera_index = camera_index
+        self._config.set_camera_index(camera_index)
         self.camera_changed.emit(camera_index)
         was_running = self._worker is not None and self._worker.isRunning()
         if was_running:

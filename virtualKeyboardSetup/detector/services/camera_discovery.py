@@ -138,8 +138,6 @@ def discover_cameras(max_index: int = 6, force_refresh: bool = False) -> list[Ca
                 cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
             elif sys.platform == "win32":
                 cap = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
-                if not cap.isOpened():
-                    cap = cv2.VideoCapture(idx)
             else:
                 cap = cv2.VideoCapture(idx)
 

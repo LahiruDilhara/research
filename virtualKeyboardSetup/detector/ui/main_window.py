@@ -127,20 +127,8 @@ class MainWindow(FluentWindow):
         if default_model is None and models:
             default_model = models[0]
 
-        # Resolve best available camera index
-        from services.camera_discovery import discover_cameras
-        available_cams = discover_cameras(max_index=6)
         active_cam_idx = self._config.camera_index
-        available_indices = [c.index for c in available_cams]
-        if active_cam_idx not in available_indices and available_cams:
-            active_cam_idx = available_cams[0].index
-            logger.info(
-                "Camera %d not in active devices. Auto-selected Camera %d (%s).",
-                self._config.camera_index,
-                active_cam_idx,
-                available_cams[0].name,
-            )
-            self._config.set_camera_index(active_cam_idx)
+        logger.info("Configured camera device index: %d", active_cam_idx)
 
         # Initialize Detector ViewModel in Play Mode
         self._active_det_vm = DetectorViewModel(
