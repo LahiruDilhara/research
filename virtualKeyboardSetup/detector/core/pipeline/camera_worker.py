@@ -147,6 +147,7 @@ class _FrameGrabber(threading.Thread):
                 continue
             with self._lock:
                 self._latest_frame = frame
+            time.sleep(0.001)
 
     def get_latest_frame(self) -> np.ndarray | None:
         with self._lock:
@@ -255,6 +256,14 @@ class CameraWorker(QThread):
         self._running = True
         logger.info("CameraWorker started (camera=%d, fps=%s)", self._camera_index, TARGET_FPS)
 
+        # Enable high-resolution multimedia timer on Windows (1ms accuracy instead of 15.6ms default)
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                ctypes.windll.winmm.timeBeginPeriod(1)
+            except Exception:
+                pass
+
         # 1. Ensure MediaPipe model file exists
         model_path = self._ensure_mediapipe_model()
         if model_path is None:
@@ -262,6 +271,17 @@ class CameraWorker(QThread):
             return
 
         # 2. Open camera with automatic fallback to any discovered working camera
+        def _configure_cap(c: cv2.VideoCapture) -> None:
+            if sys.platform == "win32":
+                try:
+                    c.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                except Exception:
+                    pass
+            c.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            c.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            c.set(cv2.CAP_PROP_FPS, 30.0)
+            c.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
         def _try_open_cam(index: int) -> cv2.VideoCapture | None:
             if sys.platform.startswith("linux"):
                 c = cv2.VideoCapture(index, cv2.CAP_V4L2)
@@ -275,6 +295,7 @@ class CameraWorker(QThread):
                 c = cv2.VideoCapture(index)
 
             if c.isOpened():
+                _configure_cap(c)
                 ret, _ = c.read()
                 if ret:
                     return c
@@ -482,6 +503,12 @@ class CameraWorker(QThread):
             logger.exception("CameraWorker loop error: %s", exc)
             self.error.emit(str(exc))
         finally:
+            if sys.platform == "win32":
+                try:
+                    import ctypes
+                    ctypes.windll.winmm.timeEndPeriod(1)
+                except Exception:
+                    pass
             grabber.stop()
             grabber.join(timeout=0.5)
             cap.release()

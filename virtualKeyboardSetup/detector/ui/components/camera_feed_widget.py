@@ -66,7 +66,7 @@ class CameraFeedWidget(QLabel):
             target_size = self.size()
             if target_size.width() > 10 and target_size.height() > 10:
                 scaled = self._current_pixmap.scaled(
-                    target_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                    target_size, Qt.KeepAspectRatio, Qt.FastTransformation
                 )
                 self.setPixmap(scaled)
                 # Compute rendered pixmap rectangle for click mapping
