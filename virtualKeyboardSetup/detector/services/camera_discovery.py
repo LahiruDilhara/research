@@ -3,7 +3,7 @@ services/camera_discovery.py
 
 Probes available video capture devices on the system.
 On Linux scans /dev/video* devices cleanly without stderr driver spam.
-Uses QtMultimedia QMediaDevices for instant hardware enumeration without locking OpenCV camera handles on the UI thread.
+Returns a list of CameraInfo dicts for the UI camera selection view.
 """
 
 from __future__ import annotations
@@ -11,12 +11,10 @@ from __future__ import annotations
 import glob
 import os
 import sys
-import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 
 import cv2
-from PySide6.QtMultimedia import QMediaDevices
 
 from utils.logger import setup_logger
 
@@ -25,7 +23,7 @@ logger = setup_logger("CameraDiscovery")
 
 @contextmanager
 def suppress_c_stderr():
-    """Suppress C-level stderr output to silence noisy C++ OpenCV/V4L2 drivers."""
+    """Suppress C-level stderr output to silence noisy C++ OpenCV/V4L2/OBSENSOR drivers."""
     try:
         stderr_fd = sys.stderr.fileno()
         saved_stderr_fd = os.dup(stderr_fd)
@@ -50,31 +48,41 @@ class CameraInfo:
     fps: float
 
 
-# Cache discovery results for 5 seconds to prevent GUI thread freezing
-_DISCOVERY_CACHE: list[CameraInfo] | None = None
-_LAST_DISCOVERY_TIME: float = 0.0
+def is_camera_available(index: int) -> bool:
+    """Quickly check if a single camera index can be opened and read without scanning all devices."""
+    with suppress_c_stderr():
+        if sys.platform == "win32":
+            cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+            if not cap.isOpened():
+                cap = cv2.VideoCapture(index)
+        else:
+            dev_videos = glob.glob("/dev/video*")
+            if dev_videos:
+                cap = cv2.VideoCapture(index, cv2.CAP_V4L2)
+            else:
+                cap = cv2.VideoCapture(index)
+
+        if not cap.isOpened():
+            cap.release()
+            return False
+
+        ret, _ = cap.read()
+        cap.release()
+        return bool(ret)
 
 
-def discover_cameras(max_index: int = 6, force_refresh: bool = False) -> list[CameraInfo]:
+def discover_cameras(max_index: int = 6) -> list[CameraInfo]:
     """
     Probes video capture devices and returns those that produce a readable frame.
-    Uses Qt QMediaDevices to determine exact camera count instantly without touching hardware pins.
 
     Parameters
     ----------
-    max_index : Upper bound for index scan (exclusive).
-    force_refresh : If True, bypasses the 5-second discovery cache.
+    max_index : Upper bound for index scan (exclusive) when /dev/video* is not available.
 
     Returns
     -------
     List of CameraInfo objects sorted by device index.
     """
-    global _DISCOVERY_CACHE, _LAST_DISCOVERY_TIME
-
-    now = time.perf_counter()
-    if not force_refresh and _DISCOVERY_CACHE is not None and (now - _LAST_DISCOVERY_TIME) < 5.0:
-        return _DISCOVERY_CACHE
-
     # Configure OpenCV logging
     os.environ["OPENCV_LOG_LEVEL"] = "OFF"
     os.environ["OPENCV_VIDEOIO_DEBUG"] = "0"
@@ -83,50 +91,22 @@ def discover_cameras(max_index: int = 6, force_refresh: bool = False) -> list[Ca
     except AttributeError:
         pass
 
-    # 1. Try Qt QMediaDevices for instant hardware enumeration without hardware locks
-    try:
-        qt_devices = QMediaDevices.videoInputs()
-        if qt_devices:
-            found: list[CameraInfo] = []
-            for idx, dev in enumerate(qt_devices):
-                if idx < max_index:
-                    desc = dev.description() or f"Camera {idx}"
-                    found.append(
-                        CameraInfo(
-                            index=idx,
-                            name=f"{desc} (/{idx})",
-                            width=640,
-                            height=480,
-                            fps=30.0,
-                        )
-                    )
-            if found:
-                logger.info("Discovered %d camera(s) via QMediaDevices instantly.", len(found))
-                _DISCOVERY_CACHE = found
-                _LAST_DISCOVERY_TIME = time.perf_counter()
-                return found
-    except Exception as exc:
-        logger.debug("QMediaDevices discovery fallback: %s", exc)
-
-    # 2. Linux fallback /dev/video*
     candidates: list[int] = []
-    dev_videos: list[str] = []
-    if sys.platform.startswith("linux"):
-        dev_videos = sorted(glob.glob("/dev/video*"))
+    dev_videos = sorted(glob.glob("/dev/video*"))
+    if dev_videos:
         for dev in dev_videos:
             try:
                 idx = int(dev.replace("/dev/video", ""))
-                if idx not in candidates and idx < max_index:
+                if idx not in candidates:
                     candidates.append(idx)
             except ValueError:
                 pass
-
-    if not candidates:
+    else:
         candidates = list(range(max_index))
 
     found: list[CameraInfo] = []
     seen: set[int] = set()
-    consecutive_fails = 0
+    consecutive_failures = 0
 
     for idx in sorted(candidates):
         if idx in seen:
@@ -134,38 +114,43 @@ def discover_cameras(max_index: int = 6, force_refresh: bool = False) -> list[Ca
         seen.add(idx)
 
         with suppress_c_stderr():
-            if sys.platform.startswith("linux") and dev_videos:
+            # On Linux try V4L2 first to avoid FFMPEG/OBSENSOR fallback spam.
+            # On Windows use DirectShow (CAP_DSHOW) to prevent multi-second MSMF device timeouts.
+            if dev_videos:
                 cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
             elif sys.platform == "win32":
                 cap = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
+                if not cap.isOpened():
+                    cap = cv2.VideoCapture(idx)
             else:
                 cap = cv2.VideoCapture(idx)
 
             if not cap.isOpened():
                 cap.release()
-                consecutive_fails += 1
-                if sys.platform == "win32" and consecutive_fails >= 1:
-                    break
+                if not dev_videos:
+                    consecutive_failures += 1
+                    if consecutive_failures >= 2 and idx > 0:
+                        break
                 continue
 
             ret, _ = cap.read()
             if not ret:
                 cap.release()
-                consecutive_fails += 1
-                if sys.platform == "win32" and consecutive_fails >= 1:
-                    break
+                if not dev_videos:
+                    consecutive_failures += 1
+                    if consecutive_failures >= 2 and idx > 0:
+                        break
                 continue
 
+            consecutive_failures = 0
             w   = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             h   = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             fps = cap.get(cv2.CAP_PROP_FPS) or 0.0
             cap.release()
-            consecutive_fails = 0
 
-        name_str = f"Camera {idx}  (/dev/video{idx})" if sys.platform.startswith("linux") else f"Camera {idx}"
         info = CameraInfo(
             index=idx,
-            name=name_str,
+            name=f"Camera {idx}" + (f" (/dev/video{idx})" if dev_videos else ""),
             width=w,
             height=h,
             fps=fps,
@@ -176,7 +161,5 @@ def discover_cameras(max_index: int = 6, force_refresh: bool = False) -> list[Ca
     if not found:
         logger.warning("No usable cameras detected.")
 
-    result = sorted(found, key=lambda c: c.index)
-    _DISCOVERY_CACHE = result
-    _LAST_DISCOVERY_TIME = time.perf_counter()
-    return result
+    return sorted(found, key=lambda c: c.index)
+

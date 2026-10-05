@@ -17,7 +17,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from core.interfaces.touch_model import ITouchModel, register_model
+from core.interfaces.touch_model import ITouchModel, register_model, primaryModel
 from core.pipeline.feature_extractor import (
     compute_window_velocities,
     extract_variant_tensor,
@@ -59,9 +59,10 @@ class _SequenceLSTM(nn.Module):
         return self.head(out[:, -1, :]).squeeze(-1)
 
 
+@primaryModel
 @register_model(
-    name="LSTM All-Combined (94.3% Acc)",
-    description="Champion 2-layer LSTM trained on all hand joints coords, velocities and speeds (45 features, 4 steps).",
+    name="LSTM Touch Detector",
+    description="Touch detection model trained on all hand joints coords, velocities and speeds (45 features, 4 steps).",
     weights_file="LSTM_All_Combined_cfg01.pth",
 )
 class LSTMAllCombinedPlugin(ITouchModel):

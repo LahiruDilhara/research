@@ -73,7 +73,7 @@ class _TouchResNet1D(nn.Module):
 
 
 @register_model(
-    name="ResNet1D All-Combined (90.5% Acc)",
+    name="ResNet1D All-Combined",
     description="1D Residual CNN with skip connections trained on all joints coords, velocities and speeds.",
     weights_file="ResNet1D_All_Combined_cfg01.pth",
 )

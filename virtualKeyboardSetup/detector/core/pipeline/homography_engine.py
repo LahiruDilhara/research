@@ -34,7 +34,7 @@ def get_aruco_dictionary(family_str: str):
 
 
 class HomographyEngine:
-    def __init__(self, layout_data, ransac_thresh_mm: float = 5.0, smoothing_alpha: float = 0.65):
+    def __init__(self, layout_data, ransac_thresh_mm: float = 5.0, smoothing_alpha: float = 0.85):
         """
         layout_data: LayoutData instance (supports both object attributes and dict structures)
         ransac_thresh_mm: RANSAC threshold in destination (paper mm) units
@@ -47,7 +47,10 @@ class HomographyEngine:
         family = getattr(layout_data, "marker_family", "DICT_APRILTAG_36h11")
         dictionary = get_aruco_dictionary(family)
         detector_params = cv2.aruco.DetectorParameters()
-        detector_params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+        # CORNER_REFINE_CONTOUR is much more stable than SUBPIX at low-to-medium resolutions (360p/480p/720p).
+        # SUBPIX searches in a tiny local gradient window, amplifying sensor pixel noise and causing corner jitter.
+        # CONTOUR fits lines to the entire perimeter contour of each marker border, averaging out noise.
+        detector_params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_CONTOUR
         self.detector = cv2.aruco.ArucoDetector(dictionary, detector_params)
 
         self._smoothed_H: np.ndarray | None = None
@@ -79,20 +82,17 @@ class HomographyEngine:
         self._build_marker_lookup()
         self.reset_smoothing()
 
-    def detect_markers(self, frame: np.ndarray, draw: bool = False):
+    def detect_markers(self, frame: np.ndarray):
         """
         Detects AprilTags in the given frame.
 
         Returns:
             corners: list of detected corner arrays
             ids: array of marker IDs or None
-            annotated_frame: frame with drawn marker outlines and IDs (or raw frame if draw=False)
+            annotated_frame: frame with drawn marker outlines and IDs
         """
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if len(frame.shape) == 3 else frame
         corners, ids, rejected = self.detector.detectMarkers(gray)
-
-        if not draw:
-            return corners, ids, frame
 
         annotated_frame = frame.copy()
         if ids is not None and len(ids) > 0:
@@ -100,7 +100,72 @@ class HomographyEngine:
 
         return corners, ids, annotated_frame
 
-    def compute_homography(self, frame: np.ndarray, detect_buttons: bool = False):
+    def _compute_H_from_markers(
+        self,
+        corners,
+        ids,
+    ) -> tuple[np.ndarray | None, list[int], int]:
+        """
+        Compute homography via pooled least-squares DLT (deterministic, no RANSAC).
+
+        All 4 corners from every detected and matched marker are pooled into one global
+        overdetermined system:  N markers  →  4N point correspondences  →  one SVD solve.
+        cv2.findHomography with method=0 uses ordinary least-squares (DLT via SVD).
+        The result is the globally optimal H for ALL visible marker corners simultaneously.
+
+        Why NOT per-marker averaging:
+          Homography matrices do NOT live in a linear space.  Averaging two Hs element-wise
+          does NOT produce a matrix representing the average transform — especially under
+          perspective tilt the result is geometrically wrong and causes keys to shift toward
+          the image centre.
+
+        Why NOT RANSAC:
+          RANSAC is probabilistic — it picks random 4-point subsets each frame, which
+          produces slightly different H values on consecutive frames even when nothing moves,
+          causing the jitter we were seeing.
+
+        Pooled DLT gives: deterministic + globally optimal + more markers = better.
+
+        Returns:
+            H       : 3×3 homography (pixel → mm), or None on failure
+            used_ids: list of marker IDs that contributed points
+            n_pts   : total corner points used (4 × len(used_ids))
+        """
+        if ids is None or len(ids) == 0:
+            return None, [], 0
+
+        ids_flat = ids.flatten()
+        src_pts: list[list[float]] = []   # camera pixel coordinates
+        dst_pts: list[list[float]] = []   # paper mm coordinates
+        used_ids: list[int] = []
+
+        for idx, m_id in enumerate(ids_flat):
+            m_id = int(m_id)
+            if m_id not in self._marker_dict:
+                continue
+
+            corners_mm = self._marker_dict[m_id]   # 4 × [x, y] in paper mm
+            m_corners_px = corners[idx][0]          # shape (4, 2) — TL, TR, BR, BL
+
+            for i in range(4):
+                src_pts.append(m_corners_px[i].tolist())
+                dst_pts.append(list(corners_mm[i]))
+
+            used_ids.append(m_id)
+
+        if not used_ids:
+            return None, [], 0
+
+        src_np = np.array(src_pts, dtype=np.float32)
+        dst_np = np.array(dst_pts, dtype=np.float32)
+
+        # method=0: ordinary least-squares via SVD — fully deterministic, no random sampling.
+        # All corners from valid markers are genuine inliers so RANSAC is unnecessary.
+        H, _ = cv2.findHomography(src_np, dst_np, 0)
+
+        return H, used_ids, len(src_pts)
+
+    def compute_homography(self, frame: np.ndarray):
         """
         Detects markers and computes homography matrix H (image pixels -> paper mm).
         Uses sub-pixel corner refinement and temporal smoothing for rock-solid stability.
@@ -109,7 +174,7 @@ class HomographyEngine:
             H: 3x3 Homography matrix or None
             info: dict containing detection details
         """
-        corners, ids, _ = self.detect_markers(frame, draw=False)
+        corners, ids, annotated_frame = self.detect_markers(frame)
 
         total_buttons = len(getattr(self.layout_data, "buttons", []))
 
@@ -120,70 +185,59 @@ class HomographyEngine:
                 "detected_markers_count": 0,
                 "used_marker_ids": [],
                 "inliers_count": 0,
+                "total_points": 0,
                 "identified_buttons_count": 0,
                 "total_buttons": total_buttons,
                 "identified_buttons": [],
-                "annotated_frame": frame,
+                "annotated_frame": annotated_frame,
                 "corners": corners,
                 "ids": ids,
                 "message": "No AprilTag markers detected in frame.",
             }
 
-        src_pts: list[list[float]] = []  # Image pixels: [(x, y), ...]
-        dst_pts: list[list[float]] = []  # Paper coordinates in mm: [(X, Y), ...]
-        used_ids: list[int] = []
+        # ── Pooled Least-Squares DLT Homography (deterministic, no RANSAC) ───────
+        H, used_ids, n_pts = self._compute_H_from_markers(corners, ids)
+        inliers_count = n_pts
 
-        ids_flat = ids.flatten()
-        for idx, m_id in enumerate(ids_flat):
-            m_id = int(m_id)
-            if m_id in self._marker_dict:
-                corners_mm = self._marker_dict[m_id]
-                m_corners_px = corners[idx][0]  # Shape (4, 2): TL, TR, BR, BL
-
-                # Add 4 corner correspondences
-                for i in range(4):
-                    src_pts.append(m_corners_px[i].tolist())
-                    dst_pts.append(corners_mm[i])
-
-                used_ids.append(m_id)
-
-        if len(src_pts) < 4:
+        if not used_ids:
             self._smoothed_H = None
+            num_detected = len(ids) if ids is not None else 0
             return None, {
                 "success": False,
-                "detected_markers_count": len(used_ids),
-                "used_marker_ids": used_ids,
+                "detected_markers_count": 0,
+                "used_marker_ids": [],
                 "inliers_count": 0,
+                "total_points": 0,
                 "identified_buttons_count": 0,
                 "total_buttons": total_buttons,
                 "identified_buttons": [],
-                "annotated_frame": frame,
+                "annotated_frame": annotated_frame,
                 "corners": corners,
                 "ids": ids,
-                "message": f"Detected {len(ids)} markers, but none matched known layout markers.",
+                "message": f"Detected {num_detected} markers but none matched known layout markers.",
             }
 
-        src_np = np.array(src_pts, dtype=np.float32)
-        dst_np = np.array(dst_pts, dtype=np.float32)
-
-        H, mask = cv2.findHomography(src_np, dst_np, cv2.RANSAC, self.ransac_thresh_mm)
-        inliers_count = int(np.sum(mask)) if mask is not None else 0
-
         if H is not None:
-            # Temporal smoothing to prevent jitter
+            # Canonical normalization: projectively equivalent, ensures stable blending
+            if abs(H[2, 2]) > 1e-7:
+                H = H / H[2, 2]
+
             if self._smoothed_H is None:
-                self._smoothed_H = H
+                self._smoothed_H = H.copy()
             else:
-                self._smoothed_H = (
-                    self.smoothing_alpha * self._smoothed_H + (1.0 - self.smoothing_alpha) * H
-                )
+                # When only 1 marker is visible, use higher damping (0.94) to eliminate single-marker leverage jitter.
+                # When 2+ markers are visible, use standard alpha (0.85) for snappy responsiveness.
+                alpha = 0.94 if len(used_ids) == 1 else self.smoothing_alpha
+                self._smoothed_H = alpha * self._smoothed_H + (1.0 - alpha) * H
+                if abs(self._smoothed_H[2, 2]) > 1e-7:
+                    self._smoothed_H = self._smoothed_H / self._smoothed_H[2, 2]
             H_final = self._smoothed_H
         else:
             self._smoothed_H = None
             H_final = None
 
         identified_buttons = []
-        if H_final is not None and detect_buttons:
+        if H_final is not None:
             identified_buttons, _ = self.detect_internal_buttons(frame, H_final)
 
         info = {
@@ -191,14 +245,14 @@ class HomographyEngine:
             "detected_markers_count": len(used_ids),
             "used_marker_ids": used_ids,
             "inliers_count": inliers_count,
-            "total_points": len(src_pts),
+            "total_points": n_pts,
             "identified_buttons_count": len(identified_buttons),
             "total_buttons": total_buttons,
             "identified_buttons": identified_buttons,
-            "annotated_frame": frame,
+            "annotated_frame": annotated_frame,
             "corners": corners,
             "ids": ids,
-            "message": f"Homography computed ({len(used_ids)} markers). Identified {len(identified_buttons)}/{total_buttons} internal buttons.",
+            "message": f"Homography computed ({len(used_ids)} markers, avg). Identified {len(identified_buttons)}/{total_buttons} internal buttons.",
         }
 
         return H_final, info
@@ -297,57 +351,49 @@ class HomographyEngine:
                 "detected_markers_count": 0,
                 "used_marker_ids": [],
                 "inliers_count": 0,
+                "total_points": 0,
                 "identified_buttons_count": 0,
                 "total_buttons": total_buttons,
                 "identified_buttons": [],
                 "annotated_frame": annotated_frame,
+                "corners": corners,
+                "ids": ids,
                 "message": "No AprilTag markers detected in frame.",
             }
 
-        src_pts: list[list[float]] = []
-        dst_pts: list[list[float]] = []
-        used_ids: list[int] = []
+        # ── Pooled Least-Squares DLT Homography (deterministic, no RANSAC) ───────
+        H, used_ids, n_pts = self._compute_H_from_markers(corners, ids)
+        inliers_count = n_pts
 
-        ids_flat = ids.flatten()
-        for idx, m_id in enumerate(ids_flat):
-            m_id = int(m_id)
-            if m_id in self._marker_dict:
-                corners_mm = self._marker_dict[m_id]
-                m_corners_px = corners[idx][0]
-
-                for i in range(4):
-                    src_pts.append(m_corners_px[i].tolist())
-                    dst_pts.append(corners_mm[i])
-
-                used_ids.append(m_id)
-
-        if len(src_pts) < 4:
+        if not used_ids:
             self._smoothed_H = None
+            num_detected = len(ids) if ids is not None else 0
             return None, {
                 "success": False,
-                "detected_markers_count": len(used_ids),
-                "used_marker_ids": used_ids,
+                "detected_markers_count": 0,
+                "used_marker_ids": [],
                 "inliers_count": 0,
+                "total_points": 0,
                 "identified_buttons_count": 0,
                 "total_buttons": total_buttons,
                 "identified_buttons": [],
                 "annotated_frame": annotated_frame,
-                "message": f"Detected {len(ids)} markers, but none matched layout.",
+                "corners": corners,
+                "ids": ids,
+                "message": f"Detected {num_detected} markers but none matched layout.",
             }
 
-        src_np = np.array(src_pts, dtype=np.float32)
-        dst_np = np.array(dst_pts, dtype=np.float32)
-
-        H, mask = cv2.findHomography(src_np, dst_np, cv2.RANSAC, self.ransac_thresh_mm)
-        inliers_count = int(np.sum(mask)) if mask is not None else 0
-
         if H is not None:
+            if abs(H[2, 2]) > 1e-7:
+                H = H / H[2, 2]
+
             if self._smoothed_H is None:
-                self._smoothed_H = H
+                self._smoothed_H = H.copy()
             else:
-                self._smoothed_H = (
-                    self.smoothing_alpha * self._smoothed_H + (1.0 - self.smoothing_alpha) * H
-                )
+                alpha = 0.94 if len(used_ids) == 1 else self.smoothing_alpha
+                self._smoothed_H = alpha * self._smoothed_H + (1.0 - alpha) * H
+                if abs(self._smoothed_H[2, 2]) > 1e-7:
+                    self._smoothed_H = self._smoothed_H / self._smoothed_H[2, 2]
             H_final = self._smoothed_H
         else:
             self._smoothed_H = None
@@ -365,12 +411,12 @@ class HomographyEngine:
             "detected_markers_count": len(used_ids),
             "used_marker_ids": used_ids,
             "inliers_count": inliers_count,
-            "total_points": len(src_pts),
+            "total_points": n_pts,
             "identified_buttons_count": len(identified_buttons),
             "total_buttons": total_buttons,
             "identified_buttons": identified_buttons,
             "annotated_frame": annotated_frame,
-            "message": f"Homography computed ({len(used_ids)} markers). Identified {len(identified_buttons)}/{total_buttons} buttons.",
+            "message": f"Homography computed ({len(used_ids)} markers, avg). Identified {len(identified_buttons)}/{total_buttons} buttons.",
         }
 
         return H_final, info
@@ -390,7 +436,7 @@ class HomographyEngine:
         if H is None:
             return frame
 
-        overlay_frame = frame
+        overlay_frame = frame.copy()
 
         try:
             H_inv = np.linalg.inv(H)
@@ -431,10 +477,17 @@ class HomographyEngine:
                 thickness = 2
 
             if is_active:
-                # Semi-transparent highlight fill for pressed button
-                overlay = overlay_frame.copy()
-                cv2.fillPoly(overlay, [btn_pts_px], color=(0, 230, 118))
-                cv2.addWeighted(overlay, 0.40, overlay_frame, 0.60, 0, overlay_frame)
+                # Optimized semi-transparent highlight fill (blend only bounding box of the active button)
+                bx, by, bw, bh = cv2.boundingRect(btn_pts_px)
+                ih, iw = overlay_frame.shape[:2]
+                bx1, by1 = max(0, bx), max(0, by)
+                bx2, by2 = min(iw, bx + bw), min(ih, by + bh)
+                if bx2 > bx1 and by2 > by1:
+                    roi = overlay_frame[by1:by2, bx1:bx2]
+                    sub_overlay = roi.copy()
+                    sub_pts = btn_pts_px - np.array([bx1, by1])
+                    cv2.fillPoly(sub_overlay, [sub_pts], color=(0, 230, 118))
+                    cv2.addWeighted(sub_overlay, 0.40, roi, 0.60, 0, roi)
 
             # Draw internal button box
             cv2.polylines(overlay_frame, [btn_pts_px], isClosed=True, color=color, thickness=thickness)
