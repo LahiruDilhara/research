@@ -260,9 +260,6 @@ class MainWindow(FluentWindow):
         action_save_as.setShortcut("Ctrl+Shift+S")
         action_save_as.triggered.connect(self._on_action_save_as)
 
-        action_db_save = Action(FluentIcon.SYNC, "DB Sync", self)
-        action_db_save.triggered.connect(self.designer_vm.sync_to_database)
-
         action_export_pdf = Action(FluentIcon.PRINT, "Export PDF", self)
         action_export_pdf.triggered.connect(self._on_action_export_pdf)
 

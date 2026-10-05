@@ -10,7 +10,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from config.app_config import AppConfig
-from db.connection import DatabaseManager
 from ui.main_window import MainWindow
 from utils.logger import setup_logger
 
@@ -23,11 +22,7 @@ def main() -> None:
     config = AppConfig(env_file if env_file.exists() else None)
     logger.info("Configuration loaded successfully.")
 
-    # 2. Initialize Database Connection & Tables
-    db_manager = DatabaseManager(config.db_path)
-    logger.info(f"Database initialized at: {db_manager.db_path}")
-
-    # 3. Setup PySide6 Application & High-DPI Attributes
+    # 2. Setup PySide6 Application & High-DPI Attributes
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )

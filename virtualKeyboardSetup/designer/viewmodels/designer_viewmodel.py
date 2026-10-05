@@ -1,7 +1,7 @@
 """
 Designer View Model (MVVM Architecture).
 Mediates layout state, user actions (button/marker CRUD), selection, validation,
-XML repository file persistence, SQLite database sync, and PDF printing.
+XML repository file persistence, and PDF printing.
 """
 
 from pathlib import Path
@@ -13,7 +13,6 @@ from core.models.marker_model import MarkerModel
 from core.models.paper_layout import PaperLayoutModel
 from core.geometry.layout_geometry import validate_layout_geometry, rects_overlap
 from services.xml_repository import XmlRepository
-from services.db_repository import DbRepository
 from services.pdf_exporter import PdfExporter
 from services.preview_service import PreviewService
 
@@ -55,7 +54,6 @@ class DesignerViewModel(QObject):
 
         # Repositories & Exporters
         self.xml_repo = XmlRepository(self.config)
-        self.db_repo = DbRepository()
         self.pdf_exporter = PdfExporter()
         self.preview_service = PreviewService()
 
@@ -464,19 +462,6 @@ class DesignerViewModel(QObject):
             self.status_message.emit("Project Saved", f"Saved layout to {Path(filepath).name}")
         except Exception as e:
             self.error_message.emit("Error Saving Project", str(e))
-
-    def sync_to_database(self) -> None:
-        """Synchronize current layout model with SQLite database."""
-        self.sync_layout_config()
-        is_valid, err_msg = validate_layout_geometry(self._layout, self.config)
-        if not is_valid:
-            self.error_message.emit("Cannot Sync Database", err_msg)
-            return
-        try:
-            self.db_repo.save("default_layout", self._layout)
-            self.status_message.emit("Database Sync", "Saved current layout into SQLite database.")
-        except Exception as e:
-            self.error_message.emit("Database Error", str(e))
 
     def export_pdf(self, filepath: str) -> None:
         """Export printable PDF layout sheet."""

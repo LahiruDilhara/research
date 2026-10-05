@@ -70,10 +70,6 @@ class SettingsViewModel(QObject):
     def button_stroke_width_mm(self) -> float:
         return self.config.button_stroke_width_mm
 
-    @property
-    def db_path(self) -> str:
-        return self.config.db_path
-
     def get_preset_dimensions(self, index: int) -> tuple[float, float] | None:
         """Return (width_mm, height_mm) for a preset index, or None if Custom."""
         if 0 <= index < len(self.PRESETS):

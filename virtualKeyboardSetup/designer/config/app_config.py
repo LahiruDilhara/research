@@ -53,7 +53,6 @@ class AppConfig:
         self._button_min_gap_mm = float(os.getenv("BUTTON_MIN_GAP_MM", BUTTON_MIN_GAP_MM))
         self._default_font_size_pt = int(os.getenv("DEFAULT_FONT_SIZE_PT", DEFAULT_FONT_SIZE_PT))
 
-        self._db_path = os.getenv("DB_PATH", "designer_data.db")
         self._app_title = os.getenv("APP_TITLE", "Virtual Keyboard Paper Layout Designer")
         self._app_theme = os.getenv("APP_THEME", "Dark")
         self._grid_snap_enabled = os.getenv("GRID_SNAP_ENABLED", "true").lower() in ("true", "1", "yes")
@@ -173,10 +172,6 @@ class AppConfig:
     @default_font_size_pt.setter
     def default_font_size_pt(self, value: int) -> None:
         self._default_font_size_pt = max(4, int(value))
-
-    @property
-    def db_path(self) -> str:
-        return self._db_path
 
     @property
     def app_title(self) -> str:

@@ -193,7 +193,7 @@ class SettingsView(QWidget):
         grid_layout.setContentsMargins(0, 12, 0, 12)
         grid_layout.setSpacing(0)
 
-        grid_title = StrongBodyLabel("4. Grid Snapping & Database Options", grid_card)
+        grid_title = StrongBodyLabel("4. Grid Snapping & Preferences", grid_card)
         grid_title.setStyleSheet("color: #009FEF; font-size: 14px; font-weight: bold; padding: 0 16px 8px 16px;")
         grid_layout.addWidget(grid_title)
 
@@ -204,12 +204,8 @@ class SettingsView(QWidget):
         self.spin_grid_size.setRange(1.0, 50.0)
         self.spin_grid_size.setValue(self.viewmodel.grid_size_mm)
 
-        self.lbl_db_path = BodyLabel(self.viewmodel.db_path, grid_card)
-        self.lbl_db_path.setStyleSheet("color: #CBD5E1;")
-
         grid_layout.addWidget(create_setting_row("Grid Snapping Enabled", "Snap items to layout grid coordinates during drag", self.switch_grid, grid_card))
         grid_layout.addWidget(create_setting_row("Grid Step Size (mm)", "Grid cell interval spacing in millimeters", self.spin_grid_size, grid_card))
-        grid_layout.addWidget(create_setting_row("SQLite Database Location", "File storage path for saved paper layout designs", self.lbl_db_path, grid_card))
 
         layout.addWidget(grid_card)
 
