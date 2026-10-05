@@ -83,3 +83,5 @@ Thumbs.db
 
 dataprocessing/
 training_testing_data/
+*.db
+*.sqlite3
