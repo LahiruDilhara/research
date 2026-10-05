@@ -124,7 +124,7 @@ class MainWindow(FluentWindow):
         active_cam_idx = self._config.camera_index
         from services.camera_discovery import is_camera_available, discover_cameras
         if not is_camera_available(active_cam_idx):
-            available_cams = discover_cameras(max_index=4)
+            available_cams = discover_cameras(max_index=4, preferred_index=active_cam_idx)
             if available_cams:
                 active_cam_idx = available_cams[0].index
                 logger.info(

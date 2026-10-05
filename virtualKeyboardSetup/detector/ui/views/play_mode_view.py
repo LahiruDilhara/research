@@ -280,7 +280,7 @@ class PlayModeView(QWidget):
         self._models = ModelRegistry.all_entries()
 
     def _refresh_cameras(self) -> None:
-        self._cameras = discover_cameras(max_index=6)
+        self._cameras = discover_cameras(max_index=4, preferred_index=self._vm.camera_index)
         self.combo_camera.blockSignals(True)
         self.combo_camera.clear()
         if not self._cameras:

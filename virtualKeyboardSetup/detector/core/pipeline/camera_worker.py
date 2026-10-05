@@ -281,12 +281,9 @@ class CameraWorker(QThread):
         with _suppress_c_stderr():
             if sys.platform == "win32":
                 candidate_cap = cv2.VideoCapture(self._camera_index, cv2.CAP_DSHOW)
-                if not candidate_cap.isOpened():
-                    candidate_cap = cv2.VideoCapture(self._camera_index)
             else:
-                candidate_cap = cv2.VideoCapture(self._camera_index, cv2.CAP_V4L2)
-                if not candidate_cap.isOpened():
-                    candidate_cap = cv2.VideoCapture(self._camera_index)
+                dev_videos = glob.glob("/dev/video*")
+                candidate_cap = cv2.VideoCapture(self._camera_index, cv2.CAP_V4L2 if dev_videos else 0)
 
             if candidate_cap.isOpened():
                 _configure_cap(candidate_cap)
@@ -303,12 +300,9 @@ class CameraWorker(QThread):
                 with _suppress_c_stderr():
                     if sys.platform == "win32":
                         fallback_cap = cv2.VideoCapture(c.index, cv2.CAP_DSHOW)
-                        if not fallback_cap.isOpened():
-                            fallback_cap = cv2.VideoCapture(c.index)
                     else:
-                        fallback_cap = cv2.VideoCapture(c.index, cv2.CAP_V4L2)
-                        if not fallback_cap.isOpened():
-                            fallback_cap = cv2.VideoCapture(c.index)
+                        dev_videos = glob.glob("/dev/video*")
+                        fallback_cap = cv2.VideoCapture(c.index, cv2.CAP_V4L2 if dev_videos else 0)
 
                     if fallback_cap.isOpened():
                         _configure_cap(fallback_cap)
