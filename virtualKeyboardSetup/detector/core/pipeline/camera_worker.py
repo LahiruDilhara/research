@@ -248,6 +248,14 @@ class CameraWorker(QThread):
         self._running = True
         logger.info("CameraWorker started (camera=%d, fps=%s)", self._camera_index, TARGET_FPS)
 
+        # Enable high-resolution multimedia timer on Windows (1ms accuracy instead of 15.6ms default)
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                ctypes.windll.winmm.timeBeginPeriod(1)
+            except Exception:
+                pass
+
         # 1. Ensure MediaPipe model file exists
         model_path = self._ensure_mediapipe_model()
         if model_path is None:
@@ -255,6 +263,20 @@ class CameraWorker(QThread):
             return
 
         # 2. Open camera with automatic fallback to any discovered working camera
+        def _configure_cap(c: cv2.VideoCapture) -> None:
+            if sys.platform == "win32":
+                try:
+                    c.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                except Exception:
+                    pass
+            c.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            c.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            c.set(cv2.CAP_PROP_FPS, 30)
+            try:
+                c.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            except Exception:
+                pass
+
         cap = None
         with _suppress_c_stderr():
             if sys.platform == "win32":
@@ -267,13 +289,7 @@ class CameraWorker(QThread):
                     candidate_cap = cv2.VideoCapture(self._camera_index)
 
             if candidate_cap.isOpened():
-                candidate_cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                candidate_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-                candidate_cap.set(cv2.CAP_PROP_FPS, 30)
-                try:
-                    candidate_cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                except Exception:
-                    pass
+                _configure_cap(candidate_cap)
                 ret, _ = candidate_cap.read()
                 if ret:
                     cap = candidate_cap
@@ -295,13 +311,7 @@ class CameraWorker(QThread):
                             fallback_cap = cv2.VideoCapture(c.index)
 
                     if fallback_cap.isOpened():
-                        fallback_cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                        fallback_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-                        fallback_cap.set(cv2.CAP_PROP_FPS, 30)
-                        try:
-                            fallback_cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                        except Exception:
-                            pass
+                        _configure_cap(fallback_cap)
                         ret, _ = fallback_cap.read()
                         if ret:
                             logger.info(
@@ -486,6 +496,12 @@ class CameraWorker(QThread):
             logger.exception("CameraWorker loop error: %s", exc)
             self.error.emit(str(exc))
         finally:
+            if sys.platform == "win32":
+                try:
+                    import ctypes
+                    ctypes.windll.winmm.timeEndPeriod(1)
+                except Exception:
+                    pass
             grabber.stop()
             grabber.join(timeout=0.5)
             cap.release()
